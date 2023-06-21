@@ -35,7 +35,7 @@ jobs:
         run: |
           npm run test
 
-      - name: DB stop
+      - name: Docker stop
         run: |
           npm run docker:stop
 
