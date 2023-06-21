@@ -1,6 +1,6 @@
 export interface Consumer {
-  consume(): void
-  close(): Promise<void>
+  consume(): void // subscribe and start listening
+  close(): Promise<unknown>
 }
 
 export interface SyncPublisher<MessagePayloadType> {
