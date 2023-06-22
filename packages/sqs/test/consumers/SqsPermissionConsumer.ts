@@ -2,8 +2,8 @@ import type { Either } from '@lokalise/node-core'
 
 import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer'
 import type { SQSDependencies } from '../../lib/sqs/AbstractSqsService'
-
 import { userPermissionMap } from '../repositories/PermissionRepository'
+
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
 

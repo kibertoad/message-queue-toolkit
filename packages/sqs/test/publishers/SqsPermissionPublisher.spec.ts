@@ -8,16 +8,16 @@ import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from
 
 import type { SQSMessage } from '../../lib/sqs/AbstractSqsConsumer'
 import { deserializeMessage } from '../../lib/sqs/messageDeserializer'
-
 import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer'
-import { SqsPermissionPublisher } from './SqsPermissionPublisher'
-import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
-import { userPermissionMap } from '../repositories/PermissionRepository'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
+import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
+import { userPermissionMap } from '../repositories/PermissionRepository'
 import { deleteQueue, purgeQueue } from '../utils/sqsUtils'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
+
+import { SqsPermissionPublisher } from './SqsPermissionPublisher'
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]

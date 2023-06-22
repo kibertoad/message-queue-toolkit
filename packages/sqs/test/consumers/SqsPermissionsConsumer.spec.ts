@@ -5,13 +5,14 @@ import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
-import { SqsPermissionConsumer } from './SqsPermissionConsumer'
-import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
+import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 import { deleteQueue, purgeQueue } from '../utils/sqsUtils'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
+
+import { SqsPermissionConsumer } from './SqsPermissionConsumer'
 
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']

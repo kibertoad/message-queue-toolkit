@@ -1,6 +1,5 @@
 import { AbstractSqsPublisher } from '../../lib/sqs/AbstractSqsPublisher'
 import type { SQSDependencies } from '../../lib/sqs/AbstractSqsService'
-
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 
