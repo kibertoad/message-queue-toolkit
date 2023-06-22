@@ -4,7 +4,7 @@ import { asClass, Lifetime } from 'awilix'
 import { describe, beforeAll, beforeEach, afterAll, afterEach, expect, it } from 'vitest'
 
 import { deserializeMessage } from '../../lib/messageDeserializer'
-import { waitAndRetry } from '../../lib/utils/waitUtils'
+import { waitAndRetry } from '../../../core/lib/utils/waitUtils'
 import { PermissionConsumer } from '../consumers/PermissionConsumer'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'

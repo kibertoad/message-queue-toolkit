@@ -8,11 +8,12 @@ export class PermissionPublisher extends AbstractAmqpPublisher<PERMISSIONS_MESSA
 
   constructor(dependencies: AMQPDependencies) {
     super(
+        dependencies,
       {
         queueName: PermissionPublisher.QUEUE_NAME,
         messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
+          messageTypeField: 'messageType'
       },
-      dependencies,
     )
   }
 }

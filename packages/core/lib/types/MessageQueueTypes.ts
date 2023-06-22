@@ -7,6 +7,10 @@ export interface SyncPublisher<MessagePayloadType> {
   publish(message: MessagePayloadType): void
 }
 
+export interface AsyncPublisher<MessagePayloadType, MessageOptions> {
+  publish(message: MessagePayloadType, options: MessageOptions): Promise<unknown>
+}
+
 export type TransactionObservabilityManager = {
   start: (transactionSpanId: string) => unknown
   stop: (transactionSpanId: string) => unknown
