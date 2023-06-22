@@ -1,5 +1,9 @@
 import type { Either } from '@lokalise/node-core'
-import type {Consumer, QueueOptions, TransactionObservabilityManager} from '@message-queue-toolkit/core'
+import type {
+  Consumer,
+  QueueOptions,
+  TransactionObservabilityManager,
+} from '@message-queue-toolkit/core'
 import type { Message } from 'amqplib'
 
 import type { AMQPDependencies } from './AbstractAmqpService'
@@ -72,7 +76,9 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
         return
       }
       // @ts-ignore
-      const transactionSpanId = `queue_${this.queueName}:${deserializedMessage.result[this.messageTypeField]}`
+      const transactionSpanId = `queue_${this.queueName}:${
+        deserializedMessage.result[this.messageTypeField]
+      }`
 
       this.transactionObservabilityManager?.start(transactionSpanId)
       this.processMessage(deserializedMessage.result)

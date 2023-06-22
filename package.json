@@ -7,6 +7,7 @@
   "scripts": {
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
+    "format": "npm run format --workspaces",
     "test": "npm run test:coverage --workspaces",
     "docker:start": "npm run docker:start:dev --workspaces",
     "docker:stop": "npm run docker:stop:dev --workspaces"

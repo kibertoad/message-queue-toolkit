@@ -64,7 +64,7 @@
   },
   "overrides": [
     {
-      "files": ["test/**/*.ts","*.test.ts", "*.spec.ts"],
+      "files": ["test/**/*.ts", "*.test.ts", "*.spec.ts"],
       "rules": {
         "@typescript-eslint/require-await": "off",
         "@typescript-eslint/no-empty-function": "off",

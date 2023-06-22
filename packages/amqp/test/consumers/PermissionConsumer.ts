@@ -11,14 +11,11 @@ export class PermissionConsumer extends AbstractAmqpConsumer<PERMISSIONS_MESSAGE
   public static QUEUE_NAME = 'user_permissions'
 
   constructor(dependencies: AMQPDependencies) {
-    super(
-      dependencies,
-        {
-          queueName: PermissionConsumer.QUEUE_NAME,
-          messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
-          messageTypeField: 'messageType',
-        },
-    )
+    super(dependencies, {
+      queueName: PermissionConsumer.QUEUE_NAME,
+      messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
+      messageTypeField: 'messageType',
+    })
   }
 
   override async processMessage(

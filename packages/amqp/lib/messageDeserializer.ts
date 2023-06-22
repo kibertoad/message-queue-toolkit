@@ -5,7 +5,7 @@ import type { ZodType } from 'zod'
 import type { AmqpConsumerErrorResolver } from './errors/AmqpConsumerErrorResolver'
 import type { AmqpMessageInvalidFormat, AmqpValidationError } from './errors/amqpErrors'
 
-export const deserializeMessage = <T extends { }>(
+export const deserializeMessage = <T extends {}>(
   message: Message,
   type: ZodType<T>,
   errorProcessor: AmqpConsumerErrorResolver,
