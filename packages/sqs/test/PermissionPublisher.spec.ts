@@ -1,18 +1,20 @@
+import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass, Lifetime } from 'awilix'
-import { describe, beforeAll, beforeEach, afterAll, afterEach, expect, it } from 'vitest'
+import { Consumer } from 'sqs-consumer'
+import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 
-import { PermissionPublisher } from './PermissionPublisher'
-import {Dependencies, registerDependencies, SINGLETON_CONFIG} from "./utils/testContext";
-import {FakeConsumerErrorResolver} from "./fakes/FakeConsumerErrorResolver";
-import {FakeConsumer} from "./fakes/FakeConsumer";
-import {PermissionConsumer} from "./PermissionConsumer";
-import {PERMISSIONS_MESSAGE_SCHEMA, PERMISSIONS_MESSAGE_TYPE} from "./userConsumerSchemas";
-import {deserializeMessage} from "../lib/sqs/messageDeserializer";
-import { waitAndRetry} from '@message-queue-toolkit/core'
-import { Consumer} from 'sqs-consumer'
-import {SQSMessage} from "../lib/sqs/AbstractSqsConsumer";
-import {deleteQueue} from "./utils/sqsUtils";
+import type { SQSMessage } from '../lib/sqs/AbstractSqsConsumer'
+import { deserializeMessage } from '../lib/sqs/messageDeserializer'
+
+import { PermissionConsumer } from './PermissionConsumer'
+import { FakeConsumer } from './fakes/FakeConsumer'
+import { FakeConsumerErrorResolver } from './fakes/FakeConsumerErrorResolver'
+import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
+import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
+import { deleteQueue } from './utils/sqsUtils'
+import { registerDependencies, SINGLETON_CONFIG } from './utils/testContext'
+import type { Dependencies } from './utils/testContext'
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
@@ -20,20 +22,21 @@ const userIds = [100, 200, 300]
 describe('PermissionPublisher', () => {
   describe('publish', () => {
     let diContainer: AwilixContainer<Dependencies>
-    beforeAll(async () => {
-        diContainer = await registerDependencies({
-          consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
-          permissionConsumer: asClass(FakeConsumer, {
-            lifetime: Lifetime.SINGLETON,
-            asyncInit: 'consume',
-            asyncDispose: 'close',
-            asyncDisposePriority: 10,
-          }),
-        })
+    beforeEach(async () => {
+      diContainer = await registerDependencies({
+        consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
+        permissionConsumer: asClass(FakeConsumer, {
+          lifetime: Lifetime.SINGLETON,
+          asyncInit: 'consume',
+          asyncDispose: 'close',
+          asyncDisposePriority: 10,
+        }),
+      })
       await deleteQueue(diContainer.cradle.sqsClient, PermissionConsumer.QUEUE_NAME)
+      await diContainer.cradle.permissionPublisher.init()
     })
 
-    afterAll(async () => {
+    afterEach(async () => {
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
       await diContainer.dispose()
@@ -56,9 +59,9 @@ describe('PermissionPublisher', () => {
             return
           }
           const decodedMessage = deserializeMessage(
-              message as any,
-              PERMISSIONS_MESSAGE_SCHEMA,
-              new FakeConsumerErrorResolver(),
+            message as any,
+            PERMISSIONS_MESSAGE_SCHEMA,
+            new FakeConsumerErrorResolver(),
           )
           receivedMessage = decodedMessage.result!
         },

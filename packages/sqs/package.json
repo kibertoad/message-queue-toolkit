@@ -6,7 +6,6 @@
     "build": "tsc",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
-    "test:ci": "npm run copy:config && npm run test:migrate && npm run test:coverage",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint .  --ext .ts --fix",
     "format": "prettier --write .",

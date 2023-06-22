@@ -1,7 +1,9 @@
+import type { PERMISSIONS_MESSAGE_TYPE } from '../../test/userConsumerSchemas'
+import { PERMISSIONS_MESSAGE_SCHEMA } from '../../test/userConsumerSchemas'
+import { SqsConsumerErrorResolver } from '../errors/SqsConsumerErrorResolver'
+
+import type { SQSMessage } from './AbstractSqsConsumer'
 import { deserializeMessage } from './messageDeserializer'
-import {PERMISSIONS_MESSAGE_SCHEMA, PERMISSIONS_MESSAGE_TYPE} from "../../test/userConsumerSchemas";
-import {SqsConsumerErrorResolver} from "../errors/SqsConsumerErrorResolver";
-import {SQSMessage} from "./AbstractSqsConsumer";
 
 describe('messageDeserializer', () => {
   it('deserializes valid JSON', () => {
@@ -10,10 +12,9 @@ describe('messageDeserializer', () => {
       userIds: [1],
       permissions: ['perm'],
     }
-    const message: SQSMessage =
-        {
-          Body: JSON.stringify(messagePayload)
-        } as SQSMessage
+    const message: SQSMessage = {
+      Body: JSON.stringify(messagePayload),
+    } as SQSMessage
 
     const errorProcessor = new SqsConsumerErrorResolver()
 
@@ -30,10 +31,9 @@ describe('messageDeserializer', () => {
     const messagePayload: Partial<PERMISSIONS_MESSAGE_TYPE> = {
       userIds: [1],
     }
-    const message: SQSMessage =
-        {
-          Body: JSON.stringify(messagePayload)
-        } as SQSMessage
+    const message: SQSMessage = {
+      Body: JSON.stringify(messagePayload),
+    } as SQSMessage
 
     const errorProcessor = new SqsConsumerErrorResolver()
 

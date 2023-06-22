@@ -1,4 +1,4 @@
-import {SqsConsumerErrorResolver} from "../../lib/errors/SqsConsumerErrorResolver";
+import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver'
 
 export class FakeConsumerErrorResolver extends SqsConsumerErrorResolver {
   public handleErrorCallsCount: number

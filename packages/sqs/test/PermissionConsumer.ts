@@ -1,26 +1,24 @@
 import type { Either } from '@lokalise/node-core'
 
+import { AbstractSqsConsumer } from '../lib/sqs/AbstractSqsConsumer'
+import type { SQSDependencies } from '../lib/sqs/AbstractSqsService'
+
+import { userPermissionMap } from './repositories/PermissionRepository'
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
-import {SQSDependencies} from "../lib/sqs/AbstractSqsService";
-import {AbstractSqsConsumer} from "../lib/sqs/AbstractSqsConsumer";
-import {userPermissionMap} from "./repositories/PermissionRepository";
 
 export class PermissionConsumer extends AbstractSqsConsumer<PERMISSIONS_MESSAGE_TYPE> {
   public static QUEUE_NAME = 'user_permissions'
 
   constructor(dependencies: SQSDependencies) {
-    super(
-      dependencies,
-        {
-          queueName: PermissionConsumer.QUEUE_NAME,
-          messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
-          messageTypeField: 'messageType',
-          consumerOverrides: {
-            terminateVisibilityTimeout: true // this allows to retry failed messages immediately
-          }
-        },
-    )
+    super(dependencies, {
+      queueName: PermissionConsumer.QUEUE_NAME,
+      messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
+      messageTypeField: 'messageType',
+      consumerOverrides: {
+        terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
+      },
+    })
   }
 
   override async processMessage(

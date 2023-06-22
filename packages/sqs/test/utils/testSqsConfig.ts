@@ -1,4 +1,4 @@
-import type {SQSClientConfig } from '@aws-sdk/client-sqs'
+import type { SQSClientConfig } from '@aws-sdk/client-sqs'
 
 export const TEST_SQS_CONFIG: SQSClientConfig = {
   endpoint: 'http://s3.localhost.localstack.cloud:4566',

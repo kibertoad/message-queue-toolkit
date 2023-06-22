@@ -1,14 +1,15 @@
+import { SQSClient } from '@aws-sdk/client-sqs'
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
-import { SQSClient } from '@aws-sdk/client-sqs'
 import type { Resolver } from 'awilix'
 import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
-import {SqsConsumerErrorResolver} from "../../lib/errors/SqsConsumerErrorResolver";
-import {TEST_SQS_CONFIG} from "./testSqsConfig";
-import {PermissionPublisher} from "../PermissionPublisher";
-import {PermissionConsumer} from "../PermissionConsumer";
+import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver'
+import { PermissionConsumer } from '../PermissionConsumer'
+import { PermissionPublisher } from '../PermissionPublisher'
+
+import { TEST_SQS_CONFIG } from './testSqsConfig'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -17,9 +18,7 @@ export type DependencyOverrides = Partial<DiConfig>
 // @ts-ignore
 const TestLogger: Logger = console
 
-export async function registerDependencies(
-  dependencyOverrides: DependencyOverrides = {},
-) {
+export async function registerDependencies(dependencyOverrides: DependencyOverrides = {}) {
   const diContainer = createContainer({
     injectionMode: 'PROXY',
   })
@@ -54,13 +53,11 @@ export async function registerDependencies(
 
     permissionConsumer: asClass(PermissionConsumer, {
       lifetime: Lifetime.SINGLETON,
-      asyncInit: 'consume',
       asyncDispose: 'close',
       asyncDisposePriority: 10,
     }),
     permissionPublisher: asClass(PermissionPublisher, {
       lifetime: Lifetime.SINGLETON,
-      asyncInit: 'init',
       asyncDispose: 'close',
       asyncDisposePriority: 20,
     }),

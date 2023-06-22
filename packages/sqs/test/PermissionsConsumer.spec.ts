@@ -1,17 +1,16 @@
-import type { Channel } from 'amqplib'
+import type { SQSClient } from '@aws-sdk/client-sqs'
+import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 
 import { PermissionConsumer } from './PermissionConsumer'
-
-import { PermissionPublisher } from './PermissionPublisher'
-import {Dependencies, registerDependencies, SINGLETON_CONFIG} from "./utils/testContext";
-import {FakeConsumerErrorResolver} from "./fakes/FakeConsumerErrorResolver";
-import { waitAndRetry} from '@message-queue-toolkit/core'
-import {userPermissionMap} from "./repositories/PermissionRepository";
-import {SQSClient} from "@aws-sdk/client-sqs";
-import {deleteQueue} from "./utils/sqsUtils";
+import type { PermissionPublisher } from './PermissionPublisher'
+import { FakeConsumerErrorResolver } from './fakes/FakeConsumerErrorResolver'
+import { userPermissionMap } from './repositories/PermissionRepository'
+import { deleteQueue } from './utils/sqsUtils'
+import { registerDependencies, SINGLETON_CONFIG } from './utils/testContext'
+import type { Dependencies } from './utils/testContext'
 
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
@@ -48,8 +47,6 @@ describe('PermissionsConsumer', () => {
     let publisher: PermissionPublisher
     let sqsClient: SQSClient
     beforeEach(async () => {
-      await deleteQueue(sqsClient, PermissionConsumer.QUEUE_NAME)
-
       delete userPermissionMap[100]
       delete userPermissionMap[200]
       delete userPermissionMap[300]
@@ -58,6 +55,7 @@ describe('PermissionsConsumer', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
+      await deleteQueue(sqsClient, PermissionConsumer.QUEUE_NAME)
 
       await diContainer.cradle.permissionConsumer.consume()
     })
@@ -76,12 +74,11 @@ describe('PermissionsConsumer', () => {
       userPermissionMap[200] = []
       userPermissionMap[300] = []
 
-      await publisher.publish(
-        {
-          messageType: 'add',
-          userIds,
-          permissions: perms,
-        })
+      await publisher.publish({
+        messageType: 'add',
+        userIds,
+        permissions: perms,
+      })
 
       const updatedUsersPermissions = await waitForPermissions(userIds)
 
@@ -97,12 +94,11 @@ describe('PermissionsConsumer', () => {
       const users = Object.values(userPermissionMap)
       expect(users).toHaveLength(0)
 
-      await publisher.publish(
-          {
-            messageType: 'add',
-            userIds,
-            permissions: perms,
-          })
+      await publisher.publish({
+        messageType: 'add',
+        userIds,
+        permissions: perms,
+      })
 
       // no users in the database, so message will go back to the queue
       const usersFromDb = await waitForPermissions(userIds)
@@ -128,12 +124,11 @@ describe('PermissionsConsumer', () => {
 
       userPermissionMap[100] = []
 
-      await publisher.publish(
-          {
-            messageType: 'add',
-            userIds,
-            permissions: perms,
-          })
+      await publisher.publish({
+        messageType: 'add',
+        userIds,
+        permissions: perms,
+      })
 
       // not all users are in the database, so message will go back to the queue
       const usersFromDb = await waitForPermissions(userIds)
@@ -155,11 +150,10 @@ describe('PermissionsConsumer', () => {
     it('Invalid message in the queue', async () => {
       const { consumerErrorResolver } = diContainer.cradle
 
-      await publisher.publish(
-          {
-            messageType: 'add',
-            permissions: perms,
-          } as any)
+      await publisher.publish({
+        messageType: 'add',
+        permissions: perms,
+      } as any)
 
       const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
       await waitAndRetry(() => fakeResolver.handleErrorCallsCount, 500, 5)

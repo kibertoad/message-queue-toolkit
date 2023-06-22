@@ -11,7 +11,7 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
-export abstract class AbstractAmqpConsumer<MessagePayloadType extends {}>
+export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
   extends AbstractAmqpService<MessagePayloadType>
   implements Consumer
 {

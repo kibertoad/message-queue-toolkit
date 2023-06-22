@@ -18,6 +18,7 @@
   ],
   "rules": {
     "prettier/prettier": "error",
+    "no-empty": "off",
     "@typescript-eslint/no-empty-interface": "warn",
     "@typescript-eslint/ban-ts-comment": "off",
     "@typescript-eslint/no-use-before-define": "off",
@@ -66,6 +67,8 @@
     {
       "files": ["test/**/*.ts","*.test.ts", "*.spec.ts"],
       "rules": {
+        "@typescript-eslint/no-unsafe-argument": "off",
+        "@typescript-eslint/no-explicit-any": "off",
         "@typescript-eslint/require-await": "off",
         "@typescript-eslint/no-empty-function": "off",
         "@typescript-eslint/no-non-null-assertion": "off",

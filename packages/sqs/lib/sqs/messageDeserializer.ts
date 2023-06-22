@@ -1,10 +1,11 @@
-import type {Either, ErrorResolver} from '@lokalise/node-core'
+import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type { ZodType } from 'zod'
 
-import {SQSMessage} from "./AbstractSqsConsumer";
-import {SqsMessageInvalidFormat, SqsValidationError} from "../errors/sqsErrors";
+import type { SqsMessageInvalidFormat, SqsValidationError } from '../errors/sqsErrors'
 
-export const deserializeMessage = <T extends { }>(
+import type { SQSMessage } from './AbstractSqsConsumer'
+
+export const deserializeMessage = <T extends object>(
   message: SQSMessage,
   type: ZodType<T>,
   errorProcessor: ErrorResolver,

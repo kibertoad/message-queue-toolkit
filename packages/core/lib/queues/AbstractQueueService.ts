@@ -10,13 +10,13 @@ export type QueueDependencies = {
     transactionObservabilityManager: TransactionObservabilityManager
 }
 
-export type QueueOptions<MessagePayloadType extends {}> = {
+export type QueueOptions<MessagePayloadType extends object> = {
     messageSchema: ZodSchema<MessagePayloadType>
     messageTypeField: string
     queueName: string
 }
 
-export abstract class AbstractQueueService<MessagePayloadType extends {},
+export abstract class AbstractQueueService<MessagePayloadType extends object,
 DependenciesType extends QueueDependencies, OptionsType extends QueueOptions<MessagePayloadType> = QueueOptions<MessagePayloadType>> {
     protected readonly queueName: string
     protected readonly errorResolver: ErrorResolver

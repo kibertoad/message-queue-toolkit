@@ -7,7 +7,7 @@ export type AMQPDependencies = QueueDependencies & {
   amqpConnection: Connection
 }
 
-export class AbstractAmqpService<MessagePayloadType extends {}> extends AbstractQueueService<MessagePayloadType, AMQPDependencies>{
+export class AbstractAmqpService<MessagePayloadType extends object> extends AbstractQueueService<MessagePayloadType, AMQPDependencies>{
   protected readonly connection: Connection
   // @ts-ignore
   protected channel: Channel
