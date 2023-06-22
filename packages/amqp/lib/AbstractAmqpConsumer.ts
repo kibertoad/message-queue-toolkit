@@ -1,4 +1,4 @@
-import type { Either } from '@lokalise/node-core'
+import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   QueueConsumer,
   QueueOptions,
@@ -6,7 +6,7 @@ import type {
 } from '@message-queue-toolkit/core'
 import type { Message } from 'amqplib'
 
-import type { AMQPDependencies } from './AbstractAmqpService'
+import type { AMQPConsumerDependencies } from './AbstractAmqpService'
 import { AbstractAmqpService } from './AbstractAmqpService'
 import { AmqpMessageInvalidFormat, AmqpValidationError } from './errors/amqpErrors'
 import { deserializeMessage } from './messageDeserializer'
@@ -16,14 +16,16 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
 }
 
 export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
-  extends AbstractAmqpService<MessagePayloadType>
+  extends AbstractAmqpService<MessagePayloadType, AMQPConsumerDependencies>
   implements QueueConsumer
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
+  protected readonly errorResolver: ErrorResolver
 
-  constructor(dependencies: AMQPDependencies, options: QueueOptions<MessagePayloadType>) {
+  constructor(dependencies: AMQPConsumerDependencies, options: QueueOptions<MessagePayloadType>) {
     super(dependencies, options)
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
+    this.errorResolver = dependencies.consumerErrorResolver
   }
 
   abstract processMessage(

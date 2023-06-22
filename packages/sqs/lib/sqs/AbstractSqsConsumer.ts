@@ -1,4 +1,4 @@
-import type { Either } from '@lokalise/node-core'
+import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   QueueConsumer as QueueConsumer,
   QueueOptions,
@@ -9,7 +9,7 @@ import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import { SqsMessageInvalidFormat, SqsValidationError } from '../errors/sqsErrors'
 
-import type { SQSDependencies } from './AbstractSqsService'
+import type { SQSConsumerDependencies } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
 import { deserializeMessage } from './messageDeserializer'
 
@@ -30,17 +30,27 @@ export type SQSConsumerOptions<MessagePayloadType extends object> =
   }
 
 export abstract class AbstractSqsConsumer<MessagePayloadType extends object>
-  extends AbstractSqsService<MessagePayloadType, SQSConsumerOptions<MessagePayloadType>>
+  extends AbstractSqsService<
+    MessagePayloadType,
+    SQSConsumerOptions<MessagePayloadType>,
+    SQSConsumerDependencies
+  >
   implements QueueConsumer
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
+  protected readonly errorResolver: ErrorResolver
   // @ts-ignore
   protected consumer: Consumer
   private readonly consumerOptionsOverride: Partial<ConsumerOptions>
 
-  constructor(dependencies: SQSDependencies, options: SQSConsumerOptions<MessagePayloadType>) {
+  constructor(
+    dependencies: SQSConsumerDependencies,
+    options: SQSConsumerOptions<MessagePayloadType>,
+  ) {
     super(dependencies, options)
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
+    this.errorResolver = dependencies.consumerErrorResolver
+
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
   }
 
