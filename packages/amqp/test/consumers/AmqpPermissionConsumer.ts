@@ -1,23 +1,20 @@
 import type { Either } from '@lokalise/node-core'
 
-import { AbstractSqsConsumer } from '../lib/sqs/AbstractSqsConsumer'
-import type { SQSDependencies } from '../lib/sqs/AbstractSqsService'
+import { AbstractAmqpConsumer } from '../../lib/AbstractAmqpConsumer'
+import type { AMQPDependencies } from '../../lib/AbstractAmqpService'
+import { userPermissionMap } from '../repositories/PermissionRepository'
 
-import { userPermissionMap } from './repositories/PermissionRepository'
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
 
-export class PermissionConsumer extends AbstractSqsConsumer<PERMISSIONS_MESSAGE_TYPE> {
+export class AmqpPermissionConsumer extends AbstractAmqpConsumer<PERMISSIONS_MESSAGE_TYPE> {
   public static QUEUE_NAME = 'user_permissions'
 
-  constructor(dependencies: SQSDependencies) {
+  constructor(dependencies: AMQPDependencies) {
     super(dependencies, {
-      queueName: PermissionConsumer.QUEUE_NAME,
+      queueName: AmqpPermissionConsumer.QUEUE_NAME,
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
-      consumerOverrides: {
-        terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
-      },
     })
   }
 

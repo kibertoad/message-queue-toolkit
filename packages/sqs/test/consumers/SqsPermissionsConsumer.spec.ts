@@ -5,13 +5,14 @@ import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
-import { PermissionConsumer } from './PermissionConsumer'
-import type { PermissionPublisher } from './PermissionPublisher'
-import { FakeConsumerErrorResolver } from './fakes/FakeConsumerErrorResolver'
-import { userPermissionMap } from './repositories/PermissionRepository'
-import { deleteQueue, purgeQueue } from './utils/sqsUtils'
-import { registerDependencies, SINGLETON_CONFIG } from './utils/testContext'
-import type { Dependencies } from './utils/testContext'
+import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
+import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
+import { userPermissionMap } from '../repositories/PermissionRepository'
+import { deleteQueue, purgeQueue } from '../utils/sqsUtils'
+import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
+import type { Dependencies } from '../utils/testContext'
+
+import { SqsPermissionConsumer } from './SqsPermissionConsumer'
 
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
@@ -45,7 +46,7 @@ async function waitForPermissions(userIds: number[]) {
 describe('PermissionsConsumer', () => {
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: PermissionPublisher
+    let publisher: SqsPermissionPublisher
     let sqsClient: SQSClient
     beforeAll(async () => {
       diContainer = await registerDependencies({
@@ -53,7 +54,7 @@ describe('PermissionsConsumer', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
-      await purgeQueue(sqsClient, PermissionConsumer.QUEUE_NAME)
+      await purgeQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
     })
 
     beforeEach(async () => {
@@ -61,8 +62,8 @@ describe('PermissionsConsumer', () => {
       delete userPermissionMap[200]
       delete userPermissionMap[300]
 
-      await deleteQueue(sqsClient, PermissionConsumer.QUEUE_NAME)
-      await diContainer.cradle.permissionConsumer.consume()
+      await deleteQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await diContainer.cradle.permissionConsumer.start()
       await diContainer.cradle.permissionPublisher.init()
 
       const command = new ReceiveMessageCommand({
@@ -70,6 +71,10 @@ describe('PermissionsConsumer', () => {
       })
       const reply = await sqsClient.send(command)
       expect(reply.Messages).toBeUndefined()
+
+      const fakeErrorResolver = diContainer.cradle
+        .consumerErrorResolver as FakeConsumerErrorResolver
+      fakeErrorResolver.clear()
     })
 
     afterAll(async () => {
@@ -79,7 +84,7 @@ describe('PermissionsConsumer', () => {
     })
 
     afterEach(async () => {
-      await purgeQueue(sqsClient, PermissionConsumer.QUEUE_NAME)
+      await purgeQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.close()
       await diContainer.cradle.permissionConsumer.close(true)
     })

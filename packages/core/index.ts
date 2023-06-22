@@ -1,5 +1,5 @@
 export type {
-  Consumer,
+  QueueConsumer,
   AsyncPublisher,
   SyncPublisher,
   TransactionObservabilityManager,

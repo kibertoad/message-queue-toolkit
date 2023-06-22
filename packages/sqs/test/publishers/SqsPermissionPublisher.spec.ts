@@ -6,28 +6,28 @@ import { asClass } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
-import type { SQSMessage } from '../lib/sqs/AbstractSqsConsumer'
-import { deserializeMessage } from '../lib/sqs/messageDeserializer'
+import type { SQSMessage } from '../../lib/sqs/AbstractSqsConsumer'
+import { deserializeMessage } from '../../lib/sqs/messageDeserializer'
+import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer'
+import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
+import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
+import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
+import { userPermissionMap } from '../repositories/PermissionRepository'
+import { deleteQueue, purgeQueue } from '../utils/sqsUtils'
+import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
+import type { Dependencies } from '../utils/testContext'
 
-import { PermissionConsumer } from './PermissionConsumer'
-import { PermissionPublisher } from './PermissionPublisher'
-import { FakeConsumerErrorResolver } from './fakes/FakeConsumerErrorResolver'
-import { userPermissionMap } from './repositories/PermissionRepository'
-import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
-import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
-import { deleteQueue, purgeQueue } from './utils/sqsUtils'
-import { registerDependencies, SINGLETON_CONFIG } from './utils/testContext'
-import type { Dependencies } from './utils/testContext'
+import { SqsPermissionPublisher } from './SqsPermissionPublisher'
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
 
-describe('PermissionPublisher', () => {
+describe('AmqpPermissionPublisher', () => {
   describe('publish', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
     let consumer: Consumer
-    let publisher: PermissionPublisher
+    let publisher: SqsPermissionPublisher
 
     beforeAll(async () => {
       diContainer = await registerDependencies({
@@ -35,7 +35,7 @@ describe('PermissionPublisher', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
-      await purgeQueue(sqsClient, PermissionConsumer.QUEUE_NAME)
+      await purgeQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
     })
 
     beforeEach(async () => {
@@ -43,7 +43,7 @@ describe('PermissionPublisher', () => {
       delete userPermissionMap[200]
       delete userPermissionMap[300]
 
-      await deleteQueue(sqsClient, PermissionPublisher.QUEUE_NAME)
+      await deleteQueue(sqsClient, SqsPermissionPublisher.QUEUE_NAME)
       await diContainer.cradle.permissionPublisher.init()
 
       const command = new ReceiveMessageCommand({
@@ -62,7 +62,7 @@ describe('PermissionPublisher', () => {
     afterEach(async () => {
       consumer?.stop()
       consumer?.stop({ abort: true })
-      await purgeQueue(sqsClient, PermissionPublisher.QUEUE_NAME)
+      await purgeQueue(sqsClient, SqsPermissionPublisher.QUEUE_NAME)
     })
 
     it('publishes a message', async () => {

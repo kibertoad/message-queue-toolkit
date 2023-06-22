@@ -6,8 +6,8 @@ import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
 import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver'
-import { PermissionConsumer } from '../PermissionConsumer'
-import { PermissionPublisher } from '../PermissionPublisher'
+import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer'
+import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 
 import { TEST_SQS_CONFIG } from './testSqsConfig'
 
@@ -50,12 +50,12 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       return new SqsConsumerErrorResolver()
     }),
 
-    permissionConsumer: asClass(PermissionConsumer, {
+    permissionConsumer: asClass(SqsPermissionConsumer, {
       lifetime: Lifetime.SINGLETON,
       asyncDispose: 'close',
       asyncDisposePriority: 10,
     }),
-    permissionPublisher: asClass(PermissionPublisher, {
+    permissionPublisher: asClass(SqsPermissionPublisher, {
       lifetime: Lifetime.SINGLETON,
       asyncDispose: 'close',
       asyncDisposePriority: 20,
@@ -94,6 +94,6 @@ export interface Dependencies {
 
   errorReporter: ErrorReporter
   consumerErrorResolver: ErrorResolver
-  permissionConsumer: PermissionConsumer
-  permissionPublisher: PermissionPublisher
+  permissionConsumer: SqsPermissionConsumer
+  permissionPublisher: SqsPermissionPublisher
 }

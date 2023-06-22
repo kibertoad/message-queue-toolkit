@@ -12,4 +12,8 @@ export class FakeConsumerErrorResolver extends AmqpConsumerErrorResolver {
     this.handleErrorCallsCount++
     return super.processError(error)
   }
+
+  public clear() {
+    this.handleErrorCallsCount = 0
+  }
 }

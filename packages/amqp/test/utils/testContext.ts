@@ -8,8 +8,8 @@ import { AwilixManager } from 'awilix-manager'
 import type { AmqpConfig } from '../../lib/amqpConnectionResolver'
 import { resolveAmqpConnection } from '../../lib/amqpConnectionResolver'
 import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver'
-import { PermissionConsumer } from '../consumers/PermissionConsumer'
-import { PermissionPublisher } from '../publishers/PermissionPublisher'
+import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer'
+import { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublisher'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -55,13 +55,13 @@ export async function registerDependencies(
       return new AmqpConsumerErrorResolver()
     }),
 
-    permissionConsumer: asClass(PermissionConsumer, {
+    permissionConsumer: asClass(AmqpPermissionConsumer, {
       lifetime: Lifetime.SINGLETON,
-      asyncInit: 'consume',
+      asyncInit: 'start',
       asyncDispose: 'close',
       asyncDisposePriority: 10,
     }),
-    permissionPublisher: asClass(PermissionPublisher, {
+    permissionPublisher: asClass(AmqpPermissionPublisher, {
       lifetime: Lifetime.SINGLETON,
       asyncInit: 'init',
       asyncDispose: 'close',
@@ -101,6 +101,6 @@ export interface Dependencies {
 
   errorReporter: ErrorReporter
   consumerErrorResolver: ErrorResolver
-  permissionConsumer: PermissionConsumer
-  permissionPublisher: PermissionPublisher
+  permissionConsumer: AmqpPermissionConsumer
+  permissionPublisher: AmqpPermissionPublisher
 }
