@@ -1,3 +1,3 @@
-export const objectToBuffer = <T extends Record<string, unknown>>(object: T): Buffer => {
+export const objectToBuffer = <T extends object>(object: T): Buffer => {
   return Buffer.from(JSON.stringify(object))
 }

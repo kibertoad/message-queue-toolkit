@@ -7,13 +7,11 @@ import type { CommonMessage } from '../../lib/types/MessageTypes'
 
 export class FakeConsumer extends AbstractAmqpConsumer<CommonMessage> {
   constructor(dependencies: AMQPDependencies, queueName = 'dummy', messageSchema: ZodType) {
-    super(
-      {
-        queueName: queueName,
-        messageSchema,
-      },
-      dependencies,
-    )
+    super(dependencies, {
+      queueName: queueName,
+      messageSchema,
+      messageTypeField: 'messageType',
+    })
   }
 
   processMessage(): Promise<Either<'retryLater', 'success'>> {
