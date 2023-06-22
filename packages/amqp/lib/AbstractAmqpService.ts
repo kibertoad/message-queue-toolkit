@@ -20,7 +20,7 @@ export type AMQPDependencies = {
   transactionObservabilityManager: TransactionObservabilityManager
 }
 
-export class AbstractQueueService<MessagePayloadType extends CommonMessage> {
+export class AbstractAmqpService<MessagePayloadType extends CommonMessage> {
   protected readonly queueName: string
   protected readonly connection: Connection
   // @ts-ignore

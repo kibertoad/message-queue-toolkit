@@ -15,11 +15,14 @@
   },
   "dependencies": {
     "@lokalise/node-core": "^5.8.1",
-    "@message-queue-toolkit/core": "*",
     "amqplib": "^0.10.3",
     "zod": "^3.21.4"
   },
+  "peerDependencies": {
+    "@message-queue-toolkit/core": "^1.0.0"
+  },
   "devDependencies": {
+    "@message-queue-toolkit/core": "*",
     "@types/amqplib": "^0.10.1",
     "@types/node": "^20.3.1",
     "@typescript-eslint/eslint-plugin": "^5.59.11",

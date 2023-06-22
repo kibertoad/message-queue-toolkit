@@ -5,8 +5,8 @@ import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
 import type { Consumer, TransactionObservabilityManager } from '@message-queue-toolkit/core'
 import type { Message } from 'amqplib'
 
-import type { AMQPDependencies, QueueParams } from './AbstractQueueService'
-import { AbstractQueueService } from './AbstractQueueService'
+import type { AMQPDependencies, QueueParams } from './AbstractAmqpService'
+import { AbstractAmqpService } from './AbstractAmqpService'
 import { AmqpMessageInvalidFormat, AmqpValidationError } from './errors/amqpErrors'
 import { deserializeMessage } from './messageDeserializer'
 import type { CommonMessage } from './types/MessageTypes'
@@ -15,8 +15,8 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
-export abstract class AbstractConsumer<MessagePayloadType extends CommonMessage>
-  extends AbstractQueueService<MessagePayloadType>
+export abstract class AbstractAmqpConsumer<MessagePayloadType extends CommonMessage>
+  extends AbstractAmqpService<MessagePayloadType>
   implements Consumer
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
