@@ -53,7 +53,7 @@ describe('PermissionPublisher', () => {
 
       let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null
       const app = Consumer.create({
-        queueUrl: PermissionConsumer.QUEUE_NAME,
+        queueUrl: diContainer.cradle.permissionPublisher.queueUrl,
         handleMessage: async (message: SQSMessage) => {
           if (message === null) {
             return

@@ -17,7 +17,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     try {
       const input = {
         // SendMessageRequest
-        QueueUrl: this.queueName,
+        QueueUrl: this.queueUrl,
         MessageBody: JSON.stringify(message),
         ...options,
       } satisfies SendMessageCommandInput

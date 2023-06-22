@@ -57,6 +57,7 @@ describe('PermissionsConsumer', () => {
       publisher = diContainer.cradle.permissionPublisher
       await deleteQueue(sqsClient, PermissionConsumer.QUEUE_NAME)
 
+      await diContainer.cradle.permissionPublisher.init()
       await diContainer.cradle.permissionConsumer.consume()
     })
 

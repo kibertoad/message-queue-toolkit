@@ -85,7 +85,7 @@ export abstract class AbstractSqsConsumer<MessagePayloadType extends object>
     await this.init()
 
     this.consumer = Consumer.create({
-      queueUrl: this.queueName,
+      queueUrl: this.queueUrl,
       handleMessage: async (message: SQSMessage) => {
         if (message === null) {
           return
