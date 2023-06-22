@@ -1,0 +1,17 @@
+{
+  "name": "@message-queue-toolkit/parent",
+  "version": "1.0.0",
+  "dependencies": {
+    "@lokalise/node-core": "^5.8.1"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test:coverage --workspaces",
+    "docker:start": "npm run docker:start:dev --workspaces",
+    "docker:stop": "npm run docker:stop:dev --workspaces"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}
