@@ -7,9 +7,12 @@ import type { ZodSchema } from 'zod'
 import type { Logger, TransactionObservabilityManager } from '../types/MessageQueueTypes'
 
 export type QueueDependencies = {
-  consumerErrorResolver: ErrorResolver
   errorReporter: ErrorReporter
   logger: Logger
+}
+
+export type QueueConsumerDependencies = {
+  consumerErrorResolver: ErrorResolver
   transactionObservabilityManager: TransactionObservabilityManager
 }
 
@@ -25,17 +28,15 @@ export abstract class AbstractQueueService<
   OptionsType extends QueueOptions<MessagePayloadType> = QueueOptions<MessagePayloadType>,
 > {
   protected readonly queueName: string
-  protected readonly errorResolver: ErrorResolver
   protected readonly errorReporter: ErrorReporter
   protected readonly messageSchema: ZodSchema<MessagePayloadType>
   protected readonly logger: Logger
   protected readonly messageTypeField: string
 
   constructor(
-    { consumerErrorResolver, errorReporter, logger }: DependenciesType,
+    { errorReporter, logger }: DependenciesType,
     { messageSchema, queueName, messageTypeField }: OptionsType,
   ) {
-    this.errorResolver = consumerErrorResolver
     this.errorReporter = errorReporter
     this.logger = logger
 

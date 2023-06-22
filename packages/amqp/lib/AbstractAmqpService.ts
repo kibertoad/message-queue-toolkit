@@ -1,3 +1,4 @@
+import type { QueueConsumerDependencies } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { Channel, Connection } from 'amqplib'
 
@@ -7,16 +8,18 @@ export type AMQPDependencies = QueueDependencies & {
   amqpConnection: Connection
 }
 
-export class AbstractAmqpService<MessagePayloadType extends object> extends AbstractQueueService<
-  MessagePayloadType,
-  AMQPDependencies
-> {
+export type AMQPConsumerDependencies = AMQPDependencies & QueueConsumerDependencies
+
+export class AbstractAmqpService<
+  MessagePayloadType extends object,
+  DependenciesType extends AMQPDependencies = AMQPDependencies,
+> extends AbstractQueueService<MessagePayloadType, DependenciesType> {
   protected readonly connection: Connection
   // @ts-ignore
   protected channel: Channel
   private isShuttingDown: boolean
 
-  constructor(dependencies: AMQPDependencies, options: QueueOptions<MessagePayloadType>) {
+  constructor(dependencies: DependenciesType, options: QueueOptions<MessagePayloadType>) {
     super(dependencies, options)
 
     this.connection = dependencies.amqpConnection
