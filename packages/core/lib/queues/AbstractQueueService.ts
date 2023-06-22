@@ -1,7 +1,10 @@
-import { ErrorReporter, ErrorResolver, resolveGlobalErrorLogObject } from '@lokalise/node-core'
-import { Logger, TransactionObservabilityManager } from '../types/MessageQueueTypes'
-import { ZodSchema } from 'zod'
 import { types } from 'node:util'
+
+import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
+import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
+import type { ZodSchema } from 'zod'
+
+import type { Logger, TransactionObservabilityManager } from '../types/MessageQueueTypes'
 
 export type QueueDependencies = {
   consumerErrorResolver: ErrorResolver
