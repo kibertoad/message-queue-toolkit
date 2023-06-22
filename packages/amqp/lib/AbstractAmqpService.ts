@@ -1,7 +1,7 @@
+import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { Channel, Connection } from 'amqplib'
 
-import { QueueDependencies, QueueOptions } from '../../core/lib/queues/AbstractQueueService'
-import { AbstractQueueService } from '@message-queue-toolkit/core'
+import type { QueueDependencies, QueueOptions } from '../../core/lib/queues/AbstractQueueService'
 
 export type AMQPDependencies = QueueDependencies & {
   amqpConnection: Connection

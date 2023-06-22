@@ -75,8 +75,9 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
         this.channel.nack(message, false, false)
         return
       }
-      // @ts-ignore
       const transactionSpanId = `queue_${this.queueName}:${
+        // @ts-ignore
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         deserializedMessage.result[this.messageTypeField]
       }`
 
