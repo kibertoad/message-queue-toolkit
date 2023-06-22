@@ -70,6 +70,10 @@ describe('PermissionsConsumer', () => {
       })
       const reply = await sqsClient.send(command)
       expect(reply.Messages).toBeUndefined()
+
+      const fakeErrorResolver = diContainer.cradle
+        .consumerErrorResolver as FakeConsumerErrorResolver
+      fakeErrorResolver.clear()
     })
 
     afterAll(async () => {
