@@ -51,4 +51,6 @@ export abstract class AbstractQueueService<
       this.errorReporter.report({ error: err })
     }
   }
+
+  public abstract close(): Promise<unknown>
 }

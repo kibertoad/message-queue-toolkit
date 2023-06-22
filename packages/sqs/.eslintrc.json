@@ -19,6 +19,7 @@
   "rules": {
     "prettier/prettier": "error",
     "no-empty": "off",
+    "@typescript-eslint/no-empty-function": "off",
     "@typescript-eslint/no-empty-interface": "warn",
     "@typescript-eslint/ban-ts-comment": "off",
     "@typescript-eslint/no-use-before-define": "off",

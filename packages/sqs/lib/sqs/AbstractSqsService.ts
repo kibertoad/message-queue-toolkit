@@ -40,7 +40,5 @@ export class AbstractSqsService<
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
-  async close(): Promise<void> {
-    this.sqsClient.destroy()
-  }
+  public override async close(): Promise<void> {}
 }

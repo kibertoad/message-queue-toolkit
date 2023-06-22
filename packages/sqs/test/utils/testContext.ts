@@ -42,9 +42,8 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       },
       {
         lifetime: Lifetime.SINGLETON,
-        dispose: (sqs) => {
-          return sqs.destroy()
-        },
+        asyncDispose: 'destroy',
+        asyncDisposePriority: 40,
       },
     ),
     consumerErrorResolver: asFunction(() => {

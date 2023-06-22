@@ -84,6 +84,10 @@ export abstract class AbstractSqsConsumer<MessagePayloadType extends object>
   async consume() {
     await this.init()
 
+    if (this.consumer) {
+      this.consumer.stop()
+    }
+
     this.consumer = Consumer.create({
       queueUrl: this.queueUrl,
       handleMessage: async (message: SQSMessage) => {
@@ -132,8 +136,10 @@ export abstract class AbstractSqsConsumer<MessagePayloadType extends object>
     this.consumer.start()
   }
 
-  override async close(): Promise<void> {
+  public override async close(abort?: boolean): Promise<void> {
     await super.close()
-    this.consumer?.stop()
+    this.consumer?.stop({
+      abort: abort ?? false,
+    })
   }
 }
