@@ -4,17 +4,17 @@ import type { ErrorResolver } from '@lokalise/node-core'
 import { InternalError, isStandardizedError } from '@lokalise/node-core'
 import { ZodError } from 'zod'
 
-import { AmqpMessageInvalidFormat, AmqpValidationError } from './amqpErrors'
+import { SqsMessageInvalidFormat, SqsValidationError } from './sqsErrors'
 
-export class ConsumerErrorResolver implements ErrorResolver {
+export class SqsConsumerErrorResolver implements ErrorResolver {
   public processError(error: unknown): InternalError {
     if (types.isNativeError(error) && error?.name === 'SyntaxError') {
-      return new AmqpMessageInvalidFormat({
+      return new SqsMessageInvalidFormat({
         message: error.message,
       })
     }
     if (error instanceof ZodError) {
-      return new AmqpValidationError({
+      return new SqsValidationError({
         message: error.message,
         details: {
           error: error.issues,

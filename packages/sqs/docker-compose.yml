@@ -1,0 +1,19 @@
+services:
+  localstack:
+    image: localstack/localstack:2.1.0
+    network_mode: bridge
+    hostname: localstack
+    ports:
+      - '127.0.0.1:4566:4566' # LocalStack Gateway
+      - '127.0.0.1:4510-4559:4510-4559' # external services port range
+    environment:
+      - SERVICES=sqs
+      - DEBUG=0
+      - DATA_DIR=${DATA_DIR-}
+      - LAMBDA_EXECUTOR=local
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - HOSTNAME_EXTERNAL=localstack
+    #      - LOCALSTACK_API_KEY=someDummyKey
+    volumes:
+      - '${TMPDIR:-/tmp}/localstack:/var/log/localstack'
+      - '/var/run/docker.sock:/var/run/docker.sock'

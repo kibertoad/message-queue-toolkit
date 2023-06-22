@@ -2,14 +2,13 @@ import type { Either } from '@lokalise/node-core'
 import type { Message } from 'amqplib'
 import type { ZodType } from 'zod'
 
-import type { ConsumerErrorResolver } from './errors/ConsumerErrorResolver'
+import type { AmqpConsumerErrorResolver } from './errors/AmqpConsumerErrorResolver'
 import type { AmqpMessageInvalidFormat, AmqpValidationError } from './errors/amqpErrors'
-import type { CommonMessage } from './types/MessageTypes'
 
-export const deserializeMessage = <T extends CommonMessage>(
+export const deserializeMessage = <T extends object>(
   message: Message,
   type: ZodType<T>,
-  errorProcessor: ConsumerErrorResolver,
+  errorProcessor: AmqpConsumerErrorResolver,
 ): Either<AmqpMessageInvalidFormat | AmqpValidationError, T> => {
   try {
     return {

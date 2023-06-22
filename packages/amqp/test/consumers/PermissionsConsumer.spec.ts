@@ -3,8 +3,8 @@ import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 
-import { buildQueueMessage } from '../../lib/utils/queueUtils'
-import { waitAndRetry } from '../../lib/utils/waitUtils'
+import { objectToBuffer } from '../../../core/lib/utils/queueUtils'
+import { waitAndRetry } from '../../../core/lib/utils/waitUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
@@ -77,7 +77,7 @@ describe('PermissionsConsumer', () => {
 
       void channel.sendToQueue(
         PermissionConsumer.QUEUE_NAME,
-        buildQueueMessage({
+        objectToBuffer({
           messageType: 'add',
           userIds,
           permissions: perms,
@@ -100,7 +100,7 @@ describe('PermissionsConsumer', () => {
 
       channel.sendToQueue(
         PermissionConsumer.QUEUE_NAME,
-        buildQueueMessage({
+        objectToBuffer({
           userIds,
           messageType: 'add',
           permissions: perms,
@@ -133,7 +133,7 @@ describe('PermissionsConsumer', () => {
 
       channel.sendToQueue(
         PermissionConsumer.QUEUE_NAME,
-        buildQueueMessage({
+        objectToBuffer({
           userIds,
           messageType: 'add',
           permissions: perms,
@@ -162,7 +162,7 @@ describe('PermissionsConsumer', () => {
 
       channel.sendToQueue(
         PermissionConsumer.QUEUE_NAME,
-        buildQueueMessage({
+        objectToBuffer({
           messageType: 'add',
           permissions: perms,
         } as PERMISSIONS_MESSAGE_TYPE),

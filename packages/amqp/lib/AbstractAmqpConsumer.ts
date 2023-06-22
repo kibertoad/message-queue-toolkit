@@ -1,28 +1,28 @@
-import { types } from 'node:util'
-
 import type { Either } from '@lokalise/node-core'
-import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
-import type { Consumer, TransactionObservabilityManager } from '@message-queue-toolkit/core'
+import type {
+  Consumer,
+  QueueOptions,
+  TransactionObservabilityManager,
+} from '@message-queue-toolkit/core'
 import type { Message } from 'amqplib'
 
-import type { AMQPDependencies, QueueParams } from './AbstractAmqpService'
+import type { AMQPDependencies } from './AbstractAmqpService'
 import { AbstractAmqpService } from './AbstractAmqpService'
 import { AmqpMessageInvalidFormat, AmqpValidationError } from './errors/amqpErrors'
 import { deserializeMessage } from './messageDeserializer'
-import type { CommonMessage } from './types/MessageTypes'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
-export abstract class AbstractAmqpConsumer<MessagePayloadType extends CommonMessage>
+export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
   extends AbstractAmqpService<MessagePayloadType>
   implements Consumer
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
 
-  constructor(params: QueueParams<MessagePayloadType>, dependencies: AMQPDependencies) {
-    super(params, dependencies)
+  constructor(dependencies: AMQPDependencies, options: QueueOptions<MessagePayloadType>) {
+    super(dependencies, options)
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
   }
 
@@ -45,9 +45,7 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends CommonMess
       deserializationResult.error instanceof AmqpValidationError ||
       deserializationResult.error instanceof AmqpMessageInvalidFormat
     ) {
-      const logObject = resolveGlobalErrorLogObject(deserializationResult.error)
-      this.logger.error(logObject)
-      this.errorReporter.report({ error: deserializationResult.error })
+      this.handleError(deserializationResult.error)
       return ABORT_EARLY_EITHER
     }
 
@@ -77,7 +75,11 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends CommonMess
         this.channel.nack(message, false, false)
         return
       }
-      const transactionSpanId = `queue_${this.queueName}:${deserializedMessage.result.messageType}`
+      const transactionSpanId = `queue_${this.queueName}:${
+        // @ts-ignore
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+        deserializedMessage.result[this.messageTypeField]
+      }`
 
       this.transactionObservabilityManager?.start(transactionSpanId)
       this.processMessage(deserializedMessage.result)
@@ -93,11 +95,7 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends CommonMess
           // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
           // If we fail due to unknown reason, let's retry
           this.channel.nack(message, false, true)
-          const logObject = resolveGlobalErrorLogObject(err)
-          this.logger.error(logObject)
-          if (types.isNativeError(err)) {
-            this.errorReporter.report({ error: err })
-          }
+          this.handleError(err)
         })
         .finally(() => {
           this.transactionObservabilityManager?.stop(transactionSpanId)

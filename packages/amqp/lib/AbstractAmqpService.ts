@@ -1,47 +1,26 @@
-import type { ErrorReporter } from '@lokalise/node-core'
-import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
-import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
+import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { Channel, Connection } from 'amqplib'
-import type { ZodSchema } from 'zod'
 
-import type { ConsumerErrorResolver } from './errors/ConsumerErrorResolver'
-import type { CommonMessage } from './types/MessageTypes'
+import type { QueueDependencies, QueueOptions } from '../../core/lib/queues/AbstractQueueService'
 
-export type QueueParams<MessagePayloadType extends CommonMessage> = {
-  queueName: string
-  messageSchema: ZodSchema<MessagePayloadType>
-}
-
-export type AMQPDependencies = {
+export type AMQPDependencies = QueueDependencies & {
   amqpConnection: Connection
-  consumerErrorResolver: ConsumerErrorResolver
-  errorReporter: ErrorReporter
-  logger: Logger
-  transactionObservabilityManager: TransactionObservabilityManager
 }
 
-export class AbstractAmqpService<MessagePayloadType extends CommonMessage> {
-  protected readonly queueName: string
+export class AbstractAmqpService<MessagePayloadType extends object> extends AbstractQueueService<
+  MessagePayloadType,
+  AMQPDependencies
+> {
   protected readonly connection: Connection
   // @ts-ignore
   protected channel: Channel
-  protected readonly errorResolver: ConsumerErrorResolver
   private isShuttingDown: boolean
-  protected errorReporter: ErrorReporter
-  protected messageSchema: ZodSchema<MessagePayloadType>
-  protected readonly logger: Logger
 
-  constructor(
-    params: QueueParams<MessagePayloadType>,
-    { amqpConnection, consumerErrorResolver, errorReporter, logger }: AMQPDependencies,
-  ) {
-    this.connection = amqpConnection
-    this.errorResolver = consumerErrorResolver
+  constructor(dependencies: AMQPDependencies, options: QueueOptions<MessagePayloadType>) {
+    super(dependencies, options)
+
+    this.connection = dependencies.amqpConnection
     this.isShuttingDown = false
-    this.queueName = params.queueName
-    this.messageSchema = params.messageSchema
-    this.errorReporter = errorReporter
-    this.logger = logger
   }
 
   private async destroyConnection(): Promise<void> {
@@ -70,14 +49,13 @@ export class AbstractAmqpService<MessagePayloadType extends CommonMessage> {
       if (!this.isShuttingDown) {
         this.logger.error(`AMQP connection lost!`)
         this.init().catch((err) => {
-          this.logger.error(err)
+          this.handleError(err)
           throw err
         })
       }
     })
     this.channel.on('error', (err) => {
-      const logObject = resolveGlobalErrorLogObject(err)
-      this.logger.error(logObject)
+      this.handleError(err)
     })
 
     await this.channel.assertQueue(this.queueName, {

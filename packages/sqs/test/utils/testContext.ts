@@ -1,15 +1,15 @@
+import { SQSClient } from '@aws-sdk/client-sqs'
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
-import type { Connection } from 'amqplib'
 import type { Resolver } from 'awilix'
 import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
-import type { AmqpConfig } from '../../lib/amqpConnectionResolver'
-import { resolveAmqpConnection } from '../../lib/amqpConnectionResolver'
-import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver'
-import { PermissionConsumer } from '../consumers/PermissionConsumer'
-import { PermissionPublisher } from '../publishers/PermissionPublisher'
+import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver'
+import { PermissionConsumer } from '../PermissionConsumer'
+import { PermissionPublisher } from '../PermissionPublisher'
+
+import { TEST_SQS_CONFIG } from './testSqsConfig'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -18,14 +18,10 @@ export type DependencyOverrides = Partial<DiConfig>
 // @ts-ignore
 const TestLogger: Logger = console
 
-export async function registerDependencies(
-  config: AmqpConfig,
-  dependencyOverrides: DependencyOverrides = {},
-) {
+export async function registerDependencies(dependencyOverrides: DependencyOverrides = {}) {
   const diContainer = createContainer({
     injectionMode: 'PROXY',
   })
-  const amqpConnection = await resolveAmqpConnection(config)
   const awilixManager = new AwilixManager({
     diContainer,
     asyncDispose: true,
@@ -40,30 +36,27 @@ export async function registerDependencies(
     awilixManager: asFunction(() => {
       return awilixManager
     }, SINGLETON_CONFIG),
-    amqpConnection: asFunction(
+    sqsClient: asFunction(
       () => {
-        return amqpConnection
+        return new SQSClient(TEST_SQS_CONFIG)
       },
       {
         lifetime: Lifetime.SINGLETON,
-        dispose: (connection) => {
-          return connection.close()
-        },
+        asyncDispose: 'destroy',
+        asyncDisposePriority: 40,
       },
     ),
     consumerErrorResolver: asFunction(() => {
-      return new AmqpConsumerErrorResolver()
+      return new SqsConsumerErrorResolver()
     }),
 
     permissionConsumer: asClass(PermissionConsumer, {
       lifetime: Lifetime.SINGLETON,
-      asyncInit: 'consume',
       asyncDispose: 'close',
       asyncDisposePriority: 10,
     }),
     permissionPublisher: asClass(PermissionPublisher, {
       lifetime: Lifetime.SINGLETON,
-      asyncInit: 'init',
       asyncDispose: 'close',
       asyncDisposePriority: 20,
     }),
@@ -93,7 +86,7 @@ type DiConfig = Record<keyof Dependencies, Resolver<unknown>>
 
 export interface Dependencies {
   logger: Logger
-  amqpConnection: Connection
+  sqsClient: SQSClient
   awilixManager: AwilixManager
 
   // vendor-specific dependencies

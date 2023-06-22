@@ -1,5 +1,5 @@
 {
-  "name": "@message-queue-toolkit/amqp",
+  "name": "@message-queue-toolkit/sqs",
   "version": "1.0.0",
   "private": false,
   "scripts": {
@@ -13,8 +13,9 @@
     "docker:stop:dev": "docker compose down"
   },
   "dependencies": {
+    "@aws-sdk/client-sqs": "^3.357.0",
     "@lokalise/node-core": "^5.8.1",
-    "amqplib": "^0.10.3",
+    "sqs-consumer": "^7.2.0",
     "zod": "^3.21.4"
   },
   "peerDependencies": {
@@ -22,7 +23,6 @@
   },
   "devDependencies": {
     "@message-queue-toolkit/core": "*",
-    "@types/amqplib": "^0.10.1",
     "@types/node": "^20.3.1",
     "@typescript-eslint/eslint-plugin": "^5.60.0",
     "@typescript-eslint/parser": "^5.60.0",

@@ -1,6 +1,6 @@
-import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver'
+import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver'
 
-export class FakeConsumerErrorResolver extends AmqpConsumerErrorResolver {
+export class FakeConsumerErrorResolver extends SqsConsumerErrorResolver {
   public handleErrorCallsCount: number
   constructor() {
     super()

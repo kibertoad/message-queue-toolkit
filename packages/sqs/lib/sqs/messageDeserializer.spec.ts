@@ -1,9 +1,8 @@
-import type { Message } from 'amqplib'
+import type { PERMISSIONS_MESSAGE_TYPE } from '../../test/userConsumerSchemas'
+import { PERMISSIONS_MESSAGE_SCHEMA } from '../../test/userConsumerSchemas'
+import { SqsConsumerErrorResolver } from '../errors/SqsConsumerErrorResolver'
 
-import type { PERMISSIONS_MESSAGE_TYPE } from '../test/consumers/userConsumerSchemas'
-import { PERMISSIONS_MESSAGE_SCHEMA } from '../test/consumers/userConsumerSchemas'
-
-import { AmqpConsumerErrorResolver } from './errors/AmqpConsumerErrorResolver'
+import type { SQSMessage } from './AbstractSqsConsumer'
 import { deserializeMessage } from './messageDeserializer'
 
 describe('messageDeserializer', () => {
@@ -13,11 +12,11 @@ describe('messageDeserializer', () => {
       userIds: [1],
       permissions: ['perm'],
     }
-    const message: Message = {
-      content: Buffer.from(JSON.stringify(messagePayload)),
-    } as Message
+    const message: SQSMessage = {
+      Body: JSON.stringify(messagePayload),
+    } as SQSMessage
 
-    const errorProcessor = new AmqpConsumerErrorResolver()
+    const errorProcessor = new SqsConsumerErrorResolver()
 
     const deserializedPayload = deserializeMessage(
       message,
@@ -32,11 +31,11 @@ describe('messageDeserializer', () => {
     const messagePayload: Partial<PERMISSIONS_MESSAGE_TYPE> = {
       userIds: [1],
     }
-    const message: Message = {
-      content: Buffer.from(JSON.stringify(messagePayload)),
-    } as Message
+    const message: SQSMessage = {
+      Body: JSON.stringify(messagePayload),
+    } as SQSMessage
 
-    const errorProcessor = new AmqpConsumerErrorResolver()
+    const errorProcessor = new SqsConsumerErrorResolver()
 
     const deserializedPayload = deserializeMessage(
       message,
@@ -45,25 +44,23 @@ describe('messageDeserializer', () => {
     )
 
     expect(deserializedPayload.error).toMatchObject({
-      errorCode: 'AMQP_VALIDATION_ERROR',
+      errorCode: 'SQS_VALIDATION_ERROR',
     })
   })
 
   it('throws an error on non-JSON', () => {
-    const message: Message = {
-      content: Buffer.from('dummy'),
-    } as Message
+    const message = 'dummy'
 
-    const errorProcessor = new AmqpConsumerErrorResolver()
+    const errorProcessor = new SqsConsumerErrorResolver()
 
     const deserializedPayload = deserializeMessage(
-      message,
+      message as any,
       PERMISSIONS_MESSAGE_SCHEMA,
       errorProcessor,
     )
 
     expect(deserializedPayload.error).toMatchObject({
-      errorCode: 'AMQP_MESSAGE_INVALID_FORMAT',
+      errorCode: 'SQS_MESSAGE_INVALID_FORMAT',
     })
   })
 })
