@@ -133,6 +133,10 @@ export abstract class AbstractSqsConsumer<MessagePayloadType extends object>
       ...this.consumerOptionsOverride,
     })
 
+    this.consumer.on('error', (err) => {
+      this.handleError(err)
+    })
+
     this.consumer.start()
   }
 

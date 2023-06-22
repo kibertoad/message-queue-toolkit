@@ -3,7 +3,7 @@ import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it } from 'vitest'
+import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
 import { PermissionConsumer } from './PermissionConsumer'
 import type { PermissionPublisher } from './PermissionPublisher'
@@ -47,17 +47,21 @@ describe('PermissionsConsumer', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: PermissionPublisher
     let sqsClient: SQSClient
-    beforeEach(async () => {
-      delete userPermissionMap[100]
-      delete userPermissionMap[200]
-      delete userPermissionMap[300]
+    beforeAll(async () => {
       diContainer = await registerDependencies({
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
-      await deleteQueue(sqsClient, PermissionConsumer.QUEUE_NAME)
+      await purgeQueue(sqsClient, PermissionConsumer.QUEUE_NAME)
+    })
 
+    beforeEach(async () => {
+      delete userPermissionMap[100]
+      delete userPermissionMap[200]
+      delete userPermissionMap[300]
+
+      await deleteQueue(sqsClient, PermissionConsumer.QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.consume()
       await diContainer.cradle.permissionPublisher.init()
 
@@ -68,14 +72,16 @@ describe('PermissionsConsumer', () => {
       expect(reply.Messages).toBeUndefined()
     })
 
-    afterEach(async () => {
+    afterAll(async () => {
       const { awilixManager } = diContainer.cradle
+      await awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
 
+    afterEach(async () => {
       await purgeQueue(sqsClient, PermissionConsumer.QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.close()
       await diContainer.cradle.permissionConsumer.close(true)
-      await awilixManager.executeDispose()
-      await diContainer.dispose()
     })
 
     describe('happy path', () => {
@@ -180,8 +186,6 @@ describe('PermissionsConsumer', () => {
         const { consumerErrorResolver } = diContainer.cradle
 
         await publisher.publish('dummy' as any)
-        await publisher.publish('dummy2' as any)
-        await publisher.publish('dummy3' as any)
 
         const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
         const errorCount = await waitAndRetry(
@@ -192,8 +196,8 @@ describe('PermissionsConsumer', () => {
           5,
         )
 
-        expect(errorCount > 0 && errorCount < 4).toBe(true)
-      }, 9999999)
+        expect(errorCount).toBe(1)
+      })
     })
   })
 })
