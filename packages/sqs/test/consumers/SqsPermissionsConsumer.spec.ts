@@ -1,6 +1,6 @@
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
-import { waitAndRetry } from '@message-queue-toolkit/core/dist/index'
+import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
