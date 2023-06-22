@@ -1,6 +1,6 @@
 import type { Either } from '@lokalise/node-core'
 import type {
-  Consumer,
+  QueueConsumer,
   QueueOptions,
   TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
@@ -17,7 +17,7 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
 
 export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
   extends AbstractAmqpService<MessagePayloadType>
-  implements Consumer
+  implements QueueConsumer
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
 
@@ -59,7 +59,7 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
     }
   }
 
-  async consume() {
+  async start() {
     await this.init()
     if (!this.channel) {
       throw new Error('Channel is not set')

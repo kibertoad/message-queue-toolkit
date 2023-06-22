@@ -1,5 +1,5 @@
-export interface Consumer {
-  consume(): void // subscribe and start listening
+export interface QueueConsumer {
+  start(): Promise<unknown> // subscribe and start listening
   close(): Promise<unknown>
 }
 

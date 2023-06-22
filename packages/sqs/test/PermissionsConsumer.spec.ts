@@ -62,7 +62,7 @@ describe('PermissionsConsumer', () => {
       delete userPermissionMap[300]
 
       await deleteQueue(sqsClient, PermissionConsumer.QUEUE_NAME)
-      await diContainer.cradle.permissionConsumer.consume()
+      await diContainer.cradle.permissionConsumer.start()
       await diContainer.cradle.permissionPublisher.init()
 
       const command = new ReceiveMessageCommand({

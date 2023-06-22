@@ -1,6 +1,6 @@
 import type { Either } from '@lokalise/node-core'
 import type {
-  Consumer as QueueConsumer,
+  QueueConsumer as QueueConsumer,
   QueueOptions,
   TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
@@ -81,7 +81,7 @@ export abstract class AbstractSqsConsumer<MessagePayloadType extends object>
     // Not implemented yet - needs dead letter queue
   }
 
-  async consume() {
+  async start() {
     await this.init()
 
     if (this.consumer) {

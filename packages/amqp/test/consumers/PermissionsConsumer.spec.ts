@@ -56,7 +56,7 @@ describe('PermissionsConsumer', () => {
       })
 
       channel = await diContainer.cradle.amqpConnection.createChannel()
-      await diContainer.cradle.permissionConsumer.consume()
+      await diContainer.cradle.permissionConsumer.start()
     })
 
     afterEach(async () => {
