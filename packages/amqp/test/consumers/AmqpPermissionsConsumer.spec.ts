@@ -11,7 +11,7 @@ import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 
-import { PermissionConsumer } from './PermissionConsumer'
+import { AmqpPermissionConsumer } from './AmqpPermissionConsumer'
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 
 const userIds = [100, 200, 300]
@@ -60,7 +60,7 @@ describe('PermissionsConsumer', () => {
     })
 
     afterEach(async () => {
-      await channel.deleteQueue(PermissionConsumer.QUEUE_NAME)
+      await channel.deleteQueue(AmqpPermissionConsumer.QUEUE_NAME)
       await channel.close()
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
@@ -76,7 +76,7 @@ describe('PermissionsConsumer', () => {
       userPermissionMap[300] = []
 
       void channel.sendToQueue(
-        PermissionConsumer.QUEUE_NAME,
+        AmqpPermissionConsumer.QUEUE_NAME,
         objectToBuffer({
           messageType: 'add',
           userIds,
@@ -99,7 +99,7 @@ describe('PermissionsConsumer', () => {
       expect(users).toHaveLength(0)
 
       channel.sendToQueue(
-        PermissionConsumer.QUEUE_NAME,
+        AmqpPermissionConsumer.QUEUE_NAME,
         objectToBuffer({
           userIds,
           messageType: 'add',
@@ -132,7 +132,7 @@ describe('PermissionsConsumer', () => {
       userPermissionMap[100] = []
 
       channel.sendToQueue(
-        PermissionConsumer.QUEUE_NAME,
+        AmqpPermissionConsumer.QUEUE_NAME,
         objectToBuffer({
           userIds,
           messageType: 'add',
@@ -161,7 +161,7 @@ describe('PermissionsConsumer', () => {
       const { consumerErrorResolver } = diContainer.cradle
 
       channel.sendToQueue(
-        PermissionConsumer.QUEUE_NAME,
+        AmqpPermissionConsumer.QUEUE_NAME,
         objectToBuffer({
           messageType: 'add',
           permissions: perms,
@@ -177,7 +177,7 @@ describe('PermissionsConsumer', () => {
     it('Non-JSON message in the queue', async () => {
       const { consumerErrorResolver } = diContainer.cradle
 
-      channel.sendToQueue(PermissionConsumer.QUEUE_NAME, Buffer.from('dummy'))
+      channel.sendToQueue(AmqpPermissionConsumer.QUEUE_NAME, Buffer.from('dummy'))
 
       const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
       await waitAndRetry(() => fakeResolver.handleErrorCallsCount, 500, 5)

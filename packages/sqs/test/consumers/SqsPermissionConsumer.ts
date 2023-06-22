@@ -1,18 +1,18 @@
 import type { Either } from '@lokalise/node-core'
 
-import { AbstractSqsConsumer } from '../lib/sqs/AbstractSqsConsumer'
-import type { SQSDependencies } from '../lib/sqs/AbstractSqsService'
+import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer'
+import type { SQSDependencies } from '../../lib/sqs/AbstractSqsService'
 
-import { userPermissionMap } from './repositories/PermissionRepository'
+import { userPermissionMap } from '../repositories/PermissionRepository'
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
 
-export class PermissionConsumer extends AbstractSqsConsumer<PERMISSIONS_MESSAGE_TYPE> {
+export class SqsPermissionConsumer extends AbstractSqsConsumer<PERMISSIONS_MESSAGE_TYPE> {
   public static QUEUE_NAME = 'user_permissions'
 
   constructor(dependencies: SQSDependencies) {
     super(dependencies, {
-      queueName: PermissionConsumer.QUEUE_NAME,
+      queueName: SqsPermissionConsumer.QUEUE_NAME,
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
       consumerOverrides: {

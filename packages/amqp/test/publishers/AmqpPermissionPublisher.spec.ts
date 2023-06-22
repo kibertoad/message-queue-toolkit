@@ -5,7 +5,7 @@ import { describe, beforeAll, beforeEach, afterAll, afterEach, expect, it } from
 
 import { waitAndRetry } from '../../../core/lib/utils/waitUtils'
 import { deserializeMessage } from '../../lib/messageDeserializer'
-import { PermissionConsumer } from '../consumers/PermissionConsumer'
+import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumer } from '../fakes/FakeConsumer'
@@ -14,7 +14,7 @@ import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 
-import { PermissionPublisher } from './PermissionPublisher'
+import { AmqpPermissionPublisher } from './AmqpPermissionPublisher'
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
@@ -28,7 +28,7 @@ describe('PermissionPublisher', () => {
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
         permissionConsumer: asClass(FakeConsumer, {
           lifetime: Lifetime.SINGLETON,
-          asyncInit: 'consume',
+          asyncInit: 'start',
           asyncDispose: 'close',
           asyncDisposePriority: 10,
         }),
@@ -40,7 +40,7 @@ describe('PermissionPublisher', () => {
     })
 
     afterEach(async () => {
-      await channel.deleteQueue(PermissionConsumer.QUEUE_NAME)
+      await channel.deleteQueue(AmqpPermissionConsumer.QUEUE_NAME)
       await channel.close()
     })
 
@@ -60,7 +60,7 @@ describe('PermissionPublisher', () => {
       } satisfies PERMISSIONS_MESSAGE_TYPE
 
       let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null
-      await channel.consume(PermissionPublisher.QUEUE_NAME, (message) => {
+      await channel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
         if (message === null) {
           return
         }

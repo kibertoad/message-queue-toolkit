@@ -7,12 +7,12 @@ import { userPermissionMap } from '../repositories/PermissionRepository'
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
 
-export class PermissionConsumer extends AbstractAmqpConsumer<PERMISSIONS_MESSAGE_TYPE> {
+export class AmqpPermissionConsumer extends AbstractAmqpConsumer<PERMISSIONS_MESSAGE_TYPE> {
   public static QUEUE_NAME = 'user_permissions'
 
   constructor(dependencies: AMQPDependencies) {
     super(dependencies, {
-      queueName: PermissionConsumer.QUEUE_NAME,
+      queueName: AmqpPermissionConsumer.QUEUE_NAME,
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
     })
