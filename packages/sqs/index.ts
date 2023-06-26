@@ -1,3 +1,9 @@
+export type {
+  SQSQueueAWSConfig,
+  SQSQueueConfig,
+  SQSConsumerDependencies,
+} from './lib/sqs/AbstractSqsService'
+
 export { AbstractSqsConsumer } from './lib/sqs/AbstractSqsConsumer'
 export type { SQSMessage, SQSConsumerOptions } from './lib/sqs/AbstractSqsConsumer'
 

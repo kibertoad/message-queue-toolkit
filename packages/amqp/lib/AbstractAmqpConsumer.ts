@@ -6,7 +6,7 @@ import type {
 } from '@message-queue-toolkit/core'
 import type { Message } from 'amqplib'
 
-import type { AMQPConsumerDependencies } from './AbstractAmqpService'
+import type { AMQPConsumerDependencies, AMQPQueueConfig } from './AbstractAmqpService'
 import { AbstractAmqpService } from './AbstractAmqpService'
 import { AmqpMessageInvalidFormat, AmqpValidationError } from './errors/amqpErrors'
 import { deserializeMessage } from './messageDeserializer'
@@ -22,7 +22,10 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
   protected readonly errorResolver: ErrorResolver
 
-  constructor(dependencies: AMQPConsumerDependencies, options: QueueOptions<MessagePayloadType>) {
+  constructor(
+    dependencies: AMQPConsumerDependencies,
+    options: QueueOptions<MessagePayloadType, AMQPQueueConfig>,
+  ) {
     super(dependencies, options)
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.errorResolver = dependencies.consumerErrorResolver

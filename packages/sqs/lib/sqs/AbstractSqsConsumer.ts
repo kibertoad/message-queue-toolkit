@@ -9,7 +9,7 @@ import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import { SqsMessageInvalidFormat, SqsValidationError } from '../errors/sqsErrors'
 
-import type { SQSConsumerDependencies } from './AbstractSqsService'
+import type { SQSConsumerDependencies, SQSQueueAWSConfig } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
 import { deserializeMessage } from './messageDeserializer'
 
@@ -24,10 +24,12 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
-export type SQSConsumerOptions<MessagePayloadType extends object> =
-  QueueOptions<MessagePayloadType> & {
-    consumerOverrides?: Partial<ConsumerOptions>
-  }
+export type SQSConsumerOptions<MessagePayloadType extends object> = QueueOptions<
+  MessagePayloadType,
+  SQSQueueAWSConfig
+> & {
+  consumerOverrides?: Partial<ConsumerOptions>
+}
 
 export abstract class AbstractSqsConsumer<MessagePayloadType extends object>
   extends AbstractSqsService<
