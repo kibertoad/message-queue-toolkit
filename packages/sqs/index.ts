@@ -13,3 +13,5 @@ export { AbstractSqsPublisher } from './lib/sqs/AbstractSqsPublisher'
 export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisher'
 
 export type { CommonMessage } from './lib/types/MessageTypes'
+
+export {} from './lib/sqs/sqsMessageDeserializer'

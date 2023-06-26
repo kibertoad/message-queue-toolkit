@@ -8,8 +8,8 @@ import type { Message } from 'amqplib'
 
 import type { AMQPConsumerDependencies, AMQPQueueConfig } from './AbstractAmqpService'
 import { AbstractAmqpService } from './AbstractAmqpService'
+import { deserializeMessage } from './amqpMessageDeserializer'
 import { AmqpMessageInvalidFormat, AmqpValidationError } from './errors/amqpErrors'
-import { deserializeMessage } from './messageDeserializer'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',

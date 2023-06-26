@@ -4,7 +4,7 @@ import { asClass, Lifetime } from 'awilix'
 import { describe, beforeAll, beforeEach, afterAll, afterEach, expect, it } from 'vitest'
 
 import { waitAndRetry } from '../../../core/lib/utils/waitUtils'
-import { deserializeMessage } from '../../lib/messageDeserializer'
+import { deserializeMessage } from '../../lib/amqpMessageDeserializer'
 import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'

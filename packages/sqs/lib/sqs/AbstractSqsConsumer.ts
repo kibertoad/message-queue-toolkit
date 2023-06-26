@@ -11,7 +11,7 @@ import { SqsMessageInvalidFormat, SqsValidationError } from '../errors/sqsErrors
 
 import type { SQSConsumerDependencies, SQSQueueAWSConfig } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
-import { deserializeMessage } from './messageDeserializer'
+import { deserializeMessage } from './sqsMessageDeserializer'
 
 export type SQSMessage = {
   MessageId: string

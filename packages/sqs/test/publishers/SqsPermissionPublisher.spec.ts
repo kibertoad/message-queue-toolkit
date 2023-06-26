@@ -7,7 +7,7 @@ import { Consumer } from 'sqs-consumer'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
 import type { SQSMessage } from '../../lib/sqs/AbstractSqsConsumer'
-import { deserializeMessage } from '../../lib/sqs/messageDeserializer'
+import { deserializeMessage } from '../../lib/sqs/sqsMessageDeserializer'
 import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'

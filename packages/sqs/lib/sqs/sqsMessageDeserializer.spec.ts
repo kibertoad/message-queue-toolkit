@@ -3,7 +3,7 @@ import { PERMISSIONS_MESSAGE_SCHEMA } from '../../test/consumers/userConsumerSch
 import { SqsConsumerErrorResolver } from '../errors/SqsConsumerErrorResolver'
 
 import type { SQSMessage } from './AbstractSqsConsumer'
-import { deserializeMessage } from './messageDeserializer'
+import { deserializeMessage } from './sqsMessageDeserializer'
 
 describe('messageDeserializer', () => {
   it('deserializes valid JSON', () => {

@@ -9,4 +9,6 @@ export { AmqpMessageInvalidFormat, AmqpValidationError } from './lib/errors/amqp
 export { AbstractAmqpPublisher } from './lib/AbstractAmqpPublisher'
 
 export type { AmqpConfig } from './lib/amqpConnectionResolver'
+
 export { resolveAmqpConnection } from './lib/amqpConnectionResolver'
+export { deserializeMessage } from './lib/amqpMessageDeserializer'

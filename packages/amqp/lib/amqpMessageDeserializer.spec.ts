@@ -3,8 +3,8 @@ import type { Message } from 'amqplib'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../test/consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../test/consumers/userConsumerSchemas'
 
+import { deserializeMessage } from './amqpMessageDeserializer'
 import { AmqpConsumerErrorResolver } from './errors/AmqpConsumerErrorResolver'
-import { deserializeMessage } from './messageDeserializer'
 
 describe('messageDeserializer', () => {
   it('deserializes valid JSON', () => {
