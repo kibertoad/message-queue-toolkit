@@ -9,6 +9,10 @@ export class FakeConsumer extends AbstractAmqpConsumer<CommonMessage> {
   constructor(dependencies: AMQPConsumerDependencies, queueName = 'dummy', messageSchema: ZodType) {
     super(dependencies, {
       queueName: queueName,
+      queueConfiguration: {
+        durable: true,
+        autoDelete: false,
+      },
       messageSchema,
       messageTypeField: 'messageType',
     })

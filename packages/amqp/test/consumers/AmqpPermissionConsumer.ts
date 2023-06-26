@@ -13,6 +13,10 @@ export class AmqpPermissionConsumer extends AbstractAmqpConsumer<PERMISSIONS_MES
   constructor(dependencies: AMQPConsumerDependencies) {
     super(dependencies, {
       queueName: AmqpPermissionConsumer.QUEUE_NAME,
+      queueConfiguration: {
+        durable: true,
+        autoDelete: false,
+      },
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
     })

@@ -9,6 +9,10 @@ export class AmqpPermissionPublisher extends AbstractAmqpPublisher<PERMISSIONS_M
   constructor(dependencies: AMQPDependencies) {
     super(dependencies, {
       queueName: AmqpPermissionPublisher.QUEUE_NAME,
+      queueConfiguration: {
+        durable: true,
+        autoDelete: false,
+      },
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
     })

@@ -1,6 +1,7 @@
 import type { QueueConsumerDependencies } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { Channel, Connection } from 'amqplib'
+import type { Options } from 'amqplib/properties'
 
 import type { QueueDependencies, QueueOptions } from '../../core/lib/queues/AbstractQueueService'
 
@@ -9,17 +10,21 @@ export type AMQPDependencies = QueueDependencies & {
 }
 
 export type AMQPConsumerDependencies = AMQPDependencies & QueueConsumerDependencies
+export type AMQPQueueConfig = Options.AssertQueue
 
 export class AbstractAmqpService<
   MessagePayloadType extends object,
   DependenciesType extends AMQPDependencies = AMQPDependencies,
-> extends AbstractQueueService<MessagePayloadType, DependenciesType> {
+> extends AbstractQueueService<MessagePayloadType, DependenciesType, AMQPQueueConfig> {
   protected readonly connection: Connection
   // @ts-ignore
   protected channel: Channel
   private isShuttingDown: boolean
 
-  constructor(dependencies: DependenciesType, options: QueueOptions<MessagePayloadType>) {
+  constructor(
+    dependencies: DependenciesType,
+    options: QueueOptions<MessagePayloadType, AMQPQueueConfig>,
+  ) {
     super(dependencies, options)
 
     this.connection = dependencies.amqpConnection
@@ -61,11 +66,7 @@ export class AbstractAmqpService<
       this.handleError(err)
     })
 
-    await this.channel.assertQueue(this.queueName, {
-      exclusive: false,
-      durable: true,
-      autoDelete: false,
-    })
+    await this.channel.assertQueue(this.queueName, this.queueConfiguration)
   }
 
   async close(): Promise<void> {

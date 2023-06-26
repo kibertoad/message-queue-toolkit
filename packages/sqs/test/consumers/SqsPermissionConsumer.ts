@@ -18,6 +18,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<PERMISSIONS_MESSA
       consumerOverrides: {
         terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
       },
+      queueConfiguration: {},
     })
   }
 
