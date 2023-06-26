@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/sqs",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": false,
   "license": "MIT",
   "description": "SQS adapter for message-queue-toolkit",
