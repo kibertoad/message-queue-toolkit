@@ -14,7 +14,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "build:release": "del-cli dist && del-cli coverage && npm run lint && npm run build",
+    "build:release": "del-cli dist && del-cli coverage && npm run lint && tsc --project tsconfig.release.json",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint .  --ext .ts --fix",
     "test:coverage": "",
