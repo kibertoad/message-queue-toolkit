@@ -14,13 +14,15 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "build:release": "del-cli dist && del-cli coverage && npm run lint && npm run build",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint .  --ext .ts --fix",
     "format": "prettier --write .",
     "docker:start:dev": "docker compose up -d",
-    "docker:stop:dev": "docker compose down"
+    "docker:stop:dev": "docker compose down",
+    "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.359.0",
@@ -39,6 +41,7 @@
     "@vitest/coverage-v8": "^0.32.2",
     "awilix": "^8.0.1",
     "awilix-manager": "^2.0.0",
+    "del-cli": "^5.0.0",
     "eslint": "^8.43.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-import": "^2.27.5",

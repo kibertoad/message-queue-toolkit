@@ -14,18 +14,21 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
+    "build:release": "del-cli dist && del-cli coverage && npm run lint && npm run build",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint .  --ext .ts --fix",
     "test:coverage": "",
     "docker:start:dev": "",
     "docker:stop:dev": "",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepublishOnly": "npm run build:release"
   },
   "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.3.1",
     "@typescript-eslint/eslint-plugin": "^5.60.0",
     "@typescript-eslint/parser": "^5.60.0",
+    "del-cli": "^5.0.0",
     "eslint": "^8.43.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-import": "^2.27.5",
