@@ -1,6 +1,5 @@
 import type { SyncPublisher } from '@message-queue-toolkit/core'
-
-import { objectToBuffer } from '../../core/lib/utils/queueUtils'
+import { objectToBuffer } from '@message-queue-toolkit/core'
 
 import { AbstractAmqpService } from './AbstractAmqpService'
 
