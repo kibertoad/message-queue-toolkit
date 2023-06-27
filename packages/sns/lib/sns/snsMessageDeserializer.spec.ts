@@ -3,7 +3,7 @@ import { PERMISSIONS_MESSAGE_SCHEMA } from '../../test/consumers/userConsumerSch
 import { SqsConsumerErrorResolver } from '../errors/SqsConsumerErrorResolver'
 
 import type { SQSMessage } from './AbstractSqsConsumer'
-import { deserializeSQSMessage } from './sqsMessageDeserializer'
+import { deserializeSNSMessage } from './snsMessageDeserializer'
 
 describe('messageDeserializer', () => {
   it('deserializes valid JSON', () => {
@@ -18,7 +18,7 @@ describe('messageDeserializer', () => {
 
     const errorProcessor = new SqsConsumerErrorResolver()
 
-    const deserializedPayload = deserializeSQSMessage(
+    const deserializedPayload = deserializeSNSMessage(
       message,
       PERMISSIONS_MESSAGE_SCHEMA,
       errorProcessor,
@@ -37,7 +37,7 @@ describe('messageDeserializer', () => {
 
     const errorProcessor = new SqsConsumerErrorResolver()
 
-    const deserializedPayload = deserializeSQSMessage(
+    const deserializedPayload = deserializeSNSMessage(
       message,
       PERMISSIONS_MESSAGE_SCHEMA,
       errorProcessor,
@@ -53,7 +53,7 @@ describe('messageDeserializer', () => {
 
     const errorProcessor = new SqsConsumerErrorResolver()
 
-    const deserializedPayload = deserializeSQSMessage(
+    const deserializedPayload = deserializeSNSMessage(
       message as any,
       PERMISSIONS_MESSAGE_SCHEMA,
       errorProcessor,

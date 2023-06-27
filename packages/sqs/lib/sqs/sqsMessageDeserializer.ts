@@ -5,8 +5,8 @@ import type { SqsMessageInvalidFormat, SqsValidationError } from '../errors/sqsE
 
 import type { SQSMessage } from './AbstractSqsConsumer'
 
-export const deserializeMessage = <T extends object>(
-  message: SQSMessage,
+export const deserializeSQSMessage = <T extends object>(
+  message: any,
   type: ZodType<T>,
   errorProcessor: ErrorResolver,
 ): Either<SqsMessageInvalidFormat | SqsValidationError, T> => {

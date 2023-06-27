@@ -6,16 +6,18 @@ import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
-import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
+import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 import { deleteQueue, purgeQueue } from '../utils/sqsUtils'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
+import { assertQueue } from '@message-queue-toolkit/sqs'
 
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
+const queueName = 'someQueue'
 
 async function waitForPermissions(userIds: number[]) {
   return await waitAndRetry(
@@ -43,10 +45,10 @@ async function waitForPermissions(userIds: number[]) {
   )
 }
 
-describe('SqsPermissionsConsumer', () => {
+describe('SNS PermissionsConsumer', () => {
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: SqsPermissionPublisher
+    let publisher: SnsPermissionPublisher
     let sqsClient: SQSClient
     beforeAll(async () => {
       diContainer = await registerDependencies({
@@ -66,8 +68,11 @@ describe('SqsPermissionsConsumer', () => {
       await diContainer.cradle.permissionConsumer.start()
       await diContainer.cradle.permissionPublisher.init()
 
+      const queueUrl = await assertQueue(sqsClient, {
+        QueueName: queueName,
+      })
       const command = new ReceiveMessageCommand({
-        QueueUrl: diContainer.cradle.permissionPublisher.queueUrl,
+        QueueUrl: queueUrl,
       })
       const reply = await sqsClient.send(command)
       expect(reply.Messages).toBeUndefined()

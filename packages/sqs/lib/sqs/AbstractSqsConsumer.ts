@@ -1,4 +1,4 @@
-import type { Either, ErrorResolver } from '@lokalise/node-core'
+import type { Either, ErrorResolver, InternalError } from '@lokalise/node-core'
 import type {
   QueueConsumer as QueueConsumer,
   QueueOptions,
@@ -11,7 +11,8 @@ import { SqsMessageInvalidFormat, SqsValidationError } from '../errors/sqsErrors
 
 import type { SQSConsumerDependencies, SQSQueueAWSConfig } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
-import { deserializeMessage } from './sqsMessageDeserializer'
+import { deserializeSQSMessage } from './sqsMessageDeserializer'
+import { ZodType } from 'zod'
 
 export type SQSMessage = {
   MessageId: string
@@ -44,6 +45,11 @@ export abstract class AbstractSqsConsumer<MessagePayloadType extends object>
   // @ts-ignore
   protected consumer: Consumer
   private readonly consumerOptionsOverride: Partial<ConsumerOptions>
+  private readonly deserializer: <MessagePayloadType>(
+    message: any,
+    type: ZodType<MessagePayloadType>,
+    errorProcessor: ErrorResolver,
+  ) => Either<InternalError, MessagePayloadType>
 
   constructor(
     dependencies: SQSConsumerDependencies,
@@ -54,6 +60,7 @@ export abstract class AbstractSqsConsumer<MessagePayloadType extends object>
     this.errorResolver = dependencies.consumerErrorResolver
 
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
+    this.deserializer = options.deserializer || deserializeSQSMessage
   }
 
   abstract processMessage(
@@ -65,11 +72,7 @@ export abstract class AbstractSqsConsumer<MessagePayloadType extends object>
       return ABORT_EARLY_EITHER
     }
 
-    const deserializationResult = deserializeMessage(
-      message,
-      this.messageSchema,
-      this.errorResolver,
-    )
+    const deserializationResult = this.deserializer(message, this.messageSchema, this.errorResolver)
 
     if (
       deserializationResult.error instanceof SqsValidationError ||

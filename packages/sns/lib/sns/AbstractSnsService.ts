@@ -1,23 +1,24 @@
-import type { SQSClient } from '@aws-sdk/client-sqs'
-import { CreateQueueCommand, GetQueueUrlCommand } from '@aws-sdk/client-sqs'
-import type { CreateQueueRequest } from '@aws-sdk/client-sqs/dist-types/models/models_0'
+import type { SNSClient } from '@aws-sdk/client-sns'
+import { CreateTopicCommand } from '@aws-sdk/client-sns'
+import type { CreateTopicCommandInput } from '@aws-sdk/client-sns'
 import type {
   QueueConsumerDependencies,
   QueueDependencies,
   QueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
-import { assertQueue } from '../utils/SqsUtils'
+import { assertTopic } from '../utils/snsUtils'
 
 export type SQSDependencies = QueueDependencies & {
-  sqsClient: SQSClient
+  snsClient: SNSClient
 }
 
-export type SQSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
+export type SNSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
 
-export type SQSQueueAWSConfig = Omit<CreateQueueRequest, 'QueueName'>
+export type SNSTopicAWSConfig = Omit<CreateTopicCommandInput, 'Name'>
 export type SQSQueueConfig = {
   tags?: Record<string, string>
+  // ToDo if correct for sns
   Attributes?: {
     DelaySeconds?: number
     MaximumMessageSize?: number
@@ -31,32 +32,32 @@ export type SQSQueueConfig = {
   }
 }
 
-export class AbstractSqsService<
+export class AbstractSnsService<
   MessagePayloadType extends object,
-  SQSOptionsType extends QueueOptions<MessagePayloadType, SQSQueueAWSConfig> = QueueOptions<
+  SNSOptionsType extends QueueOptions<MessagePayloadType, SNSTopicAWSConfig> = QueueOptions<
     MessagePayloadType,
-    SQSQueueAWSConfig
+    SNSTopicAWSConfig
   >,
   DependenciesType extends SQSDependencies = SQSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
   DependenciesType,
-  SQSQueueAWSConfig,
-  SQSOptionsType
+  SNSTopicAWSConfig,
+  SNSOptionsType
 > {
-  protected readonly sqsClient: SQSClient
+  protected readonly snsClient: SNSClient
   // @ts-ignore
-  public queueUrl: string
+  public topicArn: string
 
-  constructor(dependencies: DependenciesType, options: SQSOptionsType) {
+  constructor(dependencies: DependenciesType, options: SNSOptionsType) {
     super(dependencies, options)
 
-    this.sqsClient = dependencies.sqsClient
+    this.snsClient = dependencies.snsClient
   }
 
   public async init() {
-    this.queueUrl = await assertQueue(this.sqsClient, {
-      QueueName: this.queueName,
+    this.topicArn = await assertTopic(this.snsClient, {
+      Name: this.queueName,
       ...this.queueConfiguration,
     })
   }

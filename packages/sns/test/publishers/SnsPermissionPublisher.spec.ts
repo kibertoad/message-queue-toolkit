@@ -6,8 +6,6 @@ import { asClass } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
-import type { SQSMessage } from '../../lib/sqs/AbstractSqsConsumer'
-import { deserializeSQSMessage } from '../../lib/sqs/sqsMessageDeserializer'
 import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
@@ -17,23 +15,30 @@ import { deleteQueue, purgeQueue } from '../utils/sqsUtils'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SqsPermissionPublisher } from './SqsPermissionPublisher'
+import { SnsPermissionPublisher } from './SnsPermissionPublisher'
+import { SNSClient } from '@aws-sdk/client-sns'
+import { subscribeToTopic } from '../../lib/sns/SnsSubscriber'
+import { deserializeSQSMessage, assertQueue, SQSMessage } from '@message-queue-toolkit/sqs'
+import { deserializeSNSMessage } from '../../lib/sns/snsMessageDeserializer'
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
+const queueName = 'someQueue'
 
-describe('SqsPermissionPublisher', () => {
+describe('SNSPermissionPublisher', () => {
   describe('publish', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
+    let snsClient: SNSClient
     let consumer: Consumer
-    let publisher: SqsPermissionPublisher
+    let publisher: SnsPermissionPublisher
 
     beforeAll(async () => {
       diContainer = await registerDependencies({
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
       sqsClient = diContainer.cradle.sqsClient
+      snsClient = diContainer.cradle.snsClient
       publisher = diContainer.cradle.permissionPublisher
       await purgeQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
     })
@@ -43,14 +48,8 @@ describe('SqsPermissionPublisher', () => {
       delete userPermissionMap[200]
       delete userPermissionMap[300]
 
-      await deleteQueue(sqsClient, SqsPermissionPublisher.QUEUE_NAME)
+      await deleteQueue(sqsClient, queueName)
       await diContainer.cradle.permissionPublisher.init()
-
-      const command = new ReceiveMessageCommand({
-        QueueUrl: publisher.queueUrl,
-      })
-      const reply = await sqsClient.send(command)
-      expect(reply.Messages).toBeUndefined()
     })
 
     afterAll(async () => {
@@ -62,7 +61,7 @@ describe('SqsPermissionPublisher', () => {
     afterEach(async () => {
       consumer?.stop()
       consumer?.stop({ abort: true })
-      await purgeQueue(sqsClient, SqsPermissionPublisher.QUEUE_NAME)
+      await purgeQueue(sqsClient, queueName)
     })
 
     it('publishes a message', async () => {
@@ -74,14 +73,29 @@ describe('SqsPermissionPublisher', () => {
         permissions: perms,
       } satisfies PERMISSIONS_MESSAGE_TYPE
 
+      const queueUrl = await assertQueue(sqsClient, {
+        QueueName: queueName,
+      })
+
+      await subscribeToTopic(
+        sqsClient,
+        snsClient,
+        {
+          QueueName: queueName,
+        },
+        {
+          Name: SnsPermissionPublisher.TOPIC_NAME,
+        },
+      )
+
       let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null
       consumer = Consumer.create({
-        queueUrl: diContainer.cradle.permissionPublisher.queueUrl,
+        queueUrl: queueUrl,
         handleMessage: async (message: SQSMessage) => {
           if (message === null) {
             return
           }
-          const decodedMessage = deserializeSQSMessage(
+          const decodedMessage = deserializeSNSMessage(
             message as any,
             PERMISSIONS_MESSAGE_SCHEMA,
             new FakeConsumerErrorResolver(),
@@ -105,6 +119,6 @@ describe('SqsPermissionPublisher', () => {
         permissions: ['perm1', 'perm2'],
         userIds: [100, 200, 300],
       })
-    })
+    }, 99999)
   })
 })

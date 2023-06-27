@@ -11,6 +11,7 @@ export type {
   QueueOptions,
   QueueDependencies,
   QueueConsumerDependencies,
+  Deserializer,
 } from './lib/queues/AbstractQueueService'
 
 export { objectToBuffer } from './lib/utils/queueUtils'

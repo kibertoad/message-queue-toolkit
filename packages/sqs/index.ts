@@ -12,6 +12,7 @@ export { SqsValidationError, SqsMessageInvalidFormat } from './lib/errors/sqsErr
 export { AbstractSqsPublisher } from './lib/sqs/AbstractSqsPublisher'
 export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisher'
 
-export type { CommonMessage } from './lib/types/MessageTypes'
+export { assertQueue } from './lib/utils/SqsUtils'
+export { deserializeSQSMessage } from './lib/sqs/sqsMessageDeserializer'
 
-export {} from './lib/sqs/sqsMessageDeserializer'
+export type { CommonMessage } from './lib/types/MessageTypes'

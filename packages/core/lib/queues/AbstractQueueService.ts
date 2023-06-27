@@ -1,10 +1,12 @@
 import { types } from 'node:util'
 
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
-import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
+import { Either, InternalError, resolveGlobalErrorLogObject } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
 import type { Logger, TransactionObservabilityManager } from '../types/MessageQueueTypes'
+import { ZodType } from 'zod'
+import { SnsMessageInvalidFormat, SnsValidationError } from '@message-queue-toolkit/sns'
 
 export type QueueDependencies = {
   errorReporter: ErrorReporter
@@ -16,11 +18,22 @@ export type QueueConsumerDependencies = {
   transactionObservabilityManager: TransactionObservabilityManager
 }
 
+export type Deserializer = <T extends object>(
+  message: unknown,
+  type: ZodType<T>,
+  errorProcessor: ErrorResolver,
+) => Either<InternalError, T>
+
 export type QueueOptions<MessagePayloadType extends object, QueueConfiguration extends object> = {
   messageSchema: ZodSchema<MessagePayloadType>
   messageTypeField: string
   queueName: string
   queueConfiguration: QueueConfiguration
+  deserializer?: <T extends object>(
+    message: any,
+    type: ZodType<T>,
+    errorProcessor: ErrorResolver,
+  ) => Either<InternalError, T>
 }
 
 export abstract class AbstractQueueService<

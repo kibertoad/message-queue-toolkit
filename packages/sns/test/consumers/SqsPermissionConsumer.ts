@@ -1,11 +1,11 @@
 import type { Either } from '@lokalise/node-core'
 
-import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer'
-import type { SQSConsumerDependencies } from '../../lib/sqs/AbstractSqsService'
+import { AbstractSqsConsumer, SQSConsumerDependencies } from '@message-queue-toolkit/sqs'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
+import { deserializeSNSMessage } from '../../lib/sns/snsMessageDeserializer'
 
 export class SqsPermissionConsumer extends AbstractSqsConsumer<PERMISSIONS_MESSAGE_TYPE> {
   public static QUEUE_NAME = 'user_permissions'
@@ -14,7 +14,11 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<PERMISSIONS_MESSA
     super(dependencies, {
       queueName: SqsPermissionConsumer.QUEUE_NAME,
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
+      deserializer: deserializeSNSMessage,
       messageTypeField: 'messageType',
+      consumerOverrides: {
+        terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
+      },
       queueConfiguration: {},
     })
   }
