@@ -44,7 +44,7 @@ describe('messageDeserializer', () => {
     )
 
     expect(deserializedPayload.error).toMatchObject({
-      errorCode: 'SQS_VALIDATION_ERROR',
+      errorCode: 'MESSAGE_VALIDATION_ERROR',
     })
   })
 
@@ -60,7 +60,7 @@ describe('messageDeserializer', () => {
     )
 
     expect(deserializedPayload.error).toMatchObject({
-      errorCode: 'SQS_MESSAGE_INVALID_FORMAT',
+      errorCode: 'MESSAGE_INVALID_FORMAT',
     })
   })
 })

@@ -116,6 +116,6 @@ describe('SNSPermissionPublisher', () => {
         permissions: ['perm1', 'perm2'],
         userIds: [100, 200, 300],
       })
-    }, 99999)
+    })
   })
 })

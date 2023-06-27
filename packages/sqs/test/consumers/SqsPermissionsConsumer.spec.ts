@@ -170,7 +170,7 @@ describe('SqsPermissionsConsumer', () => {
         expect(usersPermissions).toBeDefined()
         expect(usersPermissions[0]).toHaveLength(2)
       })
-    }, 999999)
+    })
 
     describe('error handling', () => {
       it('Invalid message in the queue', async () => {

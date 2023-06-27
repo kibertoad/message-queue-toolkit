@@ -4,7 +4,7 @@ export type CommonMessage = {
   messageType: string
 }
 
-export const SNSMessageBodySchema = z.object({
+export const SNS_MESSAGE_BODY_SCHEMA = z.object({
   Type: z.string(),
   MessageId: z.string(),
   TopicArn: z.string(),
@@ -15,3 +15,5 @@ export const SNSMessageBodySchema = z.object({
   SigningCertURL: z.string(),
   UnsubscribeURL: z.string(),
 })
+
+export type SNS_MESSAGE_BODY_TYPE = z.infer<typeof SNS_MESSAGE_BODY_SCHEMA>

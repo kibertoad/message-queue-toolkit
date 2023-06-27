@@ -5,6 +5,9 @@ import type { PERMISSIONS_MESSAGE_TYPE } from '../../test/consumers/userConsumer
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../../test/consumers/userConsumerSchemas'
 
 import { deserializeSNSMessage } from './snsMessageDeserializer'
+import { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
+import z from 'zod'
+import { SnsConsumerErrorResolver } from '../errors/SnsConsumerErrorResolver'
 
 describe('messageDeserializer', () => {
   it('deserializes valid JSON', () => {
@@ -13,8 +16,21 @@ describe('messageDeserializer', () => {
       userIds: [1],
       permissions: ['perm'],
     }
+
+    const snsMessage: SNS_MESSAGE_BODY_TYPE = {
+      Message: JSON.stringify(messagePayload),
+      Type: 'dummy',
+      MessageId: 'dummy',
+      TopicArn: 'dummy',
+      Timestamp: 'dummy',
+      SignatureVersion: 'dummy',
+      Signature: 'dummy',
+      SigningCertURL: 'dummy',
+      UnsubscribeURL: 'dummy',
+    }
+
     const message: SQSMessage = {
-      Body: JSON.stringify(messagePayload),
+      Body: JSON.stringify(snsMessage),
     } as SQSMessage
 
     const errorProcessor = new SqsConsumerErrorResolver()
@@ -32,11 +48,24 @@ describe('messageDeserializer', () => {
     const messagePayload: Partial<PERMISSIONS_MESSAGE_TYPE> = {
       userIds: [1],
     }
+
+    const snsMessage: SNS_MESSAGE_BODY_TYPE = {
+      Message: JSON.stringify(messagePayload),
+      Type: 'dummy',
+      MessageId: 'dummy',
+      TopicArn: 'dummy',
+      Timestamp: 'dummy',
+      SignatureVersion: 'dummy',
+      Signature: 'dummy',
+      SigningCertURL: 'dummy',
+      UnsubscribeURL: 'dummy',
+    }
+
     const message: SQSMessage = {
-      Body: JSON.stringify(messagePayload),
+      Body: JSON.stringify(snsMessage),
     } as SQSMessage
 
-    const errorProcessor = new SqsConsumerErrorResolver()
+    const errorProcessor = new SnsConsumerErrorResolver()
 
     const deserializedPayload = deserializeSNSMessage(
       message,
@@ -45,7 +74,33 @@ describe('messageDeserializer', () => {
     )
 
     expect(deserializedPayload.error).toMatchObject({
-      errorCode: 'SQS_VALIDATION_ERROR',
+      errorCode: 'MESSAGE_VALIDATION_ERROR',
+    })
+  })
+
+  it('throws an error on invalid SNS envelope', () => {
+    const messagePayload: Partial<PERMISSIONS_MESSAGE_TYPE> = {
+      userIds: [1],
+    }
+
+    const snsMessage: Partial<SNS_MESSAGE_BODY_TYPE> = {
+      Message: JSON.stringify(messagePayload),
+    }
+
+    const message: SQSMessage = {
+      Body: JSON.stringify(snsMessage),
+    } as SQSMessage
+
+    const errorProcessor = new SnsConsumerErrorResolver()
+
+    const deserializedPayload = deserializeSNSMessage(
+      message,
+      PERMISSIONS_MESSAGE_SCHEMA,
+      errorProcessor,
+    )
+
+    expect(deserializedPayload.error).toMatchObject({
+      errorCode: 'MESSAGE_VALIDATION_ERROR',
     })
   })
 
@@ -61,7 +116,7 @@ describe('messageDeserializer', () => {
     )
 
     expect(deserializedPayload.error).toMatchObject({
-      errorCode: 'SQS_MESSAGE_INVALID_FORMAT',
+      errorCode: 'MESSAGE_INVALID_FORMAT',
     })
   })
 })

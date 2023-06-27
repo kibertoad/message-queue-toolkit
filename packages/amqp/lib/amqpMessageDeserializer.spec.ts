@@ -45,7 +45,7 @@ describe('messageDeserializer', () => {
     )
 
     expect(deserializedPayload.error).toMatchObject({
-      errorCode: 'AMQP_VALIDATION_ERROR',
+      errorCode: 'MESSAGE_VALIDATION_ERROR',
     })
   })
 
@@ -63,7 +63,7 @@ describe('messageDeserializer', () => {
     )
 
     expect(deserializedPayload.error).toMatchObject({
-      errorCode: 'AMQP_MESSAGE_INVALID_FORMAT',
+      errorCode: 'MESSAGE_INVALID_FORMAT',
     })
   })
 })
