@@ -3,11 +3,10 @@ import { SqsConsumerErrorResolver } from '@message-queue-toolkit/sqs'
 
 import type { PERMISSIONS_MESSAGE_TYPE } from '../../test/consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../../test/consumers/userConsumerSchemas'
+import { SnsConsumerErrorResolver } from '../errors/SnsConsumerErrorResolver'
+import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
 
 import { deserializeSNSMessage } from './snsMessageDeserializer'
-import { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
-import z from 'zod'
-import { SnsConsumerErrorResolver } from '../errors/SnsConsumerErrorResolver'
 
 describe('messageDeserializer', () => {
   it('deserializes valid JSON', () => {

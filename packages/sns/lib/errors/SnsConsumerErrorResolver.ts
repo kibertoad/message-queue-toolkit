@@ -2,9 +2,8 @@ import { types } from 'node:util'
 
 import type { ErrorResolver } from '@lokalise/node-core'
 import { InternalError, isStandardizedError } from '@lokalise/node-core'
-import { ZodError } from 'zod'
-
 import { MessageInvalidFormatError, MessageValidationError } from '@message-queue-toolkit/core'
+import { ZodError } from 'zod'
 
 export class SnsConsumerErrorResolver implements ErrorResolver {
   public processError(error: unknown): InternalError {
