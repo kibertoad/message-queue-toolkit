@@ -1,25 +1,24 @@
+import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
-import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
+import type { SQSMessage } from '@message-queue-toolkit/sqs'
+import { assertQueue, deleteQueue, purgeQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
-import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer'
+import { subscribeToTopic } from '../../lib/sns/SnsSubscriber'
+import { deserializeSNSMessage } from '../../lib/sns/snsMessageDeserializer'
+import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { userPermissionMap } from '../repositories/PermissionRepository'
-import { deleteQueue, purgeQueue } from '../utils/sqsUtils'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsPermissionPublisher } from './SnsPermissionPublisher'
-import { SNSClient } from '@aws-sdk/client-sns'
-import { subscribeToTopic } from '../../lib/sns/SnsSubscriber'
-import { deserializeSQSMessage, assertQueue, SQSMessage } from '@message-queue-toolkit/sqs'
-import { deserializeSNSMessage } from '../../lib/sns/snsMessageDeserializer'
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
@@ -31,7 +30,6 @@ describe('SNSPermissionPublisher', () => {
     let sqsClient: SQSClient
     let snsClient: SNSClient
     let consumer: Consumer
-    let publisher: SnsPermissionPublisher
 
     beforeAll(async () => {
       diContainer = await registerDependencies({
@@ -39,8 +37,7 @@ describe('SNSPermissionPublisher', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
-      publisher = diContainer.cradle.permissionPublisher
-      await purgeQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await purgeQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
     })
 
     beforeEach(async () => {

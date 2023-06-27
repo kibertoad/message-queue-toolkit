@@ -1,25 +1,19 @@
-import type { Either, ErrorResolver, InternalError } from '@lokalise/node-core'
+import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   QueueConsumer as QueueConsumer,
   QueueOptions,
   TransactionObservabilityManager,
+  Deserializer,
 } from '@message-queue-toolkit/core'
+import { isMessageError } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
-import { SqsMessageInvalidFormat, SqsValidationError } from '../errors/sqsErrors'
+import type { SQSMessage } from '../types/MessageTypes'
 
 import type { SQSConsumerDependencies, SQSQueueAWSConfig } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
 import { deserializeSQSMessage } from './sqsMessageDeserializer'
-import { ZodType } from 'zod'
-
-export type SQSMessage = {
-  MessageId: string
-  ReceiptHandle: string
-  MD5OfBody: string
-  Body: string
-}
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
@@ -30,14 +24,14 @@ export type SQSConsumerOptions<MessagePayloadType extends object> = QueueOptions
   SQSQueueAWSConfig
 > & {
   consumerOverrides?: Partial<ConsumerOptions>
+  deserializer?: Deserializer<MessagePayloadType, SQSMessage>
 }
 
-export abstract class AbstractSqsConsumer<MessagePayloadType extends object>
-  extends AbstractSqsService<
-    MessagePayloadType,
-    SQSConsumerOptions<MessagePayloadType>,
-    SQSConsumerDependencies
+export abstract class AbstractSqsConsumer<
+    MessagePayloadType extends object,
+    ConsumerOptionsType extends SQSConsumerOptions<MessagePayloadType> = SQSConsumerOptions<MessagePayloadType>,
   >
+  extends AbstractSqsService<MessagePayloadType, ConsumerOptionsType, SQSConsumerDependencies>
   implements QueueConsumer
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
@@ -45,22 +39,15 @@ export abstract class AbstractSqsConsumer<MessagePayloadType extends object>
   // @ts-ignore
   protected consumer: Consumer
   private readonly consumerOptionsOverride: Partial<ConsumerOptions>
-  private readonly deserializer: <MessagePayloadType>(
-    message: any,
-    type: ZodType<MessagePayloadType>,
-    errorProcessor: ErrorResolver,
-  ) => Either<InternalError, MessagePayloadType>
+  private readonly deserializer: Deserializer<MessagePayloadType, SQSMessage>
 
-  constructor(
-    dependencies: SQSConsumerDependencies,
-    options: SQSConsumerOptions<MessagePayloadType>,
-  ) {
+  protected constructor(dependencies: SQSConsumerDependencies, options: ConsumerOptionsType) {
     super(dependencies, options)
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.errorResolver = dependencies.consumerErrorResolver
 
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
-    this.deserializer = options.deserializer || deserializeSQSMessage
+    this.deserializer = options.deserializer ?? deserializeSQSMessage
   }
 
   abstract processMessage(
@@ -74,10 +61,7 @@ export abstract class AbstractSqsConsumer<MessagePayloadType extends object>
 
     const deserializationResult = this.deserializer(message, this.messageSchema, this.errorResolver)
 
-    if (
-      deserializationResult.error instanceof SqsValidationError ||
-      deserializationResult.error instanceof SqsMessageInvalidFormat
-    ) {
+    if (isMessageError(deserializationResult.error)) {
       this.handleError(deserializationResult.error)
       return ABORT_EARLY_EITHER
     }

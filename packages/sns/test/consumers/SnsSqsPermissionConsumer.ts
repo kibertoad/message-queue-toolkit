@@ -1,23 +1,26 @@
 import type { Either } from '@lokalise/node-core'
 
-import { AbstractSqsConsumer, SQSConsumerDependencies } from '@message-queue-toolkit/sqs'
+import type { SNSSQSConsumerDependencies } from '../../lib/sns/AbstractSnsSqsConsumer'
+import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
-import { deserializeSNSMessage } from '../../lib/sns/snsMessageDeserializer'
 
-export class SqsPermissionConsumer extends AbstractSqsConsumer<PERMISSIONS_MESSAGE_TYPE> {
-  public static QUEUE_NAME = 'user_permissions'
+export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<PERMISSIONS_MESSAGE_TYPE> {
+  public static CONSUMED_QUEUE_NAME = 'user_permissions'
+  public static SUBSCRIBED_TOPIC_NAME = 'user_permissions'
 
-  constructor(dependencies: SQSConsumerDependencies) {
+  constructor(dependencies: SNSSQSConsumerDependencies) {
     super(dependencies, {
-      queueName: SqsPermissionConsumer.QUEUE_NAME,
+      queueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
-      deserializer: deserializeSNSMessage,
       messageTypeField: 'messageType',
       consumerOverrides: {
         terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
+      },
+      subscribedToTopic: {
+        Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME,
       },
       queueConfiguration: {},
     })

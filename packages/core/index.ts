@@ -14,5 +14,11 @@ export type {
   Deserializer,
 } from './lib/queues/AbstractQueueService'
 
+export {
+  isMessageError,
+  MessageValidationError,
+  MessageInvalidFormatError,
+} from './lib/errors/Errors'
+
 export { objectToBuffer } from './lib/utils/queueUtils'
 export { waitAndRetry } from './lib/utils/waitUtils'

@@ -1,8 +1,8 @@
 import type { PERMISSIONS_MESSAGE_TYPE } from '../../test/consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../../test/consumers/userConsumerSchemas'
 import { SqsConsumerErrorResolver } from '../errors/SqsConsumerErrorResolver'
+import type { SQSMessage } from '../types/MessageTypes'
 
-import type { SQSMessage } from './AbstractSqsConsumer'
 import { deserializeSQSMessage } from './sqsMessageDeserializer'
 
 describe('messageDeserializer', () => {

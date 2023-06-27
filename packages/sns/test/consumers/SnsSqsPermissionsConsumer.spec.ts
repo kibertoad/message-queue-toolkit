@@ -1,6 +1,8 @@
+import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
+import { assertQueue, deleteQueue, purgeQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
@@ -8,16 +10,14 @@ import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 import { userPermissionMap } from '../repositories/PermissionRepository'
-import { deleteQueue, purgeQueue } from '../utils/sqsUtils'
+import { deleteTopic } from '../utils/snsUtils'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SqsPermissionConsumer } from './SqsPermissionConsumer'
-import { assertQueue } from '@message-queue-toolkit/sqs'
+import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
 
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
-const queueName = 'someQueue'
 
 async function waitForPermissions(userIds: number[]) {
   return await waitAndRetry(
@@ -50,13 +50,15 @@ describe('SNS PermissionsConsumer', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SnsPermissionPublisher
     let sqsClient: SQSClient
+    let snsClient: SNSClient
     beforeAll(async () => {
       diContainer = await registerDependencies({
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
       sqsClient = diContainer.cradle.sqsClient
+      snsClient = diContainer.cradle.snsClient
       publisher = diContainer.cradle.permissionPublisher
-      await purgeQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await purgeQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
     })
 
     beforeEach(async () => {
@@ -64,12 +66,13 @@ describe('SNS PermissionsConsumer', () => {
       delete userPermissionMap[200]
       delete userPermissionMap[300]
 
-      await deleteQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await deleteTopic(snsClient, SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME)
+      await deleteQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.start()
       await diContainer.cradle.permissionPublisher.init()
 
       const queueUrl = await assertQueue(sqsClient, {
-        QueueName: queueName,
+        QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
       })
       const command = new ReceiveMessageCommand({
         QueueUrl: queueUrl,
@@ -89,7 +92,7 @@ describe('SNS PermissionsConsumer', () => {
     })
 
     afterEach(async () => {
-      await purgeQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await purgeQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.close()
       await diContainer.cradle.permissionConsumer.close(true)
     })

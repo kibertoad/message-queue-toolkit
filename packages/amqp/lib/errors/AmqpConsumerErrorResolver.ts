@@ -2,19 +2,18 @@ import { types } from 'node:util'
 
 import type { ErrorResolver } from '@lokalise/node-core'
 import { InternalError, isStandardizedError } from '@lokalise/node-core'
+import { MessageInvalidFormatError, MessageValidationError } from '@message-queue-toolkit/core'
 import { ZodError } from 'zod'
-
-import { AmqpMessageInvalidFormat, AmqpValidationError } from './amqpErrors'
 
 export class AmqpConsumerErrorResolver implements ErrorResolver {
   public processError(error: unknown): InternalError {
     if (types.isNativeError(error) && error?.name === 'SyntaxError') {
-      return new AmqpMessageInvalidFormat({
+      return new MessageInvalidFormatError({
         message: error.message,
       })
     }
     if (error instanceof ZodError) {
-      return new AmqpValidationError({
+      return new MessageValidationError({
         message: error.message,
         details: {
           error: error.issues,

@@ -1,17 +1,12 @@
 import type { Either, ErrorResolver } from '@lokalise/node-core'
+import type { SQSMessage } from '@message-queue-toolkit/sqs'
 import type { ZodType } from 'zod'
-import { SnsMessageInvalidFormat, SnsValidationError } from '../errors/snsErrors'
+
+import type { SnsMessageInvalidFormat, SnsValidationError } from '../errors/snsErrors'
 import { SNSMessageBodySchema } from '../types/MessageTypes'
 
-export type SNSMessage = {
-  MessageId: string
-  ReceiptHandle: string
-  MD5OfBody: string
-  Body: string
-}
-
 export const deserializeSNSMessage = <T extends object>(
-  message: SNSMessage,
+  message: SQSMessage,
   type: ZodType<T>,
   errorProcessor: ErrorResolver,
 ): Either<SnsMessageInvalidFormat | SnsValidationError, T> => {

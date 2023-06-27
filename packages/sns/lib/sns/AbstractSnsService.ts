@@ -1,12 +1,11 @@
-import type { SNSClient } from '@aws-sdk/client-sns'
-import { CreateTopicCommand } from '@aws-sdk/client-sns'
-import type { CreateTopicCommandInput } from '@aws-sdk/client-sns'
+import type { SNSClient, CreateTopicCommandInput } from '@aws-sdk/client-sns'
 import type {
   QueueConsumerDependencies,
   QueueDependencies,
   QueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
+
 import { assertTopic } from '../utils/snsUtils'
 
 export type SQSDependencies = QueueDependencies & {

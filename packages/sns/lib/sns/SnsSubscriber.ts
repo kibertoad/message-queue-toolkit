@@ -1,11 +1,9 @@
-import { AbstractSqsConsumer, assertQueue } from '@message-queue-toolkit/sqs'
-import {
-  CreateTopicCommand,
-  CreateTopicCommandInput,
-  SNSClient,
-  SubscribeCommand,
-} from '@aws-sdk/client-sns'
-import { CreateQueueCommandInput, GetQueueAttributesCommand, SQSClient } from '@aws-sdk/client-sqs'
+import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
+import { SubscribeCommand } from '@aws-sdk/client-sns'
+import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
+import { GetQueueAttributesCommand } from '@aws-sdk/client-sqs'
+import { assertQueue } from '@message-queue-toolkit/sqs'
+
 import { assertTopic } from '../utils/snsUtils'
 
 export async function subscribeToTopic(
@@ -34,6 +32,5 @@ export async function subscribeToTopic(
     Protocol: 'sqs',
   })
 
-  const response = await snsClient.send(subscribeCommand)
-  console.log('arr')
+  await snsClient.send(subscribeCommand)
 }

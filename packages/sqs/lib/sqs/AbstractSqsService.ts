@@ -1,5 +1,4 @@
 import type { SQSClient } from '@aws-sdk/client-sqs'
-import { CreateQueueCommand, GetQueueUrlCommand } from '@aws-sdk/client-sqs'
 import type { CreateQueueRequest } from '@aws-sdk/client-sqs/dist-types/models/models_0'
 import type {
   QueueConsumerDependencies,
@@ -7,6 +6,7 @@ import type {
   QueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
+
 import { assertQueue } from '../utils/SqsUtils'
 
 export type SQSDependencies = QueueDependencies & {

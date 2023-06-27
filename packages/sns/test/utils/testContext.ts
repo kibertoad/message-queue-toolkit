@@ -1,3 +1,4 @@
+import { SNSClient } from '@aws-sdk/client-sns'
 import { SQSClient } from '@aws-sdk/client-sqs'
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
@@ -6,11 +7,10 @@ import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
 import { SnsConsumerErrorResolver } from '../../lib/errors/SnsConsumerErrorResolver'
-import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer'
+import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 
 import { TEST_AWS_CONFIG } from './testSqsConfig'
-import { SNSClient } from '@aws-sdk/client-sns'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -62,7 +62,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       return new SnsConsumerErrorResolver()
     }),
 
-    permissionConsumer: asClass(SqsPermissionConsumer, {
+    permissionConsumer: asClass(SnsSqsPermissionConsumer, {
       lifetime: Lifetime.SINGLETON,
       asyncDispose: 'close',
       asyncDisposePriority: 10,
@@ -107,6 +107,6 @@ export interface Dependencies {
 
   errorReporter: ErrorReporter
   consumerErrorResolver: ErrorResolver
-  permissionConsumer: SqsPermissionConsumer
+  permissionConsumer: SnsSqsPermissionConsumer
   permissionPublisher: SnsPermissionPublisher
 }

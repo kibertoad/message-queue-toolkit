@@ -1,8 +1,8 @@
+import { PublishCommand } from '@aws-sdk/client-sns'
+import type { PublishCommandInput } from '@aws-sdk/client-sns/dist-types/commands/PublishCommand'
 import type { AsyncPublisher } from '@message-queue-toolkit/core'
 
 import { AbstractSnsService } from './AbstractSnsService'
-import { PublishCommand } from '@aws-sdk/client-sns'
-import { PublishCommandInput } from '@aws-sdk/client-sns/dist-types/commands/PublishCommand'
 
 export type SNSMessageOptions = {
   MessageGroupId?: string

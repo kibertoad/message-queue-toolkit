@@ -1,4 +1,5 @@
-import { CreateTopicCommand, CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
+import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
+import { CreateTopicCommand } from '@aws-sdk/client-sns'
 
 export async function assertTopic(snsClient: SNSClient, topicOptions: CreateTopicCommandInput) {
   const command = new CreateTopicCommand(topicOptions)
