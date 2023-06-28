@@ -11,8 +11,8 @@
     "format": "npm run format --workspaces",
     "test": "npm run test:coverage --workspaces",
     "test:ci": "npm run test:ci --workspaces",
-    "docker:start:dev": "docker compose up -d",
-    "docker:stop:dev": "docker compose down"
+    "docker:start": "docker compose up -d",
+    "docker:stop": "docker compose down"
   },
   "workspaces": [
     "packages/*"
