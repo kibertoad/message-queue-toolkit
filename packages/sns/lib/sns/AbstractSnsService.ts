@@ -8,7 +8,7 @@ import { AbstractQueueService } from '@message-queue-toolkit/core'
 
 import { assertTopic } from '../utils/snsUtils'
 
-export type SQSDependencies = QueueDependencies & {
+export type SNSDependencies = QueueDependencies & {
   snsClient: SNSClient
 }
 
