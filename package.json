@@ -10,7 +10,9 @@
     "lint:fix": "npm run lint:fix --workspaces",
     "format": "npm run format --workspaces",
     "test": "npm run test:coverage --workspaces",
-    "test:ci": "npm run test:ci --workspaces"
+    "test:ci": "npm run test:ci --workspaces",
+    "docker:start:dev": "docker compose up -d",
+    "docker:stop:dev": "docker compose down"
   },
   "workspaces": [
     "packages/*"

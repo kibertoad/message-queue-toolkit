@@ -23,13 +23,21 @@ jobs:
         run: |
           npm install --ignore-scripts
 
+      - name: Docker start
+        run: |
+          npm run docker:start          
+
       - name: Build TS
         run: |
           npm run build
 
       - name: Run Tests
         run: |
-          npm run test:ci
+          npm run test:coverage
+
+      - name: Docker stop
+        run: |
+          npm run docker:stop          
 
   automerge:
     needs: build
