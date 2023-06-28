@@ -1,6 +1,6 @@
 export type {
   SNSTopicAWSConfig,
-  SQSQueueConfig,
+  SNSTopicConfig,
   SNSConsumerDependencies,
 } from './lib/sns/AbstractSnsService'
 

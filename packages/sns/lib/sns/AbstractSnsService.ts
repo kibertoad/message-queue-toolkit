@@ -1,4 +1,4 @@
-import type { SNSClient, CreateTopicCommandInput } from '@aws-sdk/client-sns'
+import type { SNSClient, CreateTopicCommandInput, Tag } from '@aws-sdk/client-sns'
 import type {
   QueueConsumerDependencies,
   QueueDependencies,
@@ -12,22 +12,21 @@ export type SNSDependencies = QueueDependencies & {
   snsClient: SNSClient
 }
 
-export type SNSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
+export type SNSConsumerDependencies = SNSDependencies & QueueConsumerDependencies
 
 export type SNSTopicAWSConfig = Omit<CreateTopicCommandInput, 'Name'>
-export type SQSQueueConfig = {
-  tags?: Record<string, string>
+export type SNSTopicConfig = {
+  tags?: Tag[]
+  DataProtectionPolicy?: string
   // ToDo if correct for sns
   Attributes?: {
-    DelaySeconds?: number
-    MaximumMessageSize?: number
-    MessageRetentionPeriod?: number
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Policy?: any
-    ReceiveMessageWaitTimeSeconds?: number
-    VisibilityTimeout?: number
-    RedrivePolicy?: string
-    RedriveAllowPolicy?: string
+    DeliveryPolicy?: string
+    DisplayName?: string
+    Policy?: string
+    SignatureVersion?: number
+    TracingConfig?: string
+    FifoTopic?: boolean
+    ContentBasedDeduplication?: boolean
   }
 }
 
@@ -37,7 +36,7 @@ export class AbstractSnsService<
     MessagePayloadType,
     SNSTopicAWSConfig
   >,
-  DependenciesType extends SQSDependencies = SQSDependencies,
+  DependenciesType extends SNSDependencies = SNSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
   DependenciesType,
