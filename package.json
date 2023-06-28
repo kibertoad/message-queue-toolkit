@@ -9,7 +9,7 @@
     "lint": "npm run lint --workspaces",
     "lint:fix": "npm run lint:fix --workspaces",
     "format": "npm run format --workspaces",
-    "test": "npm run test:coverage --workspaces",
+    "test:coverage": "npm run test:coverage --workspaces",
     "test:ci": "npm run test:ci --workspaces",
     "docker:start": "docker compose up -d",
     "docker:stop": "docker compose down"
