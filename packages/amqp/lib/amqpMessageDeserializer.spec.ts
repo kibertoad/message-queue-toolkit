@@ -3,7 +3,7 @@ import type { Message } from 'amqplib'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../test/consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../test/consumers/userConsumerSchemas'
 
-import { deserializeMessage } from './amqpMessageDeserializer'
+import { deserializeAmqpMessage } from './amqpMessageDeserializer'
 import { AmqpConsumerErrorResolver } from './errors/AmqpConsumerErrorResolver'
 
 describe('messageDeserializer', () => {
@@ -19,7 +19,7 @@ describe('messageDeserializer', () => {
 
     const errorProcessor = new AmqpConsumerErrorResolver()
 
-    const deserializedPayload = deserializeMessage(
+    const deserializedPayload = deserializeAmqpMessage(
       message,
       PERMISSIONS_MESSAGE_SCHEMA,
       errorProcessor,
@@ -38,14 +38,14 @@ describe('messageDeserializer', () => {
 
     const errorProcessor = new AmqpConsumerErrorResolver()
 
-    const deserializedPayload = deserializeMessage(
+    const deserializedPayload = deserializeAmqpMessage(
       message,
       PERMISSIONS_MESSAGE_SCHEMA,
       errorProcessor,
     )
 
     expect(deserializedPayload.error).toMatchObject({
-      errorCode: 'AMQP_VALIDATION_ERROR',
+      errorCode: 'MESSAGE_VALIDATION_ERROR',
     })
   })
 
@@ -56,14 +56,14 @@ describe('messageDeserializer', () => {
 
     const errorProcessor = new AmqpConsumerErrorResolver()
 
-    const deserializedPayload = deserializeMessage(
+    const deserializedPayload = deserializeAmqpMessage(
       message,
       PERMISSIONS_MESSAGE_SCHEMA,
       errorProcessor,
     )
 
     expect(deserializedPayload.error).toMatchObject({
-      errorCode: 'AMQP_MESSAGE_INVALID_FORMAT',
+      errorCode: 'MESSAGE_INVALID_FORMAT',
     })
   })
 })

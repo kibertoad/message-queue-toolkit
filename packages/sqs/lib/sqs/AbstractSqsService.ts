@@ -1,5 +1,4 @@
 import type { SQSClient } from '@aws-sdk/client-sqs'
-import { CreateQueueCommand, GetQueueUrlCommand } from '@aws-sdk/client-sqs'
 import type { CreateQueueRequest } from '@aws-sdk/client-sqs/dist-types/models/models_0'
 import type {
   QueueConsumerDependencies,
@@ -7,6 +6,8 @@ import type {
   QueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
+
+import { assertQueue } from '../utils/SqsUtils'
 
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient
@@ -54,22 +55,10 @@ export class AbstractSqsService<
   }
 
   public async init() {
-    const command = new CreateQueueCommand({
-      QueueName: this.queueName,
-    })
-    await this.sqsClient.send(command)
-
-    const getUrlCommand = new GetQueueUrlCommand({
+    this.queueUrl = await assertQueue(this.sqsClient, {
       QueueName: this.queueName,
       ...this.queueConfiguration,
     })
-    const response = await this.sqsClient.send(getUrlCommand)
-
-    if (!response.QueueUrl) {
-      throw new Error(`Queue ${this.queueName} was not created`)
-    }
-
-    this.queueUrl = response.QueueUrl
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

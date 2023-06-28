@@ -6,14 +6,14 @@ import { asClass } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
-import type { SQSMessage } from '../../lib/sqs/AbstractSqsConsumer'
-import { deserializeMessage } from '../../lib/sqs/sqsMessageDeserializer'
+import { deserializeSQSMessage } from '../../lib/sqs/sqsMessageDeserializer'
+import type { SQSMessage } from '../../lib/types/MessageTypes'
+import { deleteQueue, purgeQueue } from '../../lib/utils/SqsUtils'
 import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { userPermissionMap } from '../repositories/PermissionRepository'
-import { deleteQueue, purgeQueue } from '../utils/sqsUtils'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -22,7 +22,7 @@ import { SqsPermissionPublisher } from './SqsPermissionPublisher'
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
 
-describe('AmqpPermissionPublisher', () => {
+describe('SqsPermissionPublisher', () => {
   describe('publish', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
@@ -81,7 +81,7 @@ describe('AmqpPermissionPublisher', () => {
           if (message === null) {
             return
           }
-          const decodedMessage = deserializeMessage(
+          const decodedMessage = deserializeSQSMessage(
             message as any,
             PERMISSIONS_MESSAGE_SCHEMA,
             new FakeConsumerErrorResolver(),

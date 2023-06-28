@@ -1,9 +1,9 @@
 import type { PERMISSIONS_MESSAGE_TYPE } from '../../test/consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../../test/consumers/userConsumerSchemas'
 import { SqsConsumerErrorResolver } from '../errors/SqsConsumerErrorResolver'
+import type { SQSMessage } from '../types/MessageTypes'
 
-import type { SQSMessage } from './AbstractSqsConsumer'
-import { deserializeMessage } from './sqsMessageDeserializer'
+import { deserializeSQSMessage } from './sqsMessageDeserializer'
 
 describe('messageDeserializer', () => {
   it('deserializes valid JSON', () => {
@@ -18,7 +18,7 @@ describe('messageDeserializer', () => {
 
     const errorProcessor = new SqsConsumerErrorResolver()
 
-    const deserializedPayload = deserializeMessage(
+    const deserializedPayload = deserializeSQSMessage(
       message,
       PERMISSIONS_MESSAGE_SCHEMA,
       errorProcessor,
@@ -37,14 +37,14 @@ describe('messageDeserializer', () => {
 
     const errorProcessor = new SqsConsumerErrorResolver()
 
-    const deserializedPayload = deserializeMessage(
+    const deserializedPayload = deserializeSQSMessage(
       message,
       PERMISSIONS_MESSAGE_SCHEMA,
       errorProcessor,
     )
 
     expect(deserializedPayload.error).toMatchObject({
-      errorCode: 'SQS_VALIDATION_ERROR',
+      errorCode: 'MESSAGE_VALIDATION_ERROR',
     })
   })
 
@@ -53,14 +53,14 @@ describe('messageDeserializer', () => {
 
     const errorProcessor = new SqsConsumerErrorResolver()
 
-    const deserializedPayload = deserializeMessage(
+    const deserializedPayload = deserializeSQSMessage(
       message as any,
       PERMISSIONS_MESSAGE_SCHEMA,
       errorProcessor,
     )
 
     expect(deserializedPayload.error).toMatchObject({
-      errorCode: 'SQS_MESSAGE_INVALID_FORMAT',
+      errorCode: 'MESSAGE_INVALID_FORMAT',
     })
   })
 })

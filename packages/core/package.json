@@ -13,11 +13,12 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "del-cli dist && del-cli coverage && tsc",
     "build:release": "del-cli dist && del-cli coverage && npm run lint && tsc --project tsconfig.release.json",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint .  --ext .ts --fix",
     "test:coverage": "",
+    "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
     "docker:start:dev": "",
     "docker:stop:dev": "",
     "format": "prettier --write .",

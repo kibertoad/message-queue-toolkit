@@ -25,7 +25,7 @@ jobs:
 
       - name: Docker start
         run: |
-          npm run docker:start
+          npm run docker:start          
 
       - name: Build TS
         run: |
@@ -33,11 +33,11 @@ jobs:
 
       - name: Run Tests
         run: |
-          npm run test
+          npm run test:coverage
 
       - name: Docker stop
         run: |
-          npm run docker:stop
+          npm run docker:stop          
 
   automerge:
     needs: build

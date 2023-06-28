@@ -5,10 +5,10 @@ import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
+import { deleteQueue, purgeQueue } from '../../lib/utils/SqsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 import { userPermissionMap } from '../repositories/PermissionRepository'
-import { deleteQueue, purgeQueue } from '../utils/sqsUtils'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -43,7 +43,7 @@ async function waitForPermissions(userIds: number[]) {
   )
 }
 
-describe('PermissionsConsumer', () => {
+describe('SqsPermissionsConsumer', () => {
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisher

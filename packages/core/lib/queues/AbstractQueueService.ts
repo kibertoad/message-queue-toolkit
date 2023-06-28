@@ -1,9 +1,10 @@
 import { types } from 'node:util'
 
-import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
+import type { ErrorReporter, ErrorResolver, Either } from '@lokalise/node-core'
 import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
-import type { ZodSchema } from 'zod'
+import type { ZodSchema, ZodType } from 'zod'
 
+import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
 import type { Logger, TransactionObservabilityManager } from '../types/MessageQueueTypes'
 
 export type QueueDependencies = {
@@ -15,6 +16,15 @@ export type QueueConsumerDependencies = {
   consumerErrorResolver: ErrorResolver
   transactionObservabilityManager: TransactionObservabilityManager
 }
+
+export type Deserializer<
+  MessagePayloadType extends object,
+  QueueEngineMessageType extends object,
+> = (
+  message: QueueEngineMessageType,
+  type: ZodType<MessagePayloadType>,
+  errorProcessor: ErrorResolver,
+) => Either<MessageInvalidFormatError | MessageValidationError, MessagePayloadType>
 
 export type QueueOptions<MessagePayloadType extends object, QueueConfiguration extends object> = {
   messageSchema: ZodSchema<MessagePayloadType>

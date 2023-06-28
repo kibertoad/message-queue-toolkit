@@ -3,16 +3,24 @@ import type {
   QueueConsumer,
   QueueOptions,
   TransactionObservabilityManager,
+  Deserializer,
 } from '@message-queue-toolkit/core'
+import { isMessageError } from '@message-queue-toolkit/core'
 import type { Message } from 'amqplib'
 
 import type { AMQPConsumerDependencies, AMQPQueueConfig } from './AbstractAmqpService'
 import { AbstractAmqpService } from './AbstractAmqpService'
-import { deserializeMessage } from './amqpMessageDeserializer'
-import { AmqpMessageInvalidFormat, AmqpValidationError } from './errors/amqpErrors'
+import { deserializeAmqpMessage } from './amqpMessageDeserializer'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
+}
+
+export type AMQPConsumerOptions<MessagePayloadType extends object> = QueueOptions<
+  MessagePayloadType,
+  AMQPQueueConfig
+> & {
+  deserializer?: Deserializer<MessagePayloadType, Message>
 }
 
 export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
@@ -21,14 +29,17 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
   protected readonly errorResolver: ErrorResolver
+  private readonly deserializer: Deserializer<MessagePayloadType, Message>
 
   constructor(
     dependencies: AMQPConsumerDependencies,
-    options: QueueOptions<MessagePayloadType, AMQPQueueConfig>,
+    options: AMQPConsumerOptions<MessagePayloadType>,
   ) {
     super(dependencies, options)
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.errorResolver = dependencies.consumerErrorResolver
+
+    this.deserializer = options.deserializer ?? deserializeAmqpMessage
   }
 
   abstract processMessage(
@@ -40,16 +51,9 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
       return ABORT_EARLY_EITHER
     }
 
-    const deserializationResult = deserializeMessage(
-      message,
-      this.messageSchema,
-      this.errorResolver,
-    )
+    const deserializationResult = this.deserializer(message, this.messageSchema, this.errorResolver)
 
-    if (
-      deserializationResult.error instanceof AmqpValidationError ||
-      deserializationResult.error instanceof AmqpMessageInvalidFormat
-    ) {
+    if (isMessageError(deserializationResult.error)) {
       this.handleError(deserializationResult.error)
       return ABORT_EARLY_EITHER
     }
