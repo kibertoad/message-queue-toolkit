@@ -40,7 +40,7 @@ Build a recipient of messages from a queue or a topic in a messaging system by c
 
 #### Schema Validation and Deserialization
 
-Message deserialization is done within the abstract consumer _before_ processing the message. Deserialization is done for a message, given a message schema type. We use `zod` to define the message schema type.
+Message deserialization is done within the abstract consumer _before_ processing the message. Deserialization is done for a message, given a message schema type. `zod` is the library used to declare and validate the message schema type.
 
 If
 * The message before deserialization is `null`
