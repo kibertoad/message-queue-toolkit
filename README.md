@@ -90,4 +90,4 @@ SQS queues are built in a way that every message is only consumed once, and then
 
 ## Automatic Queue and Topic Creation
 
-Both publishers and consumers accept a queue name and configuration as parameters. If the referenced queue does not exist at the moment the publisher or the consumer is instantiated, it is automatically created.
+Both publishers and consumers accept a queue name and configuration as parameters. If the referenced queue does not exist at the moment the publisher or the consumer is instantiated, it is automatically created. Similarly, if the referenced topic does not exist during instantiation, it is also automatically created.
