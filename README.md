@@ -52,7 +52,7 @@ This is an abstraction to switch between different queue systems without having 
 
 #### Error Handling
 
-`processMessage()` return response is `Either<'retryLater', 'success'>`, meaning that it could be an either one value or the other. In case of `retryLater`, the abstract consumer is instructed to requeue the message. Otherwise, in case of success, the message is finally removed from the queue. In case of any error, the abstract consumer will also requeue the message. When overriding the `processMessage()` method, you should leverage the possible types to process the message as you need.
+When implementing message handler in consumer (by overriding the `processMessage()` method), you are expected to return an instance of `Either`, containing either an error `retryLater`, or result `success`. In case of `retryLater`, the abstract consumer is instructed to requeue the message. Otherwise, in case of success, the message is finally removed from the queue. If an error is thrown while processing the message, the abstract consumer will also requeue the message. When overriding the `processMessage()` method, you should leverage the possible types to process the message as you need.
 
 #### Schema Validation and Deserialization
 
