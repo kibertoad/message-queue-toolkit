@@ -60,8 +60,7 @@ Message deserialization is done within the abstract consumer _before_ processing
 
 If
 * The message before deserialization is `null`
-* Deserialization returns a `MessageInvalidFormatError` error for a syntax error
-* Deserialization returns a `MessageValidationError` error for a `zod` schema validation error
+* Deserialization fails because of a syntax error or a validation error
 * Deserialization returns an empty value
 
 Then the message is automatically nacked without requeueing by the abstract consumer and processing fails.
@@ -76,6 +75,4 @@ SQS queues are built in a way that every message is only consumed once, and then
 
 ## Automatic Queue and Topic Creation
 
-The `init()` method in the abstract queue publishers and consumers calls the `assertQueue()` method. This allows to assert a queue into existence and if the queue does not exist, it will be created.
-
-Similarly, the `init()` method in the abstract SNS publishers and consumers calls the `assertTopic()` method, which will also automaticlaly create a topic if it does not exist.
+Both publishers and consumers accept a queue name and configuration as parameters. If the referenced queue does not exist at the moment the publisher or the consumer is instantiated, it is automatically created.
