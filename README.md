@@ -32,13 +32,21 @@ This is an abstraction to switch between different queue systems without having 
 
 ### Consumers
 
-Build a recipient of messages from a queue or a topic in a messaging system by creating a class that:
+`message-queue-toolkit` provides base classes for implementing consumers for each of the supported protocol. They implement the following public methods:
 
-* Extends the abstract consumer class provided for the messaging system of choice
-* Defines a queue name
-* Defines a message schema
-* Configures the queue
-* Overrides the `processMessage()` method
+* `constructor()`, which accepts the following parameters:
+    * `dependencies` – a set of dependencies depending on the protocol;
+    * `options`, composed by
+        * `messageSchema` – the `zod` schema for the message;
+        * `messageTypeField`;
+        * `queueName`;
+        * `queueConfiguration`;
+        * `consumerOverrides` – available only for SQS consumers;
+        * `subscribedToTopic` – available only for SNS consumers;
+* `init()`, which needs to be invoked before the consumer can be used;
+* `close()`, which needs to be invoked when stopping the application;
+* `processMessage()`, which accepts as parameter a `message` following a `zod` schema and should be overridden with logic on what to do with the message;
+* `start()`, which invokes `init()` and `processMessage()` and handles errors.
 
 > **_NOTE:_**  See [SqsPermissionConsumer.ts](./packages/sqs/test/consumers/SqsPermissionConsumer.ts) for a practical example.
 
