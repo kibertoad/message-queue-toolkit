@@ -5,7 +5,7 @@ Useful utilities, interfaces and base classes for message queue handling.
 
 This is an abstraction to switch between different queue systems without having to implement your own deserialization, error handling, etc. The library provides utilities, interfaces and base classes to build the support for any queue system you may need in your service and already implements support for the following:
 
-* AMQP (Advanced Message Queuing Protocol)
+* AMQP 0-9-1 (Advanced Message Queuing Protocol), used e. g. by RabbitMQ
 * SQS (Simple Queue Service)
 * SNS (Simple Notification Service)
 
