@@ -48,7 +48,7 @@ If
 * Deserialization returns a `MessageValidationError` error for a `zod` schema validation error
 * Deserialization returns an empty value
 
-Then `abort` value is returned. In this case, the message is automatically nacked without requeueing by the abstract consumer and processing fails.
+Then the message is automatically nacked without requeueing by the abstract consumer and processing fails.
 
 > **_NOTE:_**  See [userConsumerSchemas.ts](./packages/sqs/test/consumers/userConsumerSchemas.ts) and [SqsPermissionsConsumer.spec.ts](./packages/sqs/test/consumers/SqsPermissionsConsumer.spec.ts) for a practical example.
 
