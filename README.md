@@ -22,7 +22,7 @@ Build a publisher to send messages to a queue or a topic in a messaging system b
 
 > **_NOTE:_**  See [SqsPermissionPublisher.ts](./packages/sqs/test/publishers/SqsPermissionPublisher.ts) for a practical example.
 
-#### Consumers
+### Consumers
 
 Build a recipient of messages from a queue or a topic in a messaging system by creating a class that:
 
@@ -34,11 +34,11 @@ Build a recipient of messages from a queue or a topic in a messaging system by c
 
 > **_NOTE:_**  See [SqsPermissionConsumer.ts](./packages/sqs/test/consumers/SqsPermissionConsumer.ts) for a practical example.
 
-## Error Handling
+#### Error Handling
 
 `processMessage()` return response is `Either<'retryLater', 'success'>`, meaning that it could be an either one value or the other. In case of `retryLater`, the abstract consumer is instructed to requeue the message. Otherwise, in case of success, the message is finally removed from the queue. In case of any error, the abstract consumer will also requeue the message. When overriding the `processMessage()` method, you should leverage the possible types to process the message as you need.
 
-## Schema Validation and Deserialization
+#### Schema Validation and Deserialization
 
 Message deserialization is done within the abstract consumer _before_ processing the message. Deserialization is done for a message, given a message schema type. We use `zod` to define the message schema type.
 
