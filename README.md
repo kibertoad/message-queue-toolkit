@@ -13,12 +13,20 @@ This is an abstraction to switch between different queue systems without having 
 
 ### Publishers
 
-Build a publisher to send messages to a queue or a topic in a messaging system by creating a class that:
+`message-queue-toolkit` provides base classes for implementing publishers for each of the supported protocol. They implement the following public methods:
 
-* Extends the abstract publisher class provided for the messaging system of choice
-* Defines a queue name
-* Defines a message schema
-* Configures the queue
+* `constructor()`, which accepts the following parameters:
+    * `dependencies` – a set of dependencies depending on the protocol;
+    * `options`, composed by
+        * `messageSchema` – the `zod` schema for the message;
+        * `messageTypeField`;
+        * `queueName`;
+        * `queueConfiguration`;
+* `init()`, which needs to be invoked before the publisher can be used;
+* `close()`, which needs to be invoked when stopping the application;
+* `publish()`, which accepts the following parameters:
+    * `message` – a message following a `zod` schema;
+    * `options` – a protocol-dependent set of message parameters. For more information please check documentation for options for each protocol: [AMQP](https://amqp-node.github.io/amqplib/channel_api.html#channel_sendToQueue), [SQS](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/interfaces/sendmessagecommandinput.html) and [SNS](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sns/interfaces/publishcommandinput.html).
 
 > **_NOTE:_**  See [SqsPermissionPublisher.ts](./packages/sqs/test/publishers/SqsPermissionPublisher.ts) for a practical example.
 
