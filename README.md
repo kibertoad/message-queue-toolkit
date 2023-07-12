@@ -3,26 +3,14 @@ Useful utilities, interfaces and base classes for message queue handling.
 
 ## Overview
 
-This is an abstraction to switch between different queue systems without having to implement your own deserialization, error handling, etc. The library provides utilities, interfaces and base classes to build the support for any queue system you may need in your service and already implements support for the following:
+`message-queue-toolkit ` is an abstraction over several different queue systems, which implements common deserialization, validation and error handling logic. The library provides utilities, interfaces and base classes to build the support for any queue system you may need in your service.
 
-* AMQP 0-9-1 (Advanced Message Queuing Protocol), used e. g. by RabbitMQ
-    * Required dependencies:
-        * `@lokalise/node-core`;
-        * `amqplib`;
-        * `zod`;
-* SQS (Simple Queue Service)
-    * Required dependencies:
-        * `@aws-sdk/client-sqs`;
-        * `@lokalise/node-core`;
-        * `sqs-consumer`;
-        * `zod`;
-* SNS (Simple Notification Service)
-    * Required dependencies:
-        * `@aws-sdk/client-sns`;
-        * `@aws-sdk/client-sqs`;
-        * `@lokalise/node-core`;
-        * `sqs-consumer`;
-        * `zod`.
+It consists of the following submodules:
+
+* `@message-queue-toolkit/core` - core library. It needs to be installed regardless of which queue system you are using.
+* `@message-queue-toolkit/amqp` - AMQP 0-9-1 (Advanced Message Queuing Protocol), used e. g. by RabbitMQ
+* `@message-queue-toolkit/sqs` - SQS (AWS Simple Queue Service)
+* `@message-queue-toolkit/sns` - SNS (AWS Simple Notification Service)
 
 ## Basic Usage
 
@@ -54,7 +42,7 @@ This is an abstraction to switch between different queue systems without having 
     * `options`, composed by
         * `messageSchema` – the `zod` schema for the message;
         * `messageTypeField`;
-        * `queueName`;
+        * `queueName`; (for SNS publishers this is a misnomer which actually refers to a topic name)
         * `queueConfiguration`;
         * `consumerOverrides` – available only for SQS consumers;
         * `subscribedToTopic` – available only for SNS consumers;
@@ -90,4 +78,6 @@ SQS queues are built in a way that every message is only consumed once, and then
 
 ## Automatic Queue and Topic Creation
 
-Both publishers and consumers accept a queue name and configuration as parameters. If the referenced queue does not exist at the moment the publisher or the consumer is instantiated, it is automatically created. Similarly, if the referenced topic does not exist during instantiation, it is also automatically created.
+Both publishers and consumers accept a queue name and configuration as parameters. If the referenced queue (or SNS topic) does not exist at the moment the publisher or the consumer is instantiated, it is automatically created. Similarly, if the referenced topic does not exist during instantiation, it is also automatically created.
+
+If you do not want to create a new queue, you can set `queueLocator` field for `queueConfiguration`. In that case `queueConfiguration` will not attempt to create a new queue or topic, and instead throw an error if they don't already exist.

@@ -26,20 +26,27 @@ export type Deserializer<
   errorProcessor: ErrorResolver,
 ) => Either<MessageInvalidFormatError | MessageValidationError, MessagePayloadType>
 
-export type QueueOptions<MessagePayloadType extends object, QueueConfiguration extends object> = {
+export type QueueOptions<MessagePayloadType extends object, QueueConfiguration extends object, QueueLocatorType extends object> = {
   messageSchema: ZodSchema<MessagePayloadType>
   messageTypeField: string
   queueName: string
+  queueLocator?: QueueLocatorType
   queueConfiguration: QueueConfiguration
+}
+
+export type CommonQueueLocator = {
+  queueName: string
 }
 
 export abstract class AbstractQueueService<
   MessagePayloadType extends object,
   DependenciesType extends QueueDependencies,
   QueueConfiguration extends object,
-  OptionsType extends QueueOptions<MessagePayloadType, QueueConfiguration> = QueueOptions<
+  QueueLocatorType extends object = CommonQueueLocator,
+  OptionsType extends QueueOptions<MessagePayloadType, QueueConfiguration, QueueLocatorType> = QueueOptions<
     MessagePayloadType,
-    QueueConfiguration
+    QueueConfiguration,
+    QueueLocatorType
   >,
 > {
   protected readonly queueName: string
@@ -48,10 +55,11 @@ export abstract class AbstractQueueService<
   protected readonly logger: Logger
   protected readonly messageTypeField: string
   protected readonly queueConfiguration: QueueConfiguration
+  protected readonly queueLocator?: QueueLocatorType;
 
   constructor(
     { errorReporter, logger }: DependenciesType,
-    { messageSchema, messageTypeField, queueName, queueConfiguration }: OptionsType,
+    { messageSchema, messageTypeField, queueName, queueConfiguration, queueLocator }: OptionsType,
   ) {
     this.errorReporter = errorReporter
     this.logger = logger
@@ -60,6 +68,7 @@ export abstract class AbstractQueueService<
     this.messageSchema = messageSchema
     this.messageTypeField = messageTypeField
     this.queueConfiguration = queueConfiguration
+    this.queueLocator = queueLocator
   }
 
   protected handleError(err: unknown) {

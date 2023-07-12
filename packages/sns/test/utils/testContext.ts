@@ -10,7 +10,7 @@ import { SnsConsumerErrorResolver } from '../../lib/errors/SnsConsumerErrorResol
 import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 
-import { TEST_AWS_CONFIG } from './testSqsConfig'
+import { TEST_AWS_CONFIG } from './testSnsConfig'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 

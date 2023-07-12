@@ -1,13 +1,14 @@
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { CreateQueueRequest } from '@aws-sdk/client-sqs/dist-types/models/models_0'
 import type {
+  CommonQueueLocator,
   QueueConsumerDependencies,
   QueueDependencies,
   QueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
-import { assertQueue } from '../utils/SqsUtils'
+import {assertQueue, getQueueAttributes} from '../utils/SqsUtils'
 
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient
@@ -31,17 +32,23 @@ export type SQSQueueConfig = {
   }
 }
 
+export type SQSQueueLocatorType = {
+  queueUrl: string
+}
+
 export class AbstractSqsService<
   MessagePayloadType extends object,
-  SQSOptionsType extends QueueOptions<MessagePayloadType, SQSQueueAWSConfig> = QueueOptions<
+  SQSOptionsType extends QueueOptions<MessagePayloadType, SQSQueueAWSConfig, SQSQueueLocatorType> = QueueOptions<
     MessagePayloadType,
-    SQSQueueAWSConfig
+    SQSQueueAWSConfig,
+    SQSQueueLocatorType
   >,
   DependenciesType extends SQSDependencies = SQSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
   DependenciesType,
   SQSQueueAWSConfig,
+  SQSQueueLocatorType,
   SQSOptionsType
 > {
   protected readonly sqsClient: SQSClient
@@ -55,6 +62,18 @@ export class AbstractSqsService<
   }
 
   public async init() {
+    // reuse existing queue only
+    if (this.queueLocator) {
+      const checkResult = await getQueueAttributes(this.sqsClient, this.queueLocator)
+      if (checkResult.error === 'not_found') {
+        throw new Error(`Queue with queueUrl ${this.queueLocator.queueUrl} does not exist.`)
+      }
+
+      this.queueUrl = this.queueLocator.queueUrl
+      return
+    }
+
+    // create new queue if does not exist
     this.queueUrl = await assertQueue(this.sqsClient, {
       QueueName: this.queueName,
       ...this.queueConfiguration,
