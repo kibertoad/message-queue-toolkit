@@ -26,22 +26,24 @@
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@aws-sdk/client-sns": "^3.360.0",
-    "@aws-sdk/client-sqs": "^3.360.0",
-    "@lokalise/node-core": "^5.8.1",
-    "sqs-consumer": "^7.2.0",
+    "@lokalise/node-core": "^5.10.0",
+    "sqs-consumer": "^7.2.2",
     "zod": "^3.21.4"
   },
   "peerDependencies": {
+    "@aws-sdk/client-sns": "^3.369.0",
+    "@aws-sdk/client-sqs": "^3.369.0",
     "@message-queue-toolkit/core": "^1.1.0",
     "@message-queue-toolkit/sqs": "^1.1.0"
   },
   "devDependencies": {
+    "@aws-sdk/client-sns": "^3.369.0",
+    "@aws-sdk/client-sqs": "^3.369.0",
     "@message-queue-toolkit/core": "*",
     "@message-queue-toolkit/sqs": "*",
     "@types/node": "^20.4.1",
     "@typescript-eslint/eslint-plugin": "^5.61.0",
-    "@typescript-eslint/parser": "^5.61.0",
+    "@typescript-eslint/parser": "^5.62.0",
     "@vitest/coverage-v8": "^0.33.0",
     "awilix": "^8.0.1",
     "awilix-manager": "^2.0.0",
