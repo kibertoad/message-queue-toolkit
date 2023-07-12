@@ -10,11 +10,13 @@ import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from
 
 import { subscribeToTopic } from '../../lib/sns/SnsSubscriber'
 import { deserializeSNSMessage } from '../../lib/sns/snsMessageDeserializer'
+import { assertTopic } from '../../lib/utils/snsUtils'
 import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { userPermissionMap } from '../repositories/PermissionRepository'
+import { deleteTopic } from '../utils/snsUtils'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -25,6 +27,41 @@ const userIds = [100, 200, 300]
 const queueName = 'someQueue'
 
 describe('SNSPermissionPublisher', () => {
+  describe('init', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    let snsClient: SNSClient
+    beforeAll(async () => {
+      diContainer = await registerDependencies()
+      snsClient = diContainer.cradle.snsClient
+    })
+
+    it('throws an error when invalid queue locator is passed', async () => {
+      const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
+        queueLocator: {
+          topicArn: 'dummy',
+        },
+      })
+
+      await expect(() => newPublisher.init()).rejects.toThrow(/does not exist/)
+    })
+
+    it('does not create a new queue when queue locator is passed', async () => {
+      const arn = await assertTopic(snsClient, {
+        Name: 'existingTopic',
+      })
+
+      const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
+        queueLocator: {
+          topicArn: arn,
+        },
+      })
+
+      await newPublisher.init()
+      expect(newPublisher.topicArn).toEqual(arn)
+      await deleteTopic(snsClient, 'existingTopic')
+    })
+  })
+
   describe('publish', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient

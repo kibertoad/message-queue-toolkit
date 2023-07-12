@@ -11,7 +11,11 @@ import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import type { SQSMessage } from '../types/MessageTypes'
 
-import type { SQSConsumerDependencies, SQSQueueAWSConfig } from './AbstractSqsService'
+import type {
+  SQSConsumerDependencies,
+  SQSQueueAWSConfig,
+  SQSQueueLocatorType,
+} from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
 import { deserializeSQSMessage } from './sqsMessageDeserializer'
 
@@ -19,19 +23,28 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
-export type SQSConsumerOptions<MessagePayloadType extends object> = QueueOptions<
-  MessagePayloadType,
-  SQSQueueAWSConfig
-> & {
+export type SQSConsumerOptions<
+  MessagePayloadType extends object,
+  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+> = QueueOptions<MessagePayloadType, SQSQueueAWSConfig, QueueLocatorType> & {
   consumerOverrides?: Partial<ConsumerOptions>
   deserializer?: Deserializer<MessagePayloadType, SQSMessage>
 }
 
 export abstract class AbstractSqsConsumer<
     MessagePayloadType extends object,
-    ConsumerOptionsType extends SQSConsumerOptions<MessagePayloadType> = SQSConsumerOptions<MessagePayloadType>,
+    QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+    ConsumerOptionsType extends SQSConsumerOptions<
+      MessagePayloadType,
+      QueueLocatorType
+    > = SQSConsumerOptions<MessagePayloadType, QueueLocatorType>,
   >
-  extends AbstractSqsService<MessagePayloadType, ConsumerOptionsType, SQSConsumerDependencies>
+  extends AbstractSqsService<
+    MessagePayloadType,
+    QueueLocatorType,
+    ConsumerOptionsType,
+    SQSConsumerDependencies
+  >
   implements QueueConsumer
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager

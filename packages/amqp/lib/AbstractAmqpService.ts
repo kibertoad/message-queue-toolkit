@@ -7,6 +7,8 @@ import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { Channel, Connection } from 'amqplib'
 import type { Options } from 'amqplib/properties'
 
+import type { AMQPLocatorType } from './AbstractAmqpConsumer'
+
 export type AMQPDependencies = QueueDependencies & {
   amqpConnection: Connection
 }
@@ -25,7 +27,7 @@ export class AbstractAmqpService<
 
   constructor(
     dependencies: DependenciesType,
-    options: QueueOptions<MessagePayloadType, AMQPQueueConfig>,
+    options: QueueOptions<MessagePayloadType, AMQPQueueConfig, AMQPLocatorType>,
   ) {
     super(dependencies, options)
 

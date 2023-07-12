@@ -3,26 +3,14 @@ Useful utilities, interfaces and base classes for message queue handling.
 
 ## Overview
 
-This is an abstraction to switch between different queue systems without having to implement your own deserialization, error handling, etc. The library provides utilities, interfaces and base classes to build the support for any queue system you may need in your service and already implements support for the following:
+`message-queue-toolkit ` is an abstraction over several different queue systems, which implements common deserialization, validation and error handling logic. The library provides utilities, interfaces and base classes to build the support for any queue system you may need in your service.
 
-* AMQP 0-9-1 (Advanced Message Queuing Protocol), used e. g. by RabbitMQ
-    * Required dependencies:
-        * `@lokalise/node-core`;
-        * `amqplib`;
-        * `zod`;
-* SQS (Simple Queue Service)
-    * Required dependencies:
-        * `@aws-sdk/client-sqs`;
-        * `@lokalise/node-core`;
-        * `sqs-consumer`;
-        * `zod`;
-* SNS (Simple Notification Service)
-    * Required dependencies:
-        * `@aws-sdk/client-sns`;
-        * `@aws-sdk/client-sqs`;
-        * `@lokalise/node-core`;
-        * `sqs-consumer`;
-        * `zod`.
+It consists of the following submodules:
+
+* `@message-queue-toolkit/core` - core library. It needs to be installed regardless of which queue system you are using.
+* `@message-queue-toolkit/amqp` - AMQP 0-9-1 (Advanced Message Queuing Protocol), used e. g. by RabbitMQ
+* `@message-queue-toolkit/sqs` - SQS (AWS Simple Queue Service)
+* `@message-queue-toolkit/sns` - SNS (AWS Simple Notification Service)
 
 ## Basic Usage
 
@@ -53,11 +41,12 @@ This is an abstraction to switch between different queue systems without having 
     * `dependencies` – a set of dependencies depending on the protocol;
     * `options`, composed by
         * `messageSchema` – the `zod` schema for the message;
-        * `messageTypeField`;
-        * `queueName`;
-        * `queueConfiguration`;
+        * `messageTypeField` - which field in the message is used for resolving the message type (for observability purposes);
+        * `queueName`; (for SNS publishers this is a misnomer which actually refers to a topic name)
+        * `queueConfiguration` - queue/topic configuration, that is specific to a queue system used. It will be used for creating a queue/topic, if it does not exist. Ignored if `queueLocator.subscriptionArn` is set;
+        * `queueLocator` - queue/topic identifiers, specific to a queue system used. If set, `message-queue-toolkit` will not attempt to create a new queue/topic, and instead throw an error if they don't already exist; 
         * `consumerOverrides` – available only for SQS consumers;
-        * `subscribedToTopic` – available only for SNS consumers;
+        * `subscribedToTopic` – parameters for a topic to use during creation if it does not exist. Ignored if `queueLocator.subscriptionArn` is set. Available only for SNS consumers;
 * `init()`, which needs to be invoked before the consumer can be used;
 * `close()`, which needs to be invoked when stopping the application;
 * `processMessage()`, which accepts as parameter a `message` following a `zod` schema and should be overridden with logic on what to do with the message;
@@ -90,4 +79,6 @@ SQS queues are built in a way that every message is only consumed once, and then
 
 ## Automatic Queue and Topic Creation
 
-Both publishers and consumers accept a queue name and configuration as parameters. If the referenced queue does not exist at the moment the publisher or the consumer is instantiated, it is automatically created. Similarly, if the referenced topic does not exist during instantiation, it is also automatically created.
+Both publishers and consumers accept a queue name and configuration as parameters. If the referenced queue (or SNS topic) does not exist at the moment the publisher or the consumer is instantiated, it is automatically created. Similarly, if the referenced topic does not exist during instantiation, it is also automatically created.
+
+If you do not want to create a new queue/topic, you can set `queueLocator` field for `queueConfiguration`. In that case `message-queue-toolkit` will not attempt to create a new queue or topic, and instead throw an error if they don't already exist.

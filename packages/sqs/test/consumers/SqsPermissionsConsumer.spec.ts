@@ -5,7 +5,7 @@ import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
-import { deleteQueue, purgeQueue } from '../../lib/utils/SqsUtils'
+import { assertQueue, deleteQueue, purgeQueue } from '../../lib/utils/SqsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 import { userPermissionMap } from '../repositories/PermissionRepository'
@@ -44,6 +44,43 @@ async function waitForPermissions(userIds: number[]) {
 }
 
 describe('SqsPermissionsConsumer', () => {
+  describe('init', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    let sqsClient: SQSClient
+    beforeAll(async () => {
+      diContainer = await registerDependencies()
+      sqsClient = diContainer.cradle.sqsClient
+      await deleteQueue(sqsClient, 'existingQueue')
+    })
+
+    it('throws an error when invalid queue locator is passed', async () => {
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+        queueLocator: {
+          queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+        },
+      })
+
+      await expect(() => newConsumer.init()).rejects.toThrow(/does not exist/)
+    })
+
+    it('does not create a new queue when queue locator is passed', async () => {
+      await assertQueue(sqsClient, {
+        QueueName: 'existingQueue',
+      })
+
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+        queueLocator: {
+          queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+        },
+      })
+
+      await newConsumer.init()
+      expect(newConsumer.queueUrl).toBe(
+        'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+      )
+    })
+  })
+
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisher
