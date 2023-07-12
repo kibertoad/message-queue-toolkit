@@ -90,7 +90,7 @@ export abstract class AbstractSqsConsumer<
   }
 
   private async failProcessing(message: SQSMessage) {
-    throw new Error(`Failed to process message ${message.MessageId}`)
+    // Not implemented yet - needs dead letter queue
   }
 
   async start() {
