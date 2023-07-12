@@ -34,6 +34,6 @@ export async function subscribeToTopic(
 
   const subscriptionResult = await snsClient.send(subscribeCommand)
   return {
-    subscriptionArn: subscriptionResult.SubscriptionArn
+    subscriptionArn: subscriptionResult.SubscriptionArn,
   }
 }

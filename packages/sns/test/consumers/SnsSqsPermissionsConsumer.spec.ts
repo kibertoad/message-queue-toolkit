@@ -7,6 +7,7 @@ import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
+import { assertTopic } from '../../lib/utils/snsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 import { userPermissionMap } from '../repositories/PermissionRepository'
@@ -15,7 +16,6 @@ import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
-import {assertTopic} from "../../lib/utils/snsUtils";
 
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
@@ -60,14 +60,14 @@ describe('SNS PermissionsConsumer', () => {
 
     it('throws an error when invalid queue locator is passed', async () => {
       await assertQueue(sqsClient, {
-        QueueName: 'existingQueue'
+        QueueName: 'existingQueue',
       })
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         queueLocator: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
-          topicArn: 'dummy'
-        }
+          topicArn: 'dummy',
+        },
       })
 
       await expect(() => newConsumer.init()).rejects.toThrow(/does not exist/)
@@ -75,22 +75,30 @@ describe('SNS PermissionsConsumer', () => {
 
     it('does not create a new queue when queue locator is passed', async () => {
       await assertQueue(sqsClient, {
-        QueueName: 'existingQueue'
+        QueueName: 'existingQueue',
       })
 
       const arn = await assertTopic(snsClient, {
-        Name: 'existingTopic'
+        Name: 'existingTopic',
       })
 
-      const newConsumer =new SnsSqsPermissionConsumer(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         queueLocator: {
           topicArn: arn,
-          queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue'
-        }
+          queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
+        },
       })
 
       await newConsumer.init()
-      expect(newConsumer.queueUrl).toEqual('http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue')
+      expect(newConsumer.queueUrl).toBe(
+        'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+      )
+      expect(newConsumer.topicArn).toEqual(arn)
+      expect(newConsumer.subscriptionArn).toBe(
+        'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
+      )
       await deleteTopic(snsClient, 'existingTopic')
     })
   })

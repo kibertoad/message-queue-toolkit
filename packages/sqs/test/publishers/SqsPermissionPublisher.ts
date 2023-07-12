@@ -11,7 +11,6 @@ export class SqsPermissionPublisher extends AbstractSqsPublisher<PERMISSIONS_MES
       queueName: SqsPermissionPublisher.QUEUE_NAME,
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
-      queueConfiguration: {},
     })
   }
 }

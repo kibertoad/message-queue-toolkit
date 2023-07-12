@@ -26,12 +26,16 @@ export type Deserializer<
   errorProcessor: ErrorResolver,
 ) => Either<MessageInvalidFormatError | MessageValidationError, MessagePayloadType>
 
-export type QueueOptions<MessagePayloadType extends object, QueueConfiguration extends object, QueueLocatorType extends object> = {
+export type QueueOptions<
+  MessagePayloadType extends object,
+  QueueConfiguration extends object,
+  QueueLocatorType extends object,
+> = {
   messageSchema: ZodSchema<MessagePayloadType>
   messageTypeField: string
   queueName: string
   queueLocator?: QueueLocatorType
-  queueConfiguration: QueueConfiguration
+  queueConfiguration?: QueueConfiguration
 }
 
 export type CommonQueueLocator = {
@@ -43,19 +47,19 @@ export abstract class AbstractQueueService<
   DependenciesType extends QueueDependencies,
   QueueConfiguration extends object,
   QueueLocatorType extends object = CommonQueueLocator,
-  OptionsType extends QueueOptions<MessagePayloadType, QueueConfiguration, QueueLocatorType> = QueueOptions<
+  OptionsType extends QueueOptions<
     MessagePayloadType,
     QueueConfiguration,
     QueueLocatorType
-  >,
+  > = QueueOptions<MessagePayloadType, QueueConfiguration, QueueLocatorType>,
 > {
   protected readonly queueName: string
   protected readonly errorReporter: ErrorReporter
   protected readonly messageSchema: ZodSchema<MessagePayloadType>
   protected readonly logger: Logger
   protected readonly messageTypeField: string
-  protected readonly queueConfiguration: QueueConfiguration
-  protected readonly queueLocator?: QueueLocatorType;
+  protected readonly queueConfiguration?: QueueConfiguration
+  protected readonly queueLocator?: QueueLocatorType
 
   constructor(
     { errorReporter, logger }: DependenciesType,

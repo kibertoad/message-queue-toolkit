@@ -41,11 +41,12 @@ It consists of the following submodules:
     * `dependencies` – a set of dependencies depending on the protocol;
     * `options`, composed by
         * `messageSchema` – the `zod` schema for the message;
-        * `messageTypeField`;
+        * `messageTypeField` - which field in the message is used for resolving the message type (for observability purposes);
         * `queueName`; (for SNS publishers this is a misnomer which actually refers to a topic name)
-        * `queueConfiguration`;
+        * `queueConfiguration` - queue/topic configuration, that is specific to a queue system used. It will be used for creating a queue/topic, if it does not exist. Ignored if `queueLocator.subscriptionArn` is set;
+        * `queueLocator` - queue/topic identifiers, specific to a queue system used. If set, `message-queue-toolkit` will not attempt to create a new queue/topic, and instead throw an error if they don't already exist; 
         * `consumerOverrides` – available only for SQS consumers;
-        * `subscribedToTopic` – available only for SNS consumers;
+        * `subscribedToTopic` – parameters for a topic to use during creation if it does not exist. Ignored if `queueLocator.subscriptionArn` is set. Available only for SNS consumers;
 * `init()`, which needs to be invoked before the consumer can be used;
 * `close()`, which needs to be invoked when stopping the application;
 * `processMessage()`, which accepts as parameter a `message` following a `zod` schema and should be overridden with logic on what to do with the message;
@@ -80,4 +81,4 @@ SQS queues are built in a way that every message is only consumed once, and then
 
 Both publishers and consumers accept a queue name and configuration as parameters. If the referenced queue (or SNS topic) does not exist at the moment the publisher or the consumer is instantiated, it is automatically created. Similarly, if the referenced topic does not exist during instantiation, it is also automatically created.
 
-If you do not want to create a new queue, you can set `queueLocator` field for `queueConfiguration`. In that case `queueConfiguration` will not attempt to create a new queue or topic, and instead throw an error if they don't already exist.
+If you do not want to create a new queue/topic, you can set `queueLocator` field for `queueConfiguration`. In that case `message-queue-toolkit` will not attempt to create a new queue or topic, and instead throw an error if they don't already exist.

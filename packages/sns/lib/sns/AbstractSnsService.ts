@@ -6,10 +6,14 @@ import type {
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
-import { assertTopic } from '../utils/snsUtils'
+import { assertTopic, getTopicAttributes } from '../utils/snsUtils'
 
 export type SNSDependencies = QueueDependencies & {
   snsClient: SNSClient
+}
+
+export type SNSQueueLocatorType = {
+  topicArn: string
 }
 
 export type SNSConsumerDependencies = SNSDependencies & QueueConsumerDependencies
@@ -30,17 +34,25 @@ export type SNSTopicConfig = {
   }
 }
 
+export type SNSOptions<MessagePayloadType extends object> = QueueOptions<
+  MessagePayloadType,
+  SNSTopicAWSConfig,
+  SNSQueueLocatorType
+>
+
 export class AbstractSnsService<
   MessagePayloadType extends object,
-  SNSOptionsType extends QueueOptions<MessagePayloadType, SNSTopicAWSConfig> = QueueOptions<
+  SNSOptionsType extends QueueOptions<
     MessagePayloadType,
-    SNSTopicAWSConfig
-  >,
+    SNSTopicAWSConfig,
+    SNSQueueLocatorType
+  > = SNSOptions<MessagePayloadType>,
   DependenciesType extends SNSDependencies = SNSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
   DependenciesType,
   SNSTopicAWSConfig,
+  SNSQueueLocatorType,
   SNSOptionsType
 > {
   protected readonly snsClient: SNSClient
@@ -54,6 +66,17 @@ export class AbstractSnsService<
   }
 
   public async init() {
+    if (this.queueLocator) {
+      const checkResult = await getTopicAttributes(this.snsClient, this.queueLocator.topicArn)
+      if (checkResult.error === 'not_found') {
+        throw new Error(`Topic with topicArn ${this.queueLocator.topicArn} does not exist.`)
+      }
+
+      this.topicArn = this.queueLocator.topicArn
+      return
+    }
+
+    // create new topic if it does not exist
     this.topicArn = await assertTopic(this.snsClient, {
       Name: this.queueName,
       ...this.queueConfiguration,

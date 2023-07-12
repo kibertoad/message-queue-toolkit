@@ -1,6 +1,7 @@
 import type { Either } from '@lokalise/node-core'
 
-import {AbstractSqsConsumer, SQSConsumerOptions} from '../../lib/sqs/AbstractSqsConsumer'
+import type { SQSConsumerOptions } from '../../lib/sqs/AbstractSqsConsumer'
+import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer'
 import type { SQSConsumerDependencies } from '../../lib/sqs/AbstractSqsService'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 
@@ -10,7 +11,10 @@ import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
 export class SqsPermissionConsumer extends AbstractSqsConsumer<PERMISSIONS_MESSAGE_TYPE> {
   public static QUEUE_NAME = 'user_permissions'
 
-  constructor(dependencies: SQSConsumerDependencies, options: Partial<Pick<SQSConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'queueLocator'>>) {
+  constructor(
+    dependencies: SQSConsumerDependencies,
+    options: Partial<Pick<SQSConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'queueLocator'>>,
+  ) {
     super(dependencies, {
       queueName: SqsPermissionConsumer.QUEUE_NAME,
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
@@ -18,8 +22,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<PERMISSIONS_MESSA
       consumerOverrides: {
         terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
       },
-      queueConfiguration: {},
-      ...options
+      ...options,
     })
   }
 

@@ -1,14 +1,13 @@
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { CreateQueueRequest } from '@aws-sdk/client-sqs/dist-types/models/models_0'
 import type {
-  CommonQueueLocator,
   QueueConsumerDependencies,
   QueueDependencies,
   QueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
-import {assertQueue, getQueueAttributes} from '../utils/SqsUtils'
+import { assertQueue, getQueueAttributes } from '../utils/SqsUtils'
 
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient
@@ -39,11 +38,11 @@ export type SQSQueueLocatorType = {
 export class AbstractSqsService<
   MessagePayloadType extends object,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
-  SQSOptionsType extends QueueOptions<MessagePayloadType, SQSQueueAWSConfig, QueueLocatorType> = QueueOptions<
+  SQSOptionsType extends QueueOptions<
     MessagePayloadType,
     SQSQueueAWSConfig,
     QueueLocatorType
-  >,
+  > = QueueOptions<MessagePayloadType, SQSQueueAWSConfig, QueueLocatorType>,
   DependenciesType extends SQSDependencies = SQSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,

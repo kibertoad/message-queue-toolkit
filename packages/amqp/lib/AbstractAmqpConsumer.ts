@@ -16,9 +16,12 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
+export type AMQPLocatorType = { queueName: string }
+
 export type AMQPConsumerOptions<MessagePayloadType extends object> = QueueOptions<
   MessagePayloadType,
-  AMQPQueueConfig
+  AMQPQueueConfig,
+  AMQPLocatorType
 > & {
   deserializer?: Deserializer<MessagePayloadType, Message>
 }

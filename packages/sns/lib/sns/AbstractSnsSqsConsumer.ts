@@ -1,31 +1,38 @@
 import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import type { SQSConsumerDependencies, SQSConsumerOptions } from '@message-queue-toolkit/sqs'
-import {AbstractSqsConsumer, getQueueAttributes} from '@message-queue-toolkit/sqs'
+import { AbstractSqsConsumer } from '@message-queue-toolkit/sqs'
+import type { SQSQueueLocatorType } from '@message-queue-toolkit/sqs/dist/lib/sqs/AbstractSqsService'
 
-import {assertTopic, getTopicAttributes} from '../utils/snsUtils'
+import { assertTopic, getTopicAttributes } from '../utils/snsUtils'
 
+import type { SNSQueueLocatorType } from './AbstractSnsService'
 import { subscribeToTopic } from './SnsSubscriber'
 import { deserializeSNSMessage } from './snsMessageDeserializer'
-import {SQSQueueLocatorType} from "@message-queue-toolkit/sqs/dist/lib/sqs/AbstractSqsService";
 
-export type SnsSqsConsumerOptions<MessagePayloadType extends object> =
-  SQSConsumerOptions<MessagePayloadType, SNSSQSQueueLocatorType> & {
-    subscribedToTopic: CreateTopicCommandInput
-  }
+export type SnsSqsConsumerOptions<MessagePayloadType extends object> = SQSConsumerOptions<
+  MessagePayloadType,
+  SNSSQSQueueLocatorType
+> & {
+  subscribedToTopic?: CreateTopicCommandInput
+}
 
 export type SNSSQSConsumerDependencies = SQSConsumerDependencies & {
   snsClient: SNSClient
 }
 
-export type SNSSQSQueueLocatorType = SQSQueueLocatorType & {
-  subscriptionArn?: string
-  topicArn: string
-}
+export type SNSSQSQueueLocatorType = SQSQueueLocatorType &
+  SNSQueueLocatorType & {
+    subscriptionArn?: string
+  }
 
 export abstract class AbstractSnsSqsConsumer<
   MessagePayloadType extends object,
-> extends AbstractSqsConsumer<MessagePayloadType, SNSSQSQueueLocatorType, SnsSqsConsumerOptions<MessagePayloadType>> {
-  private readonly subscribedToTopic: CreateTopicCommandInput
+> extends AbstractSqsConsumer<
+  MessagePayloadType,
+  SNSSQSQueueLocatorType,
+  SnsSqsConsumerOptions<MessagePayloadType>
+> {
+  private readonly subscribedToTopic?: CreateTopicCommandInput
   private readonly snsClient: SNSClient
   // @ts-ignore
   public topicArn: string
@@ -57,20 +64,32 @@ export abstract class AbstractSnsSqsConsumer<
 
       this.topicArn = this.queueLocator.topicArn
     }
-    // create new topic if does not exist
+    // create new topic if it does not exist
     else {
+      if (!this.subscribedToTopic) {
+        throw new Error(
+          'If queueLocator.subscriptionArn is not specified, subscribedToTopic parameter is mandatory, as there will be an attempt to create the missing topic',
+        )
+      }
+
       this.topicArn = await assertTopic(this.snsClient, this.subscribedToTopic)
     }
 
     if (!this.queueLocator?.subscriptionArn) {
+      if (!this.subscribedToTopic) {
+        throw new Error(
+          'If queueLocator.subscriptionArn is not specified, subscribedToTopic parameter is mandatory, as there will be an attempt to create the missing topic',
+        )
+      }
+
       const { subscriptionArn } = await subscribeToTopic(
-          this.sqsClient,
-          this.snsClient,
-          {
-            QueueName: this.queueName,
-            ...this.queueConfiguration,
-          },
-          this.subscribedToTopic,
+        this.sqsClient,
+        this.snsClient,
+        {
+          QueueName: this.queueName,
+          ...this.queueConfiguration,
+        },
+        this.subscribedToTopic,
       )
       if (!subscriptionArn) {
         throw new Error('Failed to subscribe')

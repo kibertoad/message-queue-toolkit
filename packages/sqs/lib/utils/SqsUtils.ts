@@ -3,21 +3,23 @@ import {
   CreateQueueCommand,
   GetQueueUrlCommand,
   DeleteQueueCommand,
-  PurgeQueueCommand, GetQueueAttributesCommand,
+  PurgeQueueCommand,
+  GetQueueAttributesCommand,
 } from '@aws-sdk/client-sqs'
-import {SQSQueueLocatorType} from "../sqs/AbstractSqsService";
-import {ResponseMetadata} from "@smithy/types/dist-types/response";
-import {Either} from "@lokalise/node-core";
+import type { Either } from '@lokalise/node-core'
+
+import type { SQSQueueLocatorType } from '../sqs/AbstractSqsService'
 
 type QueueAttributesResult = {
-  attributes?: Record<string, string>,
+  attributes?: Record<string, string>
 }
 
-export async function getQueueAttributes(sqsClient: SQSClient, queueLocator: SQSQueueLocatorType): Promise<
-    Either<'not_found', QueueAttributesResult>
-> {
+export async function getQueueAttributes(
+  sqsClient: SQSClient,
+  queueLocator: SQSQueueLocatorType,
+): Promise<Either<'not_found', QueueAttributesResult>> {
   const command = new GetQueueAttributesCommand({
-    QueueUrl: queueLocator.queueUrl
+    QueueUrl: queueLocator.queueUrl,
   })
 
   try {
@@ -25,14 +27,14 @@ export async function getQueueAttributes(sqsClient: SQSClient, queueLocator: SQS
     return {
       result: {
         attributes: response.Attributes,
-      }
+      },
     }
-  } catch (err){
+  } catch (err) {
     // @ts-ignore
     if (err.Code === 'AWS.SimpleQueueService.NonExistentQueue') {
       return {
         // @ts-ignore
-        error: 'not_found'
+        error: 'not_found',
       }
     }
     throw err

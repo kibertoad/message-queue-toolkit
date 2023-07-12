@@ -12,7 +12,7 @@ export type {
   QueueDependencies,
   QueueConsumerDependencies,
   Deserializer,
-  CommonQueueLocator
+  CommonQueueLocator,
 } from './lib/queues/AbstractQueueService'
 
 export {

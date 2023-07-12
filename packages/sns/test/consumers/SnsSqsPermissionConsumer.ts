@@ -1,6 +1,9 @@
 import type { Either } from '@lokalise/node-core'
 
-import type {SNSSQSConsumerDependencies, SnsSqsConsumerOptions} from '../../lib/sns/AbstractSnsSqsConsumer'
+import type {
+  SNSSQSConsumerDependencies,
+  SnsSqsConsumerOptions,
+} from '../../lib/sns/AbstractSnsSqsConsumer'
 import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 
@@ -11,7 +14,10 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<PERMISSIONS
   public static CONSUMED_QUEUE_NAME = 'user_permissions'
   public static SUBSCRIBED_TOPIC_NAME = 'user_permissions'
 
-  constructor(dependencies: SNSSQSConsumerDependencies, options: Partial<Pick<SnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'queueLocator'>>) {
+  constructor(
+    dependencies: SNSSQSConsumerDependencies,
+    options: Partial<Pick<SnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'queueLocator'>>,
+  ) {
     super(dependencies, {
       queueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
@@ -22,8 +28,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<PERMISSIONS
       subscribedToTopic: {
         Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME,
       },
-      queueConfiguration: {},
-      ...options
+      ...options,
     })
   }
 
