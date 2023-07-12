@@ -2,6 +2,7 @@ export type {
   SQSQueueAWSConfig,
   SQSQueueConfig,
   SQSConsumerDependencies,
+  SQSQueueLocatorType,
 } from './lib/sqs/AbstractSqsService'
 
 export { AbstractSqsConsumer } from './lib/sqs/AbstractSqsConsumer'

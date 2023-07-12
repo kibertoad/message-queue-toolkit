@@ -2,6 +2,7 @@ export type {
   SNSTopicAWSConfig,
   SNSTopicConfig,
   SNSConsumerDependencies,
+  SNSQueueLocatorType,
 } from './lib/sns/AbstractSnsService'
 
 export { SnsConsumerErrorResolver } from './lib/errors/SnsConsumerErrorResolver'

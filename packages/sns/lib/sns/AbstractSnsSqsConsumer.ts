@@ -1,7 +1,10 @@
 import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
-import type { SQSConsumerDependencies, SQSConsumerOptions } from '@message-queue-toolkit/sqs'
+import type {
+  SQSConsumerDependencies,
+  SQSConsumerOptions,
+  SQSQueueLocatorType,
+} from '@message-queue-toolkit/sqs'
 import { AbstractSqsConsumer } from '@message-queue-toolkit/sqs'
-import type { SQSQueueLocatorType } from '@message-queue-toolkit/sqs/dist/lib/sqs/AbstractSqsService'
 
 import { assertTopic, getTopicAttributes } from '../utils/snsUtils'
 
