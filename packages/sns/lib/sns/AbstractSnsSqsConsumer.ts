@@ -29,6 +29,8 @@ export abstract class AbstractSnsSqsConsumer<
   private readonly snsClient: SNSClient
   // @ts-ignore
   public topicArn: string
+  // @ts-ignore
+  public subscriptionArn: string
 
   protected constructor(
     dependencies: SNSSQSConsumerDependencies,
@@ -61,7 +63,7 @@ export abstract class AbstractSnsSqsConsumer<
     }
 
     if (!this.queueLocator?.subscriptionArn) {
-      await subscribeToTopic(
+      const { subscriptionArn } = await subscribeToTopic(
           this.sqsClient,
           this.snsClient,
           {
@@ -70,6 +72,12 @@ export abstract class AbstractSnsSqsConsumer<
           },
           this.subscribedToTopic,
       )
+      if (!subscriptionArn) {
+        throw new Error('Failed to subscribe')
+      }
+      this.subscriptionArn = subscriptionArn
+    } else {
+      this.subscriptionArn = this.queueLocator.subscriptionArn
     }
   }
 }
