@@ -46,15 +46,10 @@ async function waitForPermissions(userIds: number[]) {
 describe('SqsPermissionsConsumer', () => {
   describe('init', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: SqsPermissionPublisher
     let sqsClient: SQSClient
     beforeAll(async () => {
-      diContainer = await registerDependencies({
-        consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
-      })
+      diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
-      publisher = diContainer.cradle.permissionPublisher
-      await deleteQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
       await deleteQueue(sqsClient, 'existingQueue')
     })
 

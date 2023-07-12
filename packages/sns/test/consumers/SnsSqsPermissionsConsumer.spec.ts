@@ -15,6 +15,7 @@ import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
+import {assertTopic} from "../../lib/utils/snsUtils";
 
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
@@ -46,6 +47,54 @@ async function waitForPermissions(userIds: number[]) {
 }
 
 describe('SNS PermissionsConsumer', () => {
+  describe('init', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    let sqsClient: SQSClient
+    let snsClient: SNSClient
+    beforeAll(async () => {
+      diContainer = await registerDependencies()
+      sqsClient = diContainer.cradle.sqsClient
+      snsClient = diContainer.cradle.snsClient
+      await deleteQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
+    })
+
+    it('throws an error when invalid queue locator is passed', async () => {
+      await assertQueue(sqsClient, {
+        QueueName: 'existingQueue'
+      })
+
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        queueLocator: {
+          queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+          topicArn: 'dummy'
+        }
+      })
+
+      await expect(() => newConsumer.init()).rejects.toThrow(/does not exist/)
+    })
+
+    it('does not create a new queue when queue locator is passed', async () => {
+      await assertQueue(sqsClient, {
+        QueueName: 'existingQueue'
+      })
+
+      const arn = await assertTopic(snsClient, {
+        Name: 'existingTopic'
+      })
+
+      const newConsumer =new SnsSqsPermissionConsumer(diContainer.cradle, {
+        queueLocator: {
+          topicArn: arn,
+          queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue'
+        }
+      })
+
+      await newConsumer.init()
+      expect(newConsumer.queueUrl).toEqual('http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue')
+      await deleteTopic(snsClient, 'existingTopic')
+    })
+  })
+
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SnsPermissionPublisher

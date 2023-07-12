@@ -1,14 +1,15 @@
 import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import type { SQSConsumerDependencies, SQSConsumerOptions } from '@message-queue-toolkit/sqs'
-import { AbstractSqsConsumer } from '@message-queue-toolkit/sqs'
+import {AbstractSqsConsumer, getQueueAttributes} from '@message-queue-toolkit/sqs'
 
-import { assertTopic } from '../utils/snsUtils'
+import {assertTopic, getTopicAttributes} from '../utils/snsUtils'
 
 import { subscribeToTopic } from './SnsSubscriber'
 import { deserializeSNSMessage } from './snsMessageDeserializer'
+import {SQSQueueLocatorType} from "@message-queue-toolkit/sqs/dist/lib/sqs/AbstractSqsService";
 
 export type SnsSqsConsumerOptions<MessagePayloadType extends object> =
-  SQSConsumerOptions<MessagePayloadType> & {
+  SQSConsumerOptions<MessagePayloadType, SNSSQSQueueLocatorType> & {
     subscribedToTopic: CreateTopicCommandInput
   }
 
@@ -16,9 +17,13 @@ export type SNSSQSConsumerDependencies = SQSConsumerDependencies & {
   snsClient: SNSClient
 }
 
+export type SNSSQSQueueLocatorType = SQSQueueLocatorType & {
+  topicArn: string
+}
+
 export abstract class AbstractSnsSqsConsumer<
   MessagePayloadType extends object,
-> extends AbstractSqsConsumer<MessagePayloadType, SnsSqsConsumerOptions<MessagePayloadType>> {
+> extends AbstractSqsConsumer<MessagePayloadType, SNSSQSQueueLocatorType, SnsSqsConsumerOptions<MessagePayloadType>> {
   private readonly subscribedToTopic: CreateTopicCommandInput
   private readonly snsClient: SNSClient
   // @ts-ignore
@@ -40,7 +45,20 @@ export abstract class AbstractSnsSqsConsumer<
   async init(): Promise<void> {
     await super.init()
 
-    this.topicArn = await assertTopic(this.snsClient, this.subscribedToTopic)
+    // reuse existing queue only
+    if (this.queueLocator) {
+        const checkResult = await getTopicAttributes(this.snsClient, this.queueLocator.topicArn)
+        if (checkResult.error === 'not_found') {
+          throw new Error(`Topic with topicArn ${this.queueLocator.topicArn} does not exist.`)
+        }
+
+      this.topicArn = this.queueLocator.topicArn
+    }
+      else
+      // create new topic if does not exist
+    {
+      this.topicArn = await assertTopic(this.snsClient, this.subscribedToTopic)
+    }
 
     await subscribeToTopic(
       this.sqsClient,

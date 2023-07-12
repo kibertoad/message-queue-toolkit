@@ -1,5 +1,36 @@
 import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
-import { CreateTopicCommand } from '@aws-sdk/client-sns'
+import {CreateTopicCommand, GetTopicAttributesCommand} from '@aws-sdk/client-sns'
+import {Either} from "@lokalise/node-core";
+
+type QueueAttributesResult = {
+  attributes?: Record<string, string>,
+}
+
+export async function getTopicAttributes(snsClient: SNSClient, topicArn: string): Promise<
+    Either<'not_found', QueueAttributesResult>
+> {
+  const command = new GetTopicAttributesCommand({
+    TopicArn: topicArn
+  })
+
+  try {
+    const response = await snsClient.send(command)
+    return {
+      result: {
+        attributes: response.Attributes,
+      }
+    }
+  } catch (err){
+    // @ts-ignore
+    if (err.Code === 'AWS.SimpleQueueService.NonExistentQueue') {
+      return {
+        // @ts-ignore
+        error: 'not_found'
+      }
+    }
+    throw err
+  }
+}
 
 export async function assertTopic(snsClient: SNSClient, topicOptions: CreateTopicCommandInput) {
   const command = new CreateTopicCommand(topicOptions)

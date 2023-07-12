@@ -38,17 +38,18 @@ export type SQSQueueLocatorType = {
 
 export class AbstractSqsService<
   MessagePayloadType extends object,
-  SQSOptionsType extends QueueOptions<MessagePayloadType, SQSQueueAWSConfig, SQSQueueLocatorType> = QueueOptions<
+  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+  SQSOptionsType extends QueueOptions<MessagePayloadType, SQSQueueAWSConfig, QueueLocatorType> = QueueOptions<
     MessagePayloadType,
     SQSQueueAWSConfig,
-    SQSQueueLocatorType
+    QueueLocatorType
   >,
   DependenciesType extends SQSDependencies = SQSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
   DependenciesType,
   SQSQueueAWSConfig,
-  SQSQueueLocatorType,
+  QueueLocatorType,
   SQSOptionsType
 > {
   protected readonly sqsClient: SQSClient
