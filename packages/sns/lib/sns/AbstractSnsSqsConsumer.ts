@@ -18,6 +18,7 @@ export type SNSSQSConsumerDependencies = SQSConsumerDependencies & {
 }
 
 export type SNSSQSQueueLocatorType = SQSQueueLocatorType & {
+  subscriptionArn?: string
   topicArn: string
 }
 
@@ -47,27 +48,28 @@ export abstract class AbstractSnsSqsConsumer<
 
     // reuse existing queue only
     if (this.queueLocator) {
-        const checkResult = await getTopicAttributes(this.snsClient, this.queueLocator.topicArn)
-        if (checkResult.error === 'not_found') {
-          throw new Error(`Topic with topicArn ${this.queueLocator.topicArn} does not exist.`)
-        }
+      const checkResult = await getTopicAttributes(this.snsClient, this.queueLocator.topicArn)
+      if (checkResult.error === 'not_found') {
+        throw new Error(`Topic with topicArn ${this.queueLocator.topicArn} does not exist.`)
+      }
 
       this.topicArn = this.queueLocator.topicArn
     }
-      else
-      // create new topic if does not exist
-    {
+    // create new topic if does not exist
+    else {
       this.topicArn = await assertTopic(this.snsClient, this.subscribedToTopic)
     }
 
-    await subscribeToTopic(
-      this.sqsClient,
-      this.snsClient,
-      {
-        QueueName: this.queueName,
-        ...this.queueConfiguration,
-      },
-      this.subscribedToTopic,
-    )
+    if (!this.queueLocator?.subscriptionArn) {
+      await subscribeToTopic(
+          this.sqsClient,
+          this.snsClient,
+          {
+            QueueName: this.queueName,
+            ...this.queueConfiguration,
+          },
+          this.subscribedToTopic,
+      )
+    }
   }
 }

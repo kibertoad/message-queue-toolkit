@@ -32,5 +32,8 @@ export async function subscribeToTopic(
     Protocol: 'sqs',
   })
 
-  await snsClient.send(subscribeCommand)
+  const subscriptionResult = await snsClient.send(subscribeCommand)
+  return {
+    subscriptionArn: subscriptionResult.SubscriptionArn
+  }
 }
