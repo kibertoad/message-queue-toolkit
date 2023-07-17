@@ -19,9 +19,9 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<PERMISSIONS_MESSA
       queueName: SqsPermissionConsumer.QUEUE_NAME,
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
-      queueLocator: {
-        queueUrl: 'myQueueUrl'
-      }
+      consumerOverrides: {
+        terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
+      },
     })
   }
 
