@@ -14,7 +14,9 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<PERMISSIONS_MES
       queueName: SnsPermissionPublisher.TOPIC_NAME,
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
-      ...options,
+      queueLocator: {
+        topicArn: 'myTopicArn'
+      }
     })
   }
 }
