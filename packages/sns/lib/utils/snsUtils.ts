@@ -1,5 +1,9 @@
 import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
-import { CreateTopicCommand, GetTopicAttributesCommand } from '@aws-sdk/client-sns'
+import {
+  CreateTopicCommand,
+  DeleteTopicCommand,
+  GetTopicAttributesCommand,
+} from '@aws-sdk/client-sns'
 import type { Either } from '@lokalise/node-core'
 
 type QueueAttributesResult = {
@@ -41,4 +45,21 @@ export async function assertTopic(snsClient: SNSClient, topicOptions: CreateTopi
     throw new Error('No topic arn in response')
   }
   return response.TopicArn
+}
+
+export async function deleteTopic(client: SNSClient, topicName: string) {
+  try {
+    const topicArn = await assertTopic(client, {
+      Name: topicName,
+    })
+
+    const command = new DeleteTopicCommand({
+      TopicArn: topicArn,
+    })
+
+    await client.send(command)
+  } catch (err) {
+    // @ts-ignore
+    console.log(`Failed to delete: ${err.message}`)
+  }
 }
