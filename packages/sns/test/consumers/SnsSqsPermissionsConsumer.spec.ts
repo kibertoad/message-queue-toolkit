@@ -7,11 +7,10 @@ import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
-import { assertTopic } from '../../lib/utils/snsUtils'
+import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 import { userPermissionMap } from '../repositories/PermissionRepository'
-import { deleteTopic } from '../utils/snsUtils'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 

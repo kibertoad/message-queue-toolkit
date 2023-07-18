@@ -10,13 +10,12 @@ import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from
 
 import { subscribeToTopic } from '../../lib/sns/SnsSubscriber'
 import { deserializeSNSMessage } from '../../lib/sns/snsMessageDeserializer'
-import { assertTopic } from '../../lib/utils/snsUtils'
+import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
 import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { userPermissionMap } from '../repositories/PermissionRepository'
-import { deleteTopic } from '../utils/snsUtils'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
