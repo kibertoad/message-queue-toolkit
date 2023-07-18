@@ -16,10 +16,19 @@ export type AMQPDependencies = QueueDependencies & {
 export type AMQPConsumerDependencies = AMQPDependencies & QueueConsumerDependencies
 export type AMQPQueueConfig = Options.AssertQueue
 
+export type AMQPQueueLocatorType = {
+  queueName: string
+}
+
 export class AbstractAmqpService<
   MessagePayloadType extends object,
   DependenciesType extends AMQPDependencies = AMQPDependencies,
-> extends AbstractQueueService<MessagePayloadType, DependenciesType, AMQPQueueConfig> {
+> extends AbstractQueueService<
+  MessagePayloadType,
+  DependenciesType,
+  AMQPQueueConfig,
+  AMQPQueueLocatorType
+> {
   protected readonly connection: Connection
   // @ts-ignore
   protected channel: Channel
@@ -70,7 +79,21 @@ export class AbstractAmqpService<
       this.handleError(err)
     })
 
-    await this.channel.assertQueue(this.queueName, this.queueConfiguration)
+    if (!this.queueLocator) {
+      await this.channel.assertQueue(this.queueName, this.queueConfiguration)
+    } else {
+      // queue check breaks channel if not successful
+      const checkChannel = await this.connection.createChannel()
+      checkChannel.on('error', () => {
+        // it's OK
+      })
+      try {
+        await checkChannel.checkQueue(this.queueLocator.queueName)
+        await checkChannel.close()
+      } catch (err) {
+        throw new Error(`Queue with queueName ${this.queueLocator.queueName} does not exist.`)
+      }
+    }
   }
 
   async close(): Promise<void> {

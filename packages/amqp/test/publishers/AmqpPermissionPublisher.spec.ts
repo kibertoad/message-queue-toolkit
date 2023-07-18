@@ -20,6 +20,54 @@ const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
 
 describe('PermissionPublisher', () => {
+  describe('init', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    let channel: Channel
+    beforeAll(async () => {
+      diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
+        consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
+        permissionConsumer: asClass(FakeConsumer, {
+          lifetime: Lifetime.SINGLETON,
+          asyncInit: 'start',
+          asyncDispose: 'close',
+          asyncDisposePriority: 10,
+        }),
+      })
+    })
+
+    beforeEach(async () => {
+      channel = await diContainer.cradle.amqpConnection.createChannel()
+    })
+
+    afterEach(async () => {
+      await channel.deleteQueue(AmqpPermissionConsumer.QUEUE_NAME)
+      await channel.close()
+    })
+
+    it('throws an error when invalid queue locator is passed', async () => {
+      await channel.deleteQueue(AmqpPermissionConsumer.QUEUE_NAME)
+      const newPublisher = new AmqpPermissionPublisher(diContainer.cradle, {
+        queueLocator: {
+          queueName: AmqpPermissionPublisher.QUEUE_NAME,
+        },
+      })
+
+      await expect(() => newPublisher.init()).rejects.toThrow(/does not exist/)
+    })
+
+    it('does not create a new queue when queue locator is passed', async () => {
+      await channel.assertQueue(AmqpPermissionPublisher.QUEUE_NAME)
+
+      const newPublisher = new AmqpPermissionPublisher(diContainer.cradle, {
+        queueLocator: {
+          queueName: AmqpPermissionPublisher.QUEUE_NAME,
+        },
+      })
+
+      await expect(newPublisher.init()).resolves.toBeUndefined()
+    })
+  })
+
   describe('publish', () => {
     let diContainer: AwilixContainer<Dependencies>
     let channel: Channel
