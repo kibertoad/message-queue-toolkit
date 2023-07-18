@@ -119,6 +119,7 @@ describe('SNSPermissionPublisher', () => {
         {
           Name: SnsPermissionPublisher.TOPIC_NAME,
         },
+          {}
       )
 
       let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null

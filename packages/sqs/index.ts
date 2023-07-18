@@ -6,7 +6,10 @@ export type {
 } from './lib/sqs/AbstractSqsService'
 
 export { AbstractSqsConsumer } from './lib/sqs/AbstractSqsConsumer'
-export type { SQSConsumerOptions } from './lib/sqs/AbstractSqsConsumer'
+export type {
+  NewSQSConsumerOptions,
+  ExistingSQSConsumerOptions,
+} from './lib/sqs/AbstractSqsConsumer'
 export { SqsConsumerErrorResolver } from './lib/errors/SqsConsumerErrorResolver'
 
 export { AbstractSqsPublisher } from './lib/sqs/AbstractSqsPublisher'

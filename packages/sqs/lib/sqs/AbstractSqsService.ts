@@ -3,7 +3,8 @@ import type { CreateQueueRequest } from '@aws-sdk/client-sqs/dist-types/models/m
 import type {
   QueueConsumerDependencies,
   QueueDependencies,
-  QueueOptions,
+  NewQueueOptions,
+  ExistingQueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
@@ -15,7 +16,7 @@ export type SQSDependencies = QueueDependencies & {
 
 export type SQSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
 
-export type SQSQueueAWSConfig = Omit<CreateQueueRequest, 'QueueName'>
+export type SQSQueueAWSConfig = CreateQueueRequest
 export type SQSQueueConfig = {
   tags?: Record<string, string>
   Attributes?: {
@@ -38,11 +39,11 @@ export type SQSQueueLocatorType = {
 export class AbstractSqsService<
   MessagePayloadType extends object,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
-  SQSOptionsType extends QueueOptions<
-    MessagePayloadType,
-    SQSQueueAWSConfig,
-    QueueLocatorType
-  > = QueueOptions<MessagePayloadType, SQSQueueAWSConfig, QueueLocatorType>,
+  SQSOptionsType extends
+    | NewQueueOptions<MessagePayloadType, SQSQueueAWSConfig>
+    | ExistingQueueOptions<MessagePayloadType, QueueLocatorType> =
+    | NewQueueOptions<MessagePayloadType, SQSQueueAWSConfig>
+    | ExistingQueueOptions<MessagePayloadType, QueueLocatorType>,
   DependenciesType extends SQSDependencies = SQSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
@@ -54,6 +55,8 @@ export class AbstractSqsService<
   protected readonly sqsClient: SQSClient
   // @ts-ignore
   public queueUrl: string
+  // @ts-ignore
+  public queueName: string
 
   constructor(dependencies: DependenciesType, options: SQSOptionsType) {
     super(dependencies, options)
@@ -70,14 +73,19 @@ export class AbstractSqsService<
       }
 
       this.queueUrl = this.queueLocator.queueUrl
+
+      const splitUrl = this.queueUrl.split('/')
+      this.queueName = splitUrl[splitUrl.length - 1]
       return
     }
 
     // create new queue if does not exist
-    this.queueUrl = await assertQueue(this.sqsClient, {
-      QueueName: this.queueName,
-      ...this.queueConfiguration,
-    })
+    if (!this.queueConfig?.QueueName) {
+      throw new Error('queueConfig.QueueName is mandatory when locator is not provided')
+    }
+
+    this.queueUrl = await assertQueue(this.sqsClient, this.queueConfig)
+    this.queueName = this.queueConfig.QueueName
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

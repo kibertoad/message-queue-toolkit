@@ -1,7 +1,8 @@
 import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import type {
   SQSConsumerDependencies,
-  SQSConsumerOptions,
+  NewSQSConsumerOptions,
+  ExistingSQSConsumerOptions,
   SQSQueueLocatorType,
 } from '@message-queue-toolkit/sqs'
 import { AbstractSqsConsumer } from '@message-queue-toolkit/sqs'
@@ -9,15 +10,21 @@ import { AbstractSqsConsumer } from '@message-queue-toolkit/sqs'
 import { assertTopic, getTopicAttributes } from '../utils/snsUtils'
 
 import type { SNSQueueLocatorType } from './AbstractSnsService'
+import type { SNSSubscriptionOptions } from './SnsSubscriber'
 import { subscribeToTopic } from './SnsSubscriber'
 import { deserializeSNSMessage } from './snsMessageDeserializer'
 
-export type SnsSqsConsumerOptions<MessagePayloadType extends object> = SQSConsumerOptions<
-  MessagePayloadType,
-  SNSSQSQueueLocatorType
-> & {
-  subscribedToTopic?: CreateTopicCommandInput
-}
+export type NewSnsSqsConsumerOptions<MessagePayloadType extends object> =
+  NewSQSConsumerOptions<MessagePayloadType> & {
+    topicConfig?: CreateTopicCommandInput
+    subscriptionConfig?: SNSSubscriptionOptions
+  }
+
+export type ExistingSnsSqsConsumerOptions<MessagePayloadType extends object> =
+  ExistingSQSConsumerOptions<MessagePayloadType, SNSSQSQueueLocatorType> & {
+    topicConfig?: CreateTopicCommandInput
+    subscriptionConfig?: SNSSubscriptionOptions
+  }
 
 export type SNSSQSConsumerDependencies = SQSConsumerDependencies & {
   snsClient: SNSClient
@@ -33,9 +40,10 @@ export abstract class AbstractSnsSqsConsumer<
 > extends AbstractSqsConsumer<
   MessagePayloadType,
   SNSSQSQueueLocatorType,
-  SnsSqsConsumerOptions<MessagePayloadType>
+  NewSnsSqsConsumerOptions<MessagePayloadType> | ExistingSnsSqsConsumerOptions<MessagePayloadType>
 > {
-  private readonly subscribedToTopic?: CreateTopicCommandInput
+  private readonly topicConfig?: CreateTopicCommandInput
+  private readonly subscriptionConfig?: SNSSubscriptionOptions
   private readonly snsClient: SNSClient
   // @ts-ignore
   public topicArn: string
@@ -44,14 +52,17 @@ export abstract class AbstractSnsSqsConsumer<
 
   protected constructor(
     dependencies: SNSSQSConsumerDependencies,
-    options: SnsSqsConsumerOptions<MessagePayloadType>,
+    options:
+      | NewSnsSqsConsumerOptions<MessagePayloadType>
+      | ExistingSnsSqsConsumerOptions<MessagePayloadType>,
   ) {
     super(dependencies, {
       ...options,
       deserializer: options.deserializer ?? deserializeSNSMessage,
     })
 
-    this.subscribedToTopic = options.subscribedToTopic
+    this.topicConfig = options.topicConfig
+    this.subscriptionConfig = options.subscriptionConfig
     this.snsClient = dependencies.snsClient
   }
 
@@ -69,30 +80,38 @@ export abstract class AbstractSnsSqsConsumer<
     }
     // create new topic if it does not exist
     else {
-      if (!this.subscribedToTopic) {
+      if (!this.topicConfig) {
         throw new Error(
           'If queueLocator.subscriptionArn is not specified, subscribedToTopic parameter is mandatory, as there will be an attempt to create the missing topic',
         )
       }
 
-      this.topicArn = await assertTopic(this.snsClient, this.subscribedToTopic)
+      this.topicArn = await assertTopic(this.snsClient, this.topicConfig)
     }
 
     if (!this.queueLocator?.subscriptionArn) {
-      if (!this.subscribedToTopic) {
+      if (!this.topicConfig) {
         throw new Error(
           'If queueLocator.subscriptionArn is not specified, subscribedToTopic parameter is mandatory, as there will be an attempt to create the missing topic',
+        )
+      }
+      if (!this.queueConfig) {
+        throw new Error(
+          'If queueLocator.subscriptionArn is not specified, queueConfig parameter is mandatory, as there will be an attempt to create the missing queue',
+        )
+      }
+      if (!this.subscriptionConfig) {
+        throw new Error(
+          'If queueLocator.subscriptionArn is not specified, subscriptionConfig parameter is mandatory, as there will be an attempt to create the missing subscription',
         )
       }
 
       const { subscriptionArn } = await subscribeToTopic(
         this.sqsClient,
         this.snsClient,
-        {
-          QueueName: this.queueName,
-          ...this.queueConfiguration,
-        },
-        this.subscribedToTopic,
+        this.queueConfig,
+        this.topicConfig,
+        this.subscriptionConfig,
       )
       if (!subscriptionArn) {
         throw new Error('Failed to subscribe')

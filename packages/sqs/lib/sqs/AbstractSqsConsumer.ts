@@ -1,7 +1,8 @@
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   QueueConsumer as QueueConsumer,
-  QueueOptions,
+  NewQueueOptions,
+  ExistingQueueOptions,
   TransactionObservabilityManager,
   Deserializer,
 } from '@message-queue-toolkit/core'
@@ -23,10 +24,18 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
-export type SQSConsumerOptions<
+export type NewSQSConsumerOptions<MessagePayloadType extends object> = NewQueueOptions<
+  MessagePayloadType,
+  SQSQueueAWSConfig
+> & {
+  consumerOverrides?: Partial<ConsumerOptions>
+  deserializer?: Deserializer<MessagePayloadType, SQSMessage>
+}
+
+export type ExistingSQSConsumerOptions<
   MessagePayloadType extends object,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
-> = QueueOptions<MessagePayloadType, SQSQueueAWSConfig, QueueLocatorType> & {
+> = ExistingQueueOptions<MessagePayloadType, QueueLocatorType> & {
   consumerOverrides?: Partial<ConsumerOptions>
   deserializer?: Deserializer<MessagePayloadType, SQSMessage>
 }
@@ -34,10 +43,11 @@ export type SQSConsumerOptions<
 export abstract class AbstractSqsConsumer<
     MessagePayloadType extends object,
     QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
-    ConsumerOptionsType extends SQSConsumerOptions<
-      MessagePayloadType,
-      QueueLocatorType
-    > = SQSConsumerOptions<MessagePayloadType, QueueLocatorType>,
+    ConsumerOptionsType extends
+      | NewSQSConsumerOptions<MessagePayloadType>
+      | ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType> =
+      | NewSQSConsumerOptions<MessagePayloadType>
+      | ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType>,
   >
   extends AbstractSqsService<
     MessagePayloadType,

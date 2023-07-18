@@ -2,7 +2,8 @@ import type { SNSClient, CreateTopicCommandInput, Tag } from '@aws-sdk/client-sn
 import type {
   QueueConsumerDependencies,
   QueueDependencies,
-  QueueOptions,
+  NewQueueOptions,
+  ExistingQueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
@@ -18,7 +19,7 @@ export type SNSQueueLocatorType = {
 
 export type SNSConsumerDependencies = SNSDependencies & QueueConsumerDependencies
 
-export type SNSTopicAWSConfig = Omit<CreateTopicCommandInput, 'Name'>
+export type SNSTopicAWSConfig = CreateTopicCommandInput
 export type SNSTopicConfig = {
   tags?: Tag[]
   DataProtectionPolicy?: string
@@ -34,19 +35,24 @@ export type SNSTopicConfig = {
   }
 }
 
-export type SNSOptions<MessagePayloadType extends object> = QueueOptions<
+export type NewSNSOptions<MessagePayloadType extends object> = NewQueueOptions<
   MessagePayloadType,
-  SNSTopicAWSConfig,
+  SNSTopicAWSConfig
+>
+
+export type ExistingSNSOptions<MessagePayloadType extends object> = ExistingQueueOptions<
+  MessagePayloadType,
   SNSQueueLocatorType
 >
 
 export class AbstractSnsService<
   MessagePayloadType extends object,
-  SNSOptionsType extends QueueOptions<
-    MessagePayloadType,
-    SNSTopicAWSConfig,
-    SNSQueueLocatorType
-  > = SNSOptions<MessagePayloadType>,
+  SNSOptionsType extends
+    | ExistingQueueOptions<MessagePayloadType, SNSQueueLocatorType>
+    | NewQueueOptions<
+        MessagePayloadType,
+        SNSTopicAWSConfig
+      > = ExistingSNSOptions<MessagePayloadType>,
   DependenciesType extends SNSDependencies = SNSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
@@ -77,10 +83,12 @@ export class AbstractSnsService<
     }
 
     // create new topic if it does not exist
-    this.topicArn = await assertTopic(this.snsClient, {
-      Name: this.queueName,
-      ...this.queueConfiguration,
-    })
+    if (!this.queueConfig) {
+      throw new Error(
+        'When queueLocator for the topic is not specified, queueConfig of the topic is mandatory',
+      )
+    }
+    this.topicArn = await assertTopic(this.snsClient, this.queueConfig)
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

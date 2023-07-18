@@ -26,16 +26,24 @@ export type Deserializer<
   errorProcessor: ErrorResolver,
 ) => Either<MessageInvalidFormatError | MessageValidationError, MessagePayloadType>
 
-export type QueueOptions<
+export type NewQueueOptions<
   MessagePayloadType extends object,
   QueueConfiguration extends object,
-  QueueLocatorType extends object,
 > = {
   messageSchema: ZodSchema<MessagePayloadType>
   messageTypeField: string
-  queueName: string
-  queueLocator?: QueueLocatorType
-  queueConfiguration?: QueueConfiguration
+  queueLocator?: never
+  queueConfig: QueueConfiguration
+}
+
+export type ExistingQueueOptions<
+    MessagePayloadType extends object,
+    QueueLocatorType extends object,
+> = {
+  messageSchema: ZodSchema<MessagePayloadType>
+  messageTypeField: string
+  queueLocator: QueueLocatorType
+  queueConfig?: never
 }
 
 export type CommonQueueLocator = {
@@ -47,31 +55,35 @@ export abstract class AbstractQueueService<
   DependenciesType extends QueueDependencies,
   QueueConfiguration extends object,
   QueueLocatorType extends object = CommonQueueLocator,
-  OptionsType extends QueueOptions<
+  OptionsType extends NewQueueOptions<
     MessagePayloadType,
-    QueueConfiguration,
-    QueueLocatorType
-  > = QueueOptions<MessagePayloadType, QueueConfiguration, QueueLocatorType>,
+    QueueConfiguration
+  >
+      |
+      ExistingQueueOptions<
+          MessagePayloadType,
+          QueueLocatorType
+      >
+
+      = NewQueueOptions<MessagePayloadType, QueueConfiguration> | ExistingQueueOptions<MessagePayloadType, QueueLocatorType>,
 > {
-  protected readonly queueName: string
   protected readonly errorReporter: ErrorReporter
   protected readonly messageSchema: ZodSchema<MessagePayloadType>
   protected readonly logger: Logger
   protected readonly messageTypeField: string
-  protected readonly queueConfiguration?: QueueConfiguration
+  protected readonly queueConfig?: QueueConfiguration
   protected readonly queueLocator?: QueueLocatorType
 
   constructor(
     { errorReporter, logger }: DependenciesType,
-    { messageSchema, messageTypeField, queueName, queueConfiguration, queueLocator }: OptionsType,
+    { messageSchema, messageTypeField, queueConfig, queueLocator }: OptionsType,
   ) {
     this.errorReporter = errorReporter
     this.logger = logger
 
-    this.queueName = queueName
     this.messageSchema = messageSchema
     this.messageTypeField = messageTypeField
-    this.queueConfiguration = queueConfiguration
+    this.queueConfig = queueConfig
     this.queueLocator = queueLocator
   }
 
