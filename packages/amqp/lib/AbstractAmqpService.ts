@@ -82,7 +82,17 @@ export class AbstractAmqpService<
     if (!this.queueLocator) {
       await this.channel.assertQueue(this.queueName, this.queueConfiguration)
     } else {
-      await this.channel.checkQueue(this.queueLocator.queueName)
+      // queue check breaks channel if not successful
+      const checkChannel = await this.connection.createChannel()
+      checkChannel.on('error', () => {
+        // it's OK
+      })
+      try {
+        await checkChannel.checkQueue(this.queueLocator.queueName)
+        await checkChannel.close()
+      } catch (err) {
+        throw new Error(`Queue with queueName ${this.queueLocator.queueName} does not exist.`)
+      }
     }
   }
 
