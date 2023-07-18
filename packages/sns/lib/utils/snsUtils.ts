@@ -59,7 +59,6 @@ export async function deleteTopic(client: SNSClient, topicName: string) {
 
     await client.send(command)
   } catch (err) {
-    // @ts-ignore
-    console.log(`Failed to delete: ${err.message}`)
+    // we don't care it operation has failed
   }
 }
