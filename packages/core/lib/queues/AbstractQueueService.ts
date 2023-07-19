@@ -37,8 +37,8 @@ export type NewQueueOptions<
 }
 
 export type ExistingQueueOptions<
-    MessagePayloadType extends object,
-    QueueLocatorType extends object,
+  MessagePayloadType extends object,
+  QueueLocatorType extends object,
 > = {
   messageSchema: ZodSchema<MessagePayloadType>
   messageTypeField: string
@@ -55,17 +55,11 @@ export abstract class AbstractQueueService<
   DependenciesType extends QueueDependencies,
   QueueConfiguration extends object,
   QueueLocatorType extends object = CommonQueueLocator,
-  OptionsType extends NewQueueOptions<
-    MessagePayloadType,
-    QueueConfiguration
-  >
-      |
-      ExistingQueueOptions<
-          MessagePayloadType,
-          QueueLocatorType
-      >
-
-      = NewQueueOptions<MessagePayloadType, QueueConfiguration> | ExistingQueueOptions<MessagePayloadType, QueueLocatorType>,
+  OptionsType extends
+    | NewQueueOptions<MessagePayloadType, QueueConfiguration>
+    | ExistingQueueOptions<MessagePayloadType, QueueLocatorType> =
+    | NewQueueOptions<MessagePayloadType, QueueConfiguration>
+    | ExistingQueueOptions<MessagePayloadType, QueueLocatorType>,
 > {
   protected readonly errorReporter: ErrorReporter
   protected readonly messageSchema: ZodSchema<MessagePayloadType>
