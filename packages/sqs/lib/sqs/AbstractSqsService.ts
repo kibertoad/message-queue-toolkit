@@ -10,6 +10,8 @@ import { AbstractQueueService } from '@message-queue-toolkit/core'
 
 import { assertQueue, getQueueAttributes } from '../utils/SqsUtils'
 
+import type { SQSCreationConfig } from './AbstractSqsConsumer'
+
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient
 }
@@ -39,16 +41,17 @@ export type SQSQueueLocatorType = {
 export class AbstractSqsService<
   MessagePayloadType extends object,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+  CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
   SQSOptionsType extends
-    | NewQueueOptions<MessagePayloadType, SQSQueueAWSConfig>
+    | NewQueueOptions<MessagePayloadType, CreationConfigType>
     | ExistingQueueOptions<MessagePayloadType, QueueLocatorType> =
-    | NewQueueOptions<MessagePayloadType, SQSQueueAWSConfig>
+    | NewQueueOptions<MessagePayloadType, CreationConfigType>
     | ExistingQueueOptions<MessagePayloadType, QueueLocatorType>,
   DependenciesType extends SQSDependencies = SQSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
   DependenciesType,
-  SQSQueueAWSConfig,
+  CreationConfigType,
   QueueLocatorType,
   SQSOptionsType
 > {
@@ -66,13 +69,13 @@ export class AbstractSqsService<
 
   public async init() {
     // reuse existing queue only
-    if (this.queueLocator) {
-      const checkResult = await getQueueAttributes(this.sqsClient, this.queueLocator)
+    if (this.locatorConfig) {
+      const checkResult = await getQueueAttributes(this.sqsClient, this.locatorConfig)
       if (checkResult.error === 'not_found') {
-        throw new Error(`Queue with queueUrl ${this.queueLocator.queueUrl} does not exist.`)
+        throw new Error(`Queue with queueUrl ${this.locatorConfig.queueUrl} does not exist.`)
       }
 
-      this.queueUrl = this.queueLocator.queueUrl
+      this.queueUrl = this.locatorConfig.queueUrl
 
       const splitUrl = this.queueUrl.split('/')
       this.queueName = splitUrl[splitUrl.length - 1]
@@ -80,12 +83,12 @@ export class AbstractSqsService<
     }
 
     // create new queue if does not exist
-    if (!this.queueConfig?.QueueName) {
+    if (!this.creationConfig?.queue.QueueName) {
       throw new Error('queueConfig.QueueName is mandatory when locator is not provided')
     }
 
-    this.queueUrl = await assertQueue(this.sqsClient, this.queueConfig)
-    this.queueName = this.queueConfig.QueueName
+    this.queueUrl = await assertQueue(this.sqsClient, this.creationConfig.queue)
+    this.queueName = this.creationConfig.queue.QueueName
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

@@ -28,12 +28,12 @@ export type Deserializer<
 
 export type NewQueueOptions<
   MessagePayloadType extends object,
-  QueueConfiguration extends object,
+  CreationConfigType extends object,
 > = {
   messageSchema: ZodSchema<MessagePayloadType>
   messageTypeField: string
-  queueLocator?: never
-  queueConfig: QueueConfiguration
+  locatorConfig?: never
+  creationConfig: CreationConfigType
 }
 
 export type ExistingQueueOptions<
@@ -42,8 +42,8 @@ export type ExistingQueueOptions<
 > = {
   messageSchema: ZodSchema<MessagePayloadType>
   messageTypeField: string
-  queueLocator: QueueLocatorType
-  queueConfig?: never
+  locatorConfig: QueueLocatorType
+  creationConfig?: never
 }
 
 export type CommonQueueLocator = {
@@ -71,20 +71,20 @@ export abstract class AbstractQueueService<
   protected readonly messageSchema: ZodSchema<MessagePayloadType>
   protected readonly logger: Logger
   protected readonly messageTypeField: string
-  protected readonly queueConfig?: QueueConfiguration
-  protected readonly queueLocator?: QueueLocatorType
+  protected readonly creationConfig?: QueueConfiguration
+  protected readonly locatorConfig?: QueueLocatorType
 
   constructor(
     { errorReporter, logger }: DependenciesType,
-    { messageSchema, messageTypeField, queueConfig, queueLocator }: OptionsType,
+    { messageSchema, messageTypeField, creationConfig, locatorConfig }: OptionsType,
   ) {
     this.errorReporter = errorReporter
     this.logger = logger
 
     this.messageSchema = messageSchema
     this.messageTypeField = messageTypeField
-    this.queueConfig = queueConfig
-    this.queueLocator = queueLocator
+    this.creationConfig = creationConfig
+    this.locatorConfig = locatorConfig
   }
 
   protected handleError(err: unknown) {

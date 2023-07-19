@@ -37,7 +37,7 @@ export type SNSTopicConfig = {
 
 export type NewSNSOptions<MessagePayloadType extends object> = NewQueueOptions<
   MessagePayloadType,
-  SNSTopicAWSConfig
+  SNSCreationConfig
 >
 
 export type ExistingSNSOptions<MessagePayloadType extends object> = ExistingQueueOptions<
@@ -45,19 +45,22 @@ export type ExistingSNSOptions<MessagePayloadType extends object> = ExistingQueu
   SNSQueueLocatorType
 >
 
+export type SNSCreationConfig = {
+  topic: SNSTopicAWSConfig
+}
+
 export class AbstractSnsService<
   MessagePayloadType extends object,
   SNSOptionsType extends
     | ExistingQueueOptions<MessagePayloadType, SNSQueueLocatorType>
-    | NewQueueOptions<
-        MessagePayloadType,
-        SNSTopicAWSConfig
-      > = ExistingSNSOptions<MessagePayloadType>,
+    | NewQueueOptions<MessagePayloadType, SNSCreationConfig> =
+    | ExistingSNSOptions<MessagePayloadType>
+    | NewQueueOptions<MessagePayloadType, SNSCreationConfig>,
   DependenciesType extends SNSDependencies = SNSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
   DependenciesType,
-  SNSTopicAWSConfig,
+  SNSCreationConfig,
   SNSQueueLocatorType,
   SNSOptionsType
 > {
@@ -72,23 +75,23 @@ export class AbstractSnsService<
   }
 
   public async init() {
-    if (this.queueLocator) {
-      const checkResult = await getTopicAttributes(this.snsClient, this.queueLocator.topicArn)
+    if (this.locatorConfig) {
+      const checkResult = await getTopicAttributes(this.snsClient, this.locatorConfig.topicArn)
       if (checkResult.error === 'not_found') {
-        throw new Error(`Topic with topicArn ${this.queueLocator.topicArn} does not exist.`)
+        throw new Error(`Topic with topicArn ${this.locatorConfig.topicArn} does not exist.`)
       }
 
-      this.topicArn = this.queueLocator.topicArn
+      this.topicArn = this.locatorConfig.topicArn
       return
     }
 
     // create new topic if it does not exist
-    if (!this.queueConfig) {
+    if (!this.creationConfig) {
       throw new Error(
-        'When queueLocator for the topic is not specified, queueConfig of the topic is mandatory',
+        'When locatorConfig for the topic is not specified, creationConfig of the topic is mandatory',
       )
     }
-    this.topicArn = await assertTopic(this.snsClient, this.queueConfig)
+    this.topicArn = await assertTopic(this.snsClient, this.creationConfig.topic)
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

@@ -5,7 +5,7 @@ export type {
   SQSQueueLocatorType,
 } from './lib/sqs/AbstractSqsService'
 
-export { AbstractSqsConsumer } from './lib/sqs/AbstractSqsConsumer'
+export { AbstractSqsConsumer, SQSCreationConfig } from './lib/sqs/AbstractSqsConsumer'
 export type {
   NewSQSConsumerOptions,
   ExistingSQSConsumerOptions,

@@ -24,10 +24,14 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
-export type NewSQSConsumerOptions<MessagePayloadType extends object> = NewQueueOptions<
-  MessagePayloadType,
-  SQSQueueAWSConfig
-> & {
+export type SQSCreationConfig = {
+  queue: SQSQueueAWSConfig
+}
+
+export type NewSQSConsumerOptions<
+  MessagePayloadType extends object,
+  CreationConfigType extends SQSCreationConfig,
+> = NewQueueOptions<MessagePayloadType, CreationConfigType> & {
   consumerOverrides?: Partial<ConsumerOptions>
   deserializer?: Deserializer<MessagePayloadType, SQSMessage>
 }
@@ -43,15 +47,17 @@ export type ExistingSQSConsumerOptions<
 export abstract class AbstractSqsConsumer<
     MessagePayloadType extends object,
     QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+    CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
     ConsumerOptionsType extends
-      | NewSQSConsumerOptions<MessagePayloadType>
+      | NewSQSConsumerOptions<MessagePayloadType, CreationConfigType>
       | ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType> =
-      | NewSQSConsumerOptions<MessagePayloadType>
+      | NewSQSConsumerOptions<MessagePayloadType, CreationConfigType>
       | ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType>,
   >
   extends AbstractSqsService<
     MessagePayloadType,
     QueueLocatorType,
+    CreationConfigType,
     ConsumerOptionsType,
     SQSConsumerDependencies
   >
@@ -99,7 +105,7 @@ export abstract class AbstractSqsConsumer<
     }
   }
 
-  private async failProcessing(message: SQSMessage) {
+  private async failProcessing(_message: SQSMessage) {
     // Not implemented yet - needs dead letter queue
   }
 

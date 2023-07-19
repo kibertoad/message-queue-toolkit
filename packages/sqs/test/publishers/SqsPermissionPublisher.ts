@@ -8,8 +8,10 @@ export class SqsPermissionPublisher extends AbstractSqsPublisher<PERMISSIONS_MES
 
   constructor(dependencies: SQSDependencies) {
     super(dependencies, {
-      queueConfig: {
-        QueueName: SqsPermissionPublisher.QUEUE_NAME,
+      creationConfig: {
+        queue: {
+          QueueName: SqsPermissionPublisher.QUEUE_NAME,
+        },
       },
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',

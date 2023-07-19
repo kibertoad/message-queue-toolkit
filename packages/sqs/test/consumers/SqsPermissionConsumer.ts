@@ -3,6 +3,7 @@ import type { Either } from '@lokalise/node-core'
 import type {
   ExistingSQSConsumerOptions,
   NewSQSConsumerOptions,
+  SQSCreationConfig,
 } from '../../lib/sqs/AbstractSqsConsumer'
 import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer'
 import type { SQSConsumerDependencies } from '../../lib/sqs/AbstractSqsService'
@@ -17,10 +18,12 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<PERMISSIONS_MESSA
   constructor(
     dependencies: SQSConsumerDependencies,
     options:
-      | Pick<NewSQSConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'queueConfig'>
-      | Pick<ExistingSQSConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'queueLocator'> = {
-      queueConfig: {
-        QueueName: SqsPermissionConsumer.QUEUE_NAME,
+      | Pick<NewSQSConsumerOptions<PERMISSIONS_MESSAGE_TYPE, SQSCreationConfig>, 'creationConfig'>
+      | Pick<ExistingSQSConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'locatorConfig'> = {
+      creationConfig: {
+        queue: {
+          QueueName: SqsPermissionConsumer.QUEUE_NAME,
+        },
       },
     },
   ) {

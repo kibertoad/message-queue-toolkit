@@ -63,7 +63,7 @@ describe('SNS PermissionsConsumer', () => {
       })
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
-        queueLocator: {
+        locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
           topicArn: 'dummy',
         },
@@ -82,7 +82,7 @@ describe('SNS PermissionsConsumer', () => {
       })
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
-        queueLocator: {
+        locatorConfig: {
           topicArn: arn,
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
           subscriptionArn:

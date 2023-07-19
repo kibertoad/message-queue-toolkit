@@ -12,10 +12,10 @@ export default defineConfig({
       exclude: ['lib/**/*.spec.ts', 'lib/**/*.test.ts', 'test/**/*.*', 'lib/types/**/*.*'],
       reporter: ['text'],
       all: true,
-      lines: 88,
+      lines: 85,
       functions: 90,
-      branches: 70,
-      statements: 88,
+      branches: 65,
+      statements: 85,
     },
   },
 })

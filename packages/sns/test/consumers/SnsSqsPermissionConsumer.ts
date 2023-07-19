@@ -3,14 +3,13 @@ import type { Either } from '@lokalise/node-core'
 import type {
   SNSSQSConsumerDependencies,
   NewSnsSqsConsumerOptions,
-    ExistingSnsSqsConsumerOptions
+  ExistingSnsSqsConsumerOptions,
 } from '../../lib/sns/AbstractSnsSqsConsumer'
 import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
-import {ExistingSQSConsumerOptions, NewSQSConsumerOptions} from "@message-queue-toolkit/sqs";
 
 export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<PERMISSIONS_MESSAGE_TYPE> {
   public static CONSUMED_QUEUE_NAME = 'user_permissions'
@@ -19,21 +18,23 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<PERMISSIONS
   constructor(
     dependencies: SNSSQSConsumerDependencies,
     options:
-        | Pick<NewSnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'queueConfig'>
-        | Pick<ExistingSnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'queueLocator'> = {
-      queueConfig: {
-        QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
-      }
-    }
+      | Pick<NewSnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'creationConfig'>
+      | Pick<ExistingSnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'locatorConfig'> = {
+      creationConfig: {
+        queue: {
+          QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
+        },
+        topic: {
+          Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME,
+        },
+      },
+    },
   ) {
     super(dependencies, {
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
       consumerOverrides: {
         terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
-      },
-      topicConfig: {
-        Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME,
       },
       subscriptionConfig: {},
       ...options,
