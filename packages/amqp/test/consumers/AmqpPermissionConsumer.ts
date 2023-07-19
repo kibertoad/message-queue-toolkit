@@ -14,7 +14,7 @@ export class AmqpPermissionConsumer extends AbstractAmqpConsumer<PERMISSIONS_MES
     super(dependencies, {
       creationConfig: {
         queueName: AmqpPermissionConsumer.QUEUE_NAME,
-        queue: {
+        queueOptions: {
           durable: true,
           autoDelete: false,
         },

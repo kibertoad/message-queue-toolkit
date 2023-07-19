@@ -17,7 +17,7 @@ export class AmqpPermissionPublisher extends AbstractAmqpPublisher<PERMISSIONS_M
       | Pick<ExistingAMQPConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'locatorConfig'> = {
       creationConfig: {
         queueName: AmqpPermissionPublisher.QUEUE_NAME,
-        queue: {
+        queueOptions: {
           durable: true,
           autoDelete: false,
         },

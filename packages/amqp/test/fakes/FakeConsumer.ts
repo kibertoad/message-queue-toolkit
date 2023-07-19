@@ -10,7 +10,7 @@ export class FakeConsumer extends AbstractAmqpConsumer<CommonMessage> {
     super(dependencies, {
       creationConfig: {
         queueName: queueName,
-        queue: {
+        queueOptions: {
           durable: true,
           autoDelete: false,
         },

@@ -18,7 +18,7 @@ export type AMQPConsumerDependencies = AMQPDependencies & QueueConsumerDependenc
 export type AMQPQueueConfig = Options.AssertQueue
 
 export type CreateAMQPQueueOptions = {
-  queue: AMQPQueueConfig
+  queueOptions: AMQPQueueConfig
   queueName: string
 }
 
@@ -94,7 +94,10 @@ export class AbstractAmqpService<
     })
 
     if (this.creationConfig) {
-      await this.channel.assertQueue(this.creationConfig.queueName, this.creationConfig.queue)
+      await this.channel.assertQueue(
+        this.creationConfig.queueName,
+        this.creationConfig.queueOptions,
+      )
     } else {
       // queue check breaks channel if not successful
       const checkChannel = await this.connection.createChannel()
