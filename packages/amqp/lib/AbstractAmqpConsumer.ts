@@ -1,14 +1,15 @@
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   QueueConsumer,
-  QueueOptions,
+  NewQueueOptions,
   TransactionObservabilityManager,
   Deserializer,
+  ExistingQueueOptions,
 } from '@message-queue-toolkit/core'
 import { isMessageError } from '@message-queue-toolkit/core'
 import type { Message } from 'amqplib'
 
-import type { AMQPConsumerDependencies, AMQPQueueConfig } from './AbstractAmqpService'
+import type { AMQPConsumerDependencies, CreateAMQPQueueOptions } from './AbstractAmqpService'
 import { AbstractAmqpService } from './AbstractAmqpService'
 import { deserializeAmqpMessage } from './amqpMessageDeserializer'
 
@@ -18,9 +19,15 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
 
 export type AMQPLocatorType = { queueName: string }
 
-export type AMQPConsumerOptions<MessagePayloadType extends object> = QueueOptions<
+export type NewAMQPConsumerOptions<MessagePayloadType extends object> = NewQueueOptions<
   MessagePayloadType,
-  AMQPQueueConfig,
+  CreateAMQPQueueOptions
+> & {
+  deserializer?: Deserializer<MessagePayloadType, Message>
+}
+
+export type ExistingAMQPConsumerOptions<MessagePayloadType extends object> = ExistingQueueOptions<
+  MessagePayloadType,
   AMQPLocatorType
 > & {
   deserializer?: Deserializer<MessagePayloadType, Message>
@@ -36,13 +43,19 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
 
   constructor(
     dependencies: AMQPConsumerDependencies,
-    options: AMQPConsumerOptions<MessagePayloadType>,
+    options:
+      | NewAMQPConsumerOptions<MessagePayloadType>
+      | ExistingAMQPConsumerOptions<MessagePayloadType>,
   ) {
     super(dependencies, options)
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.errorResolver = dependencies.consumerErrorResolver
 
     this.deserializer = options.deserializer ?? deserializeAmqpMessage
+
+    if (!options.locatorConfig?.queueName && !options.creationConfig?.queueName) {
+      throw new Error('queueName must be set in either locatorConfig or creationConfig')
+    }
   }
 
   abstract processMessage(

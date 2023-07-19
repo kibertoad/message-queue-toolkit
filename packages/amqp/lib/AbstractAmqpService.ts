@@ -1,7 +1,8 @@
 import type {
   QueueConsumerDependencies,
   QueueDependencies,
-  QueueOptions,
+  NewQueueOptions,
+  ExistingQueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { Channel, Connection } from 'amqplib'
@@ -16,6 +17,11 @@ export type AMQPDependencies = QueueDependencies & {
 export type AMQPConsumerDependencies = AMQPDependencies & QueueConsumerDependencies
 export type AMQPQueueConfig = Options.AssertQueue
 
+export type CreateAMQPQueueOptions = {
+  queue: AMQPQueueConfig
+  queueName: string
+}
+
 export type AMQPQueueLocatorType = {
   queueName: string
 }
@@ -26,20 +32,28 @@ export class AbstractAmqpService<
 > extends AbstractQueueService<
   MessagePayloadType,
   DependenciesType,
-  AMQPQueueConfig,
-  AMQPQueueLocatorType
+  CreateAMQPQueueOptions,
+  AMQPQueueLocatorType,
+  | NewQueueOptions<MessagePayloadType, CreateAMQPQueueOptions>
+  | ExistingQueueOptions<MessagePayloadType, AMQPLocatorType>
 > {
   protected readonly connection: Connection
   // @ts-ignore
   protected channel: Channel
   private isShuttingDown: boolean
+  protected readonly queueName: string
 
   constructor(
     dependencies: DependenciesType,
-    options: QueueOptions<MessagePayloadType, AMQPQueueConfig, AMQPLocatorType>,
+    options:
+      | NewQueueOptions<MessagePayloadType, CreateAMQPQueueOptions>
+      | ExistingQueueOptions<MessagePayloadType, AMQPLocatorType>,
   ) {
     super(dependencies, options)
 
+    this.queueName = options.locatorConfig
+      ? options.locatorConfig.queueName
+      : options.creationConfig?.queueName
     this.connection = dependencies.amqpConnection
     this.isShuttingDown = false
   }
@@ -79,8 +93,8 @@ export class AbstractAmqpService<
       this.handleError(err)
     })
 
-    if (!this.queueLocator) {
-      await this.channel.assertQueue(this.queueName, this.queueConfiguration)
+    if (this.creationConfig) {
+      await this.channel.assertQueue(this.creationConfig.queueName, this.creationConfig.queue)
     } else {
       // queue check breaks channel if not successful
       const checkChannel = await this.connection.createChannel()
@@ -88,10 +102,10 @@ export class AbstractAmqpService<
         // it's OK
       })
       try {
-        await checkChannel.checkQueue(this.queueLocator.queueName)
+        await checkChannel.checkQueue(this.locatorConfig!.queueName)
         await checkChannel.close()
       } catch (err) {
-        throw new Error(`Queue with queueName ${this.queueLocator.queueName} does not exist.`)
+        throw new Error(`Queue with queueName ${this.locatorConfig!.queueName} does not exist.`)
       }
     }
   }
