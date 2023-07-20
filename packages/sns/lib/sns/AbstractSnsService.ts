@@ -2,7 +2,8 @@ import type { SNSClient, CreateTopicCommandInput, Tag } from '@aws-sdk/client-sn
 import type {
   QueueConsumerDependencies,
   QueueDependencies,
-  QueueOptions,
+  NewQueueOptions,
+  ExistingQueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
@@ -18,7 +19,7 @@ export type SNSQueueLocatorType = {
 
 export type SNSConsumerDependencies = SNSDependencies & QueueConsumerDependencies
 
-export type SNSTopicAWSConfig = Omit<CreateTopicCommandInput, 'Name'>
+export type SNSTopicAWSConfig = CreateTopicCommandInput
 export type SNSTopicConfig = {
   tags?: Tag[]
   DataProtectionPolicy?: string
@@ -34,24 +35,32 @@ export type SNSTopicConfig = {
   }
 }
 
-export type SNSOptions<MessagePayloadType extends object> = QueueOptions<
+export type NewSNSOptions<MessagePayloadType extends object> = NewQueueOptions<
   MessagePayloadType,
-  SNSTopicAWSConfig,
+  SNSCreationConfig
+>
+
+export type ExistingSNSOptions<MessagePayloadType extends object> = ExistingQueueOptions<
+  MessagePayloadType,
   SNSQueueLocatorType
 >
 
+export type SNSCreationConfig = {
+  topic: SNSTopicAWSConfig
+}
+
 export class AbstractSnsService<
   MessagePayloadType extends object,
-  SNSOptionsType extends QueueOptions<
-    MessagePayloadType,
-    SNSTopicAWSConfig,
-    SNSQueueLocatorType
-  > = SNSOptions<MessagePayloadType>,
+  SNSOptionsType extends
+    | ExistingQueueOptions<MessagePayloadType, SNSQueueLocatorType>
+    | NewQueueOptions<MessagePayloadType, SNSCreationConfig> =
+    | ExistingSNSOptions<MessagePayloadType>
+    | NewQueueOptions<MessagePayloadType, SNSCreationConfig>,
   DependenciesType extends SNSDependencies = SNSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
   DependenciesType,
-  SNSTopicAWSConfig,
+  SNSCreationConfig,
   SNSQueueLocatorType,
   SNSOptionsType
 > {
@@ -66,21 +75,23 @@ export class AbstractSnsService<
   }
 
   public async init() {
-    if (this.queueLocator) {
-      const checkResult = await getTopicAttributes(this.snsClient, this.queueLocator.topicArn)
+    if (this.locatorConfig) {
+      const checkResult = await getTopicAttributes(this.snsClient, this.locatorConfig.topicArn)
       if (checkResult.error === 'not_found') {
-        throw new Error(`Topic with topicArn ${this.queueLocator.topicArn} does not exist.`)
+        throw new Error(`Topic with topicArn ${this.locatorConfig.topicArn} does not exist.`)
       }
 
-      this.topicArn = this.queueLocator.topicArn
+      this.topicArn = this.locatorConfig.topicArn
       return
     }
 
     // create new topic if it does not exist
-    this.topicArn = await assertTopic(this.snsClient, {
-      Name: this.queueName,
-      ...this.queueConfiguration,
-    })
+    if (!this.creationConfig) {
+      throw new Error(
+        'When locatorConfig for the topic is not specified, creationConfig of the topic is mandatory',
+      )
+    }
+    this.topicArn = await assertTopic(this.snsClient, this.creationConfig.topic)
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

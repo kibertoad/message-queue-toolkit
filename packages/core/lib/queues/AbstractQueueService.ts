@@ -26,16 +26,24 @@ export type Deserializer<
   errorProcessor: ErrorResolver,
 ) => Either<MessageInvalidFormatError | MessageValidationError, MessagePayloadType>
 
-export type QueueOptions<
+export type NewQueueOptions<
   MessagePayloadType extends object,
-  QueueConfiguration extends object,
+  CreationConfigType extends object,
+> = {
+  messageSchema: ZodSchema<MessagePayloadType>
+  messageTypeField: string
+  locatorConfig?: never
+  creationConfig: CreationConfigType
+}
+
+export type ExistingQueueOptions<
+  MessagePayloadType extends object,
   QueueLocatorType extends object,
 > = {
   messageSchema: ZodSchema<MessagePayloadType>
   messageTypeField: string
-  queueName: string
-  queueLocator?: QueueLocatorType
-  queueConfiguration?: QueueConfiguration
+  locatorConfig: QueueLocatorType
+  creationConfig?: never
 }
 
 export type CommonQueueLocator = {
@@ -47,32 +55,30 @@ export abstract class AbstractQueueService<
   DependenciesType extends QueueDependencies,
   QueueConfiguration extends object,
   QueueLocatorType extends object = CommonQueueLocator,
-  OptionsType extends QueueOptions<
-    MessagePayloadType,
-    QueueConfiguration,
-    QueueLocatorType
-  > = QueueOptions<MessagePayloadType, QueueConfiguration, QueueLocatorType>,
+  OptionsType extends
+    | NewQueueOptions<MessagePayloadType, QueueConfiguration>
+    | ExistingQueueOptions<MessagePayloadType, QueueLocatorType> =
+    | NewQueueOptions<MessagePayloadType, QueueConfiguration>
+    | ExistingQueueOptions<MessagePayloadType, QueueLocatorType>,
 > {
-  protected readonly queueName: string
   protected readonly errorReporter: ErrorReporter
   protected readonly messageSchema: ZodSchema<MessagePayloadType>
   protected readonly logger: Logger
   protected readonly messageTypeField: string
-  protected readonly queueConfiguration?: QueueConfiguration
-  protected readonly queueLocator?: QueueLocatorType
+  protected readonly creationConfig?: QueueConfiguration
+  protected readonly locatorConfig?: QueueLocatorType
 
   constructor(
     { errorReporter, logger }: DependenciesType,
-    { messageSchema, messageTypeField, queueName, queueConfiguration, queueLocator }: OptionsType,
+    { messageSchema, messageTypeField, creationConfig, locatorConfig }: OptionsType,
   ) {
     this.errorReporter = errorReporter
     this.logger = logger
 
-    this.queueName = queueName
     this.messageSchema = messageSchema
     this.messageTypeField = messageTypeField
-    this.queueConfiguration = queueConfiguration
-    this.queueLocator = queueLocator
+    this.creationConfig = creationConfig
+    this.locatorConfig = locatorConfig
   }
 
   protected handleError(err: unknown) {

@@ -1,7 +1,8 @@
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   QueueConsumer as QueueConsumer,
-  QueueOptions,
+  NewQueueOptions,
+  ExistingQueueOptions,
   TransactionObservabilityManager,
   Deserializer,
 } from '@message-queue-toolkit/core'
@@ -23,10 +24,22 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
-export type SQSConsumerOptions<
+export type SQSCreationConfig = {
+  queue: SQSQueueAWSConfig
+}
+
+export type NewSQSConsumerOptions<
+  MessagePayloadType extends object,
+  CreationConfigType extends SQSCreationConfig,
+> = NewQueueOptions<MessagePayloadType, CreationConfigType> & {
+  consumerOverrides?: Partial<ConsumerOptions>
+  deserializer?: Deserializer<MessagePayloadType, SQSMessage>
+}
+
+export type ExistingSQSConsumerOptions<
   MessagePayloadType extends object,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
-> = QueueOptions<MessagePayloadType, SQSQueueAWSConfig, QueueLocatorType> & {
+> = ExistingQueueOptions<MessagePayloadType, QueueLocatorType> & {
   consumerOverrides?: Partial<ConsumerOptions>
   deserializer?: Deserializer<MessagePayloadType, SQSMessage>
 }
@@ -34,14 +47,17 @@ export type SQSConsumerOptions<
 export abstract class AbstractSqsConsumer<
     MessagePayloadType extends object,
     QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
-    ConsumerOptionsType extends SQSConsumerOptions<
-      MessagePayloadType,
-      QueueLocatorType
-    > = SQSConsumerOptions<MessagePayloadType, QueueLocatorType>,
+    CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
+    ConsumerOptionsType extends
+      | NewSQSConsumerOptions<MessagePayloadType, CreationConfigType>
+      | ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType> =
+      | NewSQSConsumerOptions<MessagePayloadType, CreationConfigType>
+      | ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType>,
   >
   extends AbstractSqsService<
     MessagePayloadType,
     QueueLocatorType,
+    CreationConfigType,
     ConsumerOptionsType,
     SQSConsumerDependencies
   >
@@ -89,7 +105,7 @@ export abstract class AbstractSqsConsumer<
     }
   }
 
-  private async failProcessing(message: SQSMessage) {
+  private async failProcessing(_message: SQSMessage) {
     // Not implemented yet - needs dead letter queue
   }
 

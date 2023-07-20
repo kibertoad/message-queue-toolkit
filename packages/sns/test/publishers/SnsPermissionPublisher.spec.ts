@@ -36,7 +36,7 @@ describe('SNSPermissionPublisher', () => {
 
     it('throws an error when invalid queue locator is passed', async () => {
       const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
-        queueLocator: {
+        locatorConfig: {
           topicArn: 'dummy',
         },
       })
@@ -50,7 +50,7 @@ describe('SNSPermissionPublisher', () => {
       })
 
       const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
-        queueLocator: {
+        locatorConfig: {
           topicArn: arn,
         },
       })
@@ -119,6 +119,7 @@ describe('SNSPermissionPublisher', () => {
         {
           Name: SnsPermissionPublisher.TOPIC_NAME,
         },
+        {},
       )
 
       let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null

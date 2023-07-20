@@ -8,7 +8,8 @@ export type {
 
 export { AbstractQueueService } from './lib/queues/AbstractQueueService'
 export type {
-  QueueOptions,
+  NewQueueOptions,
+  ExistingQueueOptions,
   QueueDependencies,
   QueueConsumerDependencies,
   Deserializer,

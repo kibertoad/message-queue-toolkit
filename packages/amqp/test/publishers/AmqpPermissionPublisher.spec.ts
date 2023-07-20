@@ -47,7 +47,7 @@ describe('PermissionPublisher', () => {
     it('throws an error when invalid queue locator is passed', async () => {
       await channel.deleteQueue(AmqpPermissionConsumer.QUEUE_NAME)
       const newPublisher = new AmqpPermissionPublisher(diContainer.cradle, {
-        queueLocator: {
+        locatorConfig: {
           queueName: AmqpPermissionPublisher.QUEUE_NAME,
         },
       })
@@ -59,7 +59,7 @@ describe('PermissionPublisher', () => {
       await channel.assertQueue(AmqpPermissionPublisher.QUEUE_NAME)
 
       const newPublisher = new AmqpPermissionPublisher(diContainer.cradle, {
-        queueLocator: {
+        locatorConfig: {
           queueName: AmqpPermissionPublisher.QUEUE_NAME,
         },
       })

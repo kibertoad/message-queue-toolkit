@@ -55,7 +55,7 @@ describe('SqsPermissionsConsumer', () => {
 
     it('throws an error when invalid queue locator is passed', async () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
-        queueLocator: {
+        locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
         },
       })
@@ -69,7 +69,7 @@ describe('SqsPermissionsConsumer', () => {
       })
 
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
-        queueLocator: {
+        locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
         },
       })

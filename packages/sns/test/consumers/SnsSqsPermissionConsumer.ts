@@ -2,7 +2,8 @@ import type { Either } from '@lokalise/node-core'
 
 import type {
   SNSSQSConsumerDependencies,
-  SnsSqsConsumerOptions,
+  NewSnsSqsConsumerOptions,
+  ExistingSnsSqsConsumerOptions,
 } from '../../lib/sns/AbstractSnsSqsConsumer'
 import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer'
 import { userPermissionMap } from '../repositories/PermissionRepository'
@@ -16,18 +17,26 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<PERMISSIONS
 
   constructor(
     dependencies: SNSSQSConsumerDependencies,
-    options: Partial<Pick<SnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'queueLocator'>>,
+    options:
+      | Pick<NewSnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'creationConfig'>
+      | Pick<ExistingSnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'locatorConfig'> = {
+      creationConfig: {
+        queue: {
+          QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
+        },
+        topic: {
+          Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME,
+        },
+      },
+    },
   ) {
     super(dependencies, {
-      queueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
       consumerOverrides: {
         terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
       },
-      subscribedToTopic: {
-        Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME,
-      },
+      subscriptionConfig: {},
       ...options,
     })
   }
