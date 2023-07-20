@@ -23,8 +23,8 @@ It consists of the following submodules:
     * `options`, composed by
         * `messageSchema` – the `zod` schema for the message;
         * `messageTypeField`;
-        * `queueName`;
-        * `queueConfiguration`;
+        * `locatorConfig` - configuration for resolving existing queue and/or topic. Should not be specified together with the `creationConfig`.
+        * `creationConfig` - configuration for queue and/or topic to create, if one does not exist. Should not be specified together with the `locatorConfig`.
 * `init()`, which needs to be invoked before the publisher can be used;
 * `close()`, which needs to be invoked when stopping the application;
 * `publish()`, which accepts the following parameters:
@@ -43,8 +43,9 @@ It consists of the following submodules:
         * `messageSchema` – the `zod` schema for the message;
         * `messageTypeField` - which field in the message is used for resolving the message type (for observability purposes);
         * `queueName`; (for SNS publishers this is a misnomer which actually refers to a topic name)
-        * `queueConfiguration` - queue/topic configuration, that is specific to a queue system used. It will be used for creating a queue/topic, if it does not exist. Ignored if `queueLocator.subscriptionArn` is set;
-        * `queueLocator` - queue/topic identifiers, specific to a queue system used. If set, `message-queue-toolkit` will not attempt to create a new queue/topic, and instead throw an error if they don't already exist; 
+        * `locatorConfig` - configuration for resolving existing queue and/or topic. Should not be specified together with the `creationConfig`.
+        * `creationConfig` - configuration for queue and/or topic to create, if one does not exist. Should not be specified together with the `locatorConfig`.
+        * `subscriptionConfig` - SNS SQS consumer only - configuration for SNS -> SQS subscription to create, if one doesn't exist.
         * `consumerOverrides` – available only for SQS consumers;
         * `subscribedToTopic` – parameters for a topic to use during creation if it does not exist. Ignored if `queueLocator.subscriptionArn` is set. Available only for SNS consumers;
 * `init()`, which needs to be invoked before the consumer can be used;
