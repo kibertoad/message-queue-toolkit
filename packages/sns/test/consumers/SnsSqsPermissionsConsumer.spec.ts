@@ -7,7 +7,7 @@ import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
-import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
+import { assertTopic, deleteSubscription, deleteTopic } from '../../lib/utils/snsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 import { userPermissionMap } from '../repositories/PermissionRepository'
@@ -142,7 +142,10 @@ describe('SNS PermissionsConsumer', () => {
     })
 
     afterAll(async () => {
-      const { awilixManager } = diContainer.cradle
+      const { awilixManager, permissionConsumer } = diContainer.cradle
+
+      await deleteSubscription(snsClient, permissionConsumer.subscriptionArn)
+
       await awilixManager.executeDispose()
       await diContainer.dispose()
     })

@@ -3,6 +3,7 @@ import {
   CreateTopicCommand,
   DeleteTopicCommand,
   GetTopicAttributesCommand,
+  UnsubscribeCommand,
 } from '@aws-sdk/client-sns'
 import type { Either } from '@lokalise/node-core'
 
@@ -57,6 +58,17 @@ export async function deleteTopic(client: SNSClient, topicName: string) {
       TopicArn: topicArn,
     })
 
+    await client.send(command)
+  } catch (err) {
+    // we don't care it operation has failed
+  }
+}
+
+export async function deleteSubscription(client: SNSClient, subscriptionArn: string) {
+  const command = new UnsubscribeCommand({
+    SubscriptionArn: subscriptionArn,
+  })
+  try {
     await client.send(command)
   } catch (err) {
     // we don't care it operation has failed
