@@ -14,4 +14,9 @@ export type { CommonMessage } from './lib/types/MessageTypes'
 
 export { deserializeSNSMessage } from './lib/sns/snsMessageDeserializer'
 
-export { assertTopic, deleteTopic, getTopicAttributes } from './lib/utils/snsUtils'
+export {
+  assertTopic,
+  deleteTopic,
+  getTopicAttributes,
+  deleteSubscription,
+} from './lib/utils/snsUtils'
