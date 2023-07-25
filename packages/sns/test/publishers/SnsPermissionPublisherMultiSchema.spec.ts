@@ -139,7 +139,7 @@ describe('SNSPermissionPublisherMultiSchema', () => {
             return
           }
 
-          let deserializedMessage
+          let deserializedMessage: PERMISSIONS_SUPPORTED_MESSAGES
           const result1 = deserializeSNSMessage(
             message as any,
             PERMISSIONS_ADD_MESSAGE_SCHEMA,
@@ -152,12 +152,12 @@ describe('SNSPermissionPublisherMultiSchema', () => {
               PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
               new FakeConsumerErrorResolver(),
             )
-            deserializedMessage = result2.result
+            deserializedMessage = result2.result!
           } else {
             deserializedMessage = result1.result
           }
 
-          receivedMessages.push(deserializedMessage!)
+          receivedMessages.push(deserializedMessage)
         },
         sqs: diContainer.cradle.sqsClient,
       })
