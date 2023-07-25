@@ -157,7 +157,7 @@ describe('SNSPermissionPublisherMultiSchema', () => {
             deserializedMessage = result1.result
           }
 
-          receivedMessages.push(deserializedMessage)
+          receivedMessages.push(deserializedMessage!)
         },
         sqs: diContainer.cradle.sqsClient,
       })
