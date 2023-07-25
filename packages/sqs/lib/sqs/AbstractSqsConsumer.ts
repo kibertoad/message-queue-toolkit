@@ -80,7 +80,7 @@ export abstract class AbstractSqsConsumer<
   }
 
   abstract processMessage(
-    messagePayload: MessagePayloadType,
+      message: MessagePayloadType, messageType: string
   ): Promise<Either<'retryLater', 'success'>>
 
   private deserializeMessage(message: SQSMessage): Either<'abort', MessagePayloadType> {
@@ -88,7 +88,8 @@ export abstract class AbstractSqsConsumer<
       return ABORT_EARLY_EITHER
     }
 
-    const deserializationResult = this.deserializer(message, this.messageSchema, this.errorResolver)
+    const schema = this.resolveSchema(message)
+    const deserializationResult = this.deserializer(message, schema, this.errorResolver)
 
     if (isMessageError(deserializationResult.error)) {
       this.handleError(deserializationResult.error)
@@ -103,6 +104,10 @@ export abstract class AbstractSqsConsumer<
     return {
       result: deserializationResult.result,
     }
+  }
+
+  protected resolveSchema(message: SQSMessage) {
+    return this.messageSchema
   }
 
   private async failProcessing(_message: SQSMessage) {
@@ -128,15 +133,15 @@ export abstract class AbstractSqsConsumer<
           await this.failProcessing(message)
           return
         }
-        const transactionSpanId = `queue_${this.queueName}:${
-          // @ts-ignore
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          deserializedMessage.result[this.messageTypeField]
-        }`
+        // @ts-ignore
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+        const messageType = deserializedMessage.result[this.messageTypeField]
+        const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
         this.transactionObservabilityManager?.start(transactionSpanId)
         const result: Either<'retryLater' | Error, 'success'> = await this.processMessage(
           deserializedMessage.result,
+          messageType
         )
           .catch((err) => {
             // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter

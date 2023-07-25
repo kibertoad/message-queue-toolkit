@@ -1,12 +1,17 @@
 import { types } from 'node:util'
 
 import type { ErrorReporter } from '@lokalise/node-core'
-import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
+import {resolveGlobalErrorLogObject} from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
 import type { Logger } from '../types/MessageQueueTypes'
 
 import type { CommonQueueLocator, QueueDependencies } from './AbstractQueueService'
+import {MessageHandlerConfig} from "./HandlerContainer";
+
+export type MultiSchemaConsumerOptions<MessagePayloadSchemas extends object, ExecutionContext> = {
+  handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext>[]
+}
 
 export type NewQueueOptionsMultiSchema<
   MessagePayloadSchemas extends object,
