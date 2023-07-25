@@ -4,6 +4,7 @@ export type {
   SyncPublisher,
   TransactionObservabilityManager,
   Logger,
+  SchemaMap,
 } from './lib/types/MessageQueueTypes'
 
 export { AbstractQueueService } from './lib/queues/AbstractQueueService'
@@ -15,6 +16,12 @@ export type {
   Deserializer,
   CommonQueueLocator,
 } from './lib/queues/AbstractQueueService'
+
+export type {
+  ExistingQueueOptionsMultiSchema,
+  NewQueueOptionsMultiSchema,
+} from './lib/queues/AbstractQueueServiceMultiSchema'
+export { AbstractQueueServiceMultiSchema } from './lib/queues/AbstractQueueServiceMultiSchema'
 
 export {
   isMessageError,

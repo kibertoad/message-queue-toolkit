@@ -9,6 +9,7 @@ import { AwilixManager } from 'awilix-manager'
 import { SnsConsumerErrorResolver } from '../../lib/errors/SnsConsumerErrorResolver'
 import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
+import { SnsPermissionPublisherMultiSchema } from '../publishers/SnsPermissionPublisherMultiSchema'
 
 import { TEST_AWS_CONFIG } from './testSnsConfig'
 
@@ -69,6 +70,13 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
     }),
     permissionPublisher: asClass(SnsPermissionPublisher, {
       lifetime: Lifetime.SINGLETON,
+      asyncInit: 'init',
+      asyncDispose: 'close',
+      asyncDisposePriority: 20,
+    }),
+    permissionPublisherMultiSchema: asClass(SnsPermissionPublisherMultiSchema, {
+      lifetime: Lifetime.SINGLETON,
+      asyncInit: 'init',
       asyncDispose: 'close',
       asyncDisposePriority: 20,
     }),
@@ -109,4 +117,5 @@ export interface Dependencies {
   consumerErrorResolver: ErrorResolver
   permissionConsumer: SnsSqsPermissionConsumer
   permissionPublisher: SnsPermissionPublisher
+  permissionPublisherMultiSchema: SnsPermissionPublisherMultiSchema
 }

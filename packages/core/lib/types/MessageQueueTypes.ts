@@ -1,3 +1,5 @@
+import type { ZodSchema } from 'zod'
+
 export interface QueueConsumer {
   start(): Promise<unknown> // subscribe and start listening
   close(): Promise<unknown>
@@ -33,3 +35,9 @@ export type Logger = {
   trace: LogFn
   fatal: LogFn
 }
+
+export type SchemaMap<SupportedMessageTypes extends string> = Record<
+  SupportedMessageTypes,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ZodSchema<any>
+>
