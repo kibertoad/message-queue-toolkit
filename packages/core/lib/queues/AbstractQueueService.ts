@@ -7,6 +7,8 @@ import type { ZodSchema, ZodType } from 'zod'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
 import type { Logger, TransactionObservabilityManager } from '../types/MessageQueueTypes'
 
+import type { MessageHandlerConfig } from './HandlerContainer'
+
 export type QueueDependencies = {
   errorReporter: ErrorReporter
   logger: Logger
@@ -26,24 +28,38 @@ export type Deserializer<
   errorProcessor: ErrorResolver,
 ) => Either<MessageInvalidFormatError | MessageValidationError, MessagePayloadType>
 
-export type NewQueueOptions<
-  MessagePayloadType extends object,
+export type NewQueueOptionsMultiSchema<
+  MessagePayloadSchemas extends object,
   CreationConfigType extends object,
-> = {
-  messageSchema: ZodSchema<MessagePayloadType>
+  ExecutionContext,
+> = NewQueueOptions<CreationConfigType> &
+  MultiSchemaConsumerOptions<MessagePayloadSchemas, ExecutionContext>
+
+export type ExistingQueueOptionsMultiSchema<
+  MessagePayloadSchemas extends object,
+  QueueLocatorType extends object,
+  ExecutionContext,
+> = ExistingQueueOptions<QueueLocatorType> &
+  MultiSchemaConsumerOptions<MessagePayloadSchemas, ExecutionContext>
+
+export type NewQueueOptions<CreationConfigType extends object> = {
   messageTypeField: string
   locatorConfig?: never
   creationConfig: CreationConfigType
 }
 
-export type ExistingQueueOptions<
-  MessagePayloadType extends object,
-  QueueLocatorType extends object,
-> = {
-  messageSchema: ZodSchema<MessagePayloadType>
+export type ExistingQueueOptions<QueueLocatorType extends object> = {
   messageTypeField: string
   locatorConfig: QueueLocatorType
   creationConfig?: never
+}
+
+export type MultiSchemaConsumerOptions<MessagePayloadSchemas extends object, ExecutionContext> = {
+  handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext>[]
+}
+
+export type MonoSchemaQueueOptions<MessagePayloadType extends object> = {
+  messageSchema: ZodSchema<MessagePayloadType>
 }
 
 export type CommonQueueLocator = {
@@ -51,18 +67,18 @@ export type CommonQueueLocator = {
 }
 
 export abstract class AbstractQueueService<
-  MessagePayloadType extends object,
+  MessagePayloadSchemas extends object,
+  MessageEnvelopeType extends object,
   DependenciesType extends QueueDependencies,
   QueueConfiguration extends object,
   QueueLocatorType extends object = CommonQueueLocator,
   OptionsType extends
-    | NewQueueOptions<MessagePayloadType, QueueConfiguration>
-    | ExistingQueueOptions<MessagePayloadType, QueueLocatorType> =
-    | NewQueueOptions<MessagePayloadType, QueueConfiguration>
-    | ExistingQueueOptions<MessagePayloadType, QueueLocatorType>,
+    | NewQueueOptions<QueueConfiguration>
+    | ExistingQueueOptions<QueueLocatorType> =
+    | NewQueueOptions<QueueConfiguration>
+    | ExistingQueueOptions<QueueLocatorType>,
 > {
   protected readonly errorReporter: ErrorReporter
-  protected readonly messageSchema: ZodSchema<MessagePayloadType>
   protected readonly logger: Logger
   protected readonly messageTypeField: string
   protected readonly creationConfig?: QueueConfiguration
@@ -70,16 +86,17 @@ export abstract class AbstractQueueService<
 
   constructor(
     { errorReporter, logger }: DependenciesType,
-    { messageSchema, messageTypeField, creationConfig, locatorConfig }: OptionsType,
+    { messageTypeField, creationConfig, locatorConfig }: OptionsType,
   ) {
     this.errorReporter = errorReporter
     this.logger = logger
 
-    this.messageSchema = messageSchema
     this.messageTypeField = messageTypeField
     this.creationConfig = creationConfig
     this.locatorConfig = locatorConfig
   }
+
+  protected abstract resolveSchema(message: MessageEnvelopeType): ZodSchema<MessagePayloadSchemas>
 
   protected handleError(err: unknown) {
     const logObject = resolveGlobalErrorLogObject(err)
