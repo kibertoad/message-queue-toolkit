@@ -12,8 +12,9 @@ export type {
 } from './lib/sqs/AbstractSqsConsumer'
 export { SqsConsumerErrorResolver } from './lib/errors/SqsConsumerErrorResolver'
 
-export { AbstractSqsPublisher } from './lib/sqs/AbstractSqsPublisher'
-export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisher'
+export { AbstractSqsPublisher, type SQSMessageOptions } from './lib/sqs/AbstractSqsPublisher'
+
+export { SQSDependencies } from './lib/sqs/AbstractSqsService'
 
 export { assertQueue, deleteQueue, purgeQueue, getQueueAttributes } from './lib/utils/SqsUtils'
 export { deserializeSQSMessage } from './lib/sqs/sqsMessageDeserializer'
