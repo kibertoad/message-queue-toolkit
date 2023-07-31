@@ -31,7 +31,7 @@
     "zod": "^3.21.4"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.369.0",
+    "@aws-sdk/client-sqs": "^3.379.1",
     "@message-queue-toolkit/core": "^2.0.0"
   },
   "devDependencies": {

@@ -1,35 +1,38 @@
-import type { Either } from '@lokalise/node-core'
 
 import type {
-  ExistingSQSConsumerOptions,
-  NewSQSConsumerOptions,
   SQSCreationConfig,
 } from '../../lib/sqs/AbstractSqsConsumer'
-import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer'
 import type { SQSConsumerDependencies } from '../../lib/sqs/AbstractSqsService'
-import { userPermissionMap } from '../repositories/PermissionRepository'
 
 import type {
-  PERMISSIONS_ADD_MESSAGE_TYPE,
-  PERMISSIONS_MESSAGE_TYPE,
-  PERMISSIONS_REMOVE_MESSAGE_TYPE
+    PERMISSIONS_ADD_MESSAGE_TYPE,
+    PERMISSIONS_REMOVE_MESSAGE_TYPE,
 } from './userConsumerSchemas'
 import {
-  PERMISSIONS_ADD_MESSAGE_SCHEMA,
-  PERMISSIONS_MESSAGE_SCHEMA,
-  PERMISSIONS_REMOVE_MESSAGE_SCHEMA
+    OTHER_MESSAGE_SCHEMA,
+    PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_MESSAGE_SCHEMA,
+    PERMISSIONS_REMOVE_MESSAGE_SCHEMA
 } from './userConsumerSchemas'
-import {AbstractSqsConsumerMultiSchema} from "../../lib/sqs/AbstractSqsConsumerMultiSchema";
-import {MessageHandlerConfig, MessageHandlerConfig} from "@message-queue-toolkit/core";
+import {
+    AbstractSqsConsumerMultiSchema, ExistingSQSConsumerOptionsMultiSchema,
+    NewSQSConsumerOptionsMultiSchema
+} from "../../lib/sqs/AbstractSqsConsumerMultiSchema";
+import {MessageHandlerConfig} from "@message-queue-toolkit/core";
+import {MessageHandlerConfigBuilder} from "@message-queue-toolkit/core";
 
-export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSchema<any> {
+type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
+
+export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSchema<
+    SupportedMessages,
+    SqsPermissionConsumerMultiSchema
+> {
   public static QUEUE_NAME = 'user_permissions_multi'
 
   constructor(
     dependencies: SQSConsumerDependencies,
     options:
-      | Pick<NewSQSConsumerOptions<PERMISSIONS_MESSAGE_TYPE, SQSCreationConfig>, 'creationConfig'>
-      | Pick<ExistingSQSConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'locatorConfig'> = {
+      | Pick<NewSQSConsumerOptionsMultiSchema<SupportedMessages, SqsPermissionConsumerMultiSchema, SQSCreationConfig>, 'creationConfig'>
+      | Pick<ExistingSQSConsumerOptionsMultiSchema<SupportedMessages, SqsPermissionConsumerMultiSchema>, 'locatorConfig'> = {
       creationConfig: {
         queue: {
           QueueName: SqsPermissionConsumerMultiSchema.QUEUE_NAME,
@@ -38,32 +41,30 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
     },
   ) {
     super(dependencies, {
-      messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
       consumerOverrides: {
         terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
       },
       ...options,
-    }, {
-      handlers: [
-        new MessageHandlerConfig(
-            PERMISSIONS_ADD_MESSAGE_SCHEMA,
-            async (message, context: SqsPermissionConsumerMultiSchema) => {
-              return {
-                result: 'success'
+      handlers: new MessageHandlerConfigBuilder<SupportedMessages, SqsPermissionConsumerMultiSchema>()
+          .addConfig(
+              PERMISSIONS_ADD_MESSAGE_SCHEMA,
+              async (message, context) => {
+                  context
+                  return {
+                      result: 'success'
+                  }
               }
-            }
-        ),
-        new MessageHandlerConfig(
-            PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
-            async (message, context: SqsPermissionConsumerMultiSchema) => {
-              message
-              return {
-                result: 'success'
+          )
+          .addConfig(
+              PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
+              async (message, context) => {
+                  return {
+                      result: 'success'
+                  }
               }
-            }
-        )
-      ]
+          )
+          .build()
     })
   }
 }

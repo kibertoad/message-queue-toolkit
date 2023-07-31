@@ -31,7 +31,7 @@ export type SQSCreationConfig = {
 export type NewSQSConsumerOptions<
   MessagePayloadType extends object,
   CreationConfigType extends SQSCreationConfig,
-> = NewQueueOptions<MessagePayloadType, CreationConfigType> & {
+> = NewQueueOptions<CreationConfigType> & {
   consumerOverrides?: Partial<ConsumerOptions>
   deserializer?: Deserializer<MessagePayloadType, SQSMessage>
 }
@@ -39,7 +39,7 @@ export type NewSQSConsumerOptions<
 export type ExistingSQSConsumerOptions<
   MessagePayloadType extends object,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
-> = ExistingQueueOptions<MessagePayloadType, QueueLocatorType> & {
+> = ExistingQueueOptions<QueueLocatorType> & {
   consumerOverrides?: Partial<ConsumerOptions>
   deserializer?: Deserializer<MessagePayloadType, SQSMessage>
 }
@@ -104,10 +104,6 @@ export abstract class AbstractSqsConsumer<
     return {
       result: deserializationResult.result,
     }
-  }
-
-  protected resolveSchema(message: SQSMessage) {
-    return this.messageSchema
   }
 
   private async failProcessing(_message: SQSMessage) {

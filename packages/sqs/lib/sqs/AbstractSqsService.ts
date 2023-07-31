@@ -13,6 +13,7 @@ import { assertQueue, getQueueAttributes } from '../utils/SqsUtils'
 import type { SQSCreationConfig } from './AbstractSqsConsumer'
 import {initSns} from "@message-queue-toolkit/sns";
 import {initSqs} from "./sqsInitter";
+import {SQSMessage} from "../types/MessageTypes";
 
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient
@@ -40,18 +41,19 @@ export type SQSQueueLocatorType = {
   queueUrl: string
 }
 
-export class AbstractSqsService<
+export abstract class AbstractSqsService<
   MessagePayloadType extends object,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
   CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
   SQSOptionsType extends
-    | NewQueueOptions<MessagePayloadType, CreationConfigType>
-    | ExistingQueueOptions<MessagePayloadType, QueueLocatorType> =
-    | NewQueueOptions<MessagePayloadType, CreationConfigType>
-    | ExistingQueueOptions<MessagePayloadType, QueueLocatorType>,
+    | NewQueueOptions<CreationConfigType>
+    | ExistingQueueOptions<QueueLocatorType> =
+    | NewQueueOptions<CreationConfigType>
+    | ExistingQueueOptions<QueueLocatorType>,
   DependenciesType extends SQSDependencies = SQSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
+  SQSMessage,
   DependenciesType,
   CreationConfigType,
   QueueLocatorType,

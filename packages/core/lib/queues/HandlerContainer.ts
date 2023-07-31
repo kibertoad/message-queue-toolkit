@@ -1,18 +1,42 @@
 import type { Either } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
-export class MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext> {
+export class MessageHandlerConfig<const MessagePayloadSchemas, const ExecutionContext> {
   public readonly schema: ZodSchema<MessagePayloadSchemas>
   public readonly handler: Handler<MessagePayloadSchemas, ExecutionContext>
 
-  constructor(
-    schema: ZodSchema<MessagePayloadSchemas>,
-    handler: Handler<MessagePayloadSchemas, ExecutionContext>,
+  constructor(schema: ZodSchema<MessagePayloadSchemas>,
+    handler: Handler<MessagePayloadSchemas, ExecutionContext>
   ) {
     this.schema = schema
     this.handler = handler
   }
 }
+
+export class MessageHandlerConfigBuilder<MessagePayloadSchemas, ExecutionContext> {
+  private readonly configs: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext>[]
+
+  constructor() {
+    this.configs = []
+  }
+
+  addConfig<MessagePayloadSchema extends MessagePayloadSchemas>(
+      schema: ZodSchema<MessagePayloadSchema>,
+      handler: Handler<MessagePayloadSchema, ExecutionContext>,
+  ) {
+    // @ts-ignore
+    this.configs.push(new MessageHandlerConfig(
+        schema, handler
+        )
+    )
+    return this
+  }
+
+  build() {
+    return this.configs
+  }
+}
+
 
 export type Handler<MessagePayloadSchemas, ExecutionContext> = (
   message: MessagePayloadSchemas,
@@ -24,7 +48,7 @@ export type HandlerContainerOptions<MessagePayloadSchemas extends object, Execut
   messageTypeField: string
 }
 
-export class HandlerContainer<MessagePayloadSchemas extends object, ExecutionContext> {
+export class HandlerContainer<MessagePayloadSchemas extends object, ExecutionContext = any> {
   private readonly messageHandlers: Record<string, Handler<MessagePayloadSchemas, ExecutionContext>>
   private readonly messageTypeField: string
 

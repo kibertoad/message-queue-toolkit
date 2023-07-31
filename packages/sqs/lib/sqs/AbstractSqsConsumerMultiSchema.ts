@@ -2,44 +2,63 @@ import {SQSConsumerDependencies, SQSQueueLocatorType} from "./AbstractSqsService
 import {SQSMessage} from "../types/MessageTypes";
 import {
     AbstractSqsConsumer,
-    ExistingSQSConsumerOptions,
-    NewSQSConsumerOptions,
     SQSCreationConfig
 } from "./AbstractSqsConsumer";
 import {ZodSchema} from "zod";
 import {
+    Deserializer, ExistingQueueOptionsMultiSchema,
     HandlerContainer,
-    MessageSchemaContainer,
+    MessageSchemaContainer, NewQueueOptionsMultiSchema,
 } from "@message-queue-toolkit/core";
 import {Either} from "@lokalise/node-core";
+import {ConsumerOptions} from "sqs-consumer/src/types";
+
+export type NewSQSConsumerOptionsMultiSchema<
+    MessagePayloadSchemas extends object,
+    ExecutionContext,
+    CreationConfigType extends SQSCreationConfig,
+> = NewQueueOptionsMultiSchema<MessagePayloadSchemas, CreationConfigType, ExecutionContext> & {
+    consumerOverrides?: Partial<ConsumerOptions>
+    deserializer?: Deserializer<MessagePayloadSchemas, SQSMessage>
+}
+
+export type ExistingSQSConsumerOptionsMultiSchema<
+    MessagePayloadSchemas extends object,
+    ExecutionContext,
+    QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+> = ExistingQueueOptionsMultiSchema<MessagePayloadSchemas, QueueLocatorType, ExecutionContext> & {
+    consumerOverrides?: Partial<ConsumerOptions>
+    deserializer?: Deserializer<MessagePayloadSchemas, SQSMessage>
+}
 
 export abstract class AbstractSqsConsumerMultiSchema<
     MessagePayloadType extends object,
+    ExecutionContext,
     QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
     CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
     ConsumerOptionsType extends
-            | NewSQSConsumerOptions<MessagePayloadType, CreationConfigType>
-        | ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType> =
-            | NewSQSConsumerOptions<MessagePayloadType, CreationConfigType>
-        | ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType>,
+            | NewSQSConsumerOptionsMultiSchema<MessagePayloadType, ExecutionContext, CreationConfigType>
+        | ExistingSQSConsumerOptionsMultiSchema<MessagePayloadType, ExecutionContext, QueueLocatorType> =
+            | NewSQSConsumerOptionsMultiSchema<MessagePayloadType, ExecutionContext, CreationConfigType>
+        | ExistingSQSConsumerOptionsMultiSchema<MessagePayloadType, ExecutionContext, QueueLocatorType>,
 > extends AbstractSqsConsumer<MessagePayloadType, QueueLocatorType, CreationConfigType, ConsumerOptionsType> {
 
     messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
-    handlerContainer: HandlerContainer<MessagePayloadType, typeof this>
+    handlerContainer: HandlerContainer<MessagePayloadType, ExecutionContext>
 
 
-    constructor(dependencies: SQSConsumerDependencies, options: ConsumerOptionsType, multiSchemaOptions: MultiSchemaConsumerOptionsZ) {
+    constructor(dependencies: SQSConsumerDependencies, options: ConsumerOptionsType) {
         super(dependencies, options);
 
-        const messageSchemas = multiSchemaOptions.handlers.map((entry) => entry.schema)
+        const messageSchemas = options.handlers.map((entry) => entry.schema)
 
         this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
             messageSchemas,
             messageTypeField: options.messageTypeField
         });
-        this.handlerContainer = new HandlerContainer<MessagePayloadType, typeof this>({
+        this.handlerContainer = new HandlerContainer<MessagePayloadType, ExecutionContext>({
             messageTypeField: this.messageTypeField,
-            messageHandlers: multiSchemaOptions.handlers
+            messageHandlers: options.handlers
         })
     }
 
@@ -47,8 +66,9 @@ export abstract class AbstractSqsConsumerMultiSchema<
         return this.messageSchemaContainer.resolveSchema(JSON.parse(message.Body))
     }
 
-    protected override async processMessage(message: MessagePayloadType, messageType: string): Promise<Either<"retryLater", "success">> {
+    public override async processMessage(message: MessagePayloadType, messageType: string): Promise<Either<"retryLater", "success">> {
         const handler = this.handlerContainer.resolveHandler(messageType)
+        // @ts-ignore
         return handler(message, this)
     }
 }
