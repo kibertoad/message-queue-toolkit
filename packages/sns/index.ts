@@ -7,8 +7,14 @@ export type {
 
 export { SnsConsumerErrorResolver } from './lib/errors/SnsConsumerErrorResolver'
 
-export { AbstractSnsPublisher } from './lib/sns/AbstractSnsPublisher'
-export type { SNSMessageOptions } from './lib/sns/AbstractSnsPublisher'
+export { AbstractSnsPublisher, type SNSMessageOptions } from './lib/sns/AbstractSnsPublisher'
+
+export { SNSDependencies } from './lib/sns/AbstractSnsService'
+
+export {
+  AbstractSnsSqsConsumer,
+  type SNSSQSConsumerDependencies,
+} from './lib/sns/AbstractSnsSqsConsumer'
 
 export type { CommonMessage } from './lib/types/MessageTypes'
 
