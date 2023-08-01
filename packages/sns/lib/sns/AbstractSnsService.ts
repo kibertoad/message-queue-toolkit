@@ -9,6 +9,8 @@ import type {
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
+import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
+
 import { initSns } from './SnsInitter'
 
 export type SNSDependencies = QueueDependencies & {
@@ -37,36 +39,35 @@ export type SNSTopicConfig = {
   }
 }
 
-export type NewSNSOptions<MessagePayloadType extends object> = NewQueueOptions<
-  MessagePayloadType,
-  SNSCreationConfig
->
+export type NewSNSOptions = NewQueueOptions<SNSCreationConfig>
 
-export type ExistingSNSOptions<MessagePayloadType extends object> = ExistingQueueOptions<
-  MessagePayloadType,
-  SNSQueueLocatorType
->
+export type ExistingSNSOptions = ExistingQueueOptions<SNSQueueLocatorType>
 
-export type NewSNSOptionsMultiSchema<MessagePayloadSchemas extends object> =
-  NewQueueOptionsMultiSchema<MessagePayloadSchemas, SNSCreationConfig>
+export type NewSNSOptionsMultiSchema<
+  MessagePayloadSchemas extends object,
+  ExecutionContext,
+> = NewQueueOptionsMultiSchema<MessagePayloadSchemas, SNSCreationConfig, ExecutionContext>
 
-export type ExistingSNSOptionsMultiSchema<MessagePayloadSchemas extends object> =
-  ExistingQueueOptionsMultiSchema<MessagePayloadSchemas, SNSQueueLocatorType>
+export type ExistingSNSOptionsMultiSchema<
+  MessagePayloadSchemas extends object,
+  ExecutionContext,
+> = ExistingQueueOptionsMultiSchema<MessagePayloadSchemas, SNSQueueLocatorType, ExecutionContext>
 
 export type SNSCreationConfig = {
   topic: SNSTopicAWSConfig
 }
 
-export class AbstractSnsService<
+export abstract class AbstractSnsService<
   MessagePayloadType extends object,
   SNSOptionsType extends
-    | ExistingQueueOptions<MessagePayloadType, SNSQueueLocatorType>
-    | NewQueueOptions<MessagePayloadType, SNSCreationConfig> =
+    | ExistingQueueOptions<SNSQueueLocatorType>
+    | NewQueueOptions<SNSCreationConfig> =
     | ExistingSNSOptions<MessagePayloadType>
-    | NewQueueOptions<MessagePayloadType, SNSCreationConfig>,
+    | NewQueueOptions<SNSCreationConfig>,
   DependenciesType extends SNSDependencies = SNSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
+  SNS_MESSAGE_BODY_TYPE,
   DependenciesType,
   SNSCreationConfig,
   SNSQueueLocatorType,

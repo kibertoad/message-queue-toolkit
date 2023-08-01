@@ -1,6 +1,9 @@
 import type { SendMessageCommandInput } from '@aws-sdk/client-sqs'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { AsyncPublisher } from '@message-queue-toolkit/core'
+import type { ZodType } from 'zod'
+
+import type { SQSMessage } from '../types/MessageTypes'
 
 import { AbstractSqsService } from './AbstractSqsService'
 
@@ -27,5 +30,9 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       this.handleError(error)
       throw error
     }
+  }
+
+  protected resolveSchema(_message: SQSMessage): ZodType<MessagePayloadType> {
+    throw new Error('Unsupported, but not used anyway')
   }
 }

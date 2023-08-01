@@ -5,16 +5,13 @@ import type {
   ExistingSNSOptions,
 } from '../../lib/sns/AbstractSnsService'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
-import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 
 export class SnsPermissionPublisher extends AbstractSnsPublisher<PERMISSIONS_MESSAGE_TYPE> {
   public static TOPIC_NAME = 'user_permissions'
 
   constructor(
     dependencies: SNSDependencies,
-    options:
-      | Pick<NewSNSOptions<PERMISSIONS_MESSAGE_TYPE>, 'creationConfig'>
-      | Pick<ExistingSNSOptions<PERMISSIONS_MESSAGE_TYPE>, 'locatorConfig'> = {
+    options: Pick<NewSNSOptions, 'creationConfig'> | Pick<ExistingSNSOptions, 'locatorConfig'> = {
       creationConfig: {
         topic: {
           Name: SnsPermissionPublisher.TOPIC_NAME,
@@ -23,7 +20,6 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<PERMISSIONS_MES
     },
   ) {
     super(dependencies, {
-      messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
       ...options,
     })
