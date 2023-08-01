@@ -8,12 +8,10 @@ import type {
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
-import { assertQueue, getQueueAttributes } from '../utils/SqsUtils'
+import type { SQSMessage } from '../types/MessageTypes'
 
 import type { SQSCreationConfig } from './AbstractSqsConsumer'
-import {initSns} from "@message-queue-toolkit/sns";
-import {initSqs} from "./sqsInitter";
-import {SQSMessage} from "../types/MessageTypes";
+import { initSqs } from './sqsInitter'
 
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient
@@ -72,7 +70,11 @@ export abstract class AbstractSqsService<
   }
 
   public async init() {
-    const { queueUrl, queueName } = await initSqs(this.sqsClient, this.locatorConfig, this.creationConfig)
+    const { queueUrl, queueName } = await initSqs(
+      this.sqsClient,
+      this.locatorConfig,
+      this.creationConfig,
+    )
 
     this.queueUrl = queueUrl
     this.queueName = queueName

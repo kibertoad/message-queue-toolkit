@@ -5,12 +5,12 @@ import type {
   NewSQSConsumerOptions,
   SQSCreationConfig,
 } from '../../lib/sqs/AbstractSqsConsumer'
+import { AbstractSqsConsumerMonoSchema } from '../../lib/sqs/AbstractSqsConsumerMonoSchema'
 import type { SQSConsumerDependencies } from '../../lib/sqs/AbstractSqsService'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
-import {AbstractSqsConsumerMonoSchema} from "../../lib/sqs/AbstractSqsConsumerMonoSchema";
 
 export class SqsPermissionConsumer extends AbstractSqsConsumerMonoSchema<PERMISSIONS_MESSAGE_TYPE> {
   public static QUEUE_NAME = 'user_permissions'

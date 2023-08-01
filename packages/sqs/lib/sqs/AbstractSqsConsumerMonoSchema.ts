@@ -2,33 +2,29 @@ import type {
   MonoSchemaQueueOptions,
   QueueConsumer as QueueConsumer,
 } from '@message-queue-toolkit/core'
+import type { ZodSchema } from 'zod'
 
 import type { SQSMessage } from '../types/MessageTypes'
 
 import type {
-  SQSConsumerDependencies,
-  SQSQueueLocatorType,
-} from './AbstractSqsService'
-import {ZodSchema} from "zod";
-import {
-  AbstractSqsConsumer,
   ExistingSQSConsumerOptions,
   NewSQSConsumerOptions,
-  SQSCreationConfig
-} from "./AbstractSqsConsumer";
+  SQSCreationConfig,
+} from './AbstractSqsConsumer'
+import { AbstractSqsConsumer } from './AbstractSqsConsumer'
+import type { SQSConsumerDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 
 export type NewSQSConsumerOptionsMono<
-    MessagePayloadType extends object,
-    CreationConfigType extends SQSCreationConfig>
-    = NewSQSConsumerOptions<MessagePayloadType, CreationConfigType>
-& MonoSchemaQueueOptions<MessagePayloadType>
+  MessagePayloadType extends object,
+  CreationConfigType extends SQSCreationConfig,
+> = NewSQSConsumerOptions<MessagePayloadType, CreationConfigType> &
+  MonoSchemaQueueOptions<MessagePayloadType>
 
 export type ExistingSQSConsumerOptionsMono<
-    MessagePayloadType extends object,
-    QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType>
-    = ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType>
-    & MonoSchemaQueueOptions<MessagePayloadType>
-
+  MessagePayloadType extends object,
+  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+> = ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType> &
+  MonoSchemaQueueOptions<MessagePayloadType>
 
 export abstract class AbstractSqsConsumerMonoSchema<
     MessagePayloadType extends object,
@@ -48,7 +44,6 @@ export abstract class AbstractSqsConsumerMonoSchema<
   >
   implements QueueConsumer
 {
-
   private readonly messageSchema: ZodSchema
 
   protected constructor(dependencies: SQSConsumerDependencies, options: ConsumerOptionsType) {
@@ -57,7 +52,7 @@ export abstract class AbstractSqsConsumerMonoSchema<
     this.messageSchema = options.messageSchema
   }
 
-  protected resolveSchema(message: SQSMessage) {
+  protected resolveSchema(_message: SQSMessage) {
     return this.messageSchema
   }
 }

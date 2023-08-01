@@ -80,7 +80,8 @@ export abstract class AbstractSqsConsumer<
   }
 
   abstract processMessage(
-      message: MessagePayloadType, messageType: string
+    message: MessagePayloadType,
+    messageType: string,
   ): Promise<Either<'retryLater', 'success'>>
 
   private deserializeMessage(message: SQSMessage): Either<'abort', MessagePayloadType> {
@@ -137,7 +138,7 @@ export abstract class AbstractSqsConsumer<
         this.transactionObservabilityManager?.start(transactionSpanId)
         const result: Either<'retryLater' | Error, 'success'> = await this.processMessage(
           deserializedMessage.result,
-          messageType
+          messageType,
         )
           .catch((err) => {
             // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
