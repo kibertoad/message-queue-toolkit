@@ -1,7 +1,7 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { MultiSchemaConsumerOptions } from '@message-queue-toolkit/core'
 import type { SQSCreationConfig, SQSMessage } from '@message-queue-toolkit/sqs'
-import { AbstractSqsConsumerMultiSchema } from '@message-queue-toolkit/sqs/dist/lib/sqs/AbstractSqsConsumerMultiSchema'
+import { AbstractSqsConsumerMultiSchema } from '@message-queue-toolkit/sqs'
 
 import type { SNSCreationConfig } from './AbstractSnsService'
 import type {
