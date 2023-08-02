@@ -1,31 +1,28 @@
 import type { Either } from '@lokalise/node-core'
 
 import type {
-  SNSSQSConsumerDependencies,
-  NewSnsSqsConsumerOptions,
-  ExistingSnsSqsConsumerOptions,
-} from '../../lib/sns/AbstractSnsSqsConsumerMonoSchema'
-import { AbstractSnsSqsConsumerMonoSchema } from '../../lib/sns/AbstractSnsSqsConsumerMonoSchema'
+  ExistingSQSConsumerOptions,
+  NewSQSConsumerOptions,
+  SQSCreationConfig,
+} from '../../lib/sqs/AbstractSqsConsumer'
+import { AbstractSqsConsumerMonoSchema } from '../../lib/sqs/AbstractSqsConsumerMonoSchema'
+import type { SQSConsumerDependencies } from '../../lib/sqs/AbstractSqsService'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
 
-export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumerMonoSchema<PERMISSIONS_MESSAGE_TYPE> {
-  public static CONSUMED_QUEUE_NAME = 'user_permissions'
-  public static SUBSCRIBED_TOPIC_NAME = 'user_permissions'
+export class SqsPermissionConsumerMonoSchema extends AbstractSqsConsumerMonoSchema<PERMISSIONS_MESSAGE_TYPE> {
+  public static QUEUE_NAME = 'user_permissions'
 
   constructor(
-    dependencies: SNSSQSConsumerDependencies,
+    dependencies: SQSConsumerDependencies,
     options:
-      | Pick<NewSnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'creationConfig'>
-      | Pick<ExistingSnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'locatorConfig'> = {
+      | Pick<NewSQSConsumerOptions<PERMISSIONS_MESSAGE_TYPE, SQSCreationConfig>, 'creationConfig'>
+      | Pick<ExistingSQSConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'locatorConfig'> = {
       creationConfig: {
         queue: {
-          QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
-        },
-        topic: {
-          Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME,
+          QueueName: SqsPermissionConsumerMonoSchema.QUEUE_NAME,
         },
       },
     },
@@ -36,7 +33,6 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumerMonoSchema<P
       consumerOverrides: {
         terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
       },
-      subscriptionConfig: {},
       ...options,
     })
   }

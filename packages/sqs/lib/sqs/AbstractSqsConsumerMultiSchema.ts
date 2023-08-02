@@ -1,6 +1,5 @@
 import type { Either } from '@lokalise/node-core'
 import type {
-  Deserializer,
   ExistingQueueOptionsMultiSchema,
   NewQueueOptionsMultiSchema,
 } from '@message-queue-toolkit/core'
@@ -20,7 +19,6 @@ export type NewSQSConsumerOptionsMultiSchema<
   CreationConfigType extends SQSCreationConfig,
 > = NewQueueOptionsMultiSchema<MessagePayloadSchemas, CreationConfigType, ExecutionContext> & {
   consumerOverrides?: Partial<ConsumerOptions>
-  deserializer?: Deserializer<MessagePayloadSchemas, SQSMessage>
 }
 
 export type ExistingSQSConsumerOptionsMultiSchema<
@@ -29,7 +27,6 @@ export type ExistingSQSConsumerOptionsMultiSchema<
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
 > = ExistingQueueOptionsMultiSchema<MessagePayloadSchemas, QueueLocatorType, ExecutionContext> & {
   consumerOverrides?: Partial<ConsumerOptions>
-  deserializer?: Deserializer<MessagePayloadSchemas, SQSMessage>
 }
 
 export abstract class AbstractSqsConsumerMultiSchema<

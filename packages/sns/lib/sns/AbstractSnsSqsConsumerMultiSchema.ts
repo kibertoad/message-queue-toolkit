@@ -13,6 +13,9 @@ import type {
 import { initSns, initSnsSqs } from './SnsInitter'
 import type { SNSSubscriptionOptions } from './SnsSubscriber'
 import { deserializeSNSMessage } from './snsMessageDeserializer'
+import {SQSMessage} from "@message-queue-toolkit/sqs";
+import {ZodSchema} from "zod";
+import {SNS_MESSAGE_BODY_TYPE} from "../types/MessageTypes";
 
 export type ExistingSnsSqsConsumerOptionsMulti<
   MessagePayloadType extends object,
@@ -73,5 +76,25 @@ export abstract class AbstractSnsSqsConsumerMultiSchema<
       this.subscriptionConfig,
     )
     this.subscriptionArn = initSnsSqsResult.subscriptionArn
+  }
+
+  protected override resolveMessage(message: SQSMessage) {
+    try {
+      const snsMessage: SNS_MESSAGE_BODY_TYPE = JSON.parse(message.Body)
+      const messagePayload = JSON.parse(snsMessage.Message)
+
+      return {
+        result: messagePayload
+      }
+    } catch (err) {
+      return {
+        error: this.errorResolver.processError(err),
+      }
+    }
+  }
+
+  protected override resolveSchema(messagePayload: unknown): ZodSchema<MessagePayloadSchemas> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.messageSchemaContainer.resolveSchema(messagePayload as Record<string, any>)
   }
 }

@@ -6,7 +6,7 @@ import type {
   TransactionObservabilityManager,
   Deserializer,
 } from '@message-queue-toolkit/core'
-import { isMessageError } from '@message-queue-toolkit/core'
+import { isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
@@ -18,7 +18,6 @@ import type {
   SQSQueueLocatorType,
 } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
-import { deserializeSQSMessage } from './sqsMessageDeserializer'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
@@ -33,7 +32,7 @@ export type NewSQSConsumerOptions<
   CreationConfigType extends SQSCreationConfig,
 > = NewQueueOptions<CreationConfigType> & {
   consumerOverrides?: Partial<ConsumerOptions>
-  deserializer?: Deserializer<MessagePayloadType, SQSMessage>
+  deserializer?: Deserializer<MessagePayloadType>
 }
 
 export type ExistingSQSConsumerOptions<
@@ -41,7 +40,7 @@ export type ExistingSQSConsumerOptions<
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
 > = ExistingQueueOptions<QueueLocatorType> & {
   consumerOverrides?: Partial<ConsumerOptions>
-  deserializer?: Deserializer<MessagePayloadType, SQSMessage>
+  deserializer?: Deserializer<MessagePayloadType>
 }
 
 export abstract class AbstractSqsConsumer<
@@ -68,7 +67,6 @@ export abstract class AbstractSqsConsumer<
   // @ts-ignore
   protected consumer: Consumer
   private readonly consumerOptionsOverride: Partial<ConsumerOptions>
-  private readonly deserializer: Deserializer<MessagePayloadType, SQSMessage>
 
   protected constructor(dependencies: SQSConsumerDependencies, options: ConsumerOptionsType) {
     super(dependencies, options)
@@ -76,7 +74,6 @@ export abstract class AbstractSqsConsumer<
     this.errorResolver = dependencies.consumerErrorResolver
 
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
-    this.deserializer = options.deserializer ?? deserializeSQSMessage
   }
 
   abstract processMessage(
@@ -89,9 +86,19 @@ export abstract class AbstractSqsConsumer<
       return ABORT_EARLY_EITHER
     }
 
-    const schema = this.resolveSchema(message)
-    const deserializationResult = this.deserializer(message, schema, this.errorResolver)
+    const resolveMessageResult = this.resolveMessage(message)
+    if (isMessageError(resolveMessageResult.error)) {
+      this.handleError(resolveMessageResult.error)
+      return ABORT_EARLY_EITHER
+    }
 
+    const schema = this.resolveSchema(resolveMessageResult.result)
+
+    const deserializationResult = parseMessage(
+      resolveMessageResult.result,
+      schema,
+      this.errorResolver,
+    )
     if (isMessageError(deserializationResult.error)) {
       this.handleError(deserializationResult.error)
       return ABORT_EARLY_EITHER
@@ -168,6 +175,19 @@ export abstract class AbstractSqsConsumer<
     })
 
     this.consumer.start()
+  }
+
+  protected override resolveMessage(message: SQSMessage) {
+    try {
+      const messagePayload = JSON.parse(message.Body)
+      return {
+        result: messagePayload,
+      }
+    } catch (err) {
+      return {
+        error: this.errorResolver.processError(err),
+      }
+    }
   }
 
   public override async close(abort?: boolean): Promise<void> {

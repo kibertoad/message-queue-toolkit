@@ -14,7 +14,7 @@ import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
+import { SnsSqsPermissionConsumerMonoSchema } from './SnsSqsPermissionConsumerMonoSchema'
 
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
@@ -54,7 +54,7 @@ describe('SNS PermissionsConsumer', () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
-      await deleteQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
+      await deleteQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
     })
 
     it('throws an error when invalid queue locator is passed', async () => {
@@ -62,7 +62,7 @@ describe('SNS PermissionsConsumer', () => {
         QueueName: 'existingQueue',
       })
 
-      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumerMonoSchema(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
           topicArn: 'dummy',
@@ -81,7 +81,7 @@ describe('SNS PermissionsConsumer', () => {
         Name: 'existingTopic',
       })
 
-      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumerMonoSchema(diContainer.cradle, {
         locatorConfig: {
           topicArn: arn,
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
@@ -114,7 +114,7 @@ describe('SNS PermissionsConsumer', () => {
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
       publisher = diContainer.cradle.permissionPublisher
-      await purgeQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
+      await purgeQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
     })
 
     beforeEach(async () => {
@@ -122,13 +122,13 @@ describe('SNS PermissionsConsumer', () => {
       delete userPermissionMap[200]
       delete userPermissionMap[300]
 
-      await deleteTopic(snsClient, SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME)
-      await deleteQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
+      await deleteTopic(snsClient, SnsSqsPermissionConsumerMonoSchema.SUBSCRIBED_TOPIC_NAME)
+      await deleteQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.start()
       await diContainer.cradle.permissionPublisher.init()
 
       const queueUrl = await assertQueue(sqsClient, {
-        QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
+        QueueName: SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME,
       })
       const command = new ReceiveMessageCommand({
         QueueUrl: queueUrl,
@@ -151,7 +151,7 @@ describe('SNS PermissionsConsumer', () => {
     })
 
     afterEach(async () => {
-      await purgeQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
+      await purgeQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.close()
       await diContainer.cradle.permissionConsumer.close(true)
     })

@@ -12,7 +12,7 @@ import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SqsPermissionConsumer } from './SqsPermissionConsumer'
+import { SqsPermissionConsumerMonoSchema } from './SqsPermissionConsumerMonoSchema'
 
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
@@ -54,7 +54,7 @@ describe('SqsPermissionsConsumer', () => {
     })
 
     it('throws an error when invalid queue locator is passed', async () => {
-      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumerMonoSchema(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
         },
@@ -68,7 +68,7 @@ describe('SqsPermissionsConsumer', () => {
         QueueName: 'existingQueue',
       })
 
-      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumerMonoSchema(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
         },
@@ -91,7 +91,7 @@ describe('SqsPermissionsConsumer', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
-      await purgeQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await purgeQueue(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
     })
 
     beforeEach(async () => {
@@ -99,7 +99,7 @@ describe('SqsPermissionsConsumer', () => {
       delete userPermissionMap[200]
       delete userPermissionMap[300]
 
-      await deleteQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await deleteQueue(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.start()
       await diContainer.cradle.permissionPublisher.init()
 
@@ -121,7 +121,7 @@ describe('SqsPermissionsConsumer', () => {
     })
 
     afterEach(async () => {
-      await purgeQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await purgeQueue(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.close()
       await diContainer.cradle.permissionConsumer.close(true)
     })

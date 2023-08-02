@@ -19,11 +19,8 @@ export type QueueConsumerDependencies = {
   transactionObservabilityManager: TransactionObservabilityManager
 }
 
-export type Deserializer<
-  MessagePayloadType extends object,
-  QueueEngineMessageType extends object,
-> = (
-  message: QueueEngineMessageType,
+export type Deserializer<MessagePayloadType extends object> = (
+  message: unknown,
   type: ZodType<MessagePayloadType>,
   errorProcessor: ErrorResolver,
 ) => Either<MessageInvalidFormatError | MessageValidationError, MessagePayloadType>
@@ -97,6 +94,9 @@ export abstract class AbstractQueueService<
   }
 
   protected abstract resolveSchema(message: MessageEnvelopeType): ZodSchema<MessagePayloadSchemas>
+  protected abstract resolveMessage(
+    message: MessageEnvelopeType,
+  ): Either<MessageInvalidFormatError | MessageValidationError, unknown>
 
   protected handleError(err: unknown) {
     const logObject = resolveGlobalErrorLogObject(err)

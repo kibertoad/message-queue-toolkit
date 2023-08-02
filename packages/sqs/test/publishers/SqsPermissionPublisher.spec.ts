@@ -9,7 +9,7 @@ import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from
 import { deserializeSQSMessage } from '../../lib/sqs/sqsMessageDeserializer'
 import type { SQSMessage } from '../../lib/types/MessageTypes'
 import { deleteQueue, purgeQueue } from '../../lib/utils/SqsUtils'
-import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer'
+import { SqsPermissionConsumerMonoSchema } from '../consumers/SqsPermissionConsumerMonoSchema'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
@@ -35,7 +35,7 @@ describe('SqsPermissionPublisher', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
-      await purgeQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await purgeQueue(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
     })
 
     beforeEach(async () => {

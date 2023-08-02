@@ -13,7 +13,6 @@ import type { SnsPermissionPublisherMultiSchema } from '../publishers/SnsPermiss
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
 import { SnsSqsPermissionConsumerMultiSchema } from './SnsSqsPermissionConsumerMultiSchema'
 
 describe('SNS PermissionsConsumerMultiSchema', () => {
@@ -25,7 +24,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
-      await deleteQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
+      await deleteQueue(sqsClient, SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME)
     })
 
     it('throws an error when invalid queue locator is passed', async () => {
@@ -33,7 +32,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
         QueueName: 'existingQueue',
       })
 
-      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
           topicArn: 'dummy',
@@ -52,7 +51,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
         Name: 'existingTopic',
       })
 
-      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
         locatorConfig: {
           topicArn: arn,
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
@@ -80,20 +79,24 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     let sqsClient: SQSClient
     let snsClient: SNSClient
     beforeAll(async () => {
-      diContainer = await registerDependencies({
-        consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
-      })
-      sqsClient = diContainer.cradle.sqsClient
-      snsClient = diContainer.cradle.snsClient
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
-      consumer = diContainer.cradle.permissionConsumerMultiSchema
+      try {
+        diContainer = await registerDependencies({
+          consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
+        })
+        sqsClient = diContainer.cradle.sqsClient
+        snsClient = diContainer.cradle.snsClient
+        publisher = diContainer.cradle.permissionPublisherMultiSchema
+        consumer = diContainer.cradle.permissionConsumerMultiSchema
+      } catch (err) {
+        console.log()
+      }
     })
 
     beforeEach(async () => {
-      await deleteTopic(snsClient, SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME)
-      await deleteQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
-      await diContainer.cradle.permissionConsumer.start()
-      await diContainer.cradle.permissionPublisher.init()
+      await deleteTopic(snsClient, SnsSqsPermissionConsumerMultiSchema.SUBSCRIBED_TOPIC_NAME)
+      await deleteQueue(sqsClient, SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME)
+      await diContainer.cradle.permissionConsumerMultiSchema.start()
+      await diContainer.cradle.permissionPublisherMultiSchema.init()
 
       const queueUrl = await assertQueue(sqsClient, {
         QueueName: SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME,
@@ -119,9 +122,9 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     })
 
     afterEach(async () => {
-      await purgeQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
-      await diContainer.cradle.permissionConsumer.close()
-      await diContainer.cradle.permissionConsumer.close(true)
+      await purgeQueue(sqsClient, SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME)
+      await diContainer.cradle.permissionConsumerMultiSchema.close()
+      await diContainer.cradle.permissionConsumerMultiSchema.close(true)
     })
 
     describe('happy path', () => {

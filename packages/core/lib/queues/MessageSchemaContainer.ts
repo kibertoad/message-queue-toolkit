@@ -10,8 +10,8 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
   private readonly messageTypeField: string
 
   constructor(options: MessageSchemaContainerOptions<MessagePayloadSchemas>) {
-    this.messageSchemas = this.resolveSchemaMap(options.messageSchemas)
     this.messageTypeField = options.messageTypeField
+    this.messageSchemas = this.resolveSchemaMap(options.messageSchemas)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

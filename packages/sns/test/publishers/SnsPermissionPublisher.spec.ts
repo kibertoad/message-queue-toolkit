@@ -11,7 +11,7 @@ import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from
 import { subscribeToTopic } from '../../lib/sns/SnsSubscriber'
 import { deserializeSNSMessage } from '../../lib/sns/snsMessageDeserializer'
 import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
-import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
+import { SnsSqsPermissionConsumerMonoSchema } from '../consumers/SnsSqsPermissionConsumerMonoSchema'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
@@ -73,7 +73,7 @@ describe('SNSPermissionPublisher', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
-      await purgeQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
+      await purgeQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
     })
 
     beforeEach(async () => {
