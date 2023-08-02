@@ -18,6 +18,7 @@ import type {
   SQSQueueLocatorType,
 } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
+import { readSqsMessage } from './sqsMessageReader'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
@@ -92,7 +93,9 @@ export abstract class AbstractSqsConsumer<
       return ABORT_EARLY_EITHER
     }
 
-    const resolveSchemaResult = this.resolveSchema(resolveMessageResult.result)
+    const resolveSchemaResult = this.resolveSchema(
+      resolveMessageResult.result as MessagePayloadType,
+    )
     if (resolveSchemaResult.error) {
       this.handleError(resolveSchemaResult.error)
       return ABORT_EARLY_EITHER
@@ -182,16 +185,7 @@ export abstract class AbstractSqsConsumer<
   }
 
   protected override resolveMessage(message: SQSMessage) {
-    try {
-      const messagePayload = JSON.parse(message.Body)
-      return {
-        result: messagePayload,
-      }
-    } catch (err) {
-      return {
-        error: this.errorResolver.processError(err),
-      }
-    }
+    return readSqsMessage(message, this.errorResolver)
   }
 
   public override async close(abort?: boolean): Promise<void> {

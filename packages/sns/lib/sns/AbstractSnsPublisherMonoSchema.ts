@@ -52,6 +52,7 @@ export abstract class AbstractSnsPublisherMonoSchema<MessagePayloadType extends 
     }
   }
 
+  /* c8 ignore start */
   protected override resolveMessage(): Either<
     MessageInvalidFormatError | MessageValidationError,
     unknown
@@ -62,4 +63,5 @@ export abstract class AbstractSnsPublisherMonoSchema<MessagePayloadType extends 
   protected override resolveSchema() {
     return this.schemaEither
   }
+  /* c8 ignore stop */
 }

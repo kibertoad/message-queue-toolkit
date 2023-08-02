@@ -11,8 +11,6 @@ import type {
 } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
-import type { SQSMessage } from '../types/MessageTypes'
-
 import type { SQSCreationConfig } from './AbstractSqsConsumer'
 import type { SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
@@ -54,8 +52,8 @@ export abstract class AbstractSqsPublisherMonoSchema<MessagePayloadType extends 
     }
   }
 
-  protected resolveMessage(
-  ): Either<MessageInvalidFormatError | MessageValidationError, unknown> {
+  /* c8 ignore start */
+  protected resolveMessage(): Either<MessageInvalidFormatError | MessageValidationError, unknown> {
     throw new Error('Not implemented for publisher')
   }
 
@@ -64,4 +62,5 @@ export abstract class AbstractSqsPublisherMonoSchema<MessagePayloadType extends 
       result: this.messageSchema,
     }
   }
+  /* c8 ignore stop */
 }
