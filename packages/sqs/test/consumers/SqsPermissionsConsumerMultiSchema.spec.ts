@@ -1,41 +1,32 @@
-import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
-import { assertQueue, deleteQueue, purgeQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
-import { assertTopic, deleteSubscription, deleteTopic } from '../../lib/utils/snsUtils'
+import { assertQueue, deleteQueue } from '../../lib/utils/SqsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
-import type { SnsPermissionPublisherMultiSchema } from '../publishers/SnsPermissionPublisherMultiSchema'
+import type { SqsPermissionPublisherMultiSchema } from '../publishers/SqsPermissionPublisherMultiSchema'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SnsSqsPermissionConsumerMultiSchema } from './SnsSqsPermissionConsumerMultiSchema'
+import { SqsPermissionConsumerMultiSchema } from './SqsPermissionConsumerMultiSchema'
 
-describe('SNS PermissionsConsumerMultiSchema', () => {
+describe('SqsPermissionsConsumerMultiSchema', () => {
   describe('init', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
-    let snsClient: SNSClient
     beforeAll(async () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
-      snsClient = diContainer.cradle.snsClient
-      await deleteQueue(sqsClient, SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME)
+      await deleteQueue(sqsClient, 'existingQueue')
     })
 
     it('throws an error when invalid queue locator is passed', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: 'existingQueue',
-      })
-
-      const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
-          topicArn: 'dummy',
         },
       })
 
@@ -47,16 +38,9 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
         QueueName: 'existingQueue',
       })
 
-      const arn = await assertTopic(snsClient, {
-        Name: 'existingTopic',
-      })
-
-      const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
         locatorConfig: {
-          topicArn: arn,
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
-          subscriptionArn:
-            'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
         },
       })
 
@@ -64,45 +48,30 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
       expect(newConsumer.queueUrl).toBe(
         'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
       )
-      expect(newConsumer.topicArn).toEqual(arn)
-      expect(newConsumer.subscriptionArn).toBe(
-        'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
-      )
-      await deleteTopic(snsClient, 'existingTopic')
     })
   })
 
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: SnsPermissionPublisherMultiSchema
-    let consumer: SnsSqsPermissionConsumerMultiSchema
+    let publisher: SqsPermissionPublisherMultiSchema
+    let consumer: SqsPermissionConsumerMultiSchema
     let sqsClient: SQSClient
-    let snsClient: SNSClient
     beforeAll(async () => {
-      try {
-        diContainer = await registerDependencies({
-          consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
-        })
-        sqsClient = diContainer.cradle.sqsClient
-        snsClient = diContainer.cradle.snsClient
-        publisher = diContainer.cradle.permissionPublisherMultiSchema
-        consumer = diContainer.cradle.permissionConsumerMultiSchema
-      } catch (err) {
-        console.log()
-      }
+      diContainer = await registerDependencies({
+        consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
+      })
+      sqsClient = diContainer.cradle.sqsClient
+      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      consumer = diContainer.cradle.permissionConsumerMultiSchema
     })
 
     beforeEach(async () => {
-      await deleteTopic(snsClient, SnsSqsPermissionConsumerMultiSchema.SUBSCRIBED_TOPIC_NAME)
-      await deleteQueue(sqsClient, SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME)
-      await diContainer.cradle.permissionConsumerMultiSchema.start()
-      await diContainer.cradle.permissionPublisherMultiSchema.init()
+      await deleteQueue(sqsClient, SqsPermissionConsumerMultiSchema.QUEUE_NAME)
+      await consumer.start()
+      await publisher.init()
 
-      const queueUrl = await assertQueue(sqsClient, {
-        QueueName: SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME,
-      })
       const command = new ReceiveMessageCommand({
-        QueueUrl: queueUrl,
+        QueueUrl: publisher.queueUrl,
       })
       const reply = await sqsClient.send(command)
       expect(reply.Messages).toBeUndefined()
@@ -113,16 +82,12 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     })
 
     afterAll(async () => {
-      const { awilixManager, permissionConsumer } = diContainer.cradle
-
-      await deleteSubscription(snsClient, permissionConsumer.subscriptionArn)
-
+      const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
       await diContainer.dispose()
     })
 
     afterEach(async () => {
-      await purgeQueue(sqsClient, SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME)
       await diContainer.cradle.permissionConsumerMultiSchema.close()
       await diContainer.cradle.permissionConsumerMultiSchema.close(true)
     })

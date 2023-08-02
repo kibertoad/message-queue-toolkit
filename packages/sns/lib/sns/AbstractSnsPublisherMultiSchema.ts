@@ -1,6 +1,12 @@
 import { PublishCommand } from '@aws-sdk/client-sns'
 import type { PublishCommandInput } from '@aws-sdk/client-sns/dist-types/commands/PublishCommand'
-import type { AsyncPublisher, NewQueueOptions } from '@message-queue-toolkit/core'
+import type { Either } from '@lokalise/node-core'
+import type {
+  AsyncPublisher,
+  MessageInvalidFormatError,
+  MessageValidationError,
+  NewQueueOptions,
+} from '@message-queue-toolkit/core'
 import { MessageSchemaContainer } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
@@ -48,7 +54,14 @@ export abstract class AbstractSnsPublisherMultiSchema<MessagePayloadType extends
     }
   }
 
-  protected resolveSchema(message: MessagePayloadType): ZodSchema<MessagePayloadType> {
+  protected override resolveMessage(): Either<
+    MessageInvalidFormatError | MessageValidationError,
+    unknown
+  > {
+    throw new Error('Not implemented for publisher')
+  }
+
+  protected override resolveSchema(message: MessagePayloadType) {
     return this.messageSchemaContainer.resolveSchema(message)
   }
 }

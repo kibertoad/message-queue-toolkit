@@ -1,10 +1,9 @@
+import type { Either } from '@lokalise/node-core'
 import type {
   MonoSchemaQueueOptions,
   QueueConsumer as QueueConsumer,
 } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
-
-import type { SQSMessage } from '../types/MessageTypes'
 
 import type {
   ExistingSQSConsumerOptions,
@@ -45,14 +44,18 @@ export abstract class AbstractSqsConsumerMonoSchema<
   implements QueueConsumer
 {
   private readonly messageSchema: ZodSchema
+  private readonly schemaEither: Either<Error, ZodSchema<MessagePayloadType>>
 
   protected constructor(dependencies: SQSConsumerDependencies, options: ConsumerOptionsType) {
     super(dependencies, options)
 
     this.messageSchema = options.messageSchema
+    this.schemaEither = {
+      result: this.messageSchema,
+    }
   }
 
-  protected resolveSchema(_message: SQSMessage) {
-    return this.messageSchema
+  protected resolveSchema() {
+    return this.schemaEither
   }
 }

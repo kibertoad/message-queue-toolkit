@@ -7,7 +7,9 @@ import { AwilixManager } from 'awilix-manager'
 
 import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver'
 import { SqsPermissionConsumerMonoSchema } from '../consumers/SqsPermissionConsumerMonoSchema'
-import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
+import { SqsPermissionConsumerMultiSchema } from '../consumers/SqsPermissionConsumerMultiSchema'
+import { SqsPermissionPublisherMonoSchema } from '../publishers/SqsPermissionPublisherMonoSchema'
+import { SqsPermissionPublisherMultiSchema } from '../publishers/SqsPermissionPublisherMultiSchema'
 
 import { TEST_SQS_CONFIG } from './testSqsConfig'
 
@@ -55,7 +57,18 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       asyncDispose: 'close',
       asyncDisposePriority: 10,
     }),
-    permissionPublisher: asClass(SqsPermissionPublisher, {
+    permissionPublisher: asClass(SqsPermissionPublisherMonoSchema, {
+      lifetime: Lifetime.SINGLETON,
+      asyncDispose: 'close',
+      asyncDisposePriority: 20,
+    }),
+
+    permissionConsumerMultiSchema: asClass(SqsPermissionConsumerMultiSchema, {
+      lifetime: Lifetime.SINGLETON,
+      asyncDispose: 'close',
+      asyncDisposePriority: 10,
+    }),
+    permissionPublisherMultiSchema: asClass(SqsPermissionPublisherMultiSchema, {
       lifetime: Lifetime.SINGLETON,
       asyncDispose: 'close',
       asyncDisposePriority: 20,
@@ -95,5 +108,7 @@ export interface Dependencies {
   errorReporter: ErrorReporter
   consumerErrorResolver: ErrorResolver
   permissionConsumer: SqsPermissionConsumerMonoSchema
-  permissionPublisher: SqsPermissionPublisher
+  permissionPublisher: SqsPermissionPublisherMonoSchema
+  permissionConsumerMultiSchema: SqsPermissionConsumerMultiSchema
+  permissionPublisherMultiSchema: SqsPermissionPublisherMultiSchema
 }

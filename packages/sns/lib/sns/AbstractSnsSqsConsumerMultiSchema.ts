@@ -1,6 +1,6 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { MultiSchemaConsumerOptions } from '@message-queue-toolkit/core'
-import type { SQSCreationConfig } from '@message-queue-toolkit/sqs'
+import type { SQSCreationConfig, SQSMessage } from '@message-queue-toolkit/sqs'
 import { AbstractSqsConsumerMultiSchema } from '@message-queue-toolkit/sqs/dist/lib/sqs/AbstractSqsConsumerMultiSchema'
 
 import type { SNSCreationConfig } from './AbstractSnsService'
@@ -12,10 +12,7 @@ import type {
 } from './AbstractSnsSqsConsumerMonoSchema'
 import { initSns, initSnsSqs } from './SnsInitter'
 import type { SNSSubscriptionOptions } from './SnsSubscriber'
-import { deserializeSNSMessage } from './snsMessageDeserializer'
-import {SQSMessage} from "@message-queue-toolkit/sqs";
-import {ZodSchema} from "zod";
-import {SNS_MESSAGE_BODY_TYPE} from "../types/MessageTypes";
+import { readSnsMessage } from './snsMessageReader'
 
 export type ExistingSnsSqsConsumerOptionsMulti<
   MessagePayloadType extends object,
@@ -55,7 +52,6 @@ export abstract class AbstractSnsSqsConsumerMultiSchema<
   ) {
     super(dependencies, {
       ...options,
-      deserializer: options.deserializer ?? deserializeSNSMessage,
     })
 
     this.subscriptionConfig = options.subscriptionConfig
@@ -79,22 +75,10 @@ export abstract class AbstractSnsSqsConsumerMultiSchema<
   }
 
   protected override resolveMessage(message: SQSMessage) {
-    try {
-      const snsMessage: SNS_MESSAGE_BODY_TYPE = JSON.parse(message.Body)
-      const messagePayload = JSON.parse(snsMessage.Message)
-
-      return {
-        result: messagePayload
-      }
-    } catch (err) {
-      return {
-        error: this.errorResolver.processError(err),
-      }
-    }
+    return readSnsMessage(message, this.errorResolver)
   }
 
-  protected override resolveSchema(messagePayload: unknown): ZodSchema<MessagePayloadSchemas> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return this.messageSchemaContainer.resolveSchema(messagePayload as Record<string, any>)
+  protected override resolveSchema(messagePayload: MessagePayloadSchemas) {
+    return this.messageSchemaContainer.resolveSchema(messagePayload)
   }
 }

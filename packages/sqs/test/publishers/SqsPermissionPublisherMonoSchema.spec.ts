@@ -17,7 +17,7 @@ import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SqsPermissionPublisher } from './SqsPermissionPublisher'
+import { SqsPermissionPublisherMonoSchema } from './SqsPermissionPublisherMonoSchema'
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
@@ -27,7 +27,7 @@ describe('SqsPermissionPublisher', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
     let consumer: Consumer
-    let publisher: SqsPermissionPublisher
+    let publisher: SqsPermissionPublisherMonoSchema
 
     beforeAll(async () => {
       diContainer = await registerDependencies({
@@ -43,7 +43,7 @@ describe('SqsPermissionPublisher', () => {
       delete userPermissionMap[200]
       delete userPermissionMap[300]
 
-      await deleteQueue(sqsClient, SqsPermissionPublisher.QUEUE_NAME)
+      await deleteQueue(sqsClient, SqsPermissionPublisherMonoSchema.QUEUE_NAME)
       await diContainer.cradle.permissionPublisher.init()
 
       const command = new ReceiveMessageCommand({
@@ -62,7 +62,7 @@ describe('SqsPermissionPublisher', () => {
     afterEach(async () => {
       consumer?.stop()
       consumer?.stop({ abort: true })
-      await purgeQueue(sqsClient, SqsPermissionPublisher.QUEUE_NAME)
+      await purgeQueue(sqsClient, SqsPermissionPublisherMonoSchema.QUEUE_NAME)
     })
 
     it('publishes a message', async () => {

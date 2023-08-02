@@ -93,7 +93,9 @@ export abstract class AbstractQueueService<
     this.locatorConfig = locatorConfig
   }
 
-  protected abstract resolveSchema(message: MessageEnvelopeType): ZodSchema<MessagePayloadSchemas>
+  protected abstract resolveSchema(
+    message: MessagePayloadSchemas,
+  ): Either<Error, ZodSchema<MessagePayloadSchemas>>
   protected abstract resolveMessage(
     message: MessageEnvelopeType,
   ): Either<MessageInvalidFormatError | MessageValidationError, unknown>

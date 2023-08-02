@@ -23,8 +23,8 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
   SupportedMessages,
   SqsPermissionConsumerMultiSchema
 > {
-  public counterAdd = 0
-  public counterRemove = 0
+  public addCounter = 0
+  public removeCounter = 0
   public static QUEUE_NAME = 'user_permissions_multi'
 
   constructor(
@@ -63,13 +63,13 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
         SqsPermissionConsumerMultiSchema
       >()
         .addConfig(PERMISSIONS_ADD_MESSAGE_SCHEMA, async (_message, _context) => {
-          this.counterAdd++
+          this.addCounter++
           return {
             result: 'success',
           }
         })
         .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {
-          this.counterRemove++
+          this.removeCounter++
           return {
             result: 'success',
           }

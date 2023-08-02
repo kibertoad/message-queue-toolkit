@@ -92,11 +92,15 @@ export abstract class AbstractSqsConsumer<
       return ABORT_EARLY_EITHER
     }
 
-    const schema = this.resolveSchema(resolveMessageResult.result)
+    const resolveSchemaResult = this.resolveSchema(resolveMessageResult.result)
+    if (resolveSchemaResult.error) {
+      this.handleError(resolveSchemaResult.error)
+      return ABORT_EARLY_EITHER
+    }
 
     const deserializationResult = parseMessage(
       resolveMessageResult.result,
-      schema,
+      resolveSchemaResult.result,
       this.errorResolver,
     )
     if (isMessageError(deserializationResult.error)) {

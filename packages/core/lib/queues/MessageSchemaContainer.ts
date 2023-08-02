@@ -1,3 +1,4 @@
+import type { Either } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
 export type MessageSchemaContainerOptions<MessagePayloadSchemas extends object> = {
@@ -14,13 +15,19 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
     this.messageSchemas = this.resolveSchemaMap(options.messageSchemas)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public resolveSchema(message: Record<string, any>): ZodSchema<MessagePayloadSchemas> {
+  protected resolveSchema(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    message: Record<string, any>,
+  ): Either<Error, ZodSchema<MessagePayloadSchemas>> {
     const schema = this.messageSchemas[message[this.messageTypeField]]
     if (!schema) {
-      throw new Error(`Unsupported message type: ${message[this.messageTypeField]}`)
+      return {
+        error: new Error(`Unsupported message type: ${message[this.messageTypeField]}`),
+      }
     }
-    return schema
+    return {
+      result: schema,
+    }
   }
 
   private resolveSchemaMap(

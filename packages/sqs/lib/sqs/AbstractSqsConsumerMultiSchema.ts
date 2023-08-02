@@ -5,9 +5,6 @@ import type {
 } from '@message-queue-toolkit/core'
 import { HandlerContainer, MessageSchemaContainer } from '@message-queue-toolkit/core'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
-import type { ZodSchema } from 'zod'
-
-import type { SQSMessage } from '../types/MessageTypes'
 
 import type { SQSCreationConfig } from './AbstractSqsConsumer'
 import { AbstractSqsConsumer } from './AbstractSqsConsumer'
@@ -67,8 +64,8 @@ export abstract class AbstractSqsConsumerMultiSchema<
     })
   }
 
-  protected override resolveSchema(message: SQSMessage): ZodSchema<MessagePayloadType> {
-    return this.messageSchemaContainer.resolveSchema(JSON.parse(message.Body))
+  protected override resolveSchema(message: MessagePayloadType) {
+    return this.messageSchemaContainer.resolveSchema(message)
   }
 
   public override async processMessage(

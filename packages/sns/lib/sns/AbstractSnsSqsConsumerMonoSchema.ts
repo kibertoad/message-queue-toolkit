@@ -1,4 +1,5 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
+import type { Either } from '@lokalise/node-core'
 import type { MonoSchemaQueueOptions } from '@message-queue-toolkit/core'
 import type {
   SQSConsumerDependencies,
@@ -19,7 +20,7 @@ import type {
 } from './AbstractSnsService'
 import { initSns, initSnsSqs } from './SnsInitter'
 import type { SNSSubscriptionOptions } from './SnsSubscriber'
-import { deserializeSNSMessage } from './snsMessageDeserializer'
+import { readSnsMessage } from './snsMessageReader'
 
 export type NewSnsSqsConsumerOptions<MessagePayloadType extends object> = NewSQSConsumerOptions<
   MessagePayloadType,
@@ -62,6 +63,7 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
   private readonly subscriptionConfig?: SNSSubscriptionOptions
   private readonly snsClient: SNSClient
   private readonly messageSchema: ZodSchema<MessagePayloadType>
+  private readonly schemaEither: Either<Error, ZodSchema<MessagePayloadType>>
   // @ts-ignore
   public topicArn: string
   // @ts-ignore
@@ -75,16 +77,22 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
   ) {
     super(dependencies, {
       ...options,
-      deserializer: options.deserializer ?? deserializeSNSMessage,
     })
 
     this.subscriptionConfig = options.subscriptionConfig
     this.snsClient = dependencies.snsClient
     this.messageSchema = options.messageSchema
+    this.schemaEither = {
+      result: this.messageSchema,
+    }
   }
 
-  protected resolveSchema(_message: SQSMessage): ZodSchema<MessagePayloadType> {
-    return this.messageSchema
+  protected override resolveSchema() {
+    return this.schemaEither
+  }
+
+  protected override resolveMessage(message: SQSMessage) {
+    return readSnsMessage(message, this.errorResolver)
   }
 
   async init(): Promise<void> {

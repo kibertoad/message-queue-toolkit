@@ -8,14 +8,10 @@ export const PERMISSIONS_MESSAGE_SCHEMA = z.object({
 
 export const PERMISSIONS_ADD_MESSAGE_SCHEMA = z.object({
   messageType: z.literal('add'),
-  userIds: z.array(z.number()).describe('User IDs'),
-  permissions: z.array(z.string()).nonempty().describe('List of user permissions'),
 })
 
 export const PERMISSIONS_REMOVE_MESSAGE_SCHEMA = z.object({
   messageType: z.literal('remove'),
-  userIds: z.array(z.number()).describe('User IDs'),
-  permissions: z.array(z.string()).nonempty().describe('List of user permissions'),
 })
 
 export const OTHER_MESSAGE_SCHEMA = z.object({

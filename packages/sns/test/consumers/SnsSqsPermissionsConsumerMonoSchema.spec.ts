@@ -20,29 +20,25 @@ const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 
 async function waitForPermissions(userIds: number[]) {
-  return await waitAndRetry(
-    async () => {
-      const usersPerms = userIds.reduce((acc, userId) => {
-        if (userPermissionMap[userId]) {
-          acc.push(userPermissionMap[userId])
-        }
-        return acc
-      }, [] as string[][])
+  return await waitAndRetry(async () => {
+    const usersPerms = userIds.reduce((acc, userId) => {
+      if (userPermissionMap[userId]) {
+        acc.push(userPermissionMap[userId])
+      }
+      return acc
+    }, [] as string[][])
 
-      if (usersPerms && usersPerms.length !== userIds.length) {
+    if (usersPerms && usersPerms.length !== userIds.length) {
+      return null
+    }
+
+    for (const userPerms of usersPerms)
+      if (userPerms.length !== perms.length) {
         return null
       }
 
-      for (const userPerms of usersPerms)
-        if (userPerms.length !== perms.length) {
-          return null
-        }
-
-      return usersPerms
-    },
-    500,
-    5,
-  )
+    return usersPerms
+  })
 }
 
 describe('SNS PermissionsConsumer', () => {
@@ -249,7 +245,7 @@ describe('SNS PermissionsConsumer', () => {
         } as any)
 
         const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-        await waitAndRetry(() => fakeResolver.handleErrorCallsCount, 500, 5)
+        await waitAndRetry(() => fakeResolver.handleErrorCallsCount)
 
         expect(fakeResolver.handleErrorCallsCount).toBe(1)
       })
@@ -260,13 +256,9 @@ describe('SNS PermissionsConsumer', () => {
         await publisher.publish('dummy' as any)
 
         const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-        const errorCount = await waitAndRetry(
-          () => {
-            return fakeResolver.handleErrorCallsCount
-          },
-          500,
-          5,
-        )
+        const errorCount = await waitAndRetry(() => {
+          return fakeResolver.handleErrorCallsCount
+        })
 
         expect(errorCount).toBe(1)
       })
