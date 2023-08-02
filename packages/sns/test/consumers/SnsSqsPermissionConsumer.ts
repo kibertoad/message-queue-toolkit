@@ -4,14 +4,14 @@ import type {
   SNSSQSConsumerDependencies,
   NewSnsSqsConsumerOptions,
   ExistingSnsSqsConsumerOptions,
-} from '../../lib/sns/AbstractSnsSqsConsumer'
-import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer'
+} from '../../lib/sns/AbstractSnsSqsConsumerMonoSchema'
+import { AbstractSnsSqsConsumerMonoSchema } from '../../lib/sns/AbstractSnsSqsConsumerMonoSchema'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
 
-export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<PERMISSIONS_MESSAGE_TYPE> {
+export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumerMonoSchema<PERMISSIONS_MESSAGE_TYPE> {
   public static CONSUMED_QUEUE_NAME = 'user_permissions'
   public static SUBSCRIBED_TOPIC_NAME = 'user_permissions'
 

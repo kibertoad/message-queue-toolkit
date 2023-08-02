@@ -15,6 +15,9 @@ import type {
 import { initSns, initSnsSqs } from './SnsInitter'
 import type { SNSSubscriptionOptions } from './SnsSubscriber'
 import { deserializeSNSMessage } from './snsMessageDeserializer'
+import {Either} from "@lokalise/node-core";
+import {undefined} from "zod";
+import {AbstractSqsConsumerMultiSchema} from "@message-queue-toolkit/sqs/dist/lib/sqs/AbstractSqsConsumerMultiSchema";
 
 export type ExistingSnsSqsConsumerOptionsMulti<
   MessagePayloadType extends object,
@@ -31,8 +34,9 @@ export type NewSnsSqsConsumerOptionsMulti<
 export abstract class AbstractSnsSqsConsumerMultiSchema<
   MessagePayloadSchemas extends object,
   ExecutionContext,
-> extends AbstractSqsConsumer<
+> extends AbstractSqsConsumerMultiSchema<
   MessagePayloadSchemas,
+  ExecutionContext,
   SNSSQSQueueLocatorType,
   SNSCreationConfig & SQSCreationConfig,
   | NewSnsSqsConsumerOptionsMulti<MessagePayloadSchemas, ExecutionContext>
@@ -44,8 +48,6 @@ export abstract class AbstractSnsSqsConsumerMultiSchema<
   public topicArn: string
   // @ts-ignore
   public subscriptionArn: string
-  private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadSchemas>
-  private readonly handlerContainer: HandlerContainer<MessagePayloadSchemas, ExecutionContext>
 
   protected constructor(
     dependencies: SNSSQSConsumerDependencies,
@@ -60,21 +62,6 @@ export abstract class AbstractSnsSqsConsumerMultiSchema<
 
     this.subscriptionConfig = options.subscriptionConfig
     this.snsClient = dependencies.snsClient
-
-    const messageSchemas = options.handlers.map((entry) => entry.schema)
-
-    this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadSchemas>({
-      messageSchemas,
-      messageTypeField: options.messageTypeField,
-    })
-    this.handlerContainer = new HandlerContainer<MessagePayloadSchemas, ExecutionContext>({
-      messageTypeField: this.messageTypeField,
-      messageHandlers: options.handlers,
-    })
-  }
-
-  protected resolveSchema(message: SQSMessage): ZodSchema<MessagePayloadSchemas> {
-    return this.messageSchemaContainer.resolveSchema(message)
   }
 
   async init(): Promise<void> {
