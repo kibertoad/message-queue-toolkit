@@ -15,7 +15,7 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
     this.messageSchemas = this.resolveSchemaMap(options.messageSchemas)
   }
 
-  protected resolveSchema(
+  public resolveSchema(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     message: Record<string, any>,
   ): Either<Error, ZodSchema<MessagePayloadSchemas>> {
