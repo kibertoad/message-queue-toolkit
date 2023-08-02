@@ -9,43 +9,14 @@ import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from
 
 import { assertTopic, deleteSubscription, deleteTopic } from '../../lib/utils/snsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
-import type { SnsPermissionPublisherMonoSchema } from '../publishers/SnsPermissionPublisherMonoSchema'
-import { userPermissionMap } from '../repositories/PermissionRepository'
+import type { SnsPermissionPublisherMultiSchema } from '../publishers/SnsPermissionPublisherMultiSchema'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
+import { SnsSqsPermissionConsumerMultiSchema } from './SnsSqsPermissionConsumerMultiSchema'
 
-const userIds = [100, 200, 300]
-const perms: [string, ...string[]] = ['perm1', 'perm2']
-
-async function waitForPermissions(userIds: number[]) {
-  return await waitAndRetry(
-    async () => {
-      const usersPerms = userIds.reduce((acc, userId) => {
-        if (userPermissionMap[userId]) {
-          acc.push(userPermissionMap[userId])
-        }
-        return acc
-      }, [] as string[][])
-
-      if (usersPerms && usersPerms.length !== userIds.length) {
-        return null
-      }
-
-      for (const userPerms of usersPerms)
-        if (userPerms.length !== perms.length) {
-          return null
-        }
-
-      return usersPerms
-    },
-    500,
-    5,
-  )
-}
-
-describe('SNS PermissionsConsumer', () => {
+describe('SNS PermissionsConsumerMultiSchema', () => {
   describe('init', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
@@ -104,7 +75,8 @@ describe('SNS PermissionsConsumer', () => {
 
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: SnsPermissionPublisherMonoSchema
+    let publisher: SnsPermissionPublisherMultiSchema
+    let consumer: SnsSqsPermissionConsumerMultiSchema
     let sqsClient: SQSClient
     let snsClient: SNSClient
     beforeAll(async () => {
@@ -113,22 +85,18 @@ describe('SNS PermissionsConsumer', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
-      publisher = diContainer.cradle.permissionPublisher
-      await purgeQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
+      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      consumer = diContainer.cradle.permissionConsumerMultiSchema
     })
 
     beforeEach(async () => {
-      delete userPermissionMap[100]
-      delete userPermissionMap[200]
-      delete userPermissionMap[300]
-
       await deleteTopic(snsClient, SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME)
       await deleteQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.start()
       await diContainer.cradle.permissionPublisher.init()
 
       const queueUrl = await assertQueue(sqsClient, {
-        QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
+        QueueName: SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME,
       })
       const command = new ReceiveMessageCommand({
         QueueUrl: queueUrl,
@@ -157,85 +125,23 @@ describe('SNS PermissionsConsumer', () => {
     })
 
     describe('happy path', () => {
-      it('Creates permissions', async () => {
-        const users = Object.values(userPermissionMap)
-        expect(users).toHaveLength(0)
-
-        userPermissionMap[100] = []
-        userPermissionMap[200] = []
-        userPermissionMap[300] = []
-
+      it('Processes messages', async () => {
         await publisher.publish({
           messageType: 'add',
-          userIds,
-          permissions: perms,
         })
-
-        const updatedUsersPermissions = await waitForPermissions(userIds)
-
-        if (null === updatedUsersPermissions) {
-          throw new Error('Users permissions unexpectedly null')
-        }
-
-        expect(updatedUsersPermissions).toBeDefined()
-        expect(updatedUsersPermissions[0]).toHaveLength(2)
-      })
-
-      it('Wait for users to be created and then create permissions', async () => {
-        const users = Object.values(userPermissionMap)
-        expect(users).toHaveLength(0)
-
         await publisher.publish({
-          messageType: 'add',
-          userIds,
-          permissions: perms,
+          messageType: 'remove',
         })
-
-        // no users in the database, so message will go back to the queue
-        const usersFromDb = await waitForPermissions(userIds)
-        expect(usersFromDb).toBeNull()
-
-        userPermissionMap[100] = []
-        userPermissionMap[200] = []
-        userPermissionMap[300] = []
-
-        const usersPermissions = await waitForPermissions(userIds)
-
-        if (null === usersPermissions) {
-          throw new Error('Users permissions unexpectedly null')
-        }
-
-        expect(usersPermissions).toBeDefined()
-        expect(usersPermissions[0]).toHaveLength(2)
-      })
-
-      it('Not all users exist, no permissions were created initially', async () => {
-        const users = Object.values(userPermissionMap)
-        expect(users).toHaveLength(0)
-
-        userPermissionMap[100] = []
-
         await publisher.publish({
-          messageType: 'add',
-          userIds,
-          permissions: perms,
+          messageType: 'remove',
         })
 
-        // not all users are in the database, so message will go back to the queue
-        const usersFromDb = await waitForPermissions(userIds)
-        expect(usersFromDb).toBeNull()
+        await waitAndRetry(() => {
+          return consumer.addCounter > 0 && consumer.removeCounter == 2
+        })
 
-        userPermissionMap[200] = []
-        userPermissionMap[300] = []
-
-        const usersPermissions = await waitForPermissions(userIds)
-
-        if (null === usersPermissions) {
-          throw new Error('Users permissions unexpectedly null')
-        }
-
-        expect(usersPermissions).toBeDefined()
-        expect(usersPermissions[0]).toHaveLength(2)
+        expect(consumer.addCounter).toBe(1)
+        expect(consumer.removeCounter).toBe(2)
       })
     })
 
@@ -245,7 +151,6 @@ describe('SNS PermissionsConsumer', () => {
 
         await publisher.publish({
           messageType: 'add',
-          permissions: perms,
         } as any)
 
         const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver

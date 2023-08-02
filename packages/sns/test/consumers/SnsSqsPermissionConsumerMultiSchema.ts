@@ -1,4 +1,5 @@
-import {MessageHandlerConfig, MessageHandlerConfigBuilder} from '@message-queue-toolkit/core'
+import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
+
 import type {
   SNSSQSConsumerDependencies,
   NewSnsSqsConsumerOptions,
@@ -9,15 +10,24 @@ import { AbstractSnsSqsConsumerMultiSchema } from '../../lib/sns/AbstractSnsSqsC
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_MESSAGE_TYPE,
-  PERMISSIONS_REMOVE_MESSAGE_TYPE
+  PERMISSIONS_REMOVE_MESSAGE_TYPE,
 } from './userConsumerSchemas'
-import {PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA} from "./userConsumerSchemas";
+import {
+  PERMISSIONS_ADD_MESSAGE_SCHEMA,
+  PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
+} from './userConsumerSchemas'
 
 type SupportedEvents = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 
-export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerMultiSchema<PERMISSIONS_MESSAGE_TYPE, SnsSqsPermissionConsumerMultiSchema> {
+export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerMultiSchema<
+  SupportedEvents,
+  SnsSqsPermissionConsumerMultiSchema
+> {
   public static CONSUMED_QUEUE_NAME = 'user_permissions'
   public static SUBSCRIBED_TOPIC_NAME = 'user_permissions'
+
+  public addCounter = 0
+  public removeCounter = 0
 
   constructor(
     dependencies: SNSSQSConsumerDependencies,
@@ -35,23 +45,23 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
     },
   ) {
     super(dependencies, {
-      handlers: new MessageHandlerConfigBuilder<SupportedEvents, SnsSqsPermissionConsumerMultiSchema>()
-          .addConfig(
-          PERMISSIONS_ADD_MESSAGE_SCHEMA,
-          async (message, context) => {
-            return {
-              result: 'success',
-            }
-          },
-        )
-          .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
-          async (message, context) => {
-            message
-            return {
-              result: 'success',
-            }
-          },
-        ).build(),
+      handlers: new MessageHandlerConfigBuilder<
+        SupportedEvents,
+        SnsSqsPermissionConsumerMultiSchema
+      >()
+        .addConfig(PERMISSIONS_ADD_MESSAGE_SCHEMA, async (_message, _context) => {
+          this.addCounter++
+          return {
+            result: 'success',
+          }
+        })
+        .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {
+          this.removeCounter++
+          return {
+            result: 'success',
+          }
+        })
+        .build(),
       messageTypeField: 'messageType',
       consumerOverrides: {
         terminateVisibilityTimeout: true, // this allows to retry failed messages immediately

@@ -1,7 +1,7 @@
 export const waitAndRetry = async <T>(
   predicateFn: () => T,
-  sleepTime = 100,
-  maxRetryCount = 0,
+  sleepTime = 20,
+  maxRetryCount = 15,
 ): Promise<T> => {
   return new Promise((resolve, reject) => {
     let retryCount = 0

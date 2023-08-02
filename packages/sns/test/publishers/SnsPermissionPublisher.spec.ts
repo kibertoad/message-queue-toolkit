@@ -19,7 +19,7 @@ import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SnsPermissionPublisher } from './SnsPermissionPublisher'
+import { SnsPermissionPublisherMonoSchema } from './SnsPermissionPublisherMonoSchema'
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
@@ -35,7 +35,7 @@ describe('SNSPermissionPublisher', () => {
     })
 
     it('throws an error when invalid queue locator is passed', async () => {
-      const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
+      const newPublisher = new SnsPermissionPublisherMonoSchema(diContainer.cradle, {
         locatorConfig: {
           topicArn: 'dummy',
         },
@@ -49,7 +49,7 @@ describe('SNSPermissionPublisher', () => {
         Name: 'existingTopic',
       })
 
-      const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
+      const newPublisher = new SnsPermissionPublisherMonoSchema(diContainer.cradle, {
         locatorConfig: {
           topicArn: arn,
         },
@@ -117,7 +117,7 @@ describe('SNSPermissionPublisher', () => {
           QueueName: queueName,
         },
         {
-          Name: SnsPermissionPublisher.TOPIC_NAME,
+          Name: SnsPermissionPublisherMonoSchema.TOPIC_NAME,
         },
         {},
       )

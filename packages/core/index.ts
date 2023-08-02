@@ -27,7 +27,11 @@ export {
   MessageInvalidFormatError,
 } from './lib/errors/Errors'
 
-export { HandlerContainer, MessageHandlerConfig, MessageHandlerConfigBuilder } from './lib/queues/HandlerContainer'
+export {
+  HandlerContainer,
+  MessageHandlerConfig,
+  MessageHandlerConfigBuilder,
+} from './lib/queues/HandlerContainer'
 export type { HandlerContainerOptions, Handler } from './lib/queues/HandlerContainer'
 
 export { MessageSchemaContainer } from './lib/queues/MessageSchemaContainer'

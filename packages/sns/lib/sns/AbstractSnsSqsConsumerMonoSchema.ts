@@ -61,7 +61,7 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
 > {
   private readonly subscriptionConfig?: SNSSubscriptionOptions
   private readonly snsClient: SNSClient
-  private readonly messageSchema: ZodSchema
+  private readonly messageSchema: ZodSchema<MessagePayloadType>
   // @ts-ignore
   public topicArn: string
   // @ts-ignore

@@ -7,8 +7,10 @@ export type {
 
 export { SnsConsumerErrorResolver } from './lib/errors/SnsConsumerErrorResolver'
 
-export { AbstractSnsPublisher } from './lib/sns/AbstractSnsPublisher'
-export type { SNSMessageOptions } from './lib/sns/AbstractSnsPublisher'
+export { AbstractSnsPublisherMonoSchema } from './lib/sns/AbstractSnsPublisherMonoSchema'
+export { AbstractSnsPublisherMultiSchema } from './lib/sns/AbstractSnsPublisherMultiSchema'
+
+export type { SNSMessageOptions } from './lib/sns/AbstractSnsPublisherMonoSchema'
 
 export type { CommonMessage } from './lib/types/MessageTypes'
 
@@ -22,4 +24,4 @@ export {
 } from './lib/utils/snsUtils'
 
 export { subscribeToTopic } from './lib/sns/SnsSubscriber'
-export { initSns } from './lib/sns/SnsInitter'
+export { initSns, initSnsSqs } from './lib/sns/SnsInitter'

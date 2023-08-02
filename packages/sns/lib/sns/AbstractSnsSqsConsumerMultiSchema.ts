@@ -1,9 +1,7 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { MultiSchemaConsumerOptions } from '@message-queue-toolkit/core'
-import { HandlerContainer, MessageSchemaContainer } from '@message-queue-toolkit/core'
-import type { SQSCreationConfig, SQSMessage } from '@message-queue-toolkit/sqs'
-import { AbstractSqsConsumer } from '@message-queue-toolkit/sqs'
-import type { ZodSchema } from 'zod'
+import type { SQSCreationConfig } from '@message-queue-toolkit/sqs'
+import { AbstractSqsConsumerMultiSchema } from '@message-queue-toolkit/sqs/dist/lib/sqs/AbstractSqsConsumerMultiSchema'
 
 import type { SNSCreationConfig } from './AbstractSnsService'
 import type {
@@ -15,9 +13,6 @@ import type {
 import { initSns, initSnsSqs } from './SnsInitter'
 import type { SNSSubscriptionOptions } from './SnsSubscriber'
 import { deserializeSNSMessage } from './snsMessageDeserializer'
-import {Either} from "@lokalise/node-core";
-import {undefined} from "zod";
-import {AbstractSqsConsumerMultiSchema} from "@message-queue-toolkit/sqs/dist/lib/sqs/AbstractSqsConsumerMultiSchema";
 
 export type ExistingSnsSqsConsumerOptionsMulti<
   MessagePayloadType extends object,

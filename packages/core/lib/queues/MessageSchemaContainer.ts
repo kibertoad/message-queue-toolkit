@@ -1,7 +1,7 @@
 import type { ZodSchema } from 'zod'
 
 export type MessageSchemaContainerOptions<MessagePayloadSchemas extends object> = {
-  messageSchemas: ZodSchema<MessagePayloadSchemas>[]
+  messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
   messageTypeField: string
 }
 
@@ -24,12 +24,12 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
   }
 
   private resolveSchemaMap(
-    supportedSchemas: ZodSchema<MessagePayloadSchemas>[],
+    supportedSchemas: readonly ZodSchema<MessagePayloadSchemas>[],
   ): Record<string, ZodSchema<MessagePayloadSchemas>> {
     return supportedSchemas.reduce(
       (acc, schema) => {
         // @ts-ignore
-        acc[schema.shape[this.messageType].value] = schema
+        acc[schema.shape[this.messageTypeField].value] = schema
         return acc
       },
       {} as Record<string, ZodSchema<MessagePayloadSchemas>>,

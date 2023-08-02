@@ -59,15 +59,14 @@ export type SNSCreationConfig = {
 
 export abstract class AbstractSnsService<
   MessagePayloadType extends object,
+  MessageEnvelopeType extends object = SNS_MESSAGE_BODY_TYPE,
   SNSOptionsType extends
     | ExistingQueueOptions<SNSQueueLocatorType>
-    | NewQueueOptions<SNSCreationConfig> =
-    | ExistingSNSOptions<MessagePayloadType>
-    | NewQueueOptions<SNSCreationConfig>,
+    | NewQueueOptions<SNSCreationConfig> = ExistingSNSOptions | NewQueueOptions<SNSCreationConfig>,
   DependenciesType extends SNSDependencies = SNSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
-  SNS_MESSAGE_BODY_TYPE,
+  MessageEnvelopeType,
   DependenciesType,
   SNSCreationConfig,
   SNSQueueLocatorType,

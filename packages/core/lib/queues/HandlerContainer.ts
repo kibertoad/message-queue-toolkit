@@ -5,8 +5,9 @@ export class MessageHandlerConfig<const MessagePayloadSchemas, const ExecutionCo
   public readonly schema: ZodSchema<MessagePayloadSchemas>
   public readonly handler: Handler<MessagePayloadSchemas, ExecutionContext>
 
-  constructor(schema: ZodSchema<MessagePayloadSchemas>,
-    handler: Handler<MessagePayloadSchemas, ExecutionContext>
+  constructor(
+    schema: ZodSchema<MessagePayloadSchemas>,
+    handler: Handler<MessagePayloadSchemas, ExecutionContext>,
   ) {
     this.schema = schema
     this.handler = handler
@@ -21,14 +22,11 @@ export class MessageHandlerConfigBuilder<MessagePayloadSchemas, ExecutionContext
   }
 
   addConfig<MessagePayloadSchema extends MessagePayloadSchemas>(
-      schema: ZodSchema<MessagePayloadSchema>,
-      handler: Handler<MessagePayloadSchema, ExecutionContext>,
+    schema: ZodSchema<MessagePayloadSchema>,
+    handler: Handler<MessagePayloadSchema, ExecutionContext>,
   ) {
     // @ts-ignore
-    this.configs.push(new MessageHandlerConfig(
-        schema, handler
-        )
-    )
+    this.configs.push(new MessageHandlerConfig(schema, handler))
     return this
   }
 
@@ -36,7 +34,6 @@ export class MessageHandlerConfigBuilder<MessagePayloadSchemas, ExecutionContext
     return this.configs
   }
 }
-
 
 export type Handler<MessagePayloadSchemas, ExecutionContext> = (
   message: MessagePayloadSchemas,
@@ -48,7 +45,7 @@ export type HandlerContainerOptions<MessagePayloadSchemas extends object, Execut
   messageTypeField: string
 }
 
-export class HandlerContainer<MessagePayloadSchemas extends object, ExecutionContext = any> {
+export class HandlerContainer<MessagePayloadSchemas extends object, ExecutionContext> {
   private readonly messageHandlers: Record<string, Handler<MessagePayloadSchemas, ExecutionContext>>
   private readonly messageTypeField: string
 
@@ -72,7 +69,7 @@ export class HandlerContainer<MessagePayloadSchemas extends object, ExecutionCon
     return supportedHandlers.reduce(
       (acc, entry) => {
         // @ts-ignore
-        const messageType = entry.schema.shape[this.messageType].value
+        const messageType = entry.schema.shape[this.messageTypeField].value
         acc[messageType] = entry.handler
         return acc
       },

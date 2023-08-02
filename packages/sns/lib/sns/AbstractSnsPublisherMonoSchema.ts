@@ -1,10 +1,15 @@
 import { PublishCommand } from '@aws-sdk/client-sns'
 import type { PublishCommandInput } from '@aws-sdk/client-sns/dist-types/commands/PublishCommand'
-import type { AsyncPublisher } from '@message-queue-toolkit/core'
-import type { ZodType } from 'zod'
+import type {
+  AsyncPublisher,
+  MonoSchemaQueueOptions,
+  NewQueueOptions,
+} from '@message-queue-toolkit/core'
+import type { ZodSchema } from 'zod'
 
 import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
 
+import type { ExistingSNSOptions, SNSCreationConfig, SNSDependencies } from './AbstractSnsService'
 import { AbstractSnsService } from './AbstractSnsService'
 
 export type SNSMessageOptions = {
@@ -12,10 +17,21 @@ export type SNSMessageOptions = {
   MessageDeduplicationId?: string
 }
 
-export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
+export abstract class AbstractSnsPublisherMonoSchema<MessagePayloadType extends object>
   extends AbstractSnsService<MessagePayloadType>
   implements AsyncPublisher<MessagePayloadType, SNSMessageOptions>
 {
+  private readonly messageSchema: ZodSchema<MessagePayloadType>
+
+  constructor(
+    dependencies: SNSDependencies,
+    options: (ExistingSNSOptions | NewQueueOptions<SNSCreationConfig>) &
+      MonoSchemaQueueOptions<MessagePayloadType>,
+  ) {
+    super(dependencies, options)
+    this.messageSchema = options.messageSchema
+  }
+
   async publish(message: MessagePayloadType, options: SNSMessageOptions = {}): Promise<void> {
     try {
       const input = {
@@ -31,7 +47,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     }
   }
 
-  protected resolveSchema(_message: SNS_MESSAGE_BODY_TYPE): ZodType<MessagePayloadType> {
-    throw new Error('Unsupported, but not used anyway')
+  protected resolveSchema(_message: SNS_MESSAGE_BODY_TYPE): ZodSchema<MessagePayloadType> {
+    return this.messageSchema
   }
 }
