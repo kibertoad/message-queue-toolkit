@@ -29,19 +29,15 @@ export type SQSCreationConfig = {
 }
 
 export type NewSQSConsumerOptions<
-  MessagePayloadType extends object,
   CreationConfigType extends SQSCreationConfig,
 > = NewQueueOptions<CreationConfigType> & {
   consumerOverrides?: Partial<ConsumerOptions>
-  deserializer?: Deserializer<MessagePayloadType>
 }
 
 export type ExistingSQSConsumerOptions<
-  MessagePayloadType extends object,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
 > = ExistingQueueOptions<QueueLocatorType> & {
   consumerOverrides?: Partial<ConsumerOptions>
-  deserializer?: Deserializer<MessagePayloadType>
 }
 
 export abstract class AbstractSqsConsumer<
@@ -49,10 +45,10 @@ export abstract class AbstractSqsConsumer<
     QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
     CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
     ConsumerOptionsType extends
-      | NewSQSConsumerOptions<MessagePayloadType, CreationConfigType>
-      | ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType> =
-      | NewSQSConsumerOptions<MessagePayloadType, CreationConfigType>
-      | ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType>,
+      | NewSQSConsumerOptions<CreationConfigType>
+      | ExistingSQSConsumerOptions<QueueLocatorType> =
+      | NewSQSConsumerOptions<CreationConfigType>
+      | ExistingSQSConsumerOptions<QueueLocatorType>,
   >
   extends AbstractSqsService<
     MessagePayloadType,
@@ -90,6 +86,10 @@ export abstract class AbstractSqsConsumer<
     const resolveMessageResult = this.resolveMessage(message)
     if (isMessageError(resolveMessageResult.error)) {
       this.handleError(resolveMessageResult.error)
+      return ABORT_EARLY_EITHER
+    }
+    // Empty content for whatever reason
+    if (!resolveMessageResult.result) {
       return ABORT_EARLY_EITHER
     }
 

@@ -18,29 +18,25 @@ const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 
 async function waitForPermissions(userIds: number[]) {
-  return await waitAndRetry(
-    async () => {
-      const usersPerms = userIds.reduce((acc, userId) => {
-        if (userPermissionMap[userId]) {
-          acc.push(userPermissionMap[userId])
-        }
-        return acc
-      }, [] as string[][])
+  return await waitAndRetry(async () => {
+    const usersPerms = userIds.reduce((acc, userId) => {
+      if (userPermissionMap[userId]) {
+        acc.push(userPermissionMap[userId])
+      }
+      return acc
+    }, [] as string[][])
 
-      if (usersPerms && usersPerms.length !== userIds.length) {
+    if (usersPerms && usersPerms.length !== userIds.length) {
+      return null
+    }
+
+    for (const userPerms of usersPerms)
+      if (userPerms.length !== perms.length) {
         return null
       }
 
-      for (const userPerms of usersPerms)
-        if (userPerms.length !== perms.length) {
-          return null
-        }
-
-      return usersPerms
-    },
-    500,
-    5,
-  )
+    return usersPerms
+  })
 }
 
 describe('PermissionsConsumer', () => {
@@ -169,7 +165,7 @@ describe('PermissionsConsumer', () => {
       )
 
       const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-      await waitAndRetry(() => fakeResolver.handleErrorCallsCount, 500, 5)
+      await waitAndRetry(() => fakeResolver.handleErrorCallsCount)
 
       expect(fakeResolver.handleErrorCallsCount).toBe(1)
     })
@@ -180,7 +176,7 @@ describe('PermissionsConsumer', () => {
       channel.sendToQueue(AmqpPermissionConsumer.QUEUE_NAME, Buffer.from('dummy'))
 
       const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-      await waitAndRetry(() => fakeResolver.handleErrorCallsCount, 500, 5)
+      await waitAndRetry(() => fakeResolver.handleErrorCallsCount)
 
       expect(fakeResolver.handleErrorCallsCount).toBe(1)
     })

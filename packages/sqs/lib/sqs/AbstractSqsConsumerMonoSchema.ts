@@ -16,13 +16,13 @@ import type { SQSConsumerDependencies, SQSQueueLocatorType } from './AbstractSqs
 export type NewSQSConsumerOptionsMono<
   MessagePayloadType extends object,
   CreationConfigType extends SQSCreationConfig,
-> = NewSQSConsumerOptions<MessagePayloadType, CreationConfigType> &
+> = NewSQSConsumerOptions<CreationConfigType> &
   MonoSchemaQueueOptions<MessagePayloadType>
 
 export type ExistingSQSConsumerOptionsMono<
   MessagePayloadType extends object,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
-> = ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType> &
+> = ExistingSQSConsumerOptions<QueueLocatorType> &
   MonoSchemaQueueOptions<MessagePayloadType>
 
 export abstract class AbstractSqsConsumerMonoSchema<
@@ -43,7 +43,7 @@ export abstract class AbstractSqsConsumerMonoSchema<
   >
   implements QueueConsumer
 {
-  private readonly messageSchema: ZodSchema
+  private readonly messageSchema: ZodSchema<MessagePayloadType>
   private readonly schemaEither: Either<Error, ZodSchema<MessagePayloadType>>
 
   protected constructor(dependencies: SQSConsumerDependencies, options: ConsumerOptionsType) {

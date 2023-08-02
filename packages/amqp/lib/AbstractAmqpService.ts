@@ -5,7 +5,7 @@ import type {
   ExistingQueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
-import type { Channel, Connection } from 'amqplib'
+import type { Channel, Connection, Message } from 'amqplib'
 import type { Options } from 'amqplib/properties'
 
 import type { AMQPLocatorType } from './AbstractAmqpConsumer'
@@ -26,16 +26,16 @@ export type AMQPQueueLocatorType = {
   queueName: string
 }
 
-export class AbstractAmqpService<
+export abstract class AbstractAmqpService<
   MessagePayloadType extends object,
   DependenciesType extends AMQPDependencies = AMQPDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
+  Message,
   DependenciesType,
   CreateAMQPQueueOptions,
   AMQPQueueLocatorType,
-  | NewQueueOptions<MessagePayloadType, CreateAMQPQueueOptions>
-  | ExistingQueueOptions<MessagePayloadType, AMQPLocatorType>
+  NewQueueOptions<CreateAMQPQueueOptions> | ExistingQueueOptions<AMQPLocatorType>
 > {
   protected readonly connection: Connection
   // @ts-ignore
@@ -45,9 +45,7 @@ export class AbstractAmqpService<
 
   constructor(
     dependencies: DependenciesType,
-    options:
-      | NewQueueOptions<MessagePayloadType, CreateAMQPQueueOptions>
-      | ExistingQueueOptions<MessagePayloadType, AMQPLocatorType>,
+    options: NewQueueOptions<CreateAMQPQueueOptions> | ExistingQueueOptions<AMQPLocatorType>,
   ) {
     super(dependencies, options)
 

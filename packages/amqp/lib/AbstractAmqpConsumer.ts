@@ -3,15 +3,16 @@ import type {
   QueueConsumer,
   NewQueueOptions,
   TransactionObservabilityManager,
-  Deserializer,
   ExistingQueueOptions,
+  MonoSchemaQueueOptions,
 } from '@message-queue-toolkit/core'
-import { isMessageError } from '@message-queue-toolkit/core'
+import { isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import type { Message } from 'amqplib'
+import type { ZodSchema } from 'zod'
 
 import type { AMQPConsumerDependencies, CreateAMQPQueueOptions } from './AbstractAmqpService'
 import { AbstractAmqpService } from './AbstractAmqpService'
-import { deserializeAmqpMessage } from './amqpMessageDeserializer'
+import { readAmqpMessage } from './amqpMessageReader'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
@@ -19,19 +20,9 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
 
 export type AMQPLocatorType = { queueName: string }
 
-export type NewAMQPConsumerOptions<MessagePayloadType extends object> = NewQueueOptions<
-  MessagePayloadType,
-  CreateAMQPQueueOptions
-> & {
-  deserializer?: Deserializer<MessagePayloadType, Message>
-}
+export type NewAMQPConsumerOptions = NewQueueOptions<CreateAMQPQueueOptions>
 
-export type ExistingAMQPConsumerOptions<MessagePayloadType extends object> = ExistingQueueOptions<
-  MessagePayloadType,
-  AMQPLocatorType
-> & {
-  deserializer?: Deserializer<MessagePayloadType, Message>
-}
+export type ExistingAMQPConsumerOptions = ExistingQueueOptions<AMQPLocatorType>
 
 export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
   extends AbstractAmqpService<MessagePayloadType, AMQPConsumerDependencies>
@@ -39,22 +30,26 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
   protected readonly errorResolver: ErrorResolver
-  private readonly deserializer: Deserializer<MessagePayloadType, Message>
+  private readonly messageSchema: ZodSchema<MessagePayloadType>
+  private readonly schemaEither: Either<Error, ZodSchema<MessagePayloadType>>
 
   constructor(
     dependencies: AMQPConsumerDependencies,
     options:
-      | NewAMQPConsumerOptions<MessagePayloadType>
-      | ExistingAMQPConsumerOptions<MessagePayloadType>,
+      | (NewAMQPConsumerOptions & MonoSchemaQueueOptions<MessagePayloadType>)
+      | (ExistingAMQPConsumerOptions & MonoSchemaQueueOptions<MessagePayloadType>),
   ) {
     super(dependencies, options)
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.errorResolver = dependencies.consumerErrorResolver
 
-    this.deserializer = options.deserializer ?? deserializeAmqpMessage
-
     if (!options.locatorConfig?.queueName && !options.creationConfig?.queueName) {
       throw new Error('queueName must be set in either locatorConfig or creationConfig')
+    }
+
+    this.messageSchema = options.messageSchema
+    this.schemaEither = {
+      result: this.messageSchema,
     }
   }
 
@@ -67,8 +62,30 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
       return ABORT_EARLY_EITHER
     }
 
-    const deserializationResult = this.deserializer(message, this.messageSchema, this.errorResolver)
+    const resolveMessageResult = this.resolveMessage(message)
+    if (isMessageError(resolveMessageResult.error)) {
+      this.handleError(resolveMessageResult.error)
+      return ABORT_EARLY_EITHER
+    }
 
+    // Empty content for whatever reason
+    if (!resolveMessageResult.result) {
+      return ABORT_EARLY_EITHER
+    }
+
+    const resolveSchemaResult = this.resolveSchema(
+      resolveMessageResult.result as MessagePayloadType,
+    )
+    if (resolveSchemaResult.error) {
+      this.handleError(resolveSchemaResult.error)
+      return ABORT_EARLY_EITHER
+    }
+
+    const deserializationResult = parseMessage(
+      resolveMessageResult.result,
+      resolveSchemaResult.result,
+      this.errorResolver,
+    )
     if (isMessageError(deserializationResult.error)) {
       this.handleError(deserializationResult.error)
       return ABORT_EARLY_EITHER
@@ -126,5 +143,13 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
           this.transactionObservabilityManager?.stop(transactionSpanId)
         })
     })
+  }
+
+  protected resolveMessage(message: Message) {
+    return readAmqpMessage(message, this.errorResolver)
+  }
+
+  protected override resolveSchema(_message: MessagePayloadType) {
+    return this.schemaEither
   }
 }
