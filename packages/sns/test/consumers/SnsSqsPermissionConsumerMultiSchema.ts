@@ -9,7 +9,6 @@ import { AbstractSnsSqsConsumerMultiSchema } from '../../lib/sns/AbstractSnsSqsC
 
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
-  PERMISSIONS_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
 } from './userConsumerSchemas'
 import {
@@ -32,8 +31,8 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
   constructor(
     dependencies: SNSSQSConsumerDependencies,
     options:
-      | Pick<NewSnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'creationConfig'>
-      | Pick<ExistingSnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'locatorConfig'> = {
+      | Pick<NewSnsSqsConsumerOptions, 'creationConfig'>
+      | Pick<ExistingSnsSqsConsumerOptions, 'locatorConfig'> = {
       creationConfig: {
         queue: {
           QueueName: SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME,

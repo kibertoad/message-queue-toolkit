@@ -17,14 +17,12 @@ import { readSnsMessage } from './snsMessageReader'
 export type ExistingSnsSqsConsumerOptionsMulti<
   MessagePayloadType extends object,
   ExecutionContext,
-> = ExistingSnsSqsConsumerOptions<MessagePayloadType> &
-  MultiSchemaConsumerOptions<MessagePayloadType, ExecutionContext>
+> = ExistingSnsSqsConsumerOptions & MultiSchemaConsumerOptions<MessagePayloadType, ExecutionContext>
 
 export type NewSnsSqsConsumerOptionsMulti<
   MessagePayloadType extends object,
   ExecutionContext,
-> = NewSnsSqsConsumerOptions<MessagePayloadType> &
-  MultiSchemaConsumerOptions<MessagePayloadType, ExecutionContext>
+> = NewSnsSqsConsumerOptions & MultiSchemaConsumerOptions<MessagePayloadType, ExecutionContext>
 
 export abstract class AbstractSnsSqsConsumerMultiSchema<
   MessagePayloadSchemas extends object,

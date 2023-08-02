@@ -22,8 +22,7 @@ import { initSns, initSnsSqs } from './SnsInitter'
 import type { SNSSubscriptionOptions } from './SnsSubscriber'
 import { readSnsMessage } from './snsMessageReader'
 
-export type NewSnsSqsConsumerOptions<MessagePayloadType extends object> = NewSQSConsumerOptions<
-  MessagePayloadType,
+export type NewSnsSqsConsumerOptions = NewSQSConsumerOptions<
   SQSCreationConfig & SNSCreationConfig
 > &
   NewSNSOptions & {
@@ -31,16 +30,15 @@ export type NewSnsSqsConsumerOptions<MessagePayloadType extends object> = NewSQS
   }
 
 export type NewSnsSqsConsumerOptionsMono<MessagePayloadType extends object> =
-  NewSnsSqsConsumerOptions<MessagePayloadType> & MonoSchemaQueueOptions<MessagePayloadType>
+  NewSnsSqsConsumerOptions & MonoSchemaQueueOptions<MessagePayloadType>
 
-export type ExistingSnsSqsConsumerOptions<MessagePayloadType extends object> =
-  ExistingSQSConsumerOptions<MessagePayloadType, SNSSQSQueueLocatorType> &
-    ExistingSNSOptions & {
-      subscriptionConfig?: SNSSubscriptionOptions
-    }
+export type ExistingSnsSqsConsumerOptions = ExistingSQSConsumerOptions<SNSSQSQueueLocatorType> &
+  ExistingSNSOptions & {
+    subscriptionConfig?: SNSSubscriptionOptions
+  }
 
 export type ExistingSnsSqsConsumerOptionsMono<MessagePayloadType extends object> =
-  ExistingSnsSqsConsumerOptions<MessagePayloadType> & MonoSchemaQueueOptions<MessagePayloadType>
+  ExistingSnsSqsConsumerOptions & MonoSchemaQueueOptions<MessagePayloadType>
 
 export type SNSSQSConsumerDependencies = SQSConsumerDependencies & {
   snsClient: SNSClient
@@ -57,8 +55,7 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
   MessagePayloadType,
   SNSSQSQueueLocatorType,
   SNSCreationConfig & SQSCreationConfig,
-  | NewSnsSqsConsumerOptions<MessagePayloadType>
-  | ExistingSnsSqsConsumerOptionsMono<MessagePayloadType>
+  NewSnsSqsConsumerOptions | ExistingSnsSqsConsumerOptionsMono<MessagePayloadType>
 > {
   private readonly subscriptionConfig?: SNSSubscriptionOptions
   private readonly snsClient: SNSClient

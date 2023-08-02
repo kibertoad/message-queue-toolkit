@@ -4,7 +4,6 @@ import type {
   NewQueueOptions,
   ExistingQueueOptions,
   TransactionObservabilityManager,
-  Deserializer,
 } from '@message-queue-toolkit/core'
 import { isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
@@ -28,11 +27,10 @@ export type SQSCreationConfig = {
   queue: SQSQueueAWSConfig
 }
 
-export type NewSQSConsumerOptions<
-  CreationConfigType extends SQSCreationConfig,
-> = NewQueueOptions<CreationConfigType> & {
-  consumerOverrides?: Partial<ConsumerOptions>
-}
+export type NewSQSConsumerOptions<CreationConfigType extends SQSCreationConfig> =
+  NewQueueOptions<CreationConfigType> & {
+    consumerOverrides?: Partial<ConsumerOptions>
+  }
 
 export type ExistingSQSConsumerOptions<
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,

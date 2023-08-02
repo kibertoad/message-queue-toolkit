@@ -16,14 +16,12 @@ import type { SQSConsumerDependencies, SQSQueueLocatorType } from './AbstractSqs
 export type NewSQSConsumerOptionsMono<
   MessagePayloadType extends object,
   CreationConfigType extends SQSCreationConfig,
-> = NewSQSConsumerOptions<CreationConfigType> &
-  MonoSchemaQueueOptions<MessagePayloadType>
+> = NewSQSConsumerOptions<CreationConfigType> & MonoSchemaQueueOptions<MessagePayloadType>
 
 export type ExistingSQSConsumerOptionsMono<
   MessagePayloadType extends object,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
-> = ExistingSQSConsumerOptions<QueueLocatorType> &
-  MonoSchemaQueueOptions<MessagePayloadType>
+> = ExistingSQSConsumerOptions<QueueLocatorType> & MonoSchemaQueueOptions<MessagePayloadType>
 
 export abstract class AbstractSqsConsumerMonoSchema<
     MessagePayloadType extends object,

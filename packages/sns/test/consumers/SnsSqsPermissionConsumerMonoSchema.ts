@@ -18,8 +18,8 @@ export class SnsSqsPermissionConsumerMonoSchema extends AbstractSnsSqsConsumerMo
   constructor(
     dependencies: SNSSQSConsumerDependencies,
     options:
-      | Pick<NewSnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'creationConfig'>
-      | Pick<ExistingSnsSqsConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'locatorConfig'> = {
+      | Pick<NewSnsSqsConsumerOptions, 'creationConfig'>
+      | Pick<ExistingSnsSqsConsumerOptions, 'locatorConfig'> = {
       creationConfig: {
         queue: {
           QueueName: SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME,
