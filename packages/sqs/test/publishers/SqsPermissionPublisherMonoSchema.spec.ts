@@ -8,7 +8,7 @@ import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from
 
 import { deserializeSQSMessage } from '../../lib/sqs/sqsMessageDeserializer'
 import type { SQSMessage } from '../../lib/types/MessageTypes'
-import { deleteQueue, purgeQueue } from '../../lib/utils/SqsUtils'
+import { deleteQueue, purgeQueueAsync } from '../../lib/utils/SqsUtils'
 import { SqsPermissionConsumerMonoSchema } from '../consumers/SqsPermissionConsumerMonoSchema'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
@@ -35,7 +35,7 @@ describe('SqsPermissionPublisher', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
-      await purgeQueue(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
+      await purgeQueueAsync(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
     })
 
     beforeEach(async () => {
@@ -62,7 +62,7 @@ describe('SqsPermissionPublisher', () => {
     afterEach(async () => {
       consumer?.stop()
       consumer?.stop({ abort: true })
-      await purgeQueue(sqsClient, SqsPermissionPublisherMonoSchema.QUEUE_NAME)
+      await purgeQueueAsync(sqsClient, SqsPermissionPublisherMonoSchema.QUEUE_NAME)
     })
 
     it('publishes a message', async () => {

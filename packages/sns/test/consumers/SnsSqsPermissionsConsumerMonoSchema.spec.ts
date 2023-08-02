@@ -2,7 +2,7 @@ import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
-import { assertQueue, deleteQueue, purgeQueue } from '@message-queue-toolkit/sqs'
+import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
@@ -110,7 +110,6 @@ describe('SNS PermissionsConsumer', () => {
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
       publisher = diContainer.cradle.permissionPublisher
-      await purgeQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
     })
 
     beforeEach(async () => {
@@ -147,7 +146,6 @@ describe('SNS PermissionsConsumer', () => {
     })
 
     afterEach(async () => {
-      await purgeQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.close()
       await diContainer.cradle.permissionConsumer.close(true)
     })

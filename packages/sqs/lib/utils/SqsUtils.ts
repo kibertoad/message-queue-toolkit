@@ -57,7 +57,10 @@ export async function assertQueue(sqsClient: SQSClient, queueConfig: CreateQueue
   return response.QueueUrl
 }
 
-export async function purgeQueue(client: SQSClient, queueName: string) {
+/**
+ * Note that there is up to 60 seconds delay until messages are deleted
+ */
+export async function purgeQueueAsync(client: SQSClient, queueName: string) {
   try {
     const queueUrlCommand = new GetQueueUrlCommand({
       QueueName: queueName,

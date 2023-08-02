@@ -5,7 +5,8 @@ export type {
   SQSQueueLocatorType,
 } from './lib/sqs/AbstractSqsService'
 
-export { SQSCreationConfig } from './lib/sqs/AbstractSqsConsumer'
+export { AbstractSqsConsumer } from './lib/sqs/AbstractSqsConsumer'
+export type { SQSCreationConfig } from './lib/sqs/AbstractSqsConsumer'
 export { AbstractSqsConsumerMultiSchema } from './lib/sqs/AbstractSqsConsumerMultiSchema'
 export { AbstractSqsConsumerMonoSchema } from './lib/sqs/AbstractSqsConsumerMonoSchema'
 
@@ -19,7 +20,7 @@ export { AbstractSqsPublisherMonoSchema } from './lib/sqs/AbstractSqsPublisherMo
 export { AbstractSqsPublisherMultiSchema } from './lib/sqs/AbstractSqsPublisherMultiSchema'
 export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisherMonoSchema'
 
-export { assertQueue, deleteQueue, purgeQueue, getQueueAttributes } from './lib/utils/SqsUtils'
+export { assertQueue, deleteQueue, purgeQueueAsync, getQueueAttributes } from './lib/utils/SqsUtils'
 export { deserializeSQSMessage } from './lib/sqs/sqsMessageDeserializer'
 
 export type { CommonMessage, SQSMessage } from './lib/types/MessageTypes'

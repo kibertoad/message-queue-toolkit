@@ -2,7 +2,7 @@ import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
-import { assertQueue, deleteQueue, purgeQueue } from '@message-queue-toolkit/sqs'
+import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { Consumer } from 'sqs-consumer'
@@ -73,7 +73,6 @@ describe('SNSPermissionPublisher', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
-      await purgeQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
     })
 
     beforeEach(async () => {
@@ -94,7 +93,6 @@ describe('SNSPermissionPublisher', () => {
     afterEach(async () => {
       consumer?.stop()
       consumer?.stop({ abort: true })
-      await purgeQueue(sqsClient, queueName)
     })
 
     it('publishes a message', async () => {

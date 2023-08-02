@@ -6,7 +6,7 @@ import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 import z from 'zod'
 
-import { assertQueue, deleteQueue, purgeQueue } from '../../lib/utils/SqsUtils'
+import { assertQueue, deleteQueue, purgeQueueAsync } from '../../lib/utils/SqsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SqsPermissionPublisherMonoSchema } from '../publishers/SqsPermissionPublisherMonoSchema'
 import { userPermissionMap } from '../repositories/PermissionRepository'
@@ -88,7 +88,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
-      await purgeQueue(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
+      await purgeQueueAsync(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
     })
 
     beforeEach(async () => {
@@ -118,7 +118,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
     })
 
     afterEach(async () => {
-      await purgeQueue(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
+      await purgeQueueAsync(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.close()
       await diContainer.cradle.permissionConsumer.close(true)
     })
