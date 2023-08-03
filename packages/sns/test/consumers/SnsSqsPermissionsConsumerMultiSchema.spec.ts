@@ -4,13 +4,12 @@ import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import { assertQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
-import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
 import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
-import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
+import type { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SnsPermissionPublisherMultiSchema } from '../publishers/SnsPermissionPublisherMultiSchema'
-import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
+import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsSqsPermissionConsumerMultiSchema } from './SnsSqsPermissionConsumerMultiSchema'
@@ -112,9 +111,13 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
           messageType: 'remove',
         })
 
-        await waitAndRetry(() => {
-          return consumer.addCounter > 0 && consumer.removeCounter == 2
-        }, 20, 25)
+        await waitAndRetry(
+          () => {
+            return consumer.addCounter > 0 && consumer.removeCounter == 2
+          },
+          20,
+          25,
+        )
 
         expect(consumer.addCounter).toBe(1)
         expect(consumer.removeCounter).toBe(2)
