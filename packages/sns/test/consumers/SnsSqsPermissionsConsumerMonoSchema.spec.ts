@@ -4,14 +4,14 @@ import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
-import { asClass } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
+import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
+import z from 'zod'
 
-import { assertTopic, deleteSubscription, deleteTopic } from '../../lib/utils/snsUtils'
-import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
+import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
+import type { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SnsPermissionPublisherMonoSchema } from '../publishers/SnsPermissionPublisherMonoSchema'
 import { userPermissionMap } from '../repositories/PermissionRepository'
-import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
+import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsSqsPermissionConsumerMonoSchema } from './SnsSqsPermissionConsumerMonoSchema'
@@ -102,12 +102,15 @@ describe('SNS PermissionsConsumer', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SnsPermissionPublisherMonoSchema
     let sqsClient: SQSClient
+    let fakeResolver: FakeConsumerErrorResolver
     beforeEach(async () => {
-      diContainer = await registerDependencies({
-        consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
-      })
+      diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
+      fakeResolver = diContainer.cradle.consumerErrorResolver as FakeConsumerErrorResolver
+
+      // FixMe this resolves flakiness, and I have no idea why
+      await diContainer.cradle.permissionConsumer.start()
 
       delete userPermissionMap[100]
       delete userPermissionMap[200]
@@ -121,10 +124,6 @@ describe('SNS PermissionsConsumer', () => {
       })
       const reply = await sqsClient.send(command)
       expect(reply.Messages).toBeUndefined()
-
-      const fakeErrorResolver = diContainer.cradle
-        .consumerErrorResolver as FakeConsumerErrorResolver
-      fakeErrorResolver.clear()
     })
 
     afterEach(async () => {
@@ -157,7 +156,7 @@ describe('SNS PermissionsConsumer', () => {
 
         expect(updatedUsersPermissions).toBeDefined()
         expect(updatedUsersPermissions[0]).toHaveLength(2)
-      }, 9999999)
+      })
 
       it('Wait for users to be created and then create permissions', async () => {
         const users = Object.values(userPermissionMap)
@@ -219,30 +218,30 @@ describe('SNS PermissionsConsumer', () => {
 
     describe('error handling', () => {
       it('Invalid message in the queue', async () => {
-        const { consumerErrorResolver } = diContainer.cradle
-
+        // @ts-ignore
+        publisher['messageSchema'] = z.any()
         await publisher.publish({
           messageType: 'add',
           permissions: perms,
         } as any)
 
-        const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-        await waitAndRetry(() => fakeResolver.handleErrorCallsCount)
+        await waitAndRetry(() => {
+          return fakeResolver.handleErrorCallsCount > 0
+        })
 
         expect(fakeResolver.handleErrorCallsCount).toBe(1)
       })
 
       it('Non-JSON message in the queue', async () => {
-        const { consumerErrorResolver } = diContainer.cradle
-
+        // @ts-ignore
+        publisher['messageSchema'] = z.any()
         await publisher.publish('dummy' as any)
 
-        const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-        const errorCount = await waitAndRetry(() => {
-          return fakeResolver.handleErrorCallsCount
+        await waitAndRetry(() => {
+          return fakeResolver.handleErrorCallsCount > 0
         })
 
-        expect(errorCount).toBe(1)
+        expect(fakeResolver.handleErrorCallsCount).toBe(1)
       })
     })
   })
