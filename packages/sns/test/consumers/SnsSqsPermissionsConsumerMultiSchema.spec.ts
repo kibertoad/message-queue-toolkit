@@ -79,13 +79,13 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     let sqsClient: SQSClient
     let snsClient: SNSClient
     beforeAll(async () => {
-        diContainer = await registerDependencies({
-          consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
-        })
-        sqsClient = diContainer.cradle.sqsClient
-        snsClient = diContainer.cradle.snsClient
-        publisher = diContainer.cradle.permissionPublisherMultiSchema
-        consumer = diContainer.cradle.permissionConsumerMultiSchema
+      diContainer = await registerDependencies({
+        consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
+      })
+      sqsClient = diContainer.cradle.sqsClient
+      snsClient = diContainer.cradle.snsClient
+      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      consumer = diContainer.cradle.permissionConsumerMultiSchema
     })
 
     beforeEach(async () => {
