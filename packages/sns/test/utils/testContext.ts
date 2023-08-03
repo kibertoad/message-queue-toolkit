@@ -6,9 +6,9 @@ import type { Resolver } from 'awilix'
 import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
-import { SnsConsumerErrorResolver } from '../../lib/errors/SnsConsumerErrorResolver'
 import { SnsSqsPermissionConsumerMonoSchema } from '../consumers/SnsSqsPermissionConsumerMonoSchema'
 import { SnsSqsPermissionConsumerMultiSchema } from '../consumers/SnsSqsPermissionConsumerMultiSchema'
+import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { SnsPermissionPublisherMonoSchema } from '../publishers/SnsPermissionPublisherMonoSchema'
 import { SnsPermissionPublisherMultiSchema } from '../publishers/SnsPermissionPublisherMultiSchema'
 
@@ -60,32 +60,34 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       },
     ),
 
-    consumerErrorResolver: asFunction(() => {
-      return new SnsConsumerErrorResolver()
-    }),
+    consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
 
     permissionConsumer: asClass(SnsSqsPermissionConsumerMonoSchema, {
       lifetime: Lifetime.SINGLETON,
       asyncInit: 'start',
       asyncDispose: 'close',
-      asyncDisposePriority: 10,
+      asyncInitPriority: 30,
+      asyncDisposePriority: 30,
     }),
     permissionConsumerMultiSchema: asClass(SnsSqsPermissionConsumerMultiSchema, {
       lifetime: Lifetime.SINGLETON,
       asyncInit: 'start',
       asyncDispose: 'close',
-      asyncDisposePriority: 10,
+      asyncInitPriority: 30,
+      asyncDisposePriority: 30,
     }),
     permissionPublisher: asClass(SnsPermissionPublisherMonoSchema, {
       lifetime: Lifetime.SINGLETON,
       asyncInit: 'init',
       asyncDispose: 'close',
+      asyncInitPriority: 20,
       asyncDisposePriority: 20,
     }),
     permissionPublisherMultiSchema: asClass(SnsPermissionPublisherMultiSchema, {
       lifetime: Lifetime.SINGLETON,
       asyncInit: 'init',
       asyncDispose: 'close',
+      asyncInitPriority: 20,
       asyncDisposePriority: 20,
     }),
 

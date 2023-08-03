@@ -5,9 +5,9 @@ import { waitAndRetry } from '@message-queue-toolkit/core'
 import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
+import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
-import { assertTopic, deleteSubscription, deleteTopic } from '../../lib/utils/snsUtils'
+import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SnsPermissionPublisherMultiSchema } from '../publishers/SnsPermissionPublisherMultiSchema'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
@@ -97,7 +97,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     })
 
     afterEach(async () => {
-      const { awilixManager, permissionConsumer } = diContainer.cradle
+      const { awilixManager } = diContainer.cradle
 
       await awilixManager.executeDispose()
       await diContainer.dispose()

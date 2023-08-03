@@ -49,8 +49,8 @@ export abstract class AbstractSqsPublisherMultiSchema<MessagePayloadType extends
       if (resolveSchemaResult.error) {
         throw resolveSchemaResult.error
       }
-
       resolveSchemaResult.result.parse(message)
+
       const input = {
         // SendMessageRequest
         QueueUrl: this.queueUrl,
