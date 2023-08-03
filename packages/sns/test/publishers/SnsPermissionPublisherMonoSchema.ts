@@ -1,4 +1,4 @@
-import { AbstractSnsPublisher } from '../../lib/sns/AbstractSnsPublisher'
+import { AbstractSnsPublisherMonoSchema } from '../../lib/sns/AbstractSnsPublisherMonoSchema'
 import type {
   SNSDependencies,
   NewSNSOptions,
@@ -7,17 +7,15 @@ import type {
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 
-export class SnsPermissionPublisher extends AbstractSnsPublisher<PERMISSIONS_MESSAGE_TYPE> {
+export class SnsPermissionPublisherMonoSchema extends AbstractSnsPublisherMonoSchema<PERMISSIONS_MESSAGE_TYPE> {
   public static TOPIC_NAME = 'user_permissions'
 
   constructor(
     dependencies: SNSDependencies,
-    options:
-      | Pick<NewSNSOptions<PERMISSIONS_MESSAGE_TYPE>, 'creationConfig'>
-      | Pick<ExistingSNSOptions<PERMISSIONS_MESSAGE_TYPE>, 'locatorConfig'> = {
+    options: Pick<NewSNSOptions, 'creationConfig'> | Pick<ExistingSNSOptions, 'locatorConfig'> = {
       creationConfig: {
         topic: {
-          Name: SnsPermissionPublisher.TOPIC_NAME,
+          Name: SnsPermissionPublisherMonoSchema.TOPIC_NAME,
         },
       },
     },

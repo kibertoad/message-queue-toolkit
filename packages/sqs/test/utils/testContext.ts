@@ -6,8 +6,10 @@ import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
 import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver'
-import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer'
-import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
+import { SqsPermissionConsumerMonoSchema } from '../consumers/SqsPermissionConsumerMonoSchema'
+import { SqsPermissionConsumerMultiSchema } from '../consumers/SqsPermissionConsumerMultiSchema'
+import { SqsPermissionPublisherMonoSchema } from '../publishers/SqsPermissionPublisherMonoSchema'
+import { SqsPermissionPublisherMultiSchema } from '../publishers/SqsPermissionPublisherMultiSchema'
 
 import { TEST_SQS_CONFIG } from './testSqsConfig'
 
@@ -50,12 +52,23 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       return new SqsConsumerErrorResolver()
     }),
 
-    permissionConsumer: asClass(SqsPermissionConsumer, {
+    permissionConsumer: asClass(SqsPermissionConsumerMonoSchema, {
       lifetime: Lifetime.SINGLETON,
       asyncDispose: 'close',
       asyncDisposePriority: 10,
     }),
-    permissionPublisher: asClass(SqsPermissionPublisher, {
+    permissionPublisher: asClass(SqsPermissionPublisherMonoSchema, {
+      lifetime: Lifetime.SINGLETON,
+      asyncDispose: 'close',
+      asyncDisposePriority: 20,
+    }),
+
+    permissionConsumerMultiSchema: asClass(SqsPermissionConsumerMultiSchema, {
+      lifetime: Lifetime.SINGLETON,
+      asyncDispose: 'close',
+      asyncDisposePriority: 10,
+    }),
+    permissionPublisherMultiSchema: asClass(SqsPermissionPublisherMultiSchema, {
       lifetime: Lifetime.SINGLETON,
       asyncDispose: 'close',
       asyncDisposePriority: 20,
@@ -94,6 +107,8 @@ export interface Dependencies {
 
   errorReporter: ErrorReporter
   consumerErrorResolver: ErrorResolver
-  permissionConsumer: SqsPermissionConsumer
-  permissionPublisher: SqsPermissionPublisher
+  permissionConsumer: SqsPermissionConsumerMonoSchema
+  permissionPublisher: SqsPermissionPublisherMonoSchema
+  permissionConsumerMultiSchema: SqsPermissionConsumerMultiSchema
+  permissionPublisherMultiSchema: SqsPermissionPublisherMultiSchema
 }

@@ -4,46 +4,43 @@ import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
+import z from 'zod'
 
-import { assertQueue, deleteQueue, purgeQueue } from '../../lib/utils/SqsUtils'
+import { assertQueue, deleteQueue, purgeQueueAsync } from '../../lib/utils/SqsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
-import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
+import type { SqsPermissionPublisherMonoSchema } from '../publishers/SqsPermissionPublisherMonoSchema'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SqsPermissionConsumer } from './SqsPermissionConsumer'
+import { SqsPermissionConsumerMonoSchema } from './SqsPermissionConsumerMonoSchema'
 
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 
 async function waitForPermissions(userIds: number[]) {
-  return await waitAndRetry(
-    async () => {
-      const usersPerms = userIds.reduce((acc, userId) => {
-        if (userPermissionMap[userId]) {
-          acc.push(userPermissionMap[userId])
-        }
-        return acc
-      }, [] as string[][])
+  return await waitAndRetry(async () => {
+    const usersPerms = userIds.reduce((acc, userId) => {
+      if (userPermissionMap[userId]) {
+        acc.push(userPermissionMap[userId])
+      }
+      return acc
+    }, [] as string[][])
 
-      if (usersPerms && usersPerms.length !== userIds.length) {
+    if (usersPerms && usersPerms.length !== userIds.length) {
+      return null
+    }
+
+    for (const userPerms of usersPerms)
+      if (userPerms.length !== perms.length) {
         return null
       }
 
-      for (const userPerms of usersPerms)
-        if (userPerms.length !== perms.length) {
-          return null
-        }
-
-      return usersPerms
-    },
-    500,
-    5,
-  )
+    return usersPerms
+  })
 }
 
-describe('SqsPermissionsConsumer', () => {
+describe('SqsPermissionsConsumerMonoSchema', () => {
   describe('init', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
@@ -54,7 +51,7 @@ describe('SqsPermissionsConsumer', () => {
     })
 
     it('throws an error when invalid queue locator is passed', async () => {
-      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumerMonoSchema(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
         },
@@ -68,7 +65,7 @@ describe('SqsPermissionsConsumer', () => {
         QueueName: 'existingQueue',
       })
 
-      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumerMonoSchema(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
         },
@@ -83,7 +80,7 @@ describe('SqsPermissionsConsumer', () => {
 
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: SqsPermissionPublisher
+    let publisher: SqsPermissionPublisherMonoSchema
     let sqsClient: SQSClient
     beforeAll(async () => {
       diContainer = await registerDependencies({
@@ -91,7 +88,7 @@ describe('SqsPermissionsConsumer', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
-      await purgeQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await purgeQueueAsync(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
     })
 
     beforeEach(async () => {
@@ -99,7 +96,7 @@ describe('SqsPermissionsConsumer', () => {
       delete userPermissionMap[200]
       delete userPermissionMap[300]
 
-      await deleteQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await deleteQueue(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.start()
       await diContainer.cradle.permissionPublisher.init()
 
@@ -121,7 +118,7 @@ describe('SqsPermissionsConsumer', () => {
     })
 
     afterEach(async () => {
-      await purgeQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await purgeQueueAsync(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.close()
       await diContainer.cradle.permissionConsumer.close(true)
     })
@@ -213,13 +210,15 @@ describe('SqsPermissionsConsumer', () => {
       it('Invalid message in the queue', async () => {
         const { consumerErrorResolver } = diContainer.cradle
 
+        // @ts-ignore
+        publisher['messageSchema'] = z.any()
         await publisher.publish({
           messageType: 'add',
           permissions: perms,
         } as any)
 
         const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-        await waitAndRetry(() => fakeResolver.handleErrorCallsCount, 500, 5)
+        await waitAndRetry(() => fakeResolver.handleErrorCallsCount)
 
         expect(fakeResolver.handleErrorCallsCount).toBe(1)
       })
@@ -227,16 +226,14 @@ describe('SqsPermissionsConsumer', () => {
       it('Non-JSON message in the queue', async () => {
         const { consumerErrorResolver } = diContainer.cradle
 
+        // @ts-ignore
+        publisher['messageSchema'] = z.any()
         await publisher.publish('dummy' as any)
 
         const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-        const errorCount = await waitAndRetry(
-          () => {
-            return fakeResolver.handleErrorCallsCount
-          },
-          500,
-          5,
-        )
+        const errorCount = await waitAndRetry(() => {
+          return fakeResolver.handleErrorCallsCount
+        })
 
         expect(errorCount).toBe(1)
       })

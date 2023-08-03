@@ -4,10 +4,14 @@ import type {
   QueueDependencies,
   NewQueueOptions,
   ExistingQueueOptions,
+  NewQueueOptionsMultiSchema,
+  ExistingQueueOptionsMultiSchema,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
-import { assertTopic, getTopicAttributes } from '../utils/snsUtils'
+import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
+
+import { initSns } from './SnsInitter'
 
 export type SNSDependencies = QueueDependencies & {
   snsClient: SNSClient
@@ -35,30 +39,34 @@ export type SNSTopicConfig = {
   }
 }
 
-export type NewSNSOptions<MessagePayloadType extends object> = NewQueueOptions<
-  MessagePayloadType,
-  SNSCreationConfig
->
+export type NewSNSOptions = NewQueueOptions<SNSCreationConfig>
 
-export type ExistingSNSOptions<MessagePayloadType extends object> = ExistingQueueOptions<
-  MessagePayloadType,
-  SNSQueueLocatorType
->
+export type ExistingSNSOptions = ExistingQueueOptions<SNSQueueLocatorType>
+
+export type NewSNSOptionsMultiSchema<
+  MessagePayloadSchemas extends object,
+  ExecutionContext,
+> = NewQueueOptionsMultiSchema<MessagePayloadSchemas, SNSCreationConfig, ExecutionContext>
+
+export type ExistingSNSOptionsMultiSchema<
+  MessagePayloadSchemas extends object,
+  ExecutionContext,
+> = ExistingQueueOptionsMultiSchema<MessagePayloadSchemas, SNSQueueLocatorType, ExecutionContext>
 
 export type SNSCreationConfig = {
   topic: SNSTopicAWSConfig
 }
 
-export class AbstractSnsService<
+export abstract class AbstractSnsService<
   MessagePayloadType extends object,
+  MessageEnvelopeType extends object = SNS_MESSAGE_BODY_TYPE,
   SNSOptionsType extends
-    | ExistingQueueOptions<MessagePayloadType, SNSQueueLocatorType>
-    | NewQueueOptions<MessagePayloadType, SNSCreationConfig> =
-    | ExistingSNSOptions<MessagePayloadType>
-    | NewQueueOptions<MessagePayloadType, SNSCreationConfig>,
+    | ExistingQueueOptions<SNSQueueLocatorType>
+    | NewQueueOptions<SNSCreationConfig> = ExistingSNSOptions | NewQueueOptions<SNSCreationConfig>,
   DependenciesType extends SNSDependencies = SNSDependencies,
 > extends AbstractQueueService<
   MessagePayloadType,
+  MessageEnvelopeType,
   DependenciesType,
   SNSCreationConfig,
   SNSQueueLocatorType,
@@ -75,23 +83,8 @@ export class AbstractSnsService<
   }
 
   public async init() {
-    if (this.locatorConfig) {
-      const checkResult = await getTopicAttributes(this.snsClient, this.locatorConfig.topicArn)
-      if (checkResult.error === 'not_found') {
-        throw new Error(`Topic with topicArn ${this.locatorConfig.topicArn} does not exist.`)
-      }
-
-      this.topicArn = this.locatorConfig.topicArn
-      return
-    }
-
-    // create new topic if it does not exist
-    if (!this.creationConfig) {
-      throw new Error(
-        'When locatorConfig for the topic is not specified, creationConfig of the topic is mandatory',
-      )
-    }
-    this.topicArn = await assertTopic(this.snsClient, this.creationConfig.topic)
+    const initResult = await initSns(this.snsClient, this.locatorConfig, this.creationConfig)
+    this.topicArn = initResult.topicArn
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

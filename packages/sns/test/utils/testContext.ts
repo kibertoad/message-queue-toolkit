@@ -7,8 +7,10 @@ import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
 import { SnsConsumerErrorResolver } from '../../lib/errors/SnsConsumerErrorResolver'
-import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
-import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
+import { SnsSqsPermissionConsumerMonoSchema } from '../consumers/SnsSqsPermissionConsumerMonoSchema'
+import { SnsSqsPermissionConsumerMultiSchema } from '../consumers/SnsSqsPermissionConsumerMultiSchema'
+import { SnsPermissionPublisherMonoSchema } from '../publishers/SnsPermissionPublisherMonoSchema'
+import { SnsPermissionPublisherMultiSchema } from '../publishers/SnsPermissionPublisherMultiSchema'
 
 import { TEST_AWS_CONFIG } from './testSnsConfig'
 
@@ -62,13 +64,25 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       return new SnsConsumerErrorResolver()
     }),
 
-    permissionConsumer: asClass(SnsSqsPermissionConsumer, {
+    permissionConsumer: asClass(SnsSqsPermissionConsumerMonoSchema, {
       lifetime: Lifetime.SINGLETON,
       asyncDispose: 'close',
       asyncDisposePriority: 10,
     }),
-    permissionPublisher: asClass(SnsPermissionPublisher, {
+    permissionConsumerMultiSchema: asClass(SnsSqsPermissionConsumerMultiSchema, {
       lifetime: Lifetime.SINGLETON,
+      asyncDispose: 'close',
+      asyncDisposePriority: 10,
+    }),
+    permissionPublisher: asClass(SnsPermissionPublisherMonoSchema, {
+      lifetime: Lifetime.SINGLETON,
+      asyncInit: 'init',
+      asyncDispose: 'close',
+      asyncDisposePriority: 20,
+    }),
+    permissionPublisherMultiSchema: asClass(SnsPermissionPublisherMultiSchema, {
+      lifetime: Lifetime.SINGLETON,
+      asyncInit: 'init',
       asyncDispose: 'close',
       asyncDisposePriority: 20,
     }),
@@ -107,6 +121,8 @@ export interface Dependencies {
 
   errorReporter: ErrorReporter
   consumerErrorResolver: ErrorResolver
-  permissionConsumer: SnsSqsPermissionConsumer
-  permissionPublisher: SnsPermissionPublisher
+  permissionConsumer: SnsSqsPermissionConsumerMonoSchema
+  permissionConsumerMultiSchema: SnsSqsPermissionConsumerMultiSchema
+  permissionPublisher: SnsPermissionPublisherMonoSchema
+  permissionPublisherMultiSchema: SnsPermissionPublisherMultiSchema
 }

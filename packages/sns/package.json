@@ -31,20 +31,20 @@
     "zod": "^3.21.4"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sns": "^3.369.0",
-    "@aws-sdk/client-sqs": "^3.369.0",
+    "@aws-sdk/client-sns": "^3.382.0",
+    "@aws-sdk/client-sqs": "^3.382.0",
     "@message-queue-toolkit/core": "^2.0.0",
     "@message-queue-toolkit/sqs": "^2.0.0"
   },
   "devDependencies": {
-    "@aws-sdk/client-sns": "^3.369.0",
-    "@aws-sdk/client-sqs": "^3.369.0",
+    "@aws-sdk/client-sns": "^3.382.0",
+    "@aws-sdk/client-sqs": "^3.382.0",
     "@message-queue-toolkit/core": "*",
     "@message-queue-toolkit/sqs": "*",
     "@types/node": "^20.4.1",
-    "@typescript-eslint/eslint-plugin": "^5.61.0",
-    "@typescript-eslint/parser": "^5.62.0",
-    "@vitest/coverage-v8": "^0.33.0",
+    "@typescript-eslint/eslint-plugin": "^6.2.1",
+    "@typescript-eslint/parser": "^6.2.1",
+    "@vitest/coverage-v8": "^0.34.1",
     "awilix": "^8.0.1",
     "awilix-manager": "^2.0.0",
     "del-cli": "^5.0.0",
@@ -55,7 +55,7 @@
     "eslint-plugin-vitest": "^0.2.6",
     "prettier": "^3.0.0",
     "typescript": "^5.1.6",
-    "vitest": "^0.33.0"
+    "vitest": "^0.34.1"
   },
   "homepage": "https://github.com/kibertoad/message-queue-toolkit",
   "repository": {

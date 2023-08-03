@@ -4,9 +4,8 @@ import type {
   NewQueueOptions,
   ExistingQueueOptions,
   TransactionObservabilityManager,
-  Deserializer,
 } from '@message-queue-toolkit/core'
-import { isMessageError } from '@message-queue-toolkit/core'
+import { isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
@@ -18,7 +17,7 @@ import type {
   SQSQueueLocatorType,
 } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
-import { deserializeSQSMessage } from './sqsMessageDeserializer'
+import { readSqsMessage } from './sqsMessageReader'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
@@ -28,20 +27,15 @@ export type SQSCreationConfig = {
   queue: SQSQueueAWSConfig
 }
 
-export type NewSQSConsumerOptions<
-  MessagePayloadType extends object,
-  CreationConfigType extends SQSCreationConfig,
-> = NewQueueOptions<MessagePayloadType, CreationConfigType> & {
-  consumerOverrides?: Partial<ConsumerOptions>
-  deserializer?: Deserializer<MessagePayloadType, SQSMessage>
-}
+export type NewSQSConsumerOptions<CreationConfigType extends SQSCreationConfig> =
+  NewQueueOptions<CreationConfigType> & {
+    consumerOverrides?: Partial<ConsumerOptions>
+  }
 
 export type ExistingSQSConsumerOptions<
-  MessagePayloadType extends object,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
-> = ExistingQueueOptions<MessagePayloadType, QueueLocatorType> & {
+> = ExistingQueueOptions<QueueLocatorType> & {
   consumerOverrides?: Partial<ConsumerOptions>
-  deserializer?: Deserializer<MessagePayloadType, SQSMessage>
 }
 
 export abstract class AbstractSqsConsumer<
@@ -49,10 +43,10 @@ export abstract class AbstractSqsConsumer<
     QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
     CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
     ConsumerOptionsType extends
-      | NewSQSConsumerOptions<MessagePayloadType, CreationConfigType>
-      | ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType> =
-      | NewSQSConsumerOptions<MessagePayloadType, CreationConfigType>
-      | ExistingSQSConsumerOptions<MessagePayloadType, QueueLocatorType>,
+      | NewSQSConsumerOptions<CreationConfigType>
+      | ExistingSQSConsumerOptions<QueueLocatorType> =
+      | NewSQSConsumerOptions<CreationConfigType>
+      | ExistingSQSConsumerOptions<QueueLocatorType>,
   >
   extends AbstractSqsService<
     MessagePayloadType,
@@ -68,7 +62,6 @@ export abstract class AbstractSqsConsumer<
   // @ts-ignore
   protected consumer: Consumer
   private readonly consumerOptionsOverride: Partial<ConsumerOptions>
-  private readonly deserializer: Deserializer<MessagePayloadType, SQSMessage>
 
   protected constructor(dependencies: SQSConsumerDependencies, options: ConsumerOptionsType) {
     super(dependencies, options)
@@ -76,11 +69,11 @@ export abstract class AbstractSqsConsumer<
     this.errorResolver = dependencies.consumerErrorResolver
 
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
-    this.deserializer = options.deserializer ?? deserializeSQSMessage
   }
 
   abstract processMessage(
-    messagePayload: MessagePayloadType,
+    message: MessagePayloadType,
+    messageType: string,
   ): Promise<Either<'retryLater', 'success'>>
 
   private deserializeMessage(message: SQSMessage): Either<'abort', MessagePayloadType> {
@@ -88,8 +81,29 @@ export abstract class AbstractSqsConsumer<
       return ABORT_EARLY_EITHER
     }
 
-    const deserializationResult = this.deserializer(message, this.messageSchema, this.errorResolver)
+    const resolveMessageResult = this.resolveMessage(message)
+    if (isMessageError(resolveMessageResult.error)) {
+      this.handleError(resolveMessageResult.error)
+      return ABORT_EARLY_EITHER
+    }
+    // Empty content for whatever reason
+    if (!resolveMessageResult.result) {
+      return ABORT_EARLY_EITHER
+    }
 
+    const resolveSchemaResult = this.resolveSchema(
+      resolveMessageResult.result as MessagePayloadType,
+    )
+    if (resolveSchemaResult.error) {
+      this.handleError(resolveSchemaResult.error)
+      return ABORT_EARLY_EITHER
+    }
+
+    const deserializationResult = parseMessage(
+      resolveMessageResult.result,
+      resolveSchemaResult.result,
+      this.errorResolver,
+    )
     if (isMessageError(deserializationResult.error)) {
       this.handleError(deserializationResult.error)
       return ABORT_EARLY_EITHER
@@ -128,15 +142,15 @@ export abstract class AbstractSqsConsumer<
           await this.failProcessing(message)
           return
         }
-        const transactionSpanId = `queue_${this.queueName}:${
-          // @ts-ignore
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          deserializedMessage.result[this.messageTypeField]
-        }`
+        // @ts-ignore
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+        const messageType = deserializedMessage.result[this.messageTypeField]
+        const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
         this.transactionObservabilityManager?.start(transactionSpanId)
         const result: Either<'retryLater' | Error, 'success'> = await this.processMessage(
           deserializedMessage.result,
+          messageType,
         )
           .catch((err) => {
             // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
@@ -166,6 +180,10 @@ export abstract class AbstractSqsConsumer<
     })
 
     this.consumer.start()
+  }
+
+  protected override resolveMessage(message: SQSMessage) {
+    return readSqsMessage(message, this.errorResolver)
   }
 
   public override async close(abort?: boolean): Promise<void> {

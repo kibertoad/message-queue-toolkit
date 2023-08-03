@@ -2,47 +2,43 @@ import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
-import { assertQueue, deleteQueue, purgeQueue } from '@message-queue-toolkit/sqs'
+import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
 import { assertTopic, deleteSubscription, deleteTopic } from '../../lib/utils/snsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
-import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
+import type { SnsPermissionPublisherMonoSchema } from '../publishers/SnsPermissionPublisherMonoSchema'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
+import { SnsSqsPermissionConsumerMonoSchema } from './SnsSqsPermissionConsumerMonoSchema'
 
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 
 async function waitForPermissions(userIds: number[]) {
-  return await waitAndRetry(
-    async () => {
-      const usersPerms = userIds.reduce((acc, userId) => {
-        if (userPermissionMap[userId]) {
-          acc.push(userPermissionMap[userId])
-        }
-        return acc
-      }, [] as string[][])
+  return await waitAndRetry(async () => {
+    const usersPerms = userIds.reduce((acc, userId) => {
+      if (userPermissionMap[userId]) {
+        acc.push(userPermissionMap[userId])
+      }
+      return acc
+    }, [] as string[][])
 
-      if (usersPerms && usersPerms.length !== userIds.length) {
+    if (usersPerms && usersPerms.length !== userIds.length) {
+      return null
+    }
+
+    for (const userPerms of usersPerms)
+      if (userPerms.length !== perms.length) {
         return null
       }
 
-      for (const userPerms of usersPerms)
-        if (userPerms.length !== perms.length) {
-          return null
-        }
-
-      return usersPerms
-    },
-    500,
-    5,
-  )
+    return usersPerms
+  })
 }
 
 describe('SNS PermissionsConsumer', () => {
@@ -54,7 +50,7 @@ describe('SNS PermissionsConsumer', () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
-      await deleteQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
+      await deleteQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
     })
 
     it('throws an error when invalid queue locator is passed', async () => {
@@ -62,7 +58,7 @@ describe('SNS PermissionsConsumer', () => {
         QueueName: 'existingQueue',
       })
 
-      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumerMonoSchema(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
           topicArn: 'dummy',
@@ -81,7 +77,7 @@ describe('SNS PermissionsConsumer', () => {
         Name: 'existingTopic',
       })
 
-      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumerMonoSchema(diContainer.cradle, {
         locatorConfig: {
           topicArn: arn,
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
@@ -104,7 +100,7 @@ describe('SNS PermissionsConsumer', () => {
 
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: SnsPermissionPublisher
+    let publisher: SnsPermissionPublisherMonoSchema
     let sqsClient: SQSClient
     let snsClient: SNSClient
     beforeAll(async () => {
@@ -114,7 +110,6 @@ describe('SNS PermissionsConsumer', () => {
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
       publisher = diContainer.cradle.permissionPublisher
-      await purgeQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
     })
 
     beforeEach(async () => {
@@ -122,13 +117,13 @@ describe('SNS PermissionsConsumer', () => {
       delete userPermissionMap[200]
       delete userPermissionMap[300]
 
-      await deleteTopic(snsClient, SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME)
-      await deleteQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
+      await deleteTopic(snsClient, SnsSqsPermissionConsumerMonoSchema.SUBSCRIBED_TOPIC_NAME)
+      await deleteQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.start()
       await diContainer.cradle.permissionPublisher.init()
 
       const queueUrl = await assertQueue(sqsClient, {
-        QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
+        QueueName: SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME,
       })
       const command = new ReceiveMessageCommand({
         QueueUrl: queueUrl,
@@ -151,7 +146,6 @@ describe('SNS PermissionsConsumer', () => {
     })
 
     afterEach(async () => {
-      await purgeQueue(sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
       await diContainer.cradle.permissionConsumer.close()
       await diContainer.cradle.permissionConsumer.close(true)
     })
@@ -249,7 +243,7 @@ describe('SNS PermissionsConsumer', () => {
         } as any)
 
         const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-        await waitAndRetry(() => fakeResolver.handleErrorCallsCount, 500, 5)
+        await waitAndRetry(() => fakeResolver.handleErrorCallsCount)
 
         expect(fakeResolver.handleErrorCallsCount).toBe(1)
       })
@@ -260,13 +254,9 @@ describe('SNS PermissionsConsumer', () => {
         await publisher.publish('dummy' as any)
 
         const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-        const errorCount = await waitAndRetry(
-          () => {
-            return fakeResolver.handleErrorCallsCount
-          },
-          500,
-          5,
-        )
+        const errorCount = await waitAndRetry(() => {
+          return fakeResolver.handleErrorCallsCount
+        })
 
         expect(errorCount).toBe(1)
       })

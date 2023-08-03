@@ -13,8 +13,8 @@ export class AmqpPermissionPublisher extends AbstractAmqpPublisher<PERMISSIONS_M
   constructor(
     dependencies: AMQPDependencies,
     options:
-      | Pick<NewAMQPConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'creationConfig'>
-      | Pick<ExistingAMQPConsumerOptions<PERMISSIONS_MESSAGE_TYPE>, 'locatorConfig'> = {
+      | Pick<NewAMQPConsumerOptions, 'creationConfig'>
+      | Pick<ExistingAMQPConsumerOptions, 'locatorConfig'> = {
       creationConfig: {
         queueName: AmqpPermissionPublisher.QUEUE_NAME,
         queueOptions: {
