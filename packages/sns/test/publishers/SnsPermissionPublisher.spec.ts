@@ -2,9 +2,8 @@ import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
-import { assertQueue } from '@message-queue-toolkit/sqs'
+import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
-import { asClass } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
@@ -15,7 +14,7 @@ import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { userPermissionMap } from '../repositories/PermissionRepository'
-import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
+import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsPermissionPublisherMonoSchema } from './SnsPermissionPublisherMonoSchema'
@@ -67,11 +66,13 @@ describe('SNSPermissionPublisher', () => {
     let consumer: Consumer
 
     beforeEach(async () => {
-      diContainer = await registerDependencies({
-        consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
-      })
+      diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
+      await diContainer.cradle.permissionConsumer.close()
+
+      await deleteQueue(sqsClient, queueName)
+      await deleteTopic(snsClient, SnsPermissionPublisherMonoSchema.TOPIC_NAME)
 
       delete userPermissionMap[100]
       delete userPermissionMap[200]
@@ -86,11 +87,6 @@ describe('SNSPermissionPublisher', () => {
 
     it('publishes a message', async () => {
       const { permissionPublisher } = diContainer.cradle
-      // @ts-ignore
-      permissionPublisher.deletionConfig = {
-        deleteIfExists: true,
-      }
-      await permissionPublisher.init()
 
       const message = {
         userIds,
@@ -145,6 +141,8 @@ describe('SNSPermissionPublisher', () => {
         permissions: ['perm1', 'perm2'],
         userIds: [100, 200, 300],
       })
+
+      consumer.stop()
     })
   })
 })
