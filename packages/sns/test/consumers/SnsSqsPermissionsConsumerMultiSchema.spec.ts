@@ -77,9 +77,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     let consumer: SnsSqsPermissionConsumerMultiSchema
     let sqsClient: SQSClient
     beforeEach(async () => {
-      diContainer = await registerDependencies({
-        consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
-      })
+      diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisherMultiSchema
       consumer = diContainer.cradle.permissionConsumerMultiSchema
@@ -116,7 +114,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
 
         await waitAndRetry(() => {
           return consumer.addCounter > 0 && consumer.removeCounter == 2
-        })
+        }, 20, 25)
 
         expect(consumer.addCounter).toBe(1)
         expect(consumer.removeCounter).toBe(2)
