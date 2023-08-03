@@ -9,9 +9,12 @@ import type {
   SQSCreationConfig,
   SQSMessage,
 } from '@message-queue-toolkit/sqs'
-import { AbstractSqsConsumer } from '@message-queue-toolkit/sqs'
-import { deleteSqs } from '@message-queue-toolkit/sqs/dist/lib/sqs/sqsInitter'
+import { AbstractSqsConsumer, deleteSqs } from '@message-queue-toolkit/sqs'
 import type { ZodSchema } from 'zod'
+
+import { deleteSnsSqs, initSnsSqs } from '../utils/snsInitter'
+import { readSnsMessage } from '../utils/snsMessageReader'
+import type { SNSSubscriptionOptions } from '../utils/snsSubscriber'
 
 import type {
   ExistingSNSOptions,
@@ -19,9 +22,6 @@ import type {
   SNSCreationConfig,
   SNSQueueLocatorType,
 } from './AbstractSnsService'
-import { deleteSnsSqs, initSnsSqs } from './SnsInitter'
-import type { SNSSubscriptionOptions } from './SnsSubscriber'
-import { readSnsMessage } from './snsMessageReader'
 
 export type NewSnsSqsConsumerOptions = NewSQSConsumerOptions<
   SQSCreationConfig & SNSCreationConfig

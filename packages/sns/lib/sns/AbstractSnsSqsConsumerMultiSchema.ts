@@ -1,8 +1,11 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { MultiSchemaConsumerOptions } from '@message-queue-toolkit/core'
 import type { SQSCreationConfig, SQSMessage } from '@message-queue-toolkit/sqs'
-import { AbstractSqsConsumerMultiSchema } from '@message-queue-toolkit/sqs'
-import { deleteSqs } from '@message-queue-toolkit/sqs/dist/lib/sqs/sqsInitter'
+import { AbstractSqsConsumerMultiSchema, deleteSqs } from '@message-queue-toolkit/sqs'
+
+import { deleteSnsSqs, initSnsSqs } from '../utils/snsInitter'
+import { readSnsMessage } from '../utils/snsMessageReader'
+import type { SNSSubscriptionOptions } from '../utils/snsSubscriber'
 
 import type { SNSCreationConfig } from './AbstractSnsService'
 import type {
@@ -11,9 +14,6 @@ import type {
   SNSSQSConsumerDependencies,
   SNSSQSQueueLocatorType,
 } from './AbstractSnsSqsConsumerMonoSchema'
-import { deleteSnsSqs, initSnsSqs } from './SnsInitter'
-import type { SNSSubscriptionOptions } from './SnsSubscriber'
-import { readSnsMessage } from './snsMessageReader'
 
 export type ExistingSnsSqsConsumerOptionsMulti<
   MessagePayloadType extends object,

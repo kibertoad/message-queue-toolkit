@@ -20,7 +20,8 @@ export { AbstractSqsPublisherMonoSchema } from './lib/sqs/AbstractSqsPublisherMo
 export { AbstractSqsPublisherMultiSchema } from './lib/sqs/AbstractSqsPublisherMultiSchema'
 export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisherMonoSchema'
 
-export { assertQueue, deleteQueue, getQueueAttributes } from './lib/utils/SqsUtils'
-export { deserializeSQSMessage } from './lib/sqs/sqsMessageDeserializer'
+export { assertQueue, deleteQueue, getQueueAttributes } from './lib/utils/sqsUtils'
+export { deleteSqs } from './lib/utils/sqsInitter'
+export { deserializeSQSMessage } from './lib/utils/sqsMessageDeserializer'
 
 export type { CommonMessage, SQSMessage } from './lib/types/MessageTypes'

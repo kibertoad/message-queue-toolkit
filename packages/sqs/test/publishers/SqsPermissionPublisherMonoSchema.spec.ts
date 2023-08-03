@@ -6,7 +6,7 @@ import { asClass } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
-import { deserializeSQSMessage } from '../../lib/sqs/sqsMessageDeserializer'
+import { deserializeSQSMessage } from '../../lib/utils/sqsMessageDeserializer'
 import type { SQSMessage } from '../../lib/types/MessageTypes'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'

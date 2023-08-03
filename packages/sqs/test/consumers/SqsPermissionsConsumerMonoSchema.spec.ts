@@ -6,7 +6,7 @@ import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 import z from 'zod'
 
-import { assertQueue, deleteQueue } from '../../lib/utils/SqsUtils'
+import { assertQueue, deleteQueue } from '../../lib/utils/sqsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SqsPermissionPublisherMonoSchema } from '../publishers/SqsPermissionPublisherMonoSchema'
 import { userPermissionMap } from '../repositories/PermissionRepository'

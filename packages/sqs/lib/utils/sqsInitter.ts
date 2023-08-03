@@ -2,10 +2,10 @@ import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 
-import { assertQueue, deleteQueue, getQueueAttributes } from '../utils/SqsUtils'
+import { assertQueue, deleteQueue, getQueueAttributes } from './sqsUtils'
 
-import type { SQSCreationConfig } from './AbstractSqsConsumer'
-import type { SQSQueueLocatorType } from './AbstractSqsService'
+import type { SQSCreationConfig } from '../sqs/AbstractSqsConsumer'
+import type { SQSQueueLocatorType } from '../sqs/AbstractSqsService'
 
 export async function deleteSqs(
   sqsClient: SQSClient,

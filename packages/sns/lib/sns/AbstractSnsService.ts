@@ -10,8 +10,7 @@ import type {
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
 import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
-
-import { deleteSns, initSns } from './SnsInitter'
+import { deleteSns, initSns } from '../utils/snsInitter'
 
 export type SNSDependencies = QueueDependencies & {
   snsClient: SNSClient

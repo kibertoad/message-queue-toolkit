@@ -5,12 +5,12 @@ import { isProduction } from '@message-queue-toolkit/core'
 import type { SQSCreationConfig } from '@message-queue-toolkit/sqs'
 import { deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 
-import { assertTopic, deleteSubscription, deleteTopic, getTopicAttributes } from '../utils/snsUtils'
+import type { SNSCreationConfig, SNSQueueLocatorType } from '../sns/AbstractSnsService'
+import type { SNSSQSQueueLocatorType } from '../sns/AbstractSnsSqsConsumerMonoSchema'
 
-import type { SNSCreationConfig, SNSQueueLocatorType } from './AbstractSnsService'
-import type { SNSSQSQueueLocatorType } from './AbstractSnsSqsConsumerMonoSchema'
-import type { SNSSubscriptionOptions } from './SnsSubscriber'
-import { subscribeToTopic } from './SnsSubscriber'
+import type { SNSSubscriptionOptions } from './snsSubscriber'
+import { subscribeToTopic } from './snsSubscriber'
+import { assertTopic, deleteSubscription, deleteTopic, getTopicAttributes } from './snsUtils'
 
 export async function initSnsSqs(
   sqsClient: SQSClient,
