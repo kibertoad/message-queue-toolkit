@@ -16,7 +16,7 @@ import {
 type SupportedTypes = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 
 export class SnsPermissionPublisherMultiSchema extends AbstractSnsPublisherMultiSchema<SupportedTypes> {
-  public static TOPIC_NAME = 'user_permissions'
+  public static TOPIC_NAME = 'user_permissions_multi'
 
   constructor(
     dependencies: SNSDependencies,
@@ -29,6 +29,9 @@ export class SnsPermissionPublisherMultiSchema extends AbstractSnsPublisherMulti
     },
   ) {
     super(dependencies, {
+      deletionConfig: {
+        deleteIfExists: false,
+      },
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
       messageTypeField: 'messageType',
       ...options,

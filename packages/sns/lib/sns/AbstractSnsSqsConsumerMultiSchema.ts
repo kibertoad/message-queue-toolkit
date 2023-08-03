@@ -10,7 +10,7 @@ import type {
   SNSSQSConsumerDependencies,
   SNSSQSQueueLocatorType,
 } from './AbstractSnsSqsConsumerMonoSchema'
-import { initSns, initSnsSqs } from './SnsInitter'
+import { deleteSns, deleteSnsSqs, initSns, initSnsSqs } from './SnsInitter'
 import type { SNSSubscriptionOptions } from './SnsSubscriber'
 import { readSnsMessage } from './snsMessageReader'
 
@@ -58,6 +58,21 @@ export abstract class AbstractSnsSqsConsumerMultiSchema<
 
   async init(): Promise<void> {
     await super.init()
+
+    if (this.deletionConfig && this.creationConfig && this.subscriptionConfig) {
+      await deleteSnsSqs(
+        this.sqsClient,
+        this.snsClient,
+        this.deletionConfig,
+        this.creationConfig.queue,
+        this.creationConfig.topic,
+        this.subscriptionConfig,
+      )
+    }
+
+    if (this.deletionConfig && this.creationConfig) {
+      await deleteSns(this.snsClient, this.deletionConfig, this.creationConfig)
+    }
 
     const initSnsResult = await initSns(this.snsClient, this.locatorConfig, this.creationConfig)
     this.topicArn = initSnsResult.topicArn

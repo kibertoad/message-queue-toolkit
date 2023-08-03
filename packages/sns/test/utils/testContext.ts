@@ -66,11 +66,13 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
 
     permissionConsumer: asClass(SnsSqsPermissionConsumerMonoSchema, {
       lifetime: Lifetime.SINGLETON,
+      asyncInit: 'start',
       asyncDispose: 'close',
       asyncDisposePriority: 10,
     }),
     permissionConsumerMultiSchema: asClass(SnsSqsPermissionConsumerMultiSchema, {
       lifetime: Lifetime.SINGLETON,
+      asyncInit: 'start',
       asyncDispose: 'close',
       asyncDisposePriority: 10,
     }),

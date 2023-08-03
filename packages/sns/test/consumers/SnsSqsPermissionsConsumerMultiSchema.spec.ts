@@ -77,28 +77,16 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     let publisher: SnsPermissionPublisherMultiSchema
     let consumer: SnsSqsPermissionConsumerMultiSchema
     let sqsClient: SQSClient
-    let snsClient: SNSClient
-    beforeAll(async () => {
+    beforeEach(async () => {
       diContainer = await registerDependencies({
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
       sqsClient = diContainer.cradle.sqsClient
-      snsClient = diContainer.cradle.snsClient
       publisher = diContainer.cradle.permissionPublisherMultiSchema
       consumer = diContainer.cradle.permissionConsumerMultiSchema
-    })
 
-    beforeEach(async () => {
-      await deleteTopic(snsClient, SnsSqsPermissionConsumerMultiSchema.SUBSCRIBED_TOPIC_NAME)
-      await deleteQueue(sqsClient, SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME)
-      await diContainer.cradle.permissionConsumerMultiSchema.start()
-      await diContainer.cradle.permissionPublisherMultiSchema.init()
-
-      const queueUrl = await assertQueue(sqsClient, {
-        QueueName: SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME,
-      })
       const command = new ReceiveMessageCommand({
-        QueueUrl: queueUrl,
+        QueueUrl: consumer.queueUrl,
       })
       const reply = await sqsClient.send(command)
       expect(reply.Messages).toBeUndefined()
@@ -108,18 +96,11 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
       fakeErrorResolver.clear()
     })
 
-    afterAll(async () => {
+    afterEach(async () => {
       const { awilixManager, permissionConsumer } = diContainer.cradle
-
-      await deleteSubscription(snsClient, permissionConsumer.subscriptionArn)
 
       await awilixManager.executeDispose()
       await diContainer.dispose()
-    })
-
-    afterEach(async () => {
-      await diContainer.cradle.permissionConsumerMultiSchema.close()
-      await diContainer.cradle.permissionConsumerMultiSchema.close(true)
     })
 
     describe('happy path', () => {

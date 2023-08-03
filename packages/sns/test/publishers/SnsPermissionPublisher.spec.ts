@@ -66,32 +66,22 @@ describe('SNSPermissionPublisher', () => {
     let snsClient: SNSClient
     let consumer: Consumer
 
-    beforeAll(async () => {
+    beforeEach(async () => {
       diContainer = await registerDependencies({
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
-    })
 
-    beforeEach(async () => {
       delete userPermissionMap[100]
       delete userPermissionMap[200]
       delete userPermissionMap[300]
-
-      await deleteQueue(sqsClient, queueName)
-      await diContainer.cradle.permissionPublisher.init()
-    })
-
-    afterAll(async () => {
-      const { awilixManager } = diContainer.cradle
-      await awilixManager.executeDispose()
-      await diContainer.dispose()
     })
 
     afterEach(async () => {
-      consumer?.stop()
-      consumer?.stop({ abort: true })
+      const { awilixManager } = diContainer.cradle
+      await awilixManager.executeDispose()
+      await diContainer.dispose()
     })
 
     it('publishes a message', async () => {

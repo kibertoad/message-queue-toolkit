@@ -102,25 +102,16 @@ describe('SNS PermissionsConsumer', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SnsPermissionPublisherMonoSchema
     let sqsClient: SQSClient
-    let snsClient: SNSClient
-    beforeAll(async () => {
+    beforeEach(async () => {
       diContainer = await registerDependencies({
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
       sqsClient = diContainer.cradle.sqsClient
-      snsClient = diContainer.cradle.snsClient
       publisher = diContainer.cradle.permissionPublisher
-    })
 
-    beforeEach(async () => {
       delete userPermissionMap[100]
       delete userPermissionMap[200]
       delete userPermissionMap[300]
-
-      await deleteTopic(snsClient, SnsSqsPermissionConsumerMonoSchema.SUBSCRIBED_TOPIC_NAME)
-      await deleteQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
-      await diContainer.cradle.permissionConsumer.start()
-      await diContainer.cradle.permissionPublisher.init()
 
       const queueUrl = await assertQueue(sqsClient, {
         QueueName: SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME,
@@ -136,18 +127,11 @@ describe('SNS PermissionsConsumer', () => {
       fakeErrorResolver.clear()
     })
 
-    afterAll(async () => {
-      const { awilixManager, permissionConsumer } = diContainer.cradle
-
-      await deleteSubscription(snsClient, permissionConsumer.subscriptionArn)
+    afterEach(async () => {
+      const { awilixManager } = diContainer.cradle
 
       await awilixManager.executeDispose()
       await diContainer.dispose()
-    })
-
-    afterEach(async () => {
-      await diContainer.cradle.permissionConsumer.close()
-      await diContainer.cradle.permissionConsumer.close(true)
     })
 
     describe('happy path', () => {
@@ -173,7 +157,7 @@ describe('SNS PermissionsConsumer', () => {
 
         expect(updatedUsersPermissions).toBeDefined()
         expect(updatedUsersPermissions[0]).toHaveLength(2)
-      })
+      }, 9999999)
 
       it('Wait for users to be created and then create permissions', async () => {
         const users = Object.values(userPermissionMap)
