@@ -86,6 +86,11 @@ describe('SNSPermissionPublisher', () => {
 
     it('publishes a message', async () => {
       const { permissionPublisher } = diContainer.cradle
+      // @ts-ignore
+      permissionPublisher.deletionConfig = {
+        deleteIfExists: true,
+      }
+      await permissionPublisher.init()
 
       const message = {
         userIds,
