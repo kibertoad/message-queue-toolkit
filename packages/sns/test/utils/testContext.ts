@@ -21,7 +21,10 @@ export type DependencyOverrides = Partial<DiConfig>
 // @ts-ignore
 const TestLogger: Logger = console
 
-export async function registerDependencies(dependencyOverrides: DependencyOverrides = {}) {
+export async function registerDependencies(
+  dependencyOverrides: DependencyOverrides = {},
+  queuesEnabled = true,
+) {
   const diContainer = createContainer({
     injectionMode: 'PROXY',
   })
@@ -68,6 +71,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       asyncDispose: 'close',
       asyncInitPriority: 30,
       asyncDisposePriority: 30,
+      enabled: queuesEnabled,
     }),
     permissionConsumerMultiSchema: asClass(SnsSqsPermissionConsumerMultiSchema, {
       lifetime: Lifetime.SINGLETON,
@@ -75,6 +79,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       asyncDispose: 'close',
       asyncInitPriority: 30,
       asyncDisposePriority: 30,
+      enabled: queuesEnabled,
     }),
     permissionPublisher: asClass(SnsPermissionPublisherMonoSchema, {
       lifetime: Lifetime.SINGLETON,
@@ -82,6 +87,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       asyncDispose: 'close',
       asyncInitPriority: 20,
       asyncDisposePriority: 20,
+      enabled: queuesEnabled,
     }),
     permissionPublisherMultiSchema: asClass(SnsPermissionPublisherMultiSchema, {
       lifetime: Lifetime.SINGLETON,
@@ -89,6 +95,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       asyncDispose: 'close',
       asyncInitPriority: 20,
       asyncDisposePriority: 20,
+      enabled: queuesEnabled,
     }),
 
     // vendor-specific dependencies

@@ -18,7 +18,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     let sqsClient: SQSClient
     let snsClient: SNSClient
     beforeAll(async () => {
-      diContainer = await registerDependencies()
+      diContainer = await registerDependencies({}, false)
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
     })
@@ -31,6 +31,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
       const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+          subscriptionArn: 'dummy',
           topicArn: 'dummy',
         },
       })

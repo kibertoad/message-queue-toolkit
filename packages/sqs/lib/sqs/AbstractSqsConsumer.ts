@@ -129,7 +129,6 @@ export abstract class AbstractSqsConsumer<
     if (this.consumer) {
       this.consumer.stop()
     }
-
     this.consumer = Consumer.create({
       queueUrl: this.queueUrl,
       handleMessage: async (message: SQSMessage) => {

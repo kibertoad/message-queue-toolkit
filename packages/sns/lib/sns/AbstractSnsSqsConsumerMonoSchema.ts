@@ -10,6 +10,7 @@ import type {
   SQSMessage,
 } from '@message-queue-toolkit/sqs'
 import { AbstractSqsConsumer } from '@message-queue-toolkit/sqs'
+import { deleteSqs } from '@message-queue-toolkit/sqs/dist/lib/sqs/sqsInitter'
 import type { ZodSchema } from 'zod'
 
 import type {
@@ -18,7 +19,7 @@ import type {
   SNSCreationConfig,
   SNSQueueLocatorType,
 } from './AbstractSnsService'
-import { deleteSnsSqs, initSns, initSnsSqs } from './SnsInitter'
+import { deleteSnsSqs, initSnsSqs } from './SnsInitter'
 import type { SNSSubscriptionOptions } from './SnsSubscriber'
 import { readSnsMessage } from './snsMessageReader'
 
@@ -92,9 +93,7 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
     return readSnsMessage(message, this.errorResolver)
   }
 
-  async init(): Promise<void> {
-    await super.init()
-
+  override async init(): Promise<void> {
     if (this.deletionConfig && this.creationConfig && this.subscriptionConfig) {
       await deleteSnsSqs(
         this.sqsClient,
@@ -104,10 +103,9 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
         this.creationConfig.topic,
         this.subscriptionConfig,
       )
+    } else if (this.deletionConfig && this.creationConfig) {
+      await deleteSqs(this.sqsClient, this.deletionConfig, this.creationConfig)
     }
-
-    const initSnsResult = await initSns(this.snsClient, this.locatorConfig, this.creationConfig)
-    this.topicArn = initSnsResult.topicArn
 
     const initSnsSqsResult = await initSnsSqs(
       this.sqsClient,
@@ -116,6 +114,8 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
       this.creationConfig,
       this.subscriptionConfig,
     )
+    this.queueUrl = initSnsSqsResult.queueUrl
+    this.topicArn = initSnsSqsResult.topicArn
     this.subscriptionArn = initSnsSqsResult.subscriptionArn
   }
 }

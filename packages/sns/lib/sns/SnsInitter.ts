@@ -3,6 +3,7 @@ import type { SQSClient, CreateQueueCommandInput } from '@aws-sdk/client-sqs'
 import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 import type { SQSCreationConfig } from '@message-queue-toolkit/sqs'
+import { deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 
 import { assertTopic, deleteSubscription, deleteTopic, getTopicAttributes } from '../utils/snsUtils'
 
@@ -35,7 +36,7 @@ export async function initSnsSqs(
       )
     }
 
-    const { subscriptionArn } = await subscribeToTopic(
+    const { subscriptionArn, topicArn, queueUrl } = await subscribeToTopic(
       sqsClient,
       snsClient,
       creationConfig.queue,
@@ -47,10 +48,27 @@ export async function initSnsSqs(
     }
     return {
       subscriptionArn,
+      topicArn,
+      queueUrl,
     }
   }
+
+  const queuePromise = getQueueAttributes(sqsClient, locatorConfig)
+  const topicPromise = getTopicAttributes(snsClient, locatorConfig.topicArn)
+
+  const [queueCheckResult, topicCheckResult] = await Promise.all([queuePromise, topicPromise])
+
+  if (queueCheckResult.error === 'not_found') {
+    throw new Error(`Queue with queueUrl ${locatorConfig.queueUrl} does not exist.`)
+  }
+  if (topicCheckResult.error === 'not_found') {
+    throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
+  }
+
   return {
     subscriptionArn: locatorConfig.subscriptionArn,
+    topicArn: locatorConfig.topicArn,
+    queueUrl: locatorConfig.queueUrl,
   }
 }
 
@@ -84,6 +102,10 @@ export async function deleteSnsSqs(
     throw new Error('subscriptionArn must be set for automatic deletion')
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  await deleteQueue(sqsClient, queueConfiguration.QueueName!)
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  await deleteTopic(snsClient, topicConfiguration.Name!)
   await deleteSubscription(snsClient, subscriptionArn)
 }
 

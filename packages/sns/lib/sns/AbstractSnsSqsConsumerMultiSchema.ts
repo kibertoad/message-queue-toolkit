@@ -2,6 +2,7 @@ import type { SNSClient } from '@aws-sdk/client-sns'
 import type { MultiSchemaConsumerOptions } from '@message-queue-toolkit/core'
 import type { SQSCreationConfig, SQSMessage } from '@message-queue-toolkit/sqs'
 import { AbstractSqsConsumerMultiSchema } from '@message-queue-toolkit/sqs'
+import { deleteSqs } from '@message-queue-toolkit/sqs/dist/lib/sqs/sqsInitter'
 
 import type { SNSCreationConfig } from './AbstractSnsService'
 import type {
@@ -10,7 +11,7 @@ import type {
   SNSSQSConsumerDependencies,
   SNSSQSQueueLocatorType,
 } from './AbstractSnsSqsConsumerMonoSchema'
-import { deleteSns, deleteSnsSqs, initSns, initSnsSqs } from './SnsInitter'
+import { deleteSnsSqs, initSnsSqs } from './SnsInitter'
 import type { SNSSubscriptionOptions } from './SnsSubscriber'
 import { readSnsMessage } from './snsMessageReader'
 
@@ -56,9 +57,7 @@ export abstract class AbstractSnsSqsConsumerMultiSchema<
     this.snsClient = dependencies.snsClient
   }
 
-  async init(): Promise<void> {
-    await super.init()
-
+  override async init(): Promise<void> {
     if (this.deletionConfig && this.creationConfig && this.subscriptionConfig) {
       await deleteSnsSqs(
         this.sqsClient,
@@ -68,14 +67,9 @@ export abstract class AbstractSnsSqsConsumerMultiSchema<
         this.creationConfig.topic,
         this.subscriptionConfig,
       )
+    } else if (this.deletionConfig && this.creationConfig) {
+      await deleteSqs(this.sqsClient, this.deletionConfig, this.creationConfig)
     }
-
-    if (this.deletionConfig && this.creationConfig) {
-      await deleteSns(this.snsClient, this.deletionConfig, this.creationConfig)
-    }
-
-    const initSnsResult = await initSns(this.snsClient, this.locatorConfig, this.creationConfig)
-    this.topicArn = initSnsResult.topicArn
 
     const initSnsSqsResult = await initSnsSqs(
       this.sqsClient,
@@ -84,6 +78,8 @@ export abstract class AbstractSnsSqsConsumerMultiSchema<
       this.creationConfig,
       this.subscriptionConfig,
     )
+    this.queueUrl = initSnsSqsResult.queueUrl
+    this.topicArn = initSnsSqsResult.topicArn
     this.subscriptionArn = initSnsSqsResult.subscriptionArn
   }
 

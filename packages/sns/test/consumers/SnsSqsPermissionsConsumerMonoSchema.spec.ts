@@ -46,7 +46,7 @@ describe('SNS PermissionsConsumer', () => {
     let sqsClient: SQSClient
     let snsClient: SNSClient
     beforeAll(async () => {
-      diContainer = await registerDependencies()
+      diContainer = await registerDependencies({}, false)
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
       await deleteQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
@@ -60,6 +60,7 @@ describe('SNS PermissionsConsumer', () => {
       const newConsumer = new SnsSqsPermissionConsumerMonoSchema(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+          subscriptionArn: 'dummy',
           topicArn: 'dummy',
         },
       })
@@ -105,9 +106,6 @@ describe('SNS PermissionsConsumer', () => {
       diContainer = await registerDependencies()
       publisher = diContainer.cradle.permissionPublisher
       fakeResolver = diContainer.cradle.consumerErrorResolver as FakeConsumerErrorResolver
-
-      // FixMe this resolves flakiness, and I have no idea why
-      await diContainer.cradle.permissionConsumer.start()
 
       delete userPermissionMap[100]
       delete userPermissionMap[200]
