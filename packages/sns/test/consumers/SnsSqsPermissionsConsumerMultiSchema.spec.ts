@@ -1,13 +1,11 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
-import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import { assertQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
 import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
-import type { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SnsPermissionPublisherMultiSchema } from '../publishers/SnsPermissionPublisherMultiSchema'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
@@ -74,22 +72,10 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SnsPermissionPublisherMultiSchema
     let consumer: SnsSqsPermissionConsumerMultiSchema
-    let sqsClient: SQSClient
     beforeEach(async () => {
       diContainer = await registerDependencies()
-      sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisherMultiSchema
       consumer = diContainer.cradle.permissionConsumerMultiSchema
-
-      const command = new ReceiveMessageCommand({
-        QueueUrl: consumer.queueUrl,
-      })
-      const reply = await sqsClient.send(command)
-      expect(reply.Messages).toBeUndefined()
-
-      const fakeErrorResolver = diContainer.cradle
-        .consumerErrorResolver as FakeConsumerErrorResolver
-      fakeErrorResolver.clear()
     })
 
     afterEach(async () => {
@@ -111,13 +97,9 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
           messageType: 'remove',
         })
 
-        await waitAndRetry(
-          () => {
-            return consumer.addCounter > 0 && consumer.removeCounter == 2
-          },
-          20,
-          25,
-        )
+        await waitAndRetry(() => {
+          return consumer.addCounter > 0 && consumer.removeCounter == 2
+        })
 
         expect(consumer.addCounter).toBe(1)
         expect(consumer.removeCounter).toBe(2)

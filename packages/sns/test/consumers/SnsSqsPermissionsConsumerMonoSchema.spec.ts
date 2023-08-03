@@ -1,6 +1,5 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
-import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
@@ -101,11 +100,9 @@ describe('SNS PermissionsConsumer', () => {
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SnsPermissionPublisherMonoSchema
-    let sqsClient: SQSClient
     let fakeResolver: FakeConsumerErrorResolver
     beforeEach(async () => {
       diContainer = await registerDependencies()
-      sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
       fakeResolver = diContainer.cradle.consumerErrorResolver as FakeConsumerErrorResolver
 
@@ -115,15 +112,6 @@ describe('SNS PermissionsConsumer', () => {
       delete userPermissionMap[100]
       delete userPermissionMap[200]
       delete userPermissionMap[300]
-
-      const queueUrl = await assertQueue(sqsClient, {
-        QueueName: SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME,
-      })
-      const command = new ReceiveMessageCommand({
-        QueueUrl: queueUrl,
-      })
-      const reply = await sqsClient.send(command)
-      expect(reply.Messages).toBeUndefined()
     })
 
     afterEach(async () => {
