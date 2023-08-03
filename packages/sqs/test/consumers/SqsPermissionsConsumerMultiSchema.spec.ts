@@ -66,9 +66,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     })
 
     beforeEach(async () => {
-      await deleteQueue(sqsClient, SqsPermissionConsumerMultiSchema.QUEUE_NAME)
       await consumer.start()
-      await publisher.init()
 
       const command = new ReceiveMessageCommand({
         QueueUrl: publisher.queueUrl,

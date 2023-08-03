@@ -8,8 +8,6 @@ import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from
 
 import { deserializeSQSMessage } from '../../lib/sqs/sqsMessageDeserializer'
 import type { SQSMessage } from '../../lib/types/MessageTypes'
-import { deleteQueue, purgeQueueAsync } from '../../lib/utils/SqsUtils'
-import { SqsPermissionConsumerMonoSchema } from '../consumers/SqsPermissionConsumerMonoSchema'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
@@ -17,7 +15,7 @@ import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SqsPermissionPublisherMonoSchema } from './SqsPermissionPublisherMonoSchema'
+import type { SqsPermissionPublisherMonoSchema } from './SqsPermissionPublisherMonoSchema'
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
@@ -35,7 +33,6 @@ describe('SqsPermissionPublisher', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
-      await purgeQueueAsync(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
     })
 
     beforeEach(async () => {
@@ -43,7 +40,10 @@ describe('SqsPermissionPublisher', () => {
       delete userPermissionMap[200]
       delete userPermissionMap[300]
 
-      await deleteQueue(sqsClient, SqsPermissionPublisherMonoSchema.QUEUE_NAME)
+      // @ts-ignore
+      diContainer.cradle.permissionPublisher.deletionConfig = {
+        deleteIfExists: true,
+      }
       await diContainer.cradle.permissionPublisher.init()
 
       const command = new ReceiveMessageCommand({
@@ -62,7 +62,6 @@ describe('SqsPermissionPublisher', () => {
     afterEach(async () => {
       consumer?.stop()
       consumer?.stop({ abort: true })
-      await purgeQueueAsync(sqsClient, SqsPermissionPublisherMonoSchema.QUEUE_NAME)
     })
 
     it('publishes a message', async () => {

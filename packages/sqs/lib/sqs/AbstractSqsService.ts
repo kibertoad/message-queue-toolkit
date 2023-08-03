@@ -11,7 +11,7 @@ import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { SQSMessage } from '../types/MessageTypes'
 
 import type { SQSCreationConfig } from './AbstractSqsConsumer'
-import { initSqs } from './sqsInitter'
+import { deleteSqs, initSqs } from './sqsInitter'
 
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient
@@ -70,6 +70,9 @@ export abstract class AbstractSqsService<
   }
 
   public async init() {
+    if (this.deletionConfig && this.creationConfig) {
+      await deleteSqs(this.sqsClient, this.deletionConfig, this.creationConfig)
+    }
     const { queueUrl, queueName } = await initSqs(
       this.sqsClient,
       this.locatorConfig,

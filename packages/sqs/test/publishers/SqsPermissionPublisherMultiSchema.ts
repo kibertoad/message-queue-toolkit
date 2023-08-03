@@ -21,6 +21,9 @@ export class SqsPermissionPublisherMultiSchema extends AbstractSqsPublisherMulti
           QueueName: SqsPermissionPublisherMultiSchema.QUEUE_NAME,
         },
       },
+      deletionConfig: {
+        deleteIfExists: false,
+      },
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
       messageTypeField: 'messageType',
     })
