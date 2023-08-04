@@ -10,6 +10,7 @@ import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import type { SQSMessage } from '../types/MessageTypes'
+import { readSqsMessage } from '../utils/sqsMessageReader'
 
 import type {
   SQSConsumerDependencies,
@@ -17,7 +18,6 @@ import type {
   SQSQueueLocatorType,
 } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
-import { readSqsMessage } from '../utils/sqsMessageReader'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',

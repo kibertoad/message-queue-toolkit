@@ -9,9 +9,9 @@ import type {
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
 import type { SQSMessage } from '../types/MessageTypes'
+import { deleteSqs, initSqs } from '../utils/sqsInitter'
 
 import type { SQSCreationConfig } from './AbstractSqsConsumer'
-import { deleteSqs, initSqs } from '../utils/sqsInitter'
 
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient
