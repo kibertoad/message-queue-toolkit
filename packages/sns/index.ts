@@ -3,7 +3,15 @@ export type {
   SNSTopicConfig,
   SNSConsumerDependencies,
   SNSQueueLocatorType,
+  SNSCreationConfig,
+  SNSDependencies,
+  NewSNSOptions,
+  ExistingSNSOptions,
+  ExistingSNSOptionsMultiSchema,
+  NewSNSOptionsMultiSchema,
 } from './lib/sns/AbstractSnsService'
+
+export { AbstractSnsService } from './lib/sns/AbstractSnsService'
 
 export { SnsConsumerErrorResolver } from './lib/errors/SnsConsumerErrorResolver'
 
