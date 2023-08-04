@@ -1,16 +1,13 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
-import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
-import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
+import { assertQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
-import { asClass } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
+import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
-import { assertTopic, deleteSubscription, deleteTopic } from '../../lib/utils/snsUtils'
-import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
+import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
 import type { SnsPermissionPublisherMultiSchema } from '../publishers/SnsPermissionPublisherMultiSchema'
-import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
+import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsSqsPermissionConsumerMultiSchema } from './SnsSqsPermissionConsumerMultiSchema'
@@ -21,10 +18,9 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     let sqsClient: SQSClient
     let snsClient: SNSClient
     beforeAll(async () => {
-      diContainer = await registerDependencies()
+      diContainer = await registerDependencies({}, false)
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
-      await deleteQueue(sqsClient, SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME)
     })
 
     it('throws an error when invalid queue locator is passed', async () => {
@@ -35,6 +31,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
       const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+          subscriptionArn: 'dummy',
           topicArn: 'dummy',
         },
       })
@@ -76,50 +73,17 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SnsPermissionPublisherMultiSchema
     let consumer: SnsSqsPermissionConsumerMultiSchema
-    let sqsClient: SQSClient
-    let snsClient: SNSClient
-    beforeAll(async () => {
-      diContainer = await registerDependencies({
-        consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
-      })
-      sqsClient = diContainer.cradle.sqsClient
-      snsClient = diContainer.cradle.snsClient
+    beforeEach(async () => {
+      diContainer = await registerDependencies()
       publisher = diContainer.cradle.permissionPublisherMultiSchema
       consumer = diContainer.cradle.permissionConsumerMultiSchema
     })
 
-    beforeEach(async () => {
-      await deleteTopic(snsClient, SnsSqsPermissionConsumerMultiSchema.SUBSCRIBED_TOPIC_NAME)
-      await deleteQueue(sqsClient, SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME)
-      await diContainer.cradle.permissionConsumerMultiSchema.start()
-      await diContainer.cradle.permissionPublisherMultiSchema.init()
-
-      const queueUrl = await assertQueue(sqsClient, {
-        QueueName: SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME,
-      })
-      const command = new ReceiveMessageCommand({
-        QueueUrl: queueUrl,
-      })
-      const reply = await sqsClient.send(command)
-      expect(reply.Messages).toBeUndefined()
-
-      const fakeErrorResolver = diContainer.cradle
-        .consumerErrorResolver as FakeConsumerErrorResolver
-      fakeErrorResolver.clear()
-    })
-
-    afterAll(async () => {
-      const { awilixManager, permissionConsumer } = diContainer.cradle
-
-      await deleteSubscription(snsClient, permissionConsumer.subscriptionArn)
+    afterEach(async () => {
+      const { awilixManager } = diContainer.cradle
 
       await awilixManager.executeDispose()
       await diContainer.dispose()
-    })
-
-    afterEach(async () => {
-      await diContainer.cradle.permissionConsumerMultiSchema.close()
-      await diContainer.cradle.permissionConsumerMultiSchema.close(true)
     })
 
     describe('happy path', () => {

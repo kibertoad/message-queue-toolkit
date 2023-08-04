@@ -13,6 +13,9 @@ export class SqsPermissionPublisherMonoSchema extends AbstractSqsPublisherMonoSc
           QueueName: SqsPermissionPublisherMonoSchema.QUEUE_NAME,
         },
       },
+      deletionConfig: {
+        deleteIfExists: false,
+      },
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
     })

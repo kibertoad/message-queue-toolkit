@@ -5,7 +5,7 @@ import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import { GetQueueAttributesCommand } from '@aws-sdk/client-sqs'
 import { assertQueue } from '@message-queue-toolkit/sqs'
 
-import { assertTopic } from '../utils/snsUtils'
+import { assertTopic } from './snsUtils'
 
 export type SNSSubscriptionOptions = Omit<
   SubscribeCommandInput,
@@ -44,5 +44,7 @@ export async function subscribeToTopic(
   const subscriptionResult = await snsClient.send(subscribeCommand)
   return {
     subscriptionArn: subscriptionResult.SubscriptionArn,
+    topicArn,
+    queueUrl,
   }
 }

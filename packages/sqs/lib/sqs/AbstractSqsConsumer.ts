@@ -17,7 +17,7 @@ import type {
   SQSQueueLocatorType,
 } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
-import { readSqsMessage } from './sqsMessageReader'
+import { readSqsMessage } from '../utils/sqsMessageReader'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
@@ -129,7 +129,6 @@ export abstract class AbstractSqsConsumer<
     if (this.consumer) {
       this.consumer.stop()
     }
-
     this.consumer = Consumer.create({
       queueUrl: this.queueUrl,
       handleMessage: async (message: SQSMessage) => {

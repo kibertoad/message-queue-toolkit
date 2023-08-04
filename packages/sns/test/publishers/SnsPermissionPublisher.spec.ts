@@ -4,18 +4,17 @@ import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
 import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
-import { asClass } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
+import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
-import { subscribeToTopic } from '../../lib/sns/SnsSubscriber'
-import { deserializeSNSMessage } from '../../lib/sns/snsMessageDeserializer'
+import { deserializeSNSMessage } from '../../lib/utils/snsMessageDeserializer'
+import { subscribeToTopic } from '../../lib/utils/snsSubscriber'
 import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { userPermissionMap } from '../repositories/PermissionRepository'
-import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
+import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsPermissionPublisherMonoSchema } from './SnsPermissionPublisherMonoSchema'
@@ -66,32 +65,24 @@ describe('SNSPermissionPublisher', () => {
     let snsClient: SNSClient
     let consumer: Consumer
 
-    beforeAll(async () => {
-      diContainer = await registerDependencies({
-        consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
-      })
+    beforeEach(async () => {
+      diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
-    })
+      await diContainer.cradle.permissionConsumer.close()
 
-    beforeEach(async () => {
+      await deleteQueue(sqsClient, queueName)
+      await deleteTopic(snsClient, SnsPermissionPublisherMonoSchema.TOPIC_NAME)
+
       delete userPermissionMap[100]
       delete userPermissionMap[200]
       delete userPermissionMap[300]
-
-      await deleteQueue(sqsClient, queueName)
-      await diContainer.cradle.permissionPublisher.init()
-    })
-
-    afterAll(async () => {
-      const { awilixManager } = diContainer.cradle
-      await awilixManager.executeDispose()
-      await diContainer.dispose()
     })
 
     afterEach(async () => {
-      consumer?.stop()
-      consumer?.stop({ abort: true })
+      const { awilixManager } = diContainer.cradle
+      await awilixManager.executeDispose()
+      await diContainer.dispose()
     })
 
     it('publishes a message', async () => {
@@ -150,6 +141,8 @@ describe('SNSPermissionPublisher', () => {
         permissions: ['perm1', 'perm2'],
         userIds: [100, 200, 300],
       })
+
+      consumer.stop()
     })
   })
 })

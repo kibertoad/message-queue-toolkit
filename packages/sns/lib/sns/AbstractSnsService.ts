@@ -10,8 +10,7 @@ import type {
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
 import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
-
-import { initSns } from './SnsInitter'
+import { deleteSns, initSns } from '../utils/snsInitter'
 
 export type SNSDependencies = QueueDependencies & {
   snsClient: SNSClient
@@ -83,6 +82,10 @@ export abstract class AbstractSnsService<
   }
 
   public async init() {
+    if (this.deletionConfig && this.creationConfig) {
+      await deleteSns(this.snsClient, this.deletionConfig, this.creationConfig)
+    }
+
     const initResult = await initSns(this.snsClient, this.locatorConfig, this.creationConfig)
     this.topicArn = initResult.topicArn
   }

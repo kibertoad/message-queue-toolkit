@@ -3,10 +3,10 @@ import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
+import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 import z from 'zod'
 
-import { assertQueue, deleteQueue, purgeQueueAsync } from '../../lib/utils/SqsUtils'
+import { assertQueue, deleteQueue } from '../../lib/utils/sqsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SqsPermissionPublisherMonoSchema } from '../publishers/SqsPermissionPublisherMonoSchema'
 import { userPermissionMap } from '../repositories/PermissionRepository'
@@ -82,23 +82,17 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisherMonoSchema
     let sqsClient: SQSClient
-    beforeAll(async () => {
+
+    beforeEach(async () => {
       diContainer = await registerDependencies({
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
-      await purgeQueueAsync(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
-    })
 
-    beforeEach(async () => {
       delete userPermissionMap[100]
       delete userPermissionMap[200]
       delete userPermissionMap[300]
-
-      await deleteQueue(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
-      await diContainer.cradle.permissionConsumer.start()
-      await diContainer.cradle.permissionPublisher.init()
 
       const command = new ReceiveMessageCommand({
         QueueUrl: diContainer.cradle.permissionPublisher.queueUrl,
@@ -111,16 +105,10 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       fakeErrorResolver.clear()
     })
 
-    afterAll(async () => {
+    afterEach(async () => {
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
       await diContainer.dispose()
-    })
-
-    afterEach(async () => {
-      await purgeQueueAsync(sqsClient, SqsPermissionConsumerMonoSchema.QUEUE_NAME)
-      await diContainer.cradle.permissionConsumer.close()
-      await diContainer.cradle.permissionConsumer.close(true)
     })
 
     describe('happy path', () => {

@@ -39,6 +39,7 @@ export abstract class AbstractSnsPublisherMonoSchema<MessagePayloadType extends 
 
   async publish(message: MessagePayloadType, options: SNSMessageOptions = {}): Promise<void> {
     try {
+      this.messageSchema.parse(message)
       const input = {
         Message: JSON.stringify(message),
         TopicArn: this.topicArn,

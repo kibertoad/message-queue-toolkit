@@ -54,22 +54,26 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
 
     permissionConsumer: asClass(SqsPermissionConsumerMonoSchema, {
       lifetime: Lifetime.SINGLETON,
+      asyncInit: 'start',
       asyncDispose: 'close',
       asyncDisposePriority: 10,
     }),
     permissionPublisher: asClass(SqsPermissionPublisherMonoSchema, {
       lifetime: Lifetime.SINGLETON,
+      asyncInit: 'init',
       asyncDispose: 'close',
       asyncDisposePriority: 20,
     }),
 
     permissionConsumerMultiSchema: asClass(SqsPermissionConsumerMultiSchema, {
       lifetime: Lifetime.SINGLETON,
+      asyncInit: 'start',
       asyncDispose: 'close',
       asyncDisposePriority: 10,
     }),
     permissionPublisherMultiSchema: asClass(SqsPermissionPublisherMultiSchema, {
       lifetime: Lifetime.SINGLETON,
+      asyncInit: 'init',
       asyncDispose: 'close',
       asyncDisposePriority: 20,
     }),

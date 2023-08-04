@@ -22,8 +22,8 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
   SupportedEvents,
   SnsSqsPermissionConsumerMultiSchema
 > {
-  public static CONSUMED_QUEUE_NAME = 'user_permissions'
-  public static SUBSCRIBED_TOPIC_NAME = 'user_permissions'
+  public static CONSUMED_QUEUE_NAME = 'user_permissions_multi'
+  public static SUBSCRIBED_TOPIC_NAME = 'user_permissions_multi'
 
   public addCounter = 0
   public removeCounter = 0
@@ -62,6 +62,9 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
         })
         .build(),
       messageTypeField: 'messageType',
+      deletionConfig: {
+        deleteIfExists: true,
+      },
       consumerOverrides: {
         terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
       },

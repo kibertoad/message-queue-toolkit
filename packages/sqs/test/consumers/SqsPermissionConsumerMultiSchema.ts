@@ -54,6 +54,9 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
   ) {
     super(dependencies, {
       messageTypeField: 'messageType',
+      deletionConfig: {
+        deleteIfExists: true,
+      },
       consumerOverrides: {
         terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
       },
