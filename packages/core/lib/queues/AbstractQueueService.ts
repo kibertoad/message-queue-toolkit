@@ -39,15 +39,22 @@ export type ExistingQueueOptionsMultiSchema<
 > = ExistingQueueOptions<QueueLocatorType> &
   MultiSchemaConsumerOptions<MessagePayloadSchemas, ExecutionContext>
 
+export type DeletionConfig = {
+  deleteIfExists?: boolean
+  forceDeleteInProduction?: boolean
+}
+
 export type NewQueueOptions<CreationConfigType extends object> = {
   messageTypeField: string
   locatorConfig?: never
+  deletionConfig?: DeletionConfig
   creationConfig: CreationConfigType
 }
 
 export type ExistingQueueOptions<QueueLocatorType extends object> = {
   messageTypeField: string
   locatorConfig: QueueLocatorType
+  deletionConfig?: DeletionConfig
   creationConfig?: never
 }
 
@@ -80,17 +87,16 @@ export abstract class AbstractQueueService<
   protected readonly messageTypeField: string
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
+  protected readonly deletionConfig?: DeletionConfig
 
-  constructor(
-    { errorReporter, logger }: DependenciesType,
-    { messageTypeField, creationConfig, locatorConfig }: OptionsType,
-  ) {
+  constructor({ errorReporter, logger }: DependenciesType, options: OptionsType) {
     this.errorReporter = errorReporter
     this.logger = logger
 
-    this.messageTypeField = messageTypeField
-    this.creationConfig = creationConfig
-    this.locatorConfig = locatorConfig
+    this.messageTypeField = options.messageTypeField
+    this.creationConfig = options.creationConfig
+    this.locatorConfig = options.locatorConfig
+    this.deletionConfig = options.deletionConfig
   }
 
   protected abstract resolveSchema(

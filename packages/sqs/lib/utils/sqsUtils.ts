@@ -3,7 +3,6 @@ import {
   CreateQueueCommand,
   GetQueueUrlCommand,
   DeleteQueueCommand,
-  PurgeQueueCommand,
   GetQueueAttributesCommand,
 } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
@@ -55,26 +54,6 @@ export async function assertQueue(sqsClient: SQSClient, queueConfig: CreateQueue
   }
 
   return response.QueueUrl
-}
-
-/**
- * Note that there is up to 60 seconds delay until messages are deleted
- */
-export async function purgeQueueAsync(client: SQSClient, queueName: string) {
-  try {
-    const queueUrlCommand = new GetQueueUrlCommand({
-      QueueName: queueName,
-    })
-    const response = await client.send(queueUrlCommand)
-
-    const purgeCommand = new PurgeQueueCommand({
-      QueueUrl: response.QueueUrl,
-    })
-    await client.send(purgeCommand)
-  } catch (err) {
-    // @ts-ignore
-    console.log(`Failed to purge: ${err.message}`)
-  }
 }
 
 export async function deleteQueue(client: SQSClient, queueName: string) {

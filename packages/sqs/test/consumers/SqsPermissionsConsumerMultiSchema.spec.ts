@@ -5,7 +5,7 @@ import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
 
-import { assertQueue, deleteQueue } from '../../lib/utils/SqsUtils'
+import { assertQueue, deleteQueue } from '../../lib/utils/sqsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SqsPermissionPublisherMultiSchema } from '../publishers/SqsPermissionPublisherMultiSchema'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
@@ -66,9 +66,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     })
 
     beforeEach(async () => {
-      await deleteQueue(sqsClient, SqsPermissionConsumerMultiSchema.QUEUE_NAME)
       await consumer.start()
-      await publisher.init()
 
       const command = new ReceiveMessageCommand({
         QueueUrl: publisher.queueUrl,

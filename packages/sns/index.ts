@@ -29,7 +29,7 @@ export type { SNSMessageOptions } from './lib/sns/AbstractSnsPublisherMonoSchema
 
 export type { CommonMessage } from './lib/types/MessageTypes'
 
-export { deserializeSNSMessage } from './lib/sns/snsMessageDeserializer'
+export { deserializeSNSMessage } from './lib/utils/snsMessageDeserializer'
 
 export {
   assertTopic,
@@ -38,6 +38,6 @@ export {
   deleteSubscription,
 } from './lib/utils/snsUtils'
 
-export { subscribeToTopic } from './lib/sns/SnsSubscriber'
-export { initSns, initSnsSqs } from './lib/sns/SnsInitter'
-export { readSnsMessage } from './lib/sns/snsMessageReader'
+export { subscribeToTopic } from './lib/utils/snsSubscriber'
+export { initSns, initSnsSqs } from './lib/utils/snsInitter'
+export { readSnsMessage } from './lib/utils/snsMessageReader'

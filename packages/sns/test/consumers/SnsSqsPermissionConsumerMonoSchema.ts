@@ -33,6 +33,9 @@ export class SnsSqsPermissionConsumerMonoSchema extends AbstractSnsSqsConsumerMo
     super(dependencies, {
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
+      deletionConfig: {
+        deleteIfExists: true,
+      },
       consumerOverrides: {
         terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
       },
