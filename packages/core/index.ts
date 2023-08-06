@@ -20,7 +20,7 @@ export type {
   Deserializer,
   CommonQueueLocator,
   DeletionConfig,
-  MultiSchemaPublisherOptions
+  MultiSchemaPublisherOptions,
 } from './lib/queues/AbstractQueueService'
 
 export {
