@@ -122,9 +122,13 @@ describe('PermissionPublisher', () => {
 
       permissionPublisher.publish(message)
 
-      await waitAndRetry(() => {
-        return receivedMessage !== null
-      })
+      await waitAndRetry(
+        () => {
+          return receivedMessage !== null
+        },
+        40,
+        30,
+      )
 
       expect(receivedMessage).toEqual({
         messageType: 'add',

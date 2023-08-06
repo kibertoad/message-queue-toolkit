@@ -8,7 +8,8 @@ import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { Channel, Connection, Message } from 'amqplib'
 import type { Options } from 'amqplib/properties'
 
-import type { AMQPLocatorType } from './AbstractAmqpConsumer'
+import type { AMQPLocatorType } from './AbstractAmqpBaseConsumer'
+import { deleteAmqp } from './utils/amqpInitter'
 
 export type AMQPDependencies = QueueDependencies & {
   amqpConnection: Connection
@@ -78,6 +79,11 @@ export abstract class AbstractAmqpService<
     }
 
     this.channel = await this.connection.createChannel()
+
+    if (this.deletionConfig && this.creationConfig) {
+      await deleteAmqp(this.channel, this.deletionConfig, this.creationConfig)
+    }
+
     this.channel.on('close', () => {
       if (!this.isShuttingDown) {
         this.logger.error(`AMQP connection lost!`)

@@ -3,35 +3,44 @@ import type {
   ExistingQueueOptions,
   MessageInvalidFormatError,
   MessageValidationError,
-  MonoSchemaQueueOptions,
   NewQueueOptions,
   SyncPublisher,
+  MultiSchemaPublisherOptions,
 } from '@message-queue-toolkit/core'
-import { objectToBuffer } from '@message-queue-toolkit/core'
+import { MessageSchemaContainer, objectToBuffer } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
 import type { AMQPLocatorType } from './AbstractAmqpBaseConsumer'
 import { AbstractAmqpService } from './AbstractAmqpService'
 import type { AMQPDependencies, CreateAMQPQueueOptions } from './AbstractAmqpService'
 
-export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
+export abstract class AbstractAmqpPublisherMultiSchema<MessagePayloadType extends object>
   extends AbstractAmqpService<MessagePayloadType>
   implements SyncPublisher<MessagePayloadType>
 {
-  private readonly messageSchema: ZodSchema<MessagePayloadType>
+  private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
 
   constructor(
     dependencies: AMQPDependencies,
     options: (NewQueueOptions<CreateAMQPQueueOptions> | ExistingQueueOptions<AMQPLocatorType>) &
-      MonoSchemaQueueOptions<MessagePayloadType>,
+      MultiSchemaPublisherOptions<MessagePayloadType>,
   ) {
     super(dependencies, options)
 
-    this.messageSchema = options.messageSchema
+    const messageSchemas = options.messageSchemas
+    this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
+      messageSchemas,
+      messageTypeField: options.messageTypeField,
+    })
   }
 
   publish(message: MessagePayloadType): void {
-    this.messageSchema.parse(message)
+    const resolveSchemaResult = this.resolveSchema(message)
+    if (resolveSchemaResult.error) {
+      throw resolveSchemaResult.error
+    }
+    resolveSchemaResult.result.parse(message)
+
     this.channel.sendToQueue(this.queueName, objectToBuffer(message))
   }
 
@@ -40,9 +49,11 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
     throw new Error('Not implemented for publisher')
   }
 
-  protected override resolveSchema(): Either<Error, ZodSchema<MessagePayloadType>> {
-    throw new Error('Not implemented for publisher')
-  }
-
   /* c8 ignore stop */
+
+  protected override resolveSchema(
+    message: MessagePayloadType,
+  ): Either<Error, ZodSchema<MessagePayloadType>> {
+    return this.messageSchemaContainer.resolveSchema(message)
+  }
 }

@@ -3,6 +3,7 @@ export type {
   SQSQueueConfig,
   SQSConsumerDependencies,
   SQSQueueLocatorType,
+  SQSDependencies,
 } from './lib/sqs/AbstractSqsService'
 
 export { AbstractSqsConsumer } from './lib/sqs/AbstractSqsConsumer'
