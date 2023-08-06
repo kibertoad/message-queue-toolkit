@@ -1,7 +1,7 @@
 import type {
-  NewAMQPConsumerOptions,
   ExistingAMQPConsumerOptions,
-} from '../../lib/AbstractAmqpConsumer'
+  NewAMQPConsumerOptions,
+} from '../../lib/AbstractAmqpBaseConsumer'
 import { AbstractAmqpPublisher } from '../../lib/AbstractAmqpPublisher'
 import type { AMQPDependencies } from '../../lib/AbstractAmqpService'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'

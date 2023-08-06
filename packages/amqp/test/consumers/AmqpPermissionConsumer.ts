@@ -19,6 +19,9 @@ export class AmqpPermissionConsumer extends AbstractAmqpConsumer<PERMISSIONS_MES
           autoDelete: false,
         },
       },
+      deletionConfig: {
+        deleteIfExists: true,
+      },
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
     })

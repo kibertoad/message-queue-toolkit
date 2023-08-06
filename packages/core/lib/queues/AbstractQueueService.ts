@@ -58,6 +58,10 @@ export type ExistingQueueOptions<QueueLocatorType extends object> = {
   creationConfig?: never
 }
 
+export type MultiSchemaPublisherOptions<MessagePayloadSchemas extends object> = {
+  messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
+}
+
 export type MultiSchemaConsumerOptions<MessagePayloadSchemas extends object, ExecutionContext> = {
   handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext>[]
 }
