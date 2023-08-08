@@ -87,7 +87,7 @@ export abstract class AbstractQueueService<
     | ExistingQueueOptions<QueueLocatorType>,
 > {
   protected readonly errorReporter: ErrorReporter
-  protected readonly logger: Logger
+  public readonly logger: Logger
   protected readonly messageTypeField: string
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
