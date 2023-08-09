@@ -7,7 +7,7 @@ export type {
 } from './lib/sqs/AbstractSqsService'
 
 export { AbstractSqsConsumer } from './lib/sqs/AbstractSqsConsumer'
-export type { SQSCreationConfig } from './lib/sqs/AbstractSqsConsumer'
+export type { SQSCreationConfig, ExtraSQSCreationParams } from './lib/sqs/AbstractSqsConsumer'
 export { AbstractSqsConsumerMultiSchema } from './lib/sqs/AbstractSqsConsumerMultiSchema'
 export { AbstractSqsConsumerMonoSchema } from './lib/sqs/AbstractSqsConsumerMonoSchema'
 

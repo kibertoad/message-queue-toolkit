@@ -1,12 +1,12 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
-import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
+import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 import z from 'zod'
 
-import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
+import { assertTopic, deleteTopic, getTopicAttributes } from '../../lib/utils/snsUtils'
 import type { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SnsPermissionPublisherMonoSchema } from '../publishers/SnsPermissionPublisherMonoSchema'
 import { userPermissionMap } from '../repositories/PermissionRepository'
@@ -50,6 +50,30 @@ describe('SNS PermissionsConsumer', () => {
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
       await deleteQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
+    })
+
+    it('sets correct policy when is set', async () => {
+      const newConsumer = new SnsSqsPermissionConsumerMonoSchema(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: 'policy-queue',
+          },
+          topic: {
+            Name: 'policy-topic',
+          },
+          topicArnsWithPublishPermissionsPrefix: 'dummy',
+          queueUrlsWithSubscribePermissionsPrefix: 'dummy',
+        },
+      })
+      await newConsumer.init()
+
+      const queue = await getQueueAttributes(sqsClient, {
+        queueUrl: newConsumer.queueUrl,
+      })
+      const topic = await getTopicAttributes(snsClient, newConsumer.topicArn)
+
+      expect(queue.result?.attributes?.Policy).toBe('rar')
+      expect(topic.result?.attributes?.Policy).toBe(`{"Version":"2008-10-17","Id":"__default_policy_ID","Statement":[{"Effect":"Allow","Sid":"__default_statement_ID","Principal":{"AWS":"*"},"Action":["SNS:GetTopicAttributes","SNS:SetTopicAttributes","SNS:AddPermission","SNS:RemovePermission","SNS:DeleteTopic","SNS:Subscribe","SNS:ListSubscriptionsByTopic","SNS:Publish","SNS:Receive"],"Resource":"arn:aws:sns:eu-west-1:000000000000:policy-topic","Condition":{"StringEquals":{"AWS:SourceOwner":"000000000000"}}}]}`)
     })
 
     it('throws an error when invalid queue locator is passed', async () => {

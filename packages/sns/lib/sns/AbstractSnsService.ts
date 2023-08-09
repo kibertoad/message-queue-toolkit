@@ -52,9 +52,13 @@ export type ExistingSNSOptionsMultiSchema<
   ExecutionContext,
 > = ExistingQueueOptionsMultiSchema<MessagePayloadSchemas, SNSQueueLocatorType, ExecutionContext>
 
+export type ExtraSNSCreationParams = {
+  queueUrlsWithSubscribePermissionsPrefix?: string
+}
+
 export type SNSCreationConfig = {
   topic: SNSTopicAWSConfig
-}
+} & ExtraSNSCreationParams
 
 export abstract class AbstractSnsService<
   MessagePayloadType extends object,

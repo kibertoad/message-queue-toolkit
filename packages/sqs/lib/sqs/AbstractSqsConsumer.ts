@@ -23,9 +23,13 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
+export type ExtraSQSCreationParams = {
+  topicArnsWithPublishPermissionsPrefix?: string
+}
+
 export type SQSCreationConfig = {
   queue: SQSQueueAWSConfig
-}
+} & ExtraSQSCreationParams
 
 export type NewSQSConsumerOptions<CreationConfigType extends SQSCreationConfig> =
   NewQueueOptions<CreationConfigType> & {

@@ -53,6 +53,8 @@ export async function initSnsSqs(
     }
   }
 
+  // Check for existing resources, using the locators
+
   const queuePromise = getQueueAttributes(sqsClient, locatorConfig)
   const topicPromise = getTopicAttributes(snsClient, locatorConfig.topicArn)
 
