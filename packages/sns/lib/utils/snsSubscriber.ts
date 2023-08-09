@@ -3,7 +3,10 @@ import { SubscribeCommand } from '@aws-sdk/client-sns'
 import type { SubscribeCommandInput } from '@aws-sdk/client-sns/dist-types/commands/SubscribeCommand'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import { GetQueueAttributesCommand } from '@aws-sdk/client-sqs'
+import type { ExtraSQSCreationParams } from '@message-queue-toolkit/sqs'
 import { assertQueue } from '@message-queue-toolkit/sqs'
+
+import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
 
 import { assertTopic } from './snsUtils'
 
@@ -18,9 +21,14 @@ export async function subscribeToTopic(
   queueConfiguration: CreateQueueCommandInput,
   topicConfiguration: CreateTopicCommandInput,
   subscriptionConfiguration: SNSSubscriptionOptions,
+  extraParams?: ExtraSNSCreationParams & ExtraSQSCreationParams,
 ) {
-  const topicArn = await assertTopic(snsClient, topicConfiguration)
-  const queueUrl = await assertQueue(sqsClient, queueConfiguration)
+  const topicArn = await assertTopic(snsClient, topicConfiguration, {
+    queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
+  })
+  const queueUrl = await assertQueue(sqsClient, queueConfiguration, {
+    topicArnsWithPublishPermissionsPrefix: extraParams?.topicArnsWithPublishPermissionsPrefix,
+  })
 
   const getQueueAttributesCommand = new GetQueueAttributesCommand({
     QueueUrl: queueUrl,

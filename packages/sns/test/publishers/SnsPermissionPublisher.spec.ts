@@ -9,7 +9,7 @@ import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
 import { deserializeSNSMessage } from '../../lib/utils/snsMessageDeserializer'
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber'
-import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
+import { assertTopic, deleteTopic, getTopicAttributes } from '../../lib/utils/snsUtils'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
@@ -30,6 +30,25 @@ describe('SNSPermissionPublisher', () => {
     beforeAll(async () => {
       diContainer = await registerDependencies()
       snsClient = diContainer.cradle.snsClient
+    })
+
+    it('sets correct policy when policy fields are set', async () => {
+      const newPublisher = new SnsPermissionPublisherMonoSchema(diContainer.cradle, {
+        creationConfig: {
+          topic: {
+            Name: 'policy-topic',
+          },
+          queueUrlsWithSubscribePermissionsPrefix: 'dummy*',
+        },
+      })
+
+      await newPublisher.init()
+
+      const topic = await getTopicAttributes(snsClient, newPublisher.topicArn)
+
+      expect(topic.result?.attributes?.Policy).toBe(
+        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-west-1:000000000000:policy-topic","Condition":{"StringLike":{"sns:Endpoint":"dummy*"}}}]}`,
+      )
     })
 
     it('throws an error when invalid queue locator is passed', async () => {

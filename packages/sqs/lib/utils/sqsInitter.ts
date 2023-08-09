@@ -56,7 +56,9 @@ export async function initSqs(
     throw new Error('queueConfig.QueueName is mandatory when locator is not provided')
   }
 
-  const queueUrl = await assertQueue(sqsClient, creationConfig.queue)
+  const queueUrl = await assertQueue(sqsClient, creationConfig.queue, {
+    topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
+  })
   const queueName = creationConfig.queue.QueueName
 
   return {

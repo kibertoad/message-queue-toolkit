@@ -5,11 +5,7 @@ import {
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
 } from '../../test/consumers/userConsumerSchemas'
 
-import {
-  generateFilterAttributes,
-  generateQueuePublishForTopicPolicy,
-  generateTopicSubscriptionPolicy,
-} from './snsAttributeUtils'
+import { generateFilterAttributes, generateTopicSubscriptionPolicy } from './snsAttributeUtils'
 
 describe('snsAttributeUtils', () => {
   describe('generateTopicSubscriptionPolicy', () => {
@@ -21,19 +17,6 @@ describe('snsAttributeUtils', () => {
 
       expect(resolvedPolicy).toBe(
         `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-central-1:632374391739:test-sns-some-service","Condition":{"StringLike":{"sns:Endpoint":"arn:aws:sqs:eu-central-1:632374391739:test-sqs-*"}}}]}`,
-      )
-    })
-  })
-
-  describe('generateQueuePublishForTopicPolicy', () => {
-    it('resolves policy', () => {
-      const resolvedPolicy = generateQueuePublishForTopicPolicy(
-        'arn:aws:sqs:eu-central-1:632374391739:test-sqs-some-service',
-        'arn:aws:sns:eu-central-1:632374391739:test-sns-*',
-      )
-
-      expect(resolvedPolicy).toBe(
-        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-central-1:632374391739:test-sqs-some-service","Condition":{"ArnLike":{"aws:SourceArn":"arn:aws:sns:eu-central-1:632374391739:test-sns-*"}}}]}`,
       )
     })
   })

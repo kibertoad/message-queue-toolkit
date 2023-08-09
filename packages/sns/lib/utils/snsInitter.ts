@@ -42,6 +42,11 @@ export async function initSnsSqs(
       creationConfig.queue,
       creationConfig.topic,
       subscriptionConfig,
+      {
+        queueUrlsWithSubscribePermissionsPrefix:
+          creationConfig.queueUrlsWithSubscribePermissionsPrefix,
+        topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
+      },
     )
     if (!subscriptionArn) {
       throw new Error('Failed to subscribe')
@@ -52,6 +57,8 @@ export async function initSnsSqs(
       queueUrl,
     }
   }
+
+  // Check for existing resources, using the locators
 
   const queuePromise = getQueueAttributes(sqsClient, locatorConfig)
   const topicPromise = getTopicAttributes(snsClient, locatorConfig.topicArn)
@@ -153,7 +160,9 @@ export async function initSns(
       'When locatorConfig for the topic is not specified, creationConfig of the topic is mandatory',
     )
   }
-  const topicArn = await assertTopic(snsClient, creationConfig.topic)
+  const topicArn = await assertTopic(snsClient, creationConfig.topic, {
+    queueUrlsWithSubscribePermissionsPrefix: creationConfig.queueUrlsWithSubscribePermissionsPrefix,
+  })
   return {
     topicArn,
   }

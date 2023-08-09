@@ -5,16 +5,9 @@ const POLICY_VERSION = '2012-10-17'
 
 export function generateTopicSubscriptionPolicy(
   topicArn: string,
-  supportedSqsQueueNamePrefix: string,
+  supportedSqsQueueUrlPrefix: string,
 ) {
-  return `{"Version":"${POLICY_VERSION}","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"${topicArn}","Condition":{"StringLike":{"sns:Endpoint":"${supportedSqsQueueNamePrefix}"}}}]}`
-}
-
-export function generateQueuePublishForTopicPolicy(
-  queueUrl: string,
-  supportedSnsTopicArnPrefix: string,
-) {
-  return `{"Version":"${POLICY_VERSION}","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"${queueUrl}","Condition":{"ArnLike":{"aws:SourceArn":"${supportedSnsTopicArnPrefix}"}}}]}`
+  return `{"Version":"${POLICY_VERSION}","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"${topicArn}","Condition":{"StringLike":{"sns:Endpoint":"${supportedSqsQueueUrlPrefix}"}}}]}`
 }
 
 export function generateFilterAttributes(

@@ -52,5 +52,4 @@ export { readSnsMessage } from './lib/utils/snsMessageReader'
 export {
   generateFilterAttributes,
   generateTopicSubscriptionPolicy,
-  generateQueuePublishForTopicPolicy,
 } from './lib/utils/snsAttributeUtils'
