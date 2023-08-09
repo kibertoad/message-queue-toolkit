@@ -49,4 +49,8 @@ export {
 export { subscribeToTopic } from './lib/utils/snsSubscriber'
 export { initSns, initSnsSqs } from './lib/utils/snsInitter'
 export { readSnsMessage } from './lib/utils/snsMessageReader'
-export { generateFilterAttributes } from './lib/utils/snsAttributeUtils'
+export {
+  generateFilterAttributes,
+  generateTopicSubscriptionPolicy,
+  generateQueuePublishForTopicPolicy,
+} from './lib/utils/snsAttributeUtils'
