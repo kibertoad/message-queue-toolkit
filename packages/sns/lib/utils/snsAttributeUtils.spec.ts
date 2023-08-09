@@ -15,12 +15,12 @@ describe('snsAttributeUtils', () => {
   describe('generateTopicSubscriptionPolicy', () => {
     it('resolves policy', () => {
       const resolvedPolicy = generateTopicSubscriptionPolicy(
-        'arn:aws:sns:eu-central-1:632374391739:test-sns-fss-messages',
+        'arn:aws:sns:eu-central-1:632374391739:test-sns-some-service',
         'arn:aws:sqs:eu-central-1:632374391739:test-sqs-*',
       )
 
       expect(resolvedPolicy).toBe(
-        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-central-1:632374391739:test-sqs-some-service","Condition":{"ArnLike":{"aws:SourceArn":"arn:aws:sns:eu-central-1:632374391739:test-sns-*"}}}]}`,
+        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-central-1:632374391739:test-sns-some-service","Condition":{"StringLike":{"sns:Endpoint":"arn:aws:sqs:eu-central-1:632374391739:test-sqs-*"}}}]}`,
       )
     })
   })
