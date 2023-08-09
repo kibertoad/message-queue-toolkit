@@ -52,7 +52,7 @@ describe('SNS PermissionsConsumer', () => {
       await deleteQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
     })
 
-    it('sets correct policy when is set', async () => {
+    it('sets correct policy when policy fields are set', async () => {
       const newConsumer = new SnsSqsPermissionConsumerMonoSchema(diContainer.cradle, {
         creationConfig: {
           queue: {
@@ -61,8 +61,8 @@ describe('SNS PermissionsConsumer', () => {
           topic: {
             Name: 'policy-topic',
           },
-          topicArnsWithPublishPermissionsPrefix: 'dummy',
-          queueUrlsWithSubscribePermissionsPrefix: 'dummy',
+          topicArnsWithPublishPermissionsPrefix: 'dummy*',
+          queueUrlsWithSubscribePermissionsPrefix: 'dummy*',
         },
       })
       await newConsumer.init()
@@ -77,10 +77,10 @@ describe('SNS PermissionsConsumer', () => {
       const topic = await getTopicAttributes(snsClient, newConsumer.topicArn)
 
       expect(queue.result?.attributes?.Policy).toBe(
-        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"http://s3.localhost.localstack.cloud:4566/000000000000/policy-queue","Condition":{"ArnLike":{"aws:SourceArn":"dummy"}}}]}`,
+        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"http://s3.localhost.localstack.cloud:4566/000000000000/policy-queue","Condition":{"ArnLike":{"aws:SourceArn":"dummy*"}}}]}`,
       )
       expect(topic.result?.attributes?.Policy).toBe(
-        `{"Version":"2008-10-17","Id":"__default_policy_ID","Statement":[{"Effect":"Allow","Sid":"__default_statement_ID","Principal":{"AWS":"*"},"Action":["SNS:GetTopicAttributes","SNS:SetTopicAttributes","SNS:AddPermission","SNS:RemovePermission","SNS:DeleteTopic","SNS:Subscribe","SNS:ListSubscriptionsByTopic","SNS:Publish","SNS:Receive"],"Resource":"arn:aws:sns:eu-west-1:000000000000:policy-topic","Condition":{"StringEquals":{"AWS:SourceOwner":"000000000000"}}}]}`,
+        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-west-1:000000000000:policy-topic","Condition":{"StringLike":{"sns:Endpoint":"dummy*"}}}]}`,
       )
     })
 

@@ -160,7 +160,9 @@ export async function initSns(
       'When locatorConfig for the topic is not specified, creationConfig of the topic is mandatory',
     )
   }
-  const topicArn = await assertTopic(snsClient, creationConfig.topic)
+  const topicArn = await assertTopic(snsClient, creationConfig.topic, {
+    queueUrlsWithSubscribePermissionsPrefix: creationConfig.queueUrlsWithSubscribePermissionsPrefix,
+  })
   return {
     topicArn,
   }
