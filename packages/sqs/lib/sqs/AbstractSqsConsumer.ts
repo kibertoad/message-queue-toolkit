@@ -136,43 +136,13 @@ export abstract class AbstractSqsConsumer<
     this.consumer = Consumer.create({
       queueUrl: this.queueUrl,
       handleMessage: async (message: SQSMessage) => {
-        if (message === null) {
-          return
-        }
+        if (message === null) return
 
         const deserializedMessage = this.deserializeMessage(message)
-        if (deserializedMessage.error === 'abort') {
-          await this.failProcessing(message)
-          return
-        }
-        // @ts-ignore
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        const messageType = deserializedMessage.result[this.messageTypeField]
-        const transactionSpanId = `queue_${this.queueName}:${messageType}`
+        if (deserializedMessage.error === 'abort') return this.failProcessing(message)
 
-        this.transactionObservabilityManager?.start(transactionSpanId)
-        const result: Either<'retryLater' | Error, 'success'> = await this.processMessage(
-          deserializedMessage.result,
-          messageType,
-        )
-          .catch((err) => {
-            // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
-            // If we fail due to unknown reason, let's retry
-            this.handleError(err)
-            return {
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-              error: err,
-            }
-          })
-          .finally(() => {
-            this.transactionObservabilityManager?.stop(transactionSpanId)
-          })
-
-        if (result.result) {
-          return message
-        } else {
-          return Promise.reject(result)
-        }
+        const result = await this.messageHandler(deserializedMessage.result)
+        return result.result ? message : Promise.reject(result)
       },
       sqs: this.sqsClient,
       ...this.consumerOptionsOverride,
@@ -183,6 +153,27 @@ export abstract class AbstractSqsConsumer<
     })
 
     this.consumer.start()
+  }
+
+  private async messageHandler(
+    message: MessagePayloadType,
+  ): Promise<Either<'retryLater', 'success'>> {
+    // @ts-ignore
+    const messageType = message[this.messageTypeField] as string
+    const transactionSpanId = `queue_${this.queueName}:${messageType}`
+
+    this.transactionObservabilityManager?.start(transactionSpanId)
+
+    return await this.processMessage(message, messageType)
+      .catch((err) => {
+        // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
+        // If we fail due to unknown reason, let's retry
+        this.handleError(err)
+        return {
+          error: 'retryLater' as const,
+        }
+      })
+      .finally(() => this.transactionObservabilityManager?.stop(transactionSpanId))
   }
 
   protected override resolveMessage(message: SQSMessage) {
