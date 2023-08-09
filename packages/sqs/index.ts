@@ -24,5 +24,6 @@ export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisherMonoSchema
 export { assertQueue, deleteQueue, getQueueAttributes } from './lib/utils/sqsUtils'
 export { deleteSqs } from './lib/utils/sqsInitter'
 export { deserializeSQSMessage } from './lib/utils/sqsMessageDeserializer'
+export { generateQueuePublishForTopicPolicy } from './lib/utils/sqsAttributeUtils'
 
 export type { CommonMessage, SQSMessage } from './lib/types/MessageTypes'

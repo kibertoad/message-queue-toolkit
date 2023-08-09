@@ -10,13 +10,6 @@ export function generateTopicSubscriptionPolicy(
   return `{"Version":"${POLICY_VERSION}","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"${topicArn}","Condition":{"StringLike":{"sns:Endpoint":"${supportedSqsQueueUrlPrefix}"}}}]}`
 }
 
-export function generateQueuePublishForTopicPolicy(
-  queueUrl: string,
-  supportedSnsTopicArnPrefix: string,
-) {
-  return `{"Version":"${POLICY_VERSION}","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"${queueUrl}","Condition":{"ArnLike":{"aws:SourceArn":"${supportedSnsTopicArnPrefix}"}}}]}`
-}
-
 export function generateFilterAttributes(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   messageSchemas: ZodSchema<any>[],

@@ -42,6 +42,11 @@ export async function initSnsSqs(
       creationConfig.queue,
       creationConfig.topic,
       subscriptionConfig,
+      {
+        queueUrlsWithSubscribePermissionsPrefix:
+          creationConfig.queueUrlsWithSubscribePermissionsPrefix,
+        topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
+      },
     )
     if (!subscriptionArn) {
       throw new Error('Failed to subscribe')

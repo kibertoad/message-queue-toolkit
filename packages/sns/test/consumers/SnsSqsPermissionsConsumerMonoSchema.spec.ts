@@ -67,13 +67,21 @@ describe('SNS PermissionsConsumer', () => {
       })
       await newConsumer.init()
 
-      const queue = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.queueUrl,
-      })
+      const queue = await getQueueAttributes(
+        sqsClient,
+        {
+          queueUrl: newConsumer.queueUrl,
+        },
+        ['Policy'],
+      )
       const topic = await getTopicAttributes(snsClient, newConsumer.topicArn)
 
-      expect(queue.result?.attributes?.Policy).toBe('rar')
-      expect(topic.result?.attributes?.Policy).toBe(`{"Version":"2008-10-17","Id":"__default_policy_ID","Statement":[{"Effect":"Allow","Sid":"__default_statement_ID","Principal":{"AWS":"*"},"Action":["SNS:GetTopicAttributes","SNS:SetTopicAttributes","SNS:AddPermission","SNS:RemovePermission","SNS:DeleteTopic","SNS:Subscribe","SNS:ListSubscriptionsByTopic","SNS:Publish","SNS:Receive"],"Resource":"arn:aws:sns:eu-west-1:000000000000:policy-topic","Condition":{"StringEquals":{"AWS:SourceOwner":"000000000000"}}}]}`)
+      expect(queue.result?.attributes?.Policy).toBe(
+        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"http://s3.localhost.localstack.cloud:4566/000000000000/policy-queue","Condition":{"ArnLike":{"aws:SourceArn":"dummy"}}}]}`,
+      )
+      expect(topic.result?.attributes?.Policy).toBe(
+        `{"Version":"2008-10-17","Id":"__default_policy_ID","Statement":[{"Effect":"Allow","Sid":"__default_statement_ID","Principal":{"AWS":"*"},"Action":["SNS:GetTopicAttributes","SNS:SetTopicAttributes","SNS:AddPermission","SNS:RemovePermission","SNS:DeleteTopic","SNS:Subscribe","SNS:ListSubscriptionsByTopic","SNS:Publish","SNS:Receive"],"Resource":"arn:aws:sns:eu-west-1:000000000000:policy-topic","Condition":{"StringEquals":{"AWS:SourceOwner":"000000000000"}}}]}`,
+      )
     })
 
     it('throws an error when invalid queue locator is passed', async () => {
