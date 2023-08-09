@@ -7,3 +7,11 @@ export function generateQueuePublishForTopicPolicy(
 ) {
   return `{"Version":"${POLICY_VERSION}","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"${queueUrl}","Condition":{"ArnLike":{"aws:SourceArn":"${supportedSnsTopicArnPrefix}"}}}]}`
 }
+
+export function generateWildcardSqsArn(sqsQueueArnPrefix: string) {
+  return `arn:aws:sqs:*:*:${sqsQueueArnPrefix}`
+}
+
+export function generateWildcardSnsArn(snsTopicArnPrefix: string) {
+  return `arn:aws:sns:*:*:${snsTopicArnPrefix}`
+}
