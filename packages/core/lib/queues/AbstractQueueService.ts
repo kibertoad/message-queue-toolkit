@@ -39,6 +39,10 @@ export type ExistingQueueOptionsMultiSchema<
 > = ExistingQueueOptions<QueueLocatorType> &
   MultiSchemaConsumerOptions<MessagePayloadSchemas, ExecutionContext>
 
+export type BarrierCallback<MessagePayloadSchema extends object> = (
+  message: MessagePayloadSchema,
+) => Promise<boolean>
+
 export type DeletionConfig = {
   deleteIfExists?: boolean
   forceDeleteInProduction?: boolean
@@ -106,6 +110,7 @@ export abstract class AbstractQueueService<
   protected abstract resolveSchema(
     message: MessagePayloadSchemas,
   ): Either<Error, ZodSchema<MessagePayloadSchemas>>
+
   protected abstract resolveMessage(
     message: MessageEnvelopeType,
   ): Either<MessageInvalidFormatError | MessageValidationError, unknown>

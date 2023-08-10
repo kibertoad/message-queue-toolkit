@@ -21,6 +21,7 @@ export type {
   CommonQueueLocator,
   DeletionConfig,
   MultiSchemaPublisherOptions,
+  BarrierCallback,
 } from './lib/queues/AbstractQueueService'
 
 export {
