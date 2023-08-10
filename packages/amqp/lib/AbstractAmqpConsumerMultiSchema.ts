@@ -43,7 +43,8 @@ export abstract class AbstractAmqpConsumerMultiSchema<
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler(messageType)
+    // TODO: use barrier and test it
     // @ts-ignore
-    return handler(message, this)
+    return await handler.handler(message, this)
   }
 }
