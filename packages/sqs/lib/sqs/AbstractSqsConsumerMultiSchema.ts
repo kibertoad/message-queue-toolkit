@@ -73,7 +73,11 @@ export abstract class AbstractSqsConsumerMultiSchema<
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler(messageType)
+    let barrierResult = true
+    if (handler.barrier) {
+      barrierResult = await handler.barrier(message)
+    }
     // @ts-ignore
-    return handler(message, this)
+    return barrierResult ? handler.handler(message, this) : { error: 'retryLater' }
   }
 }

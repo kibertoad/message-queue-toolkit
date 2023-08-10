@@ -86,6 +86,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     })
 
     afterEach(async () => {
+      consumer.resetCounters()
       await diContainer.cradle.permissionConsumerMultiSchema.close()
       await diContainer.cradle.permissionConsumerMultiSchema.close(true)
     })
@@ -103,9 +104,10 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
         })
 
         await waitAndRetry(() => {
-          return consumer.addCounter > 0 && consumer.removeCounter == 2
+          return consumer.addCounter === 1 && consumer.removeCounter === 2
         })
 
+        expect(consumer.addBarrierCounter).toBe(3)
         expect(consumer.addCounter).toBe(1)
         expect(consumer.removeCounter).toBe(2)
       })

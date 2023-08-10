@@ -24,6 +24,7 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
   SqsPermissionConsumerMultiSchema
 > {
   public addCounter = 0
+  public addBarrierCounter = 0
   public removeCounter = 0
   public static QUEUE_NAME = 'user_permissions_multi'
 
@@ -65,12 +66,19 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
         SupportedMessages,
         SqsPermissionConsumerMultiSchema
       >()
-        .addConfig(PERMISSIONS_ADD_MESSAGE_SCHEMA, async (_message, _context) => {
-          this.addCounter++
-          return {
-            result: 'success',
-          }
-        })
+        .addConfig(
+          PERMISSIONS_ADD_MESSAGE_SCHEMA,
+          async (_message, _context) => {
+            this.addCounter++
+            return {
+              result: 'success',
+            }
+          },
+          (_message) => {
+            this.addBarrierCounter++
+            return Promise.resolve(this.addBarrierCounter === 3)
+          },
+        )
         .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {
           this.removeCounter++
           return {
@@ -79,5 +87,11 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
         })
         .build(),
     })
+  }
+
+  resetCounters(): void {
+    this.removeCounter = 0
+    this.addCounter = 0
+    this.addBarrierCounter = 0
   }
 }
