@@ -21,6 +21,7 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
   public static QUEUE_NAME = 'user_permissions_multi'
 
   public addCounter = 0
+  public addBarrierCounter = 0
   public removeCounter = 0
 
   constructor(dependencies: AMQPConsumerDependencies) {
@@ -39,12 +40,19 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
         SupportedEvents,
         AmqpPermissionConsumerMultiSchema
       >()
-        .addConfig(PERMISSIONS_ADD_MESSAGE_SCHEMA, async (_message, _context) => {
-          this.addCounter++
-          return {
-            result: 'success',
-          }
-        })
+        .addConfig(
+          PERMISSIONS_ADD_MESSAGE_SCHEMA,
+          async (_message, _context) => {
+            this.addCounter++
+            return {
+              result: 'success',
+            }
+          },
+          (_message) => {
+            this.addBarrierCounter++
+            return Promise.resolve(this.addBarrierCounter === 3)
+          },
+        )
         .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {
           this.removeCounter++
           return {
@@ -54,5 +62,11 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
         .build(),
       messageTypeField: 'messageType',
     })
+  }
+
+  resetCounters(): void {
+    this.removeCounter = 0
+    this.addCounter = 0
+    this.addBarrierCounter = 0
   }
 }

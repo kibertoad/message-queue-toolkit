@@ -1,8 +1,8 @@
+import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 
-import { waitAndRetry } from '../../../core/lib/utils/waitUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { AmqpPermissionPublisherMultiSchema } from '../publishers/AmqpPermissionPublisherMultiSchema'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
@@ -27,6 +27,7 @@ describe('PermissionsConsumerMultiSchema', () => {
     })
 
     afterEach(async () => {
+      consumer.resetCounters()
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
       await diContainer.dispose()
@@ -44,9 +45,10 @@ describe('PermissionsConsumerMultiSchema', () => {
       })
 
       await waitAndRetry(() => {
-        return consumer.addCounter > 0 && consumer.removeCounter == 2
+        return consumer.addCounter === 1 && consumer.removeCounter === 2
       })
 
+      expect(consumer.addBarrierCounter).toBe(3)
       expect(consumer.addCounter).toBe(1)
       expect(consumer.removeCounter).toBe(2)
     })
