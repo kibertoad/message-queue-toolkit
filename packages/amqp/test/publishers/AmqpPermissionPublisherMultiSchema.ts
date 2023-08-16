@@ -21,8 +21,8 @@ export class AmqpPermissionPublisherMultiSchema extends AbstractAmqpPublisherMul
   constructor(
     dependencies: AMQPDependencies,
     options:
-      | Pick<NewAMQPConsumerOptions, 'creationConfig'>
-      | Pick<ExistingAMQPConsumerOptions, 'locatorConfig'> = {
+      | Pick<NewAMQPConsumerOptions, 'creationConfig' | 'logMessages'>
+      | Pick<ExistingAMQPConsumerOptions, 'locatorConfig' | 'logMessages'> = {
       creationConfig: {
         queueName: AmqpPermissionPublisherMultiSchema.QUEUE_NAME,
         queueOptions: {
@@ -35,6 +35,7 @@ export class AmqpPermissionPublisherMultiSchema extends AbstractAmqpPublisherMul
     super(dependencies, {
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
       messageTypeField: 'messageType',
+      logMessages: true,
       ...options,
     })
   }

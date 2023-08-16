@@ -74,6 +74,11 @@ export abstract class AbstractSqsConsumerMultiSchema<
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler(messageType)
     // @ts-ignore
-    return handler(message, this)
+    return handler.handler(message, this)
+  }
+
+  protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
+    const handler = this.handlerContainer.resolveHandler(messageType)
+    return handler.messageLogFormatter(message)
   }
 }

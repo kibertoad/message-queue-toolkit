@@ -16,6 +16,7 @@ export class SqsPermissionPublisherMonoSchema extends AbstractSqsPublisherMonoSc
       deletionConfig: {
         deleteIfExists: false,
       },
+      logMessages: true,
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
     })

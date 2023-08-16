@@ -32,6 +32,13 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
 
   publish(message: MessagePayloadType): void {
     this.messageSchema.parse(message)
+
+    if (this.logMessages) {
+      // @ts-ignore
+      const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
+      this.logMessage(resolvedLogMessage)
+    }
+
     this.channel.sendToQueue(this.queueName, objectToBuffer(message))
   }
 

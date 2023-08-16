@@ -1,5 +1,6 @@
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 
+import type { NewAMQPConsumerOptions } from '../../lib/AbstractAmqpBaseConsumer'
 import { AbstractAmqpConsumerMultiSchema } from '../../lib/AbstractAmqpConsumerMultiSchema'
 import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService'
 
@@ -23,7 +24,7 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
   public addCounter = 0
   public removeCounter = 0
 
-  constructor(dependencies: AMQPConsumerDependencies) {
+  constructor(dependencies: AMQPConsumerDependencies, options?: Partial<NewAMQPConsumerOptions>) {
     super(dependencies, {
       creationConfig: {
         queueName: AmqpPermissionConsumerMultiSchema.QUEUE_NAME,
@@ -53,6 +54,7 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
         })
         .build(),
       messageTypeField: 'messageType',
+      ...options,
     })
   }
 }

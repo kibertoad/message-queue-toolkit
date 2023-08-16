@@ -1,6 +1,6 @@
 import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
-import { asClass, Lifetime } from 'awilix'
+import { asClass, asFunction, Lifetime } from 'awilix'
 import { describe, beforeAll, beforeEach, afterAll, afterEach, expect, it } from 'vitest'
 
 import { waitAndRetry } from '../../../core/lib/utils/waitUtils'
@@ -10,16 +10,48 @@ import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumer } from '../fakes/FakeConsumer'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
+import { FakeLogger } from '../fakes/FakeLogger'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 
 import { AmqpPermissionPublisher } from './AmqpPermissionPublisher'
+import type { AmqpPermissionPublisherMultiSchema } from './AmqpPermissionPublisherMultiSchema'
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
 
 describe('PermissionPublisher', () => {
+  describe('logging', () => {
+    let logger: FakeLogger
+    let diContainer: AwilixContainer<Dependencies>
+    let publisher: AmqpPermissionPublisherMultiSchema
+    beforeAll(async () => {
+      logger = new FakeLogger()
+      diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
+        logger: asFunction(() => logger),
+      })
+      await diContainer.cradle.permissionConsumerMultiSchema.close()
+      publisher = diContainer.cradle.permissionPublisherMultiSchema
+    })
+
+    it('logs a message when logging is enabled', async () => {
+      const message = {
+        userIds,
+        messageType: 'add',
+        permissions: perms,
+      } satisfies PERMISSIONS_MESSAGE_TYPE
+
+      publisher.publish(message)
+
+      await waitAndRetry(() => {
+        return logger.loggedMessages.length === 1
+      })
+
+      expect(logger.loggedMessages.length).toBe(1)
+    })
+  })
+
   describe('init', () => {
     let diContainer: AwilixContainer<Dependencies>
     let channel: Channel
