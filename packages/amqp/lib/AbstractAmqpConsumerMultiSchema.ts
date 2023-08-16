@@ -44,6 +44,6 @@ export abstract class AbstractAmqpConsumerMultiSchema<
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler(messageType)
     // @ts-ignore
-    return handler(message, this)
+    return handler.handler(message, this)
   }
 }

@@ -116,6 +116,10 @@ export abstract class AbstractAmqpBaseConsumer<MessagePayloadType extends object
       }`
 
       this.transactionObservabilityManager?.start(transactionSpanId)
+      if (this.logMessages) {
+        const resolvedLogMessage = this.resolveMessageLog(deserializedMessage.result, messageType)
+        this.logMessage(resolvedLogMessage)
+      }
       this.processMessage(deserializedMessage.result, messageType)
         .then((result) => {
           if (result.error === 'retryLater') {
