@@ -51,6 +51,10 @@ export abstract class AbstractSqsPublisherMultiSchema<MessagePayloadType extends
       }
       resolveSchemaResult.result.parse(message)
 
+      // @ts-ignore
+      const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
+      this.logMessage(resolvedLogMessage)
+
       const input = {
         // SendMessageRequest
         QueueUrl: this.queueUrl,

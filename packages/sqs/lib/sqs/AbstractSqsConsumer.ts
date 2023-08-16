@@ -151,6 +151,10 @@ export abstract class AbstractSqsConsumer<
         const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
         this.transactionObservabilityManager?.start(transactionSpanId)
+        if (this.logMessages) {
+          const resolvedLogMessage = this.resolveMessageLog(deserializedMessage.result, messageType)
+          this.logMessage(resolvedLogMessage)
+        }
         const result: Either<'retryLater' | Error, 'success'> = await this.processMessage(
           deserializedMessage.result,
           messageType,

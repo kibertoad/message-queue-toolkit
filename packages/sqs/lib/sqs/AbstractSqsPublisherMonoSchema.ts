@@ -25,6 +25,7 @@ export abstract class AbstractSqsPublisherMonoSchema<MessagePayloadType extends 
   implements AsyncPublisher<MessagePayloadType, SQSMessageOptions>
 {
   private readonly messageSchema: ZodSchema<MessagePayloadType>
+  private readonly schemaEither: Either<Error, ZodSchema<MessagePayloadType>>
 
   constructor(
     dependencies: SQSDependencies,
@@ -33,11 +34,20 @@ export abstract class AbstractSqsPublisherMonoSchema<MessagePayloadType extends 
   ) {
     super(dependencies, options)
     this.messageSchema = options.messageSchema
+
+    this.schemaEither = {
+      result: this.messageSchema,
+    }
   }
 
   async publish(message: MessagePayloadType, options: SQSMessageOptions = {}): Promise<void> {
     try {
       this.messageSchema.parse(message)
+
+      // @ts-ignore
+      const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
+      this.logMessage(resolvedLogMessage)
+
       const input = {
         // SendMessageRequest
         QueueUrl: this.queueUrl,
@@ -58,9 +68,7 @@ export abstract class AbstractSqsPublisherMonoSchema<MessagePayloadType extends 
   }
 
   protected override resolveSchema() {
-    return {
-      result: this.messageSchema,
-    }
+    return this.schemaEither
   }
   /* c8 ignore stop */
 }
