@@ -77,7 +77,7 @@ describe('SNS PermissionsConsumer', () => {
       const topic = await getTopicAttributes(snsClient, newConsumer.topicArn)
 
       expect(queue.result?.attributes?.Policy).toBe(
-        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"http://s3.localhost.localstack.cloud:4566/000000000000/policy-queue","Condition":{"ArnLike":{"aws:SourceArn":"dummy*"}}}]}`,
+        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-west-1:000000000000:policy-queue","Condition":{"ArnLike":{"aws:SourceArn":"dummy*"}}}]}`,
       )
       expect(topic.result?.attributes?.Policy).toBe(
         `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-west-1:000000000000:policy-topic","Condition":{"StringLike":{"sns:Endpoint":"dummy*"}}}]}`,
