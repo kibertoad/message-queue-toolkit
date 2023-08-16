@@ -36,14 +36,14 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
             SqsPermissionConsumerMultiSchema,
             SQSCreationConfig
           >,
-          'creationConfig'
+          'creationConfig' | 'logMessages'
         >
       | Pick<
           ExistingSQSConsumerOptionsMultiSchema<
             SupportedMessages,
             SqsPermissionConsumerMultiSchema
           >,
-          'locatorConfig'
+          'locatorConfig' | 'logMessages'
         > = {
       creationConfig: {
         queue: {
