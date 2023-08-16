@@ -47,9 +47,11 @@ export abstract class AbstractSnsPublisherMultiSchema<MessagePayloadType extends
       }
       resolveSchemaResult.result.parse(message)
 
-      // @ts-ignore
-      const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
-      this.logMessage(resolvedLogMessage)
+      if (this.logMessages) {
+        // @ts-ignore
+        const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
+        this.logMessage(resolvedLogMessage)
+      }
 
       const input = {
         Message: JSON.stringify(message),
