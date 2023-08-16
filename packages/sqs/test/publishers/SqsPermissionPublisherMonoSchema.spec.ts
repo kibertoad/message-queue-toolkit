@@ -2,15 +2,16 @@ import type { SQSClient } from '@aws-sdk/client-sqs'
 import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
-import { asClass } from 'awilix'
+import { asClass, asFunction } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
+import { describe, beforeEach, expect, it, afterAll, beforeAll } from 'vitest'
 
 import type { SQSMessage } from '../../lib/types/MessageTypes'
 import { deserializeSQSMessage } from '../../lib/utils/sqsMessageDeserializer'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
+import { FakeLogger } from '../fakes/FakeLogger'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
@@ -21,6 +22,35 @@ const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
 
 describe('SqsPermissionPublisher', () => {
+  let diContainer: AwilixContainer<Dependencies>
+  let publisher: SqsPermissionPublisherMonoSchema
+  let logger: FakeLogger
+
+  beforeAll(async () => {
+    logger = new FakeLogger()
+    diContainer = await registerDependencies({
+      consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
+      logger: asFunction(() => logger),
+    })
+    publisher = diContainer.cradle.permissionPublisher
+  })
+
+  it('logs a message when logging is enabled', async () => {
+    const message = {
+      userIds,
+      messageType: 'add',
+      permissions: perms,
+    } satisfies PERMISSIONS_MESSAGE_TYPE
+
+    await publisher.publish(message)
+
+    await waitAndRetry(() => {
+      return logger.loggedMessages.length === 1
+    })
+
+    expect(logger.loggedMessages.length).toBe(1)
+  })
+
   describe('publish', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
@@ -57,11 +87,6 @@ describe('SqsPermissionPublisher', () => {
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
       await diContainer.dispose()
-    })
-
-    afterEach(async () => {
-      consumer?.stop()
-      consumer?.stop({ abort: true })
     })
 
     it('publishes a message', async () => {
