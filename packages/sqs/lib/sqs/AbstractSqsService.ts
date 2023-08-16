@@ -62,6 +62,8 @@ export abstract class AbstractSqsService<
   public queueUrl: string
   // @ts-ignore
   public queueName: string
+  // @ts-ignore
+  public queueArn: string
 
   constructor(dependencies: DependenciesType, options: SQSOptionsType) {
     super(dependencies, options)
@@ -73,12 +75,13 @@ export abstract class AbstractSqsService<
     if (this.deletionConfig && this.creationConfig) {
       await deleteSqs(this.sqsClient, this.deletionConfig, this.creationConfig)
     }
-    const { queueUrl, queueName } = await initSqs(
+    const { queueUrl, queueName, queueArn } = await initSqs(
       this.sqsClient,
       this.locatorConfig,
       this.creationConfig,
     )
 
+    this.queueArn = queueArn
     this.queueUrl = queueUrl
     this.queueName = queueName
   }

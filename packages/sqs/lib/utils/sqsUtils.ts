@@ -64,12 +64,23 @@ export async function assertQueue(
     throw new Error(`Queue ${queueConfig.QueueName ?? ''} was not created`)
   }
 
+  const getQueueAttributesCommand = new GetQueueAttributesCommand({
+    QueueUrl: response.QueueUrl,
+    AttributeNames: ['QueueArn'],
+  })
+  const queueAttributesResponse = await sqsClient.send(getQueueAttributesCommand)
+  const queueArn = queueAttributesResponse.Attributes?.QueueArn
+
+  if (!queueArn) {
+    throw new Error('Queue ARN was not set')
+  }
+
   if (extraParams?.topicArnsWithPublishPermissionsPrefix) {
     const setTopicAttributesCommand = new SetQueueAttributesCommand({
       QueueUrl: response.QueueUrl,
       Attributes: {
         Policy: generateQueuePublishForTopicPolicy(
-          response.QueueUrl,
+          queueArn,
           extraParams.topicArnsWithPublishPermissionsPrefix,
         ),
       },
@@ -77,7 +88,10 @@ export async function assertQueue(
     await sqsClient.send(setTopicAttributesCommand)
   }
 
-  return response.QueueUrl
+  return {
+    queueArn,
+    queueUrl: response.QueueUrl,
+  }
 }
 
 export async function deleteQueue(client: SQSClient, queueName: string) {
