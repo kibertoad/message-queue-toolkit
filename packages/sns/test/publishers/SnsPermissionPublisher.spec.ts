@@ -113,7 +113,7 @@ describe('SNSPermissionPublisher', () => {
         permissions: perms,
       } satisfies PERMISSIONS_MESSAGE_TYPE
 
-      const queueUrl = await assertQueue(sqsClient, {
+      const { queueUrl } = await assertQueue(sqsClient, {
         QueueName: queueName,
       })
 

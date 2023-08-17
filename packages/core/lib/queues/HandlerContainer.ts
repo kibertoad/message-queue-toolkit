@@ -3,22 +3,33 @@ import type { ZodSchema } from 'zod'
 
 import type { BarrierCallback } from './AbstractQueueService'
 
+export type LogFormatter<MessagePayloadSchema> = (message: MessagePayloadSchema) => unknown
+
+export const defaultLogFormatter = <MessagePayloadSchema>(message: MessagePayloadSchema) => message
+
+export type HandlerConfigOptions<MessagePayloadSchema extends object> = {
+  messageLogFormatter?: LogFormatter<MessagePayloadSchema>
+  barrier?: BarrierCallback<MessagePayloadSchema>
+}
+
 export class MessageHandlerConfig<
-  const MessagePayloadSchemas extends object,
+  const MessagePayloadSchema extends object,
   const ExecutionContext,
 > {
-  public readonly schema: ZodSchema<MessagePayloadSchemas>
-  public readonly handler: Handler<MessagePayloadSchemas, ExecutionContext>
-  public readonly barrier?: BarrierCallback<MessagePayloadSchemas>
+  public readonly schema: ZodSchema<MessagePayloadSchema>
+  public readonly handler: Handler<MessagePayloadSchema, ExecutionContext>
+  public readonly messageLogFormatter: LogFormatter<MessagePayloadSchema>
+  public readonly barrier?: BarrierCallback<MessagePayloadSchema>
 
   constructor(
-    schema: ZodSchema<MessagePayloadSchemas>,
-    handler: Handler<MessagePayloadSchemas, ExecutionContext>,
-    barrier?: BarrierCallback<MessagePayloadSchemas>,
+    schema: ZodSchema<MessagePayloadSchema>,
+    handler: Handler<MessagePayloadSchema, ExecutionContext>,
+    options?: HandlerConfigOptions<MessagePayloadSchema>,
   ) {
     this.schema = schema
     this.handler = handler
-    this.barrier = barrier
+    this.messageLogFormatter = options?.messageLogFormatter ?? defaultLogFormatter
+    this.barrier = options?.barrier
   }
 }
 
@@ -32,10 +43,10 @@ export class MessageHandlerConfigBuilder<MessagePayloadSchemas extends object, E
   addConfig<MessagePayloadSchema extends MessagePayloadSchemas>(
     schema: ZodSchema<MessagePayloadSchema>,
     handler: Handler<MessagePayloadSchema, ExecutionContext>,
-    barrier?: BarrierCallback<MessagePayloadSchema>,
+    options?: HandlerConfigOptions<MessagePayloadSchema>,
   ) {
     // @ts-ignore
-    this.configs.push(new MessageHandlerConfig(schema, handler, barrier))
+    this.configs.push(new MessageHandlerConfig(schema, handler, options))
     return this
   }
 

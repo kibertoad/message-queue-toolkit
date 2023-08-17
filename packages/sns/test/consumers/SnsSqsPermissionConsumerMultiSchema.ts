@@ -57,9 +57,11 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
               result: 'success',
             }
           },
-          (_message) => {
-            this.addBarrierCounter++
-            return Promise.resolve(this.addBarrierCounter === 3)
+          {
+            barrier: (_message) => {
+              this.addBarrierCounter++
+              return Promise.resolve(this.addBarrierCounter === 3)
+            },
           },
         )
         .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {

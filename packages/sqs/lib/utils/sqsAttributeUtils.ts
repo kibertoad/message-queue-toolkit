@@ -2,10 +2,10 @@
 const POLICY_VERSION = '2012-10-17'
 
 export function generateQueuePublishForTopicPolicy(
-  queueUrl: string,
+  queueArn: string,
   supportedSnsTopicArnPrefix: string,
 ) {
-  return `{"Version":"${POLICY_VERSION}","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"${queueUrl}","Condition":{"ArnLike":{"aws:SourceArn":"${supportedSnsTopicArnPrefix}"}}}]}`
+  return `{"Version":"${POLICY_VERSION}","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"${queueArn}","Condition":{"ArnLike":{"aws:SourceArn":"${supportedSnsTopicArnPrefix}"}}}]}`
 }
 
 export function generateWildcardSqsArn(sqsQueueArnPrefix: string) {

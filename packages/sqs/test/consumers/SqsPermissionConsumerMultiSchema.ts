@@ -37,14 +37,14 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
             SqsPermissionConsumerMultiSchema,
             SQSCreationConfig
           >,
-          'creationConfig'
+          'creationConfig' | 'logMessages'
         >
       | Pick<
           ExistingSQSConsumerOptionsMultiSchema<
             SupportedMessages,
             SqsPermissionConsumerMultiSchema
           >,
-          'locatorConfig'
+          'locatorConfig' | 'logMessages'
         > = {
       creationConfig: {
         queue: {
@@ -74,9 +74,11 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
               result: 'success',
             }
           },
-          (_message) => {
-            this.addBarrierCounter++
-            return Promise.resolve(this.addBarrierCounter === 3)
+          {
+            barrier: (_message) => {
+              this.addBarrierCounter++
+              return Promise.resolve(this.addBarrierCounter === 3)
+            },
           },
         )
         .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {

@@ -2,7 +2,6 @@ import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import { SubscribeCommand } from '@aws-sdk/client-sns'
 import type { SubscribeCommandInput } from '@aws-sdk/client-sns/dist-types/commands/SubscribeCommand'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
-import { GetQueueAttributesCommand } from '@aws-sdk/client-sqs'
 import type { ExtraSQSCreationParams } from '@message-queue-toolkit/sqs'
 import { assertQueue } from '@message-queue-toolkit/sqs'
 
@@ -26,24 +25,13 @@ export async function subscribeToTopic(
   const topicArn = await assertTopic(snsClient, topicConfiguration, {
     queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
   })
-  const queueUrl = await assertQueue(sqsClient, queueConfiguration, {
+  const { queueUrl, queueArn } = await assertQueue(sqsClient, queueConfiguration, {
     topicArnsWithPublishPermissionsPrefix: extraParams?.topicArnsWithPublishPermissionsPrefix,
   })
 
-  const getQueueAttributesCommand = new GetQueueAttributesCommand({
-    QueueUrl: queueUrl,
-    AttributeNames: ['QueueArn'],
-  })
-  const queueAttributesResponse = await sqsClient.send(getQueueAttributesCommand)
-  const sqsArn = queueAttributesResponse.Attributes?.QueueArn
-
-  if (!sqsArn) {
-    throw new Error(`Queue ${queueUrl} ARN is not defined`)
-  }
-
   const subscribeCommand = new SubscribeCommand({
     TopicArn: topicArn,
-    Endpoint: sqsArn,
+    Endpoint: queueArn,
     Protocol: 'sqs',
     ReturnSubscriptionArn: true,
     ...subscriptionConfiguration,
@@ -54,5 +42,6 @@ export async function subscribeToTopic(
     subscriptionArn: subscriptionResult.SubscriptionArn,
     topicArn,
     queueUrl,
+    queueArn,
   }
 }

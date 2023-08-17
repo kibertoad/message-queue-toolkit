@@ -41,6 +41,12 @@ export abstract class AbstractAmqpPublisherMultiSchema<MessagePayloadType extend
     }
     resolveSchemaResult.result.parse(message)
 
+    if (this.logMessages) {
+      // @ts-ignore
+      const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
+      this.logMessage(resolvedLogMessage)
+    }
+
     this.channel.sendToQueue(this.queueName, objectToBuffer(message))
   }
 

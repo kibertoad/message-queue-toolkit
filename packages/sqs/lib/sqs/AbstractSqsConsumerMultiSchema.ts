@@ -79,4 +79,9 @@ export abstract class AbstractSqsConsumerMultiSchema<
     // @ts-ignore
     return barrierResult ? handler.handler(message, this) : { error: 'retryLater' }
   }
+
+  protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
+    const handler = this.handlerContainer.resolveHandler(messageType)
+    return handler.messageLogFormatter(message)
+  }
 }

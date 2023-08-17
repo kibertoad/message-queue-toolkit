@@ -1,17 +1,49 @@
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
-import { asClass } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it } from 'vitest'
+import { asClass, asFunction } from 'awilix'
+import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
+import { FakeLogger } from '../fakes/FakeLogger'
 import type { AmqpPermissionPublisherMultiSchema } from '../publishers/AmqpPermissionPublisherMultiSchema'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 
-import type { AmqpPermissionConsumerMultiSchema } from './AmqpPermissionConsumerMultiSchema'
+import { AmqpPermissionConsumerMultiSchema } from './AmqpPermissionConsumerMultiSchema'
 
 describe('PermissionsConsumerMultiSchema', () => {
+  describe('logging', () => {
+    let logger: FakeLogger
+    let diContainer: AwilixContainer<Dependencies>
+    let publisher: AmqpPermissionPublisherMultiSchema
+    beforeAll(async () => {
+      logger = new FakeLogger()
+      diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
+        logger: asFunction(() => logger),
+      })
+      await diContainer.cradle.permissionConsumerMultiSchema.close()
+      publisher = diContainer.cradle.permissionPublisherMultiSchema
+    })
+
+    it('logs a message when logging is enabled', async () => {
+      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+        logMessages: true,
+      })
+      await newConsumer.start()
+
+      publisher.publish({
+        messageType: 'add',
+      })
+
+      await waitAndRetry(() => {
+        return logger.loggedMessages.length === 1
+      })
+
+      expect(logger.loggedMessages.length).toBe(1)
+    })
+  })
+
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: AmqpPermissionPublisherMultiSchema

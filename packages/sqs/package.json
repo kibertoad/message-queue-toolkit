@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/sqs",
-  "version": "3.4.0",
+  "version": "3.5.0",
   "private": false,
   "license": "MIT",
   "description": "SQS adapter for message-queue-toolkit",
@@ -32,19 +32,19 @@
   },
   "peerDependencies": {
     "@aws-sdk/client-sqs": "^3.385.0",
-    "@message-queue-toolkit/core": "^3.3.0"
+    "@message-queue-toolkit/core": "^3.4.0"
   },
   "devDependencies": {
     "@aws-sdk/client-sqs": "^3.385.0",
     "@message-queue-toolkit/core": "*",
-    "@types/node": "^20.4.1",
-    "@typescript-eslint/eslint-plugin": "^6.2.1",
-    "@typescript-eslint/parser": "^6.2.1",
+    "@types/node": "^20.5.0",
+    "@typescript-eslint/eslint-plugin": "^6.4.0",
+    "@typescript-eslint/parser": "^6.4.0",
     "@vitest/coverage-v8": "^0.34.1",
     "awilix": "^8.0.1",
     "awilix-manager": "^2.0.0",
     "del-cli": "^5.0.0",
-    "eslint": "^8.44.0",
+    "eslint": "^8.47.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-import": "^2.27.5",
     "eslint-plugin-prettier": "^5.0.0",

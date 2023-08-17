@@ -170,6 +170,10 @@ export abstract class AbstractSqsConsumer<
     const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
     this.transactionObservabilityManager?.start(transactionSpanId)
+    if (this.logMessages) {
+      const resolvedLogMessage = this.resolveMessageLog(message, messageType)
+      this.logMessage(resolvedLogMessage)
+    }
 
     return await this.internalProcessMessage(message, messageType)
       .catch((err) => {
