@@ -15,6 +15,9 @@ import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
 export class SqsPermissionConsumerMonoSchema extends AbstractSqsConsumerMonoSchema<PERMISSIONS_MESSAGE_TYPE> {
   public static QUEUE_NAME = 'user_permissions'
 
+  public isBarrierActive = false
+  public barrierCounter = 0
+
   constructor(
     dependencies: SQSConsumerDependencies,
     options:
@@ -36,8 +39,18 @@ export class SqsPermissionConsumerMonoSchema extends AbstractSqsConsumerMonoSche
       consumerOverrides: {
         terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
       },
+      barrier: (_message) => {
+        if (!this.isBarrierActive) return Promise.resolve(true)
+        this.barrierCounter++
+        return Promise.resolve(this.barrierCounter === 3)
+      },
       ...options,
     })
+  }
+
+  reset(): void {
+    this.barrierCounter = 0
+    this.isBarrierActive = false
   }
 
   override async processMessage(

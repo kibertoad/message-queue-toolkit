@@ -80,6 +80,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
 
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
+    let consumer: SqsPermissionConsumerMonoSchema
     let publisher: SqsPermissionPublisherMonoSchema
     let sqsClient: SQSClient
 
@@ -88,6 +89,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
       sqsClient = diContainer.cradle.sqsClient
+      consumer = diContainer.cradle.permissionConsumer
       publisher = diContainer.cradle.permissionPublisher
 
       delete userPermissionMap[100]
@@ -106,6 +108,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
     })
 
     afterEach(async () => {
+      consumer.reset()
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
       await diContainer.dispose()
@@ -113,6 +116,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
 
     describe('happy path', () => {
       it('Creates permissions', async () => {
+        consumer.isBarrierActive = true
         const users = Object.values(userPermissionMap)
         expect(users).toHaveLength(0)
 
@@ -132,6 +136,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
           throw new Error('Users permissions unexpectedly null')
         }
 
+        expect(consumer.barrierCounter).toBe(3)
         expect(updatedUsersPermissions).toBeDefined()
         expect(updatedUsersPermissions[0]).toHaveLength(2)
       })

@@ -74,6 +74,12 @@ export type MonoSchemaQueueOptions<MessagePayloadType extends object> = {
   messageSchema: ZodSchema<MessagePayloadType>
 }
 
+// TODO: check if we can use MonoSchemaQueueOptions to not repeat messageSchema
+export type MonoSchemaConsumerOptions<MessagePayloadType extends object> = {
+  messageSchema: ZodSchema<MessagePayloadType>
+  barrier?: BarrierCallback<MessagePayloadType>
+}
+
 export type CommonQueueLocator = {
   queueName: string
 }

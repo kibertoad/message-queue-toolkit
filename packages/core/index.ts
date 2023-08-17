@@ -14,6 +14,7 @@ export type {
   NewQueueOptionsMultiSchema,
   ExistingQueueOptionsMultiSchema,
   MonoSchemaQueueOptions,
+  MonoSchemaConsumerOptions,
   MultiSchemaConsumerOptions,
   QueueDependencies,
   QueueConsumerDependencies,
