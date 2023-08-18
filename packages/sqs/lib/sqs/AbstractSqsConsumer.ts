@@ -75,13 +75,6 @@ export abstract class AbstractSqsConsumer<
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
   }
 
-  protected internalProcessMessage(
-    message: MessagePayloadType,
-    messageType: string,
-  ): Promise<Either<'retryLater', 'success'>> {
-    return this.processMessage(message, messageType)
-  }
-
   abstract processMessage(
     message: MessagePayloadType,
     messageType: string,
@@ -175,7 +168,7 @@ export abstract class AbstractSqsConsumer<
       this.logMessage(resolvedLogMessage)
     }
 
-    return await this.internalProcessMessage(message, messageType)
+    return await this.processMessage(message, messageType)
       .catch((err) => {
         // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
         // If we fail due to unknown reason, let's retry
