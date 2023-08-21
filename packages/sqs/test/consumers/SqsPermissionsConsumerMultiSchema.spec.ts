@@ -117,9 +117,9 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
             QueueName: publisher.queueName,
           },
         },
-        addPreHandlerBarrier: (_msg) => {
+        addPreHandlerBarrier: async (_msg) => {
           barrierCounter++
-          return Promise.resolve(barrierCounter > 1)
+          return barrierCounter > 1
         },
       })
       await newConsumer.start()
