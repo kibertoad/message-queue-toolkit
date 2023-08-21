@@ -52,6 +52,7 @@ It consists of the following submodules:
 * `close()`, which needs to be invoked when stopping the application;
 * `processMessage()`, which accepts as parameter a `message` following a `zod` schema and should be overridden with logic on what to do with the message;
 * `start()`, which invokes `init()` and `processMessage()` and handles errors.
+* `preHandlerBarrier`, which accepts as a parameter a `message` following a `zod` schema and can be overridden to enable the build-in barrier pattern to facilitate out-of-order message handling
 
 > **_NOTE:_**  See [SqsPermissionConsumerMonoSchema.ts](./packages/sqs/test/consumers/SqsPermissionConsumerMonoSchema.ts) for a practical example.
 
