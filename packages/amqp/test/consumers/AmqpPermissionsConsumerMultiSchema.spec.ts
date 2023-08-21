@@ -1,7 +1,7 @@
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
+import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { FakeLogger } from '../fakes/FakeLogger'
@@ -59,7 +59,6 @@ describe('PermissionsConsumerMultiSchema', () => {
     })
 
     afterEach(async () => {
-      consumer.resetCounters()
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
       await diContainer.dispose()

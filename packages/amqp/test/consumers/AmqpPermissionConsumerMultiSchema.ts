@@ -67,10 +67,4 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
       ...options,
     })
   }
-
-  resetCounters(): void {
-    this.removeCounter = 0
-    this.addCounter = 0
-    this.addBarrierCounter = 0
-  }
 }

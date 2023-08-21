@@ -17,6 +17,23 @@ import {
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
 } from './userConsumerSchemas'
 
+type SqsPermissionConsumerMultiSchemaOptions = (
+  | Pick<
+      NewSQSConsumerOptionsMultiSchema<
+        SupportedMessages,
+        SqsPermissionConsumerMultiSchema,
+        SQSCreationConfig
+      >,
+      'creationConfig' | 'logMessages'
+    >
+  | Pick<
+      ExistingSQSConsumerOptionsMultiSchema<SupportedMessages, SqsPermissionConsumerMultiSchema>,
+      'locatorConfig' | 'logMessages'
+    >
+) & {
+  addPreHandlerBarrier?: (message: SupportedMessages) => Promise<boolean>
+}
+
 type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 
 export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSchema<
@@ -24,28 +41,12 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
   SqsPermissionConsumerMultiSchema
 > {
   public addCounter = 0
-  public addBarrierCounter = 0
   public removeCounter = 0
   public static QUEUE_NAME = 'user_permissions_multi'
 
   constructor(
     dependencies: SQSConsumerDependencies,
-    options:
-      | Pick<
-          NewSQSConsumerOptionsMultiSchema<
-            SupportedMessages,
-            SqsPermissionConsumerMultiSchema,
-            SQSCreationConfig
-          >,
-          'creationConfig' | 'logMessages'
-        >
-      | Pick<
-          ExistingSQSConsumerOptionsMultiSchema<
-            SupportedMessages,
-            SqsPermissionConsumerMultiSchema
-          >,
-          'locatorConfig' | 'logMessages'
-        > = {
+    options: SqsPermissionConsumerMultiSchemaOptions = {
       creationConfig: {
         queue: {
           QueueName: SqsPermissionConsumerMultiSchema.QUEUE_NAME,
@@ -75,10 +76,7 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
             }
           },
           {
-            preHandlerBarrier: (_message) => {
-              this.addBarrierCounter++
-              return Promise.resolve(this.addBarrierCounter > 0)
-            },
+            preHandlerBarrier: options.addPreHandlerBarrier,
           },
         )
         .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {
@@ -89,11 +87,5 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
         })
         .build(),
     })
-  }
-
-  resetCounters(): void {
-    this.removeCounter = 0
-    this.addCounter = 0
-    this.addBarrierCounter = 0
   }
 }
