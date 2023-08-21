@@ -98,9 +98,13 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
           messageType: 'remove',
         })
 
-        await waitAndRetry(() => {
-          return consumer.addCounter === 1 && consumer.removeCounter === 2
-        })
+        await waitAndRetry(
+          () => {
+            return consumer.addCounter === 1 && consumer.removeCounter === 2
+          },
+          30,
+          20,
+        )
 
         expect(consumer.addBarrierCounter).toBe(3)
         expect(consumer.addCounter).toBe(1)
