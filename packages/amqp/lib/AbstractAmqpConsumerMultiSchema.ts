@@ -53,13 +53,8 @@ export abstract class AbstractAmqpConsumerMultiSchema<
     return handler.messageLogFormatter(message)
   }
 
-  override shouldProcessMessageLater(
-    message: MessagePayloadType,
-    messageType: string,
-  ): Promise<boolean> {
+  override preHandlerBarrier(message: MessagePayloadType, messageType: string): Promise<boolean> {
     const handler = this.handlerContainer.resolveHandler(messageType)
-    return handler.shouldProcessMessageLater
-      ? handler.shouldProcessMessageLater(message)
-      : Promise.resolve(false)
+    return handler.preHandlerBarrier ? handler.preHandlerBarrier(message) : Promise.resolve(true)
   }
 }

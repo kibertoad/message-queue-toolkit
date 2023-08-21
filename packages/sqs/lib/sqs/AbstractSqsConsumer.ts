@@ -79,19 +79,16 @@ export abstract class AbstractSqsConsumer<
     message: MessagePayloadType,
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
-    return (await this.shouldProcessMessageLater(message, messageType))
-      ? { error: 'retryLater' }
-      : this.processMessage(message, messageType)
+    return (await this.preHandlerBarrier(message, messageType))
+      ? this.processMessage(message, messageType)
+      : { error: 'retryLater' }
   }
 
   /**
    * Override to implement barrier pattern
    */
-  public shouldProcessMessageLater(
-    _message: MessagePayloadType,
-    _messageType: string,
-  ): Promise<boolean> {
-    return Promise.resolve(false)
+  public preHandlerBarrier(_message: MessagePayloadType, _messageType: string): Promise<boolean> {
+    return Promise.resolve(true)
   }
 
   abstract processMessage(

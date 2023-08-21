@@ -11,7 +11,7 @@ export const defaultLogFormatter = <MessagePayloadSchema>(message: MessagePayloa
 
 export type HandlerConfigOptions<MessagePayloadSchema extends object> = {
   messageLogFormatter?: LogFormatter<MessagePayloadSchema>
-  shouldProcessMessageLater?: BarrierCallbackWithoutMessageType<MessagePayloadSchema>
+  preHandlerBarrier?: BarrierCallbackWithoutMessageType<MessagePayloadSchema>
 }
 
 export class MessageHandlerConfig<
@@ -21,7 +21,7 @@ export class MessageHandlerConfig<
   public readonly schema: ZodSchema<MessagePayloadSchema>
   public readonly handler: Handler<MessagePayloadSchema, ExecutionContext>
   public readonly messageLogFormatter: LogFormatter<MessagePayloadSchema>
-  public readonly shouldProcessMessageLater?: BarrierCallbackWithoutMessageType<MessagePayloadSchema>
+  public readonly preHandlerBarrier?: BarrierCallbackWithoutMessageType<MessagePayloadSchema>
 
   constructor(
     schema: ZodSchema<MessagePayloadSchema>,
@@ -31,7 +31,7 @@ export class MessageHandlerConfig<
     this.schema = schema
     this.handler = handler
     this.messageLogFormatter = options?.messageLogFormatter ?? defaultLogFormatter
-    this.shouldProcessMessageLater = options?.shouldProcessMessageLater
+    this.preHandlerBarrier = options?.preHandlerBarrier
   }
 }
 

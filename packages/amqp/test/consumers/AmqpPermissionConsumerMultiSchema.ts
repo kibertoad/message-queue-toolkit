@@ -50,9 +50,9 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
             }
           },
           {
-            shouldProcessMessageLater: (_message) => {
+            preHandlerBarrier: (_message) => {
               this.addBarrierCounter++
-              return Promise.resolve(this.addBarrierCounter !== 3)
+              return Promise.resolve(this.addBarrierCounter === 3)
             },
           },
         )

@@ -3,7 +3,7 @@ import type { ZodSchema } from 'zod'
 export interface QueueConsumer<MessagePayloadType extends object> {
   start(): Promise<unknown> // subscribe and start listening
   close(): Promise<unknown>
-  shouldProcessMessageLater(message: MessagePayloadType, messageType: string): Promise<boolean> // Barrier pattern
+  preHandlerBarrier(message: MessagePayloadType, messageType: string): Promise<boolean> // Barrier pattern
 }
 
 export interface SyncPublisher<MessagePayloadType> {
