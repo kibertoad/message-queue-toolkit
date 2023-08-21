@@ -39,7 +39,7 @@ export abstract class AbstractSqsConsumerMonoSchema<
     CreationConfigType,
     ConsumerOptionsType
   >
-  implements QueueConsumer<MessagePayloadType>
+  implements QueueConsumer
 {
   private readonly messageSchema: ZodSchema<MessagePayloadType>
   private readonly schemaEither: Either<Error, ZodSchema<MessagePayloadType>>
@@ -51,6 +51,16 @@ export abstract class AbstractSqsConsumerMonoSchema<
     this.schemaEither = {
       result: this.messageSchema,
     }
+  }
+
+  /**
+   * Override to implement barrier pattern
+   */
+  protected override preHandlerBarrier(
+    _message: MessagePayloadType,
+    _messageType: string,
+  ): Promise<boolean> {
+    return Promise.resolve(true)
   }
 
   protected resolveSchema() {

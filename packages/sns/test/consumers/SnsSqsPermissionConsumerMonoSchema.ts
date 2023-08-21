@@ -73,8 +73,8 @@ export class SnsSqsPermissionConsumerMonoSchema extends AbstractSnsSqsConsumerMo
     }
   }
 
-  preHandlerBarrier(_message: PERMISSIONS_MESSAGE_TYPE): Promise<boolean> {
+  async preHandlerBarrier(_message: PERMISSIONS_MESSAGE_TYPE): Promise<boolean> {
     this.preHandlerBarrierCounter++
-    return Promise.resolve(this.preHandlerBarrierCounter > 2)
+    return this.preHandlerBarrierCounter > 2
   }
 }

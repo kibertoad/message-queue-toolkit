@@ -82,8 +82,11 @@ export abstract class AbstractSqsConsumerMultiSchema<
     return handler.messageLogFormatter(message)
   }
 
-  override preHandlerBarrier(message: MessagePayloadType, messageType: string): Promise<boolean> {
+  protected override async preHandlerBarrier(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<boolean> {
     const handler = this.handlerContainer.resolveHandler(messageType)
-    return handler.preHandlerBarrier ? handler.preHandlerBarrier(message) : Promise.resolve(true)
+    return handler.preHandlerBarrier ? await handler.preHandlerBarrier(message) : true
   }
 }

@@ -11,7 +11,7 @@ export abstract class AbstractAmqpConsumerMultiSchema<
     ExecutionContext,
   >
   extends AbstractAmqpBaseConsumer<MessagePayloadType>
-  implements QueueConsumer<MessagePayloadType>
+  implements QueueConsumer
 {
   messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   handlerContainer: HandlerContainer<MessagePayloadType, ExecutionContext>

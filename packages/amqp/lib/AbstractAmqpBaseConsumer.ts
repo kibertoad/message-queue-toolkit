@@ -24,7 +24,7 @@ export type ExistingAMQPConsumerOptions = ExistingQueueOptions<AMQPLocatorType>
 
 export abstract class AbstractAmqpBaseConsumer<MessagePayloadType extends object>
   extends AbstractAmqpService<MessagePayloadType, AMQPConsumerDependencies>
-  implements QueueConsumer<MessagePayloadType>
+  implements QueueConsumer
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
   protected readonly errorResolver: ErrorResolver

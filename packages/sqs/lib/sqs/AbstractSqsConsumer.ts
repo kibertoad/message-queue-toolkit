@@ -59,7 +59,7 @@ export abstract class AbstractSqsConsumer<
     ConsumerOptionsType,
     SQSConsumerDependencies
   >
-  implements QueueConsumer<MessagePayloadType>
+  implements QueueConsumer
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
   protected readonly errorResolver: ErrorResolver
@@ -75,6 +75,11 @@ export abstract class AbstractSqsConsumer<
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
   }
 
+  protected abstract preHandlerBarrier(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<boolean>
+
   private async internalProcessMessage(
     message: MessagePayloadType,
     messageType: string,
@@ -82,13 +87,6 @@ export abstract class AbstractSqsConsumer<
     return (await this.preHandlerBarrier(message, messageType))
       ? this.processMessage(message, messageType)
       : { error: 'retryLater' }
-  }
-
-  /**
-   * Override to implement barrier pattern
-   */
-  public preHandlerBarrier(_message: MessagePayloadType, _messageType: string): Promise<boolean> {
-    return Promise.resolve(true)
   }
 
   abstract processMessage(

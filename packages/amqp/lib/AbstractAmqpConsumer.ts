@@ -11,7 +11,7 @@ import type { AMQPConsumerDependencies } from './AbstractAmqpService'
 
 export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
   extends AbstractAmqpBaseConsumer<MessagePayloadType>
-  implements QueueConsumer<MessagePayloadType>
+  implements QueueConsumer
 {
   private readonly messageSchema: ZodSchema<MessagePayloadType>
   private readonly schemaEither: Either<Error, ZodSchema<MessagePayloadType>>
