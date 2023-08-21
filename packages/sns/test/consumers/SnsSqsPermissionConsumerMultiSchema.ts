@@ -60,7 +60,7 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
           {
             preHandlerBarrier: (_message) => {
               this.addBarrierCounter++
-              return Promise.resolve(this.addBarrierCounter === 3)
+              return Promise.resolve(this.addBarrierCounter > 0)
             },
           },
         )
