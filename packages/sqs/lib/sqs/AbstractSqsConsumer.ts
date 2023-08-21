@@ -79,8 +79,7 @@ export abstract class AbstractSqsConsumer<
     message: MessagePayloadType,
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
-    const shouldProcessMessageLater = await this.shouldProcessMessageLater(message, messageType)
-    return shouldProcessMessageLater
+    return (await this.shouldProcessMessageLater(message, messageType))
       ? { error: 'retryLater' }
       : this.processMessage(message, messageType)
   }
