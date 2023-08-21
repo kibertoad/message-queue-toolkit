@@ -73,15 +73,22 @@ export abstract class AbstractSqsConsumerMultiSchema<
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler(messageType)
-    // TODO: What happens if there is an exception oon barrier method
-    const barrierResult = handler.barrier ? await handler.barrier(message) : true
-
     // @ts-ignore
-    return barrierResult ? handler.handler(message, this) : { error: 'retryLater' }
+    return handler.handler(message, this)
   }
 
   protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
     const handler = this.handlerContainer.resolveHandler(messageType)
     return handler.messageLogFormatter(message)
+  }
+
+  override shouldProcessMessageLater(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<boolean> {
+    const handler = this.handlerContainer.resolveHandler(messageType)
+    return handler.shouldProcessMessageLater
+      ? handler.shouldProcessMessageLater(message)
+      : Promise.resolve(false)
   }
 }

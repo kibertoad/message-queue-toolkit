@@ -39,7 +39,7 @@ export abstract class AbstractSqsConsumerMonoSchema<
     CreationConfigType,
     ConsumerOptionsType
   >
-  implements QueueConsumer
+  implements QueueConsumer<MessagePayloadType>
 {
   private readonly messageSchema: ZodSchema<MessagePayloadType>
   private readonly schemaEither: Either<Error, ZodSchema<MessagePayloadType>>

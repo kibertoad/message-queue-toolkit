@@ -75,9 +75,9 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
             }
           },
           {
-            barrier: (_message) => {
+            shouldProcessMessageLater: (_message) => {
               this.addBarrierCounter++
-              return Promise.resolve(this.addBarrierCounter === 3)
+              return Promise.resolve(this.addBarrierCounter !== 3)
             },
           },
         )

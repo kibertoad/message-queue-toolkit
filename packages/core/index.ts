@@ -21,7 +21,6 @@ export type {
   CommonQueueLocator,
   DeletionConfig,
   MultiSchemaPublisherOptions,
-  BarrierCallback,
 } from './lib/queues/AbstractQueueService'
 
 export {
@@ -34,6 +33,7 @@ export {
   HandlerContainer,
   MessageHandlerConfig,
   MessageHandlerConfigBuilder,
+  BarrierCallbackWithoutMessageType,
 } from './lib/queues/HandlerContainer'
 export type { HandlerContainerOptions, Handler } from './lib/queues/HandlerContainer'
 

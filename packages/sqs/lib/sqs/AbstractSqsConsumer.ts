@@ -59,7 +59,7 @@ export abstract class AbstractSqsConsumer<
     ConsumerOptionsType,
     SQSConsumerDependencies
   >
-  implements QueueConsumer
+  implements QueueConsumer<MessagePayloadType>
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
   protected readonly errorResolver: ErrorResolver
@@ -73,6 +73,26 @@ export abstract class AbstractSqsConsumer<
     this.errorResolver = dependencies.consumerErrorResolver
 
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
+  }
+
+  private async internalProcessMessage(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<Either<'retryLater', 'success'>> {
+    const shouldProcessMessageLater = await this.shouldProcessMessageLater(message, messageType)
+    return shouldProcessMessageLater
+      ? { error: 'retryLater' }
+      : this.processMessage(message, messageType)
+  }
+
+  /**
+   * Override to implement barrier pattern
+   */
+  public shouldProcessMessageLater(
+    _message: MessagePayloadType,
+    _messageType: string,
+  ): Promise<boolean> {
+    return Promise.resolve(false)
   }
 
   abstract processMessage(
@@ -168,7 +188,7 @@ export abstract class AbstractSqsConsumer<
       this.logMessage(resolvedLogMessage)
     }
 
-    return await this.processMessage(message, messageType)
+    return await this.internalProcessMessage(message, messageType)
       .catch((err) => {
         // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
         // If we fail due to unknown reason, let's retry

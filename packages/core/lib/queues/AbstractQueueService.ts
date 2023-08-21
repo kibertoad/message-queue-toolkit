@@ -39,10 +39,6 @@ export type ExistingQueueOptionsMultiSchema<
 > = ExistingQueueOptions<QueueLocatorType> &
   MultiSchemaConsumerOptions<MessagePayloadSchemas, ExecutionContext>
 
-export type BarrierCallback<MessagePayloadSchema extends object> = (
-  message: MessagePayloadSchema,
-) => Promise<boolean>
-
 export type DeletionConfig = {
   deleteIfExists?: boolean
   forceDeleteInProduction?: boolean
