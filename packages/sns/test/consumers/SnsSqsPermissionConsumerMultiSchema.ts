@@ -16,13 +16,6 @@ import {
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
 } from './userConsumerSchemas'
 
-type SnsSqsPermissionConsumerMultiSchemaOptions = (
-  | Pick<NewSnsSqsConsumerOptions, 'creationConfig' | 'logMessages'>
-  | Pick<ExistingSnsSqsConsumerOptions, 'locatorConfig' | 'logMessages'>
-) & {
-  addPreHandlerBarrier?: (msg: SupportedEvents) => Promise<boolean>
-}
-
 type SupportedEvents = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 
 export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerMultiSchema<
@@ -33,11 +26,14 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
   public static SUBSCRIBED_TOPIC_NAME = 'user_permissions_multi'
 
   public addCounter = 0
+  public addBarrierCounter = 0
   public removeCounter = 0
 
   constructor(
     dependencies: SNSSQSConsumerDependencies,
-    options: SnsSqsPermissionConsumerMultiSchemaOptions = {
+    options:
+      | Pick<NewSnsSqsConsumerOptions, 'creationConfig'>
+      | Pick<ExistingSnsSqsConsumerOptions, 'locatorConfig'> = {
       creationConfig: {
         queue: {
           QueueName: SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME,
@@ -62,7 +58,10 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
             }
           },
           {
-            preHandlerBarrier: options.addPreHandlerBarrier,
+            preHandlerBarrier: (_message) => {
+              this.addBarrierCounter++
+              return Promise.resolve(this.addBarrierCounter > 0)
+            },
           },
         )
         .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {

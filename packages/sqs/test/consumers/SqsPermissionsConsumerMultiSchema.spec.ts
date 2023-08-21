@@ -4,7 +4,6 @@ import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
-import { promise } from 'zod'
 
 import { assertQueue, deleteQueue } from '../../lib/utils/sqsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'

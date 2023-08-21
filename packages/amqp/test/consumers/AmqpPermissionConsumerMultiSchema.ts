@@ -22,10 +22,14 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
   public static QUEUE_NAME = 'user_permissions_multi'
 
   public addCounter = 0
-  public addBarrierCounter = 0
   public removeCounter = 0
 
-  constructor(dependencies: AMQPConsumerDependencies, options?: Partial<NewAMQPConsumerOptions>) {
+  constructor(
+    dependencies: AMQPConsumerDependencies,
+    options?: Partial<NewAMQPConsumerOptions> & {
+      addPreHandlerBarrier?: (message: SupportedEvents) => Promise<boolean>
+    },
+  ) {
     super(dependencies, {
       creationConfig: {
         queueName: AmqpPermissionConsumerMultiSchema.QUEUE_NAME,
@@ -50,10 +54,7 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
             }
           },
           {
-            preHandlerBarrier: (_message) => {
-              this.addBarrierCounter++
-              return Promise.resolve(this.addBarrierCounter > 0)
-            },
+            preHandlerBarrier: options?.addPreHandlerBarrier,
           },
         )
         .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {
