@@ -11,7 +11,7 @@ export abstract class AbstractAmqpConsumerMultiSchema<
     ExecutionContext,
   >
   extends AbstractAmqpBaseConsumer<MessagePayloadType>
-  implements QueueConsumer
+  implements QueueConsumer<MessagePayloadType>
 {
   messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   handlerContainer: HandlerContainer<MessagePayloadType, ExecutionContext>
@@ -43,9 +43,23 @@ export abstract class AbstractAmqpConsumerMultiSchema<
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler(messageType)
-    const barrierResult = handler.barrier ? await handler.barrier(message) : true
 
     // @ts-ignore
-    return barrierResult ? handler.handler(message, this) : { error: 'retryLater' }
+    return handler.handler(message, this)
+  }
+
+  protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
+    const handler = this.handlerContainer.resolveHandler(messageType)
+    return handler.messageLogFormatter(message)
+  }
+
+  override shouldProcessMessageLater(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<boolean> {
+    const handler = this.handlerContainer.resolveHandler(messageType)
+    return handler.shouldProcessMessageLater
+      ? handler.shouldProcessMessageLater(message)
+      : Promise.resolve(false)
   }
 }

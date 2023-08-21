@@ -24,7 +24,7 @@ export type ExistingAMQPConsumerOptions = ExistingQueueOptions<AMQPLocatorType>
 
 export abstract class AbstractAmqpBaseConsumer<MessagePayloadType extends object>
   extends AbstractAmqpService<MessagePayloadType, AMQPConsumerDependencies>
-  implements QueueConsumer
+  implements QueueConsumer<MessagePayloadType>
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
   protected readonly errorResolver: ErrorResolver
@@ -42,8 +42,27 @@ export abstract class AbstractAmqpBaseConsumer<MessagePayloadType extends object
     }
   }
 
+  /**
+   * Override to implement barrier pattern
+   */
+  public shouldProcessMessageLater(
+    _message: MessagePayloadType,
+    _messageType: string,
+  ): Promise<boolean> {
+    return Promise.resolve(false)
+  }
+
+  private async internalProcessMessage(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<Either<'retryLater', 'success'>> {
+    return (await this.shouldProcessMessageLater(message, messageType))
+      ? { error: 'retryLater' }
+      : this.processMessage(message, messageType)
+  }
+
   abstract processMessage(
-    messagePayload: MessagePayloadType,
+    message: MessagePayloadType,
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>>
 
@@ -120,7 +139,7 @@ export abstract class AbstractAmqpBaseConsumer<MessagePayloadType extends object
         const resolvedLogMessage = this.resolveMessageLog(deserializedMessage.result, messageType)
         this.logMessage(resolvedLogMessage)
       }
-      this.processMessage(deserializedMessage.result, messageType)
+      this.internalProcessMessage(deserializedMessage.result, messageType)
         .then((result) => {
           if (result.error === 'retryLater') {
             this.channel.nack(message, false, true)
