@@ -175,7 +175,7 @@ describe('SNS PermissionsConsumer', () => {
           throw new Error('Users permissions unexpectedly null')
         }
 
-        expect(consumer.preHandlerBarrierCounter).gt(0)
+        expect(consumer.preHandlerBarrierCounter).toBe(3)
         expect(updatedUsersPermissions).toBeDefined()
         expect(updatedUsersPermissions[0]).toHaveLength(2)
       })
