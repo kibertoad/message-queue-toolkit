@@ -30,7 +30,7 @@
     "zod": "^3.21.4"
   },
   "peerDependencies": {
-    "@message-queue-toolkit/core": "^3.4.0",
+    "@message-queue-toolkit/core": "^3.5.0",
     "amqplib": "^0.10.3"
   },
   "devDependencies": {
