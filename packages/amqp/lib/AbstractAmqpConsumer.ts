@@ -33,4 +33,11 @@ export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
   protected override resolveSchema(_message: MessagePayloadType) {
     return this.schemaEither
   }
+
+  /**
+   * Override to implement barrier pattern
+   */
+  protected preHandlerBarrier(_message: MessagePayloadType): Promise<boolean> {
+    return Promise.resolve(true)
+  }
 }

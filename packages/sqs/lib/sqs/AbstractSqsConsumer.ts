@@ -75,11 +75,6 @@ export abstract class AbstractSqsConsumer<
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
   }
 
-  protected abstract preHandlerBarrier(
-    message: MessagePayloadType,
-    messageType: string,
-  ): Promise<boolean>
-
   private async internalProcessMessage(
     message: MessagePayloadType,
     messageType: string,
@@ -91,6 +86,11 @@ export abstract class AbstractSqsConsumer<
     }
     return { error: 'retryLater' }
   }
+
+  protected abstract preHandlerBarrier(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<boolean>
 
   abstract processMessage(
     message: MessagePayloadType,

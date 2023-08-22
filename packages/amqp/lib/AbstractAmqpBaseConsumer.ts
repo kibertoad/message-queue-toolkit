@@ -42,21 +42,22 @@ export abstract class AbstractAmqpBaseConsumer<MessagePayloadType extends object
     }
   }
 
-  /**
-   * Override to implement barrier pattern
-   */
-  public preHandlerBarrier(_message: MessagePayloadType, _messageType: string): Promise<boolean> {
-    return Promise.resolve(true)
-  }
-
   private async internalProcessMessage(
     message: MessagePayloadType,
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
-    return (await this.preHandlerBarrier(message, messageType))
-      ? this.processMessage(message, messageType)
-      : { error: 'retryLater' }
+    const barrierPassed = await this.preHandlerBarrier(message, messageType)
+
+    if (barrierPassed) {
+      return this.processMessage(message, messageType)
+    }
+    return { error: 'retryLater' }
   }
+
+  protected abstract preHandlerBarrier(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<boolean>
 
   abstract processMessage(
     message: MessagePayloadType,
