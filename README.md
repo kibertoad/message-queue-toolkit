@@ -52,6 +52,7 @@ It consists of the following submodules:
 * `close()`, which needs to be invoked when stopping the application;
 * `processMessage()`, which accepts as parameter a `message` following a `zod` schema and should be overridden with logic on what to do with the message;
 * `start()`, which invokes `init()` and `processMessage()` and handles errors.
+* `preHandlerBarrier`, which accepts as a parameter a `message` following a `zod` schema and can be overridden to enable the barrier pattern (see [Barrier pattern](#barrier-pattern))
 
 > **_NOTE:_**  See [SqsPermissionConsumerMonoSchema.ts](./packages/sqs/test/consumers/SqsPermissionConsumerMonoSchema.ts) for a practical example.
 
@@ -71,6 +72,16 @@ If
 Then the message is automatically nacked without requeueing by the abstract consumer and processing fails.
 
 > **_NOTE:_**  See [userConsumerSchemas.ts](./packages/sqs/test/consumers/userConsumerSchemas.ts) and [SqsPermissionsConsumerMonoSchema.spec.ts](./packages/sqs/test/consumers/SqsPermissionsConsumerMonoSchema.spec.ts) for a practical example.
+
+### Barrier pattern
+The barrier pattern facilitates the out-of-order message handling by retrying the message later if the system is not still in the good state to be able to process that message.
+
+To enable this pattern you should implement `preHandlerBarrier` including your conditions to process the message so
+if the method returns `true` the message will be processed right away but if it returns false it will be retried later
+
+> **_NOTE:_**  See [SqsPermissionConsumerMonoSchema.ts](./packages/sns/test/consumers/SnsSqsPermissionConsumerMonoSchema.ts) for a practical example on mono consumers.
+> **_NOTE:_**  See [SqsPermissionConsumerMultiSchema.ts](./packages/sns/test/consumers/SnsSqsPermissionConsumerMultiSchema.ts) for a practical example on multi consumers.
+
 
 ## Fan-out to Multiple Consumers
 

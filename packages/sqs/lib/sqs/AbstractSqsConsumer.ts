@@ -75,6 +75,23 @@ export abstract class AbstractSqsConsumer<
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
   }
 
+  private async internalProcessMessage(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<Either<'retryLater', 'success'>> {
+    const barrierPassed = await this.preHandlerBarrier(message, messageType)
+
+    if (barrierPassed) {
+      return this.processMessage(message, messageType)
+    }
+    return { error: 'retryLater' }
+  }
+
+  protected abstract preHandlerBarrier(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<boolean>
+
   abstract processMessage(
     message: MessagePayloadType,
     messageType: string,
@@ -155,7 +172,7 @@ export abstract class AbstractSqsConsumer<
           const resolvedLogMessage = this.resolveMessageLog(deserializedMessage.result, messageType)
           this.logMessage(resolvedLogMessage)
         }
-        const result: Either<'retryLater' | Error, 'success'> = await this.processMessage(
+        const result: Either<'retryLater' | Error, 'success'> = await this.internalProcessMessage(
           deserializedMessage.result,
           messageType,
         )
@@ -172,11 +189,7 @@ export abstract class AbstractSqsConsumer<
             this.transactionObservabilityManager?.stop(transactionSpanId)
           })
 
-        if (result.result) {
-          return message
-        } else {
-          return Promise.reject(result)
-        }
+        return result.result ? message : Promise.reject(result)
       },
       sqs: this.sqsClient,
       ...this.consumerOptionsOverride,

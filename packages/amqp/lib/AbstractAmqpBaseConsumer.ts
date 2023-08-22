@@ -42,8 +42,25 @@ export abstract class AbstractAmqpBaseConsumer<MessagePayloadType extends object
     }
   }
 
+  private async internalProcessMessage(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<Either<'retryLater', 'success'>> {
+    const barrierPassed = await this.preHandlerBarrier(message, messageType)
+
+    if (barrierPassed) {
+      return this.processMessage(message, messageType)
+    }
+    return { error: 'retryLater' }
+  }
+
+  protected abstract preHandlerBarrier(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<boolean>
+
   abstract processMessage(
-    messagePayload: MessagePayloadType,
+    message: MessagePayloadType,
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>>
 
@@ -120,7 +137,7 @@ export abstract class AbstractAmqpBaseConsumer<MessagePayloadType extends object
         const resolvedLogMessage = this.resolveMessageLog(deserializedMessage.result, messageType)
         this.logMessage(resolvedLogMessage)
       }
-      this.processMessage(deserializedMessage.result, messageType)
+      this.internalProcessMessage(deserializedMessage.result, messageType)
         .then((result) => {
           if (result.error === 'retryLater') {
             this.channel.nack(message, false, true)

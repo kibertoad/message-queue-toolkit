@@ -56,13 +56,19 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     let logger: FakeLogger
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisherMultiSchema
-    beforeAll(async () => {
+
+    beforeEach(async () => {
       logger = new FakeLogger()
       diContainer = await registerDependencies({
         logger: asFunction(() => logger),
       })
       await diContainer.cradle.permissionConsumerMultiSchema.close()
       publisher = diContainer.cradle.permissionPublisherMultiSchema
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
     })
 
     it('logs a message when logging is enabled', async () => {
@@ -85,6 +91,79 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       })
 
       expect(logger.loggedMessages.length).toBe(1)
+    })
+  })
+
+  describe('preHandlerBarrier', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    let publisher: SqsPermissionPublisherMultiSchema
+
+    beforeEach(async () => {
+      diContainer = await registerDependencies()
+      await diContainer.cradle.permissionConsumerMultiSchema.close()
+      publisher = diContainer.cradle.permissionPublisherMultiSchema
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('blocks first try', async () => {
+      let barrierCounter = 0
+      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: publisher.queueName,
+          },
+        },
+        addPreHandlerBarrier: async (_msg) => {
+          barrierCounter++
+          return barrierCounter > 1
+        },
+      })
+      await newConsumer.start()
+
+      await publisher.publish({
+        messageType: 'add',
+      })
+
+      await waitAndRetry(() => {
+        return newConsumer.addCounter === 1
+      })
+
+      expect(newConsumer.addCounter).toBe(1)
+      expect(barrierCounter).toBe(2)
+    })
+
+    it('throws an error on first try', async () => {
+      let barrierCounter = 0
+      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: publisher.queueName,
+          },
+        },
+        addPreHandlerBarrier: (_msg) => {
+          barrierCounter++
+          if (barrierCounter === 1) {
+            throw new Error()
+          }
+          return Promise.resolve(true)
+        },
+      })
+      await newConsumer.start()
+
+      await publisher.publish({
+        messageType: 'add',
+      })
+
+      await waitAndRetry(() => {
+        return newConsumer.addCounter === 1
+      })
+
+      expect(newConsumer.addCounter).toBe(1)
+      expect(barrierCounter).toBe(2)
     })
   })
 
@@ -140,7 +219,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
         })
 
         await waitAndRetry(() => {
-          return consumer.addCounter > 0 && consumer.removeCounter == 2
+          return consumer.addCounter === 1 && consumer.removeCounter === 2
         })
 
         expect(consumer.addCounter).toBe(1)

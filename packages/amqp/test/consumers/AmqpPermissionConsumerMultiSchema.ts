@@ -24,7 +24,12 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
   public addCounter = 0
   public removeCounter = 0
 
-  constructor(dependencies: AMQPConsumerDependencies, options?: Partial<NewAMQPConsumerOptions>) {
+  constructor(
+    dependencies: AMQPConsumerDependencies,
+    options?: Partial<NewAMQPConsumerOptions> & {
+      addPreHandlerBarrier?: (message: SupportedEvents) => Promise<boolean>
+    },
+  ) {
     super(dependencies, {
       creationConfig: {
         queueName: AmqpPermissionConsumerMultiSchema.QUEUE_NAME,
@@ -40,12 +45,18 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
         SupportedEvents,
         AmqpPermissionConsumerMultiSchema
       >()
-        .addConfig(PERMISSIONS_ADD_MESSAGE_SCHEMA, async (_message, _context) => {
-          this.addCounter++
-          return {
-            result: 'success',
-          }
-        })
+        .addConfig(
+          PERMISSIONS_ADD_MESSAGE_SCHEMA,
+          async (_message, _context) => {
+            this.addCounter++
+            return {
+              result: 'success',
+            }
+          },
+          {
+            preHandlerBarrier: options?.addPreHandlerBarrier,
+          },
+        )
         .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {
           this.removeCounter++
           return {

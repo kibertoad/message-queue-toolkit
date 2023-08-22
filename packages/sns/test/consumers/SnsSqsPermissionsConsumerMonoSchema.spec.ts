@@ -133,10 +133,13 @@ describe('SNS PermissionsConsumer', () => {
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SnsPermissionPublisherMonoSchema
+    let consumer: SnsSqsPermissionConsumerMonoSchema
     let fakeResolver: FakeConsumerErrorResolver
+
     beforeEach(async () => {
       diContainer = await registerDependencies()
       publisher = diContainer.cradle.permissionPublisher
+      consumer = diContainer.cradle.permissionConsumer
       fakeResolver = diContainer.cradle.consumerErrorResolver as FakeConsumerErrorResolver
 
       delete userPermissionMap[100]
@@ -172,6 +175,7 @@ describe('SNS PermissionsConsumer', () => {
           throw new Error('Users permissions unexpectedly null')
         }
 
+        expect(consumer.preHandlerBarrierCounter).toBe(3)
         expect(updatedUsersPermissions).toBeDefined()
         expect(updatedUsersPermissions[0]).toHaveLength(2)
       })

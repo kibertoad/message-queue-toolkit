@@ -1,8 +1,8 @@
+import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
+import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 
-import { waitAndRetry } from '../../../core/lib/utils/waitUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { FakeLogger } from '../fakes/FakeLogger'
 import type { AmqpPermissionPublisherMultiSchema } from '../publishers/AmqpPermissionPublisherMultiSchema'
@@ -44,6 +44,64 @@ describe('PermissionsConsumerMultiSchema', () => {
     })
   })
 
+  describe('preHandlerBarrier', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    let publisher: AmqpPermissionPublisherMultiSchema
+
+    beforeAll(async () => {
+      diContainer = await registerDependencies(TEST_AMQP_CONFIG)
+      await diContainer.cradle.permissionConsumerMultiSchema.close()
+      publisher = diContainer.cradle.permissionPublisherMultiSchema
+    })
+
+    it('blocks first try', async () => {
+      let barrierCounter = 0
+      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+        addPreHandlerBarrier: (_msg) => {
+          barrierCounter++
+          return Promise.resolve(barrierCounter > 1)
+        },
+      })
+      await newConsumer.start()
+
+      publisher.publish({
+        messageType: 'add',
+      })
+
+      await waitAndRetry(() => {
+        return newConsumer.addCounter === 1
+      })
+
+      expect(newConsumer.addCounter).toBe(1)
+      expect(barrierCounter).toBe(2)
+    })
+
+    it('throws an error on first try', async () => {
+      let barrierCounter = 0
+      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+        addPreHandlerBarrier: (_msg) => {
+          barrierCounter++
+          if (barrierCounter === 1) {
+            throw new Error()
+          }
+          return Promise.resolve(true)
+        },
+      })
+      await newConsumer.start()
+
+      publisher.publish({
+        messageType: 'add',
+      })
+
+      await waitAndRetry(() => {
+        return newConsumer.addCounter === 1
+      })
+
+      expect(newConsumer.addCounter).toBe(1)
+      expect(barrierCounter).toBe(2)
+    })
+  })
+
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: AmqpPermissionPublisherMultiSchema
@@ -76,7 +134,7 @@ describe('PermissionsConsumerMultiSchema', () => {
       })
 
       await waitAndRetry(() => {
-        return consumer.addCounter > 0 && consumer.removeCounter == 2
+        return consumer.addCounter === 1 && consumer.removeCounter === 2
       })
 
       expect(consumer.addCounter).toBe(1)

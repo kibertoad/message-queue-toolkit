@@ -3,16 +3,25 @@ import type { ZodSchema } from 'zod'
 
 export type LogFormatter<MessagePayloadSchema> = (message: MessagePayloadSchema) => unknown
 
+export type BarrierCallbackWithoutMessageType<MessagePayloadSchema extends object> = (
+  message: MessagePayloadSchema,
+) => Promise<boolean>
+
 export const defaultLogFormatter = <MessagePayloadSchema>(message: MessagePayloadSchema) => message
 
-export type HandlerConfigOptions<MessagePayloadSchema> = {
+export type HandlerConfigOptions<MessagePayloadSchema extends object> = {
   messageLogFormatter?: LogFormatter<MessagePayloadSchema>
+  preHandlerBarrier?: BarrierCallbackWithoutMessageType<MessagePayloadSchema>
 }
 
-export class MessageHandlerConfig<const MessagePayloadSchema, const ExecutionContext> {
+export class MessageHandlerConfig<
+  const MessagePayloadSchema extends object,
+  const ExecutionContext,
+> {
   public readonly schema: ZodSchema<MessagePayloadSchema>
-  public readonly messageLogFormatter: LogFormatter<MessagePayloadSchema>
   public readonly handler: Handler<MessagePayloadSchema, ExecutionContext>
+  public readonly messageLogFormatter: LogFormatter<MessagePayloadSchema>
+  public readonly preHandlerBarrier?: BarrierCallbackWithoutMessageType<MessagePayloadSchema>
 
   constructor(
     schema: ZodSchema<MessagePayloadSchema>,
@@ -22,10 +31,11 @@ export class MessageHandlerConfig<const MessagePayloadSchema, const ExecutionCon
     this.schema = schema
     this.handler = handler
     this.messageLogFormatter = options?.messageLogFormatter ?? defaultLogFormatter
+    this.preHandlerBarrier = options?.preHandlerBarrier
   }
 }
 
-export class MessageHandlerConfigBuilder<MessagePayloadSchemas, ExecutionContext> {
+export class MessageHandlerConfigBuilder<MessagePayloadSchemas extends object, ExecutionContext> {
   private readonly configs: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext>[]
 
   constructor() {

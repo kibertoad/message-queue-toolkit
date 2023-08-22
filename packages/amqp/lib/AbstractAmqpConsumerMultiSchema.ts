@@ -43,7 +43,18 @@ export abstract class AbstractAmqpConsumerMultiSchema<
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler(messageType)
+
     // @ts-ignore
     return handler.handler(message, this)
+  }
+
+  protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
+    const handler = this.handlerContainer.resolveHandler(messageType)
+    return handler.messageLogFormatter(message)
+  }
+
+  override preHandlerBarrier(message: MessagePayloadType, messageType: string): Promise<boolean> {
+    const handler = this.handlerContainer.resolveHandler(messageType)
+    return handler.preHandlerBarrier ? handler.preHandlerBarrier(message) : Promise.resolve(true)
   }
 }

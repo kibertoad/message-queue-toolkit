@@ -33,6 +33,7 @@ export {
   HandlerContainer,
   MessageHandlerConfig,
   MessageHandlerConfigBuilder,
+  BarrierCallbackWithoutMessageType,
 } from './lib/queues/HandlerContainer'
 export type { HandlerContainerOptions, Handler } from './lib/queues/HandlerContainer'
 
