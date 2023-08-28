@@ -3,15 +3,16 @@ import type { ZodSchema } from 'zod'
 
 export type LogFormatter<MessagePayloadSchema> = (message: MessagePayloadSchema) => unknown
 
-export type BarrierCallbackWithoutMessageType<MessagePayloadSchema extends object> = (
+export type BarrierCallbackMultiConsumers<MessagePayloadSchema extends object, ExecutionContext> = (
   message: MessagePayloadSchema,
+  context: ExecutionContext,
 ) => Promise<boolean>
 
 export const defaultLogFormatter = <MessagePayloadSchema>(message: MessagePayloadSchema) => message
 
-export type HandlerConfigOptions<MessagePayloadSchema extends object> = {
+export type HandlerConfigOptions<MessagePayloadSchema extends object, ExecutionContext> = {
   messageLogFormatter?: LogFormatter<MessagePayloadSchema>
-  preHandlerBarrier?: BarrierCallbackWithoutMessageType<MessagePayloadSchema>
+  preHandlerBarrier?: BarrierCallbackMultiConsumers<MessagePayloadSchema, ExecutionContext>
 }
 
 export class MessageHandlerConfig<
@@ -21,12 +22,15 @@ export class MessageHandlerConfig<
   public readonly schema: ZodSchema<MessagePayloadSchema>
   public readonly handler: Handler<MessagePayloadSchema, ExecutionContext>
   public readonly messageLogFormatter: LogFormatter<MessagePayloadSchema>
-  public readonly preHandlerBarrier?: BarrierCallbackWithoutMessageType<MessagePayloadSchema>
+  public readonly preHandlerBarrier?: BarrierCallbackMultiConsumers<
+    MessagePayloadSchema,
+    ExecutionContext
+  >
 
   constructor(
     schema: ZodSchema<MessagePayloadSchema>,
     handler: Handler<MessagePayloadSchema, ExecutionContext>,
-    options?: HandlerConfigOptions<MessagePayloadSchema>,
+    options?: HandlerConfigOptions<MessagePayloadSchema, ExecutionContext>,
   ) {
     this.schema = schema
     this.handler = handler
@@ -45,7 +49,7 @@ export class MessageHandlerConfigBuilder<MessagePayloadSchemas extends object, E
   addConfig<MessagePayloadSchema extends MessagePayloadSchemas>(
     schema: ZodSchema<MessagePayloadSchema>,
     handler: Handler<MessagePayloadSchema, ExecutionContext>,
-    options?: HandlerConfigOptions<MessagePayloadSchema>,
+    options?: HandlerConfigOptions<MessagePayloadSchema, ExecutionContext>,
   ) {
     // @ts-ignore
     this.configs.push(new MessageHandlerConfig(schema, handler, options))

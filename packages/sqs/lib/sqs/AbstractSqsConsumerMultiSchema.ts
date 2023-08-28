@@ -87,6 +87,7 @@ export abstract class AbstractSqsConsumerMultiSchema<
     messageType: string,
   ): Promise<boolean> {
     const handler = this.handlerContainer.resolveHandler(messageType)
-    return handler.preHandlerBarrier ? await handler.preHandlerBarrier(message) : true
+    // @ts-ignore
+    return handler.preHandlerBarrier ? await handler.preHandlerBarrier(message, this) : true
   }
 }
