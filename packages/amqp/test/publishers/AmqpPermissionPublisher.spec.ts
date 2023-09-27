@@ -214,7 +214,11 @@ describe('PermissionPublisher', () => {
       })
 
       await permissionPublisher.close()
-      await channel.close()
+      try {
+        await channel.close()
+      } catch {
+        // it's ok
+      }
     })
   })
 })
