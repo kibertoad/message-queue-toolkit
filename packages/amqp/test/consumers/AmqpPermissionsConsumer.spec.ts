@@ -129,7 +129,7 @@ describe('PermissionsConsumer', () => {
           userIds,
           permissions: perms,
         })
-        return false
+        return null
       }, 50)
 
       if (null === updatedUsersPermissions) {
