@@ -116,13 +116,13 @@ describe('PermissionsConsumerMultiSchema', () => {
 
       publisher = diContainer.cradle.permissionPublisherMultiSchema
       consumer = diContainer.cradle.permissionConsumerMultiSchema
-    }, 99999)
+    })
 
     afterEach(async () => {
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
       await diContainer.dispose()
-    }, 99999)
+    })
 
     it('Processes messages', async () => {
       publisher.publish({

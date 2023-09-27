@@ -31,16 +31,16 @@ export class AmqpConnectionManager {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       this.logger.error(`AmqpConnectionManager: Connection error: ${err.message}`)
       this.connection = undefined
-      if (this.reconnectsActive) {
+      if (this.reconnectsActive && !this.isReconnecting) {
         void this.reconnect()
       }
     })
     connection.on('close', () => {
       if (this.reconnectsActive && !this.isReconnecting) {
         this.logger.error(`AmqpConnectionManager: Connection closed unexpectedly`)
-      }
-      if (this.reconnectsActive) {
-        void this.reconnect()
+        if (this.reconnectsActive) {
+          void this.reconnect()
+        }
       }
     })
 
