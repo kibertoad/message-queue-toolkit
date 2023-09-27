@@ -68,12 +68,8 @@ export abstract class AbstractAmqpService<
     this.connection = connection
 
     this.isShuttingDown = false
-    // If channel exists, recreate it
-    if (this.channel) {
-      this.isShuttingDown = true
-      await this.destroyChannel()
-      this.isShuttingDown = false
-    }
+    // If channel already exists, recreate it
+    const oldChannel = this.channel
 
     try {
       this.channel = await this.connection.createChannel()
@@ -82,6 +78,16 @@ export abstract class AbstractAmqpService<
       this.logger.error(`Error creating channel: ${err.message}`)
       await this.connectionManager.reconnect()
       return
+    }
+
+    if (oldChannel) {
+      this.isShuttingDown = true
+      try {
+        await oldChannel.close()
+      } catch {
+        // errors are ok
+      }
+      this.isShuttingDown = false
     }
 
     if (this.deletionConfig && this.creationConfig) {
