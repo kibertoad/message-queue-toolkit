@@ -86,7 +86,7 @@ export class AmqpConnectionManager {
     }
     this.isReconnecting = false
 
-    console.log('Finish reconnecting')
+    this.logger.info('AmqpConnectionManager: Finish reconnecting')
   }
 
   async init() {
