@@ -11,7 +11,7 @@ import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumer } from '../fakes/FakeConsumer'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { FakeLogger } from '../fakes/FakeLogger'
-import { createSilentChannel } from '../utils/channelUtils'
+import { userPermissionMap } from '../repositories/PermissionRepository'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
@@ -21,6 +21,30 @@ import type { AmqpPermissionPublisherMultiSchema } from './AmqpPermissionPublish
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
+
+function checkPermissions(userIds: number[]) {
+  const usersPerms = userIds.reduce((acc, userId) => {
+    if (userPermissionMap[userId]) {
+      acc.push(userPermissionMap[userId])
+    }
+    return acc
+  }, [] as string[][])
+
+  if (usersPerms.length > userIds.length) {
+    return usersPerms.slice(0, userIds.length - 1)
+  }
+
+  if (usersPerms && usersPerms.length !== userIds.length) {
+    return null
+  }
+
+  for (const userPerms of usersPerms)
+    if (userPerms.length !== perms.length) {
+      return null
+    }
+
+  return usersPerms
+}
 
 describe('PermissionPublisher', () => {
   describe('logging', () => {
@@ -112,12 +136,6 @@ describe('PermissionPublisher', () => {
     beforeAll(async () => {
       diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
-        permissionConsumer: asClass(FakeConsumer, {
-          lifetime: Lifetime.SINGLETON,
-          asyncInit: 'start',
-          asyncDispose: 'close',
-          asyncDisposePriority: 10,
-        }),
       })
     })
 
@@ -175,7 +193,15 @@ describe('PermissionPublisher', () => {
     })
 
     it('reconnects on lost connection', async () => {
-      const { permissionPublisher } = diContainer.cradle
+      const users = Object.values(userPermissionMap)
+      expect(users).toHaveLength(0)
+
+      userPermissionMap[100] = []
+      userPermissionMap[200] = []
+      userPermissionMap[300] = []
+
+      const { permissionPublisher, permissionConsumer } = diContainer.cradle
+      await permissionConsumer.start()
 
       const message = {
         userIds,
@@ -183,50 +209,29 @@ describe('PermissionPublisher', () => {
         permissions: perms,
       } satisfies PERMISSIONS_MESSAGE_TYPE
 
-      permissionPublisher.publish(message)
-
       await diContainer.cradle.amqpConnectionManager.close()
-      await diContainer.cradle.amqpConnectionManager.init()
 
       // wait till we are done reconnecting
       await waitAndRetry(() => {
         return diContainer.cradle.amqpConnectionManager.getConnectionSync()
       })
 
-      let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null
-      const consumerChannel = await createSilentChannel(
-        diContainer.cradle.amqpConnectionManager.getConnectionSync()!,
+      const updatedUsersPermissions = await waitAndRetry(
+        () => {
+          permissionPublisher.publish(message)
+
+          return checkPermissions(userIds)
+        },
+        100,
+        20,
       )
-      await consumerChannel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
-        if (message === null) {
-          return
-        }
-        const decodedMessage = deserializeAmqpMessage(
-          message,
-          PERMISSIONS_MESSAGE_SCHEMA,
-          new FakeConsumerErrorResolver(),
-        )
-        receivedMessage = decodedMessage.result!
-      })
 
-      permissionPublisher.publish(message)
-
-      await waitAndRetry(() => {
-        return receivedMessage !== null
-      })
-
-      expect(receivedMessage).toEqual({
-        messageType: 'add',
-        permissions: ['perm1', 'perm2'],
-        userIds: [100, 200, 300],
-      })
-
-      await permissionPublisher.close()
-      try {
-        await consumerChannel.close()
-      } catch {
-        // it's ok
+      if (null === updatedUsersPermissions) {
+        throw new Error('Users permissions unexpectedly null')
       }
+
+      expect(updatedUsersPermissions).toBeDefined()
+      expect(updatedUsersPermissions[0]).toHaveLength(2)
     })
   })
 })
