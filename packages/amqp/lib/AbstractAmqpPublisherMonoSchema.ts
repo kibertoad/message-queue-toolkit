@@ -42,6 +42,9 @@ export abstract class AbstractAmqpPublisherMonoSchema<MessagePayloadType extends
     try {
       this.channel.sendToQueue(this.queueName, objectToBuffer(message))
     } catch (err) {
+      // Unfortunately, reliable retry mechanism can't be implemented with try-catch block,
+      // as not all failures end up here. If connection is closed programmatically, it works fine,
+      // but if server closes connection unexpectedly (e. g. RabbitMQ is shut down), then we don't land here
       // @ts-ignore
       if (err.message === 'Channel closed') {
         void this.reconnect()
