@@ -5,7 +5,7 @@ export async function createSilentChannel(connection: Connection) {
   channel.on('close', () => {
     // consume event
   })
-  channel.on('error', (err) => {
+  channel.on('error', () => {
     // consume event
   })
 

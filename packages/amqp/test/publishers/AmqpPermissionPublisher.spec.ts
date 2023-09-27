@@ -188,6 +188,11 @@ describe('PermissionPublisher', () => {
       await diContainer.cradle.amqpConnectionManager.close()
       await diContainer.cradle.amqpConnectionManager.init()
 
+      // wait till we are done reconnecting
+      await waitAndRetry(() => {
+        return diContainer.cradle.amqpConnectionManager.getConnectionSync()
+      })
+
       let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null
       const consumerChannel = await createSilentChannel(
         diContainer.cradle.amqpConnectionManager.getConnectionSync()!,
