@@ -1,21 +1,19 @@
 import type { Either } from '@lokalise/node-core'
 import type {
   ExistingQueueOptions,
-  MessageInvalidFormatError,
-  MessageValidationError,
   NewQueueOptions,
   SyncPublisher,
   MultiSchemaPublisherOptions,
 } from '@message-queue-toolkit/core'
-import { MessageSchemaContainer, objectToBuffer } from '@message-queue-toolkit/core'
+import { MessageSchemaContainer } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
 import type { AMQPLocatorType } from './AbstractAmqpBaseConsumer'
-import { AbstractAmqpService } from './AbstractAmqpService'
+import { AbstractAmqpBasePublisher } from './AbstractAmqpBasePublisher'
 import type { AMQPDependencies, CreateAMQPQueueOptions } from './AbstractAmqpService'
 
 export abstract class AbstractAmqpPublisherMultiSchema<MessagePayloadType extends object>
-  extends AbstractAmqpService<MessagePayloadType>
+  extends AbstractAmqpBasePublisher<MessagePayloadType>
   implements SyncPublisher<MessagePayloadType>
 {
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
@@ -47,28 +45,8 @@ export abstract class AbstractAmqpPublisherMultiSchema<MessagePayloadType extend
       this.logMessage(resolvedLogMessage)
     }
 
-    try {
-      this.channel.sendToQueue(this.queueName, objectToBuffer(message))
-    } catch (err) {
-      // Unfortunately, reliable retry mechanism can't be implemented with try-catch block,
-      // as not all failures end up here. If connection is closed programmatically, it works fine,
-      // but if server closes connection unexpectedly (e. g. RabbitMQ is shut down), then we don't land here
-      // @ts-ignore
-      if (err.message === 'Channel closed') {
-        this.logger.error(`AMQP channel closed`)
-        void this.reconnect()
-      } else {
-        throw err
-      }
-    }
+    this.sendToQueue(message)
   }
-
-  /* c8 ignore start */
-  protected resolveMessage(): Either<MessageInvalidFormatError | MessageValidationError, unknown> {
-    throw new Error('Not implemented for publisher')
-  }
-
-  /* c8 ignore stop */
 
   protected override resolveSchema(
     message: MessagePayloadType,
