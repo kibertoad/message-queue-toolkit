@@ -96,7 +96,11 @@ export class AmqpConnectionManager {
 
   async close() {
     this.reconnectsActive = false
-    await this.connection?.close()
+    try {
+      await this.connection?.close()
+    } catch {
+      // it's OK
+    }
     this.connection = undefined
   }
 
