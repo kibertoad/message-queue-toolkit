@@ -2,12 +2,12 @@ import type {
   ExistingAMQPConsumerOptions,
   NewAMQPConsumerOptions,
 } from '../../lib/AbstractAmqpBaseConsumer'
-import { AbstractAmqpPublisher } from '../../lib/AbstractAmqpPublisher'
+import { AbstractAmqpPublisherMonoSchema } from '../../lib/AbstractAmqpPublisherMonoSchema'
 import type { AMQPDependencies } from '../../lib/AbstractAmqpService'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 
-export class AmqpPermissionPublisher extends AbstractAmqpPublisher<PERMISSIONS_MESSAGE_TYPE> {
+export class AmqpPermissionPublisher extends AbstractAmqpPublisherMonoSchema<PERMISSIONS_MESSAGE_TYPE> {
   public static QUEUE_NAME = 'user_permissions'
 
   constructor(

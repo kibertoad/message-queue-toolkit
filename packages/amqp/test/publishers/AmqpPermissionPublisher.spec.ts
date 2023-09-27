@@ -45,10 +45,14 @@ describe('PermissionPublisher', () => {
       publisher.publish(message)
 
       await waitAndRetry(() => {
-        return logger.loggedMessages.length === 1
+        return logger.loggedMessages.length === 2
       })
 
-      expect(logger.loggedMessages.length).toBe(1)
+      expect(logger.loggedMessages[1]).toEqual({
+        messageType: 'add',
+        permissions: ['perm1', 'perm2'],
+        userIds: [100, 200, 300],
+      })
     })
   })
 
@@ -68,7 +72,8 @@ describe('PermissionPublisher', () => {
     })
 
     beforeEach(async () => {
-      channel = await diContainer.cradle.amqpConnection.createChannel()
+      const connection = await diContainer.cradle.amqpConnectionManager.getConnection()
+      channel = await connection.createChannel()
     })
 
     afterEach(async () => {
@@ -116,10 +121,13 @@ describe('PermissionPublisher', () => {
     })
 
     beforeEach(async () => {
-      channel = await diContainer.cradle.amqpConnection.createChannel()
+      const connection = await diContainer.cradle.amqpConnectionManager.getConnection()
+      channel = await connection.createChannel()
     })
 
     afterEach(async () => {
+      const connection = await diContainer.cradle.amqpConnectionManager.getConnection()
+      channel = await connection.createChannel()
       await channel.deleteQueue(AmqpPermissionConsumer.QUEUE_NAME)
       await channel.close()
     })
@@ -154,13 +162,50 @@ describe('PermissionPublisher', () => {
 
       permissionPublisher.publish(message)
 
-      await waitAndRetry(
-        () => {
-          return receivedMessage !== null
-        },
-        40,
-        30,
-      )
+      await waitAndRetry(() => {
+        return receivedMessage !== null
+      })
+
+      expect(receivedMessage).toEqual({
+        messageType: 'add',
+        permissions: ['perm1', 'perm2'],
+        userIds: [100, 200, 300],
+      })
+    })
+
+    it('reconnects on lost connection', async () => {
+      const { permissionPublisher } = diContainer.cradle
+
+      const message = {
+        userIds,
+        messageType: 'add',
+        permissions: perms,
+      } satisfies PERMISSIONS_MESSAGE_TYPE
+
+      permissionPublisher.publish(message)
+
+      await diContainer.cradle.amqpConnectionManager.close()
+      await diContainer.cradle.amqpConnectionManager.init()
+
+      let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null
+      channel = await diContainer.cradle.amqpConnectionManager.getConnectionSync()!.createChannel()
+      await channel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
+        if (message === null) {
+          return
+        }
+        const decodedMessage = deserializeAmqpMessage(
+          message,
+          PERMISSIONS_MESSAGE_SCHEMA,
+          new FakeConsumerErrorResolver(),
+        )
+        receivedMessage = decodedMessage.result!
+      })
+
+      permissionPublisher.publish(message)
+
+      await waitAndRetry(() => {
+        return receivedMessage !== null
+      })
 
       expect(receivedMessage).toEqual({
         messageType: 'add',

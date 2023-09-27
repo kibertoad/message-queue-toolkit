@@ -37,10 +37,12 @@ describe('PermissionsConsumerMultiSchema', () => {
       })
 
       await waitAndRetry(() => {
-        return logger.loggedMessages.length === 1
+        return logger.loggedMessages.length === 3
       })
 
-      expect(logger.loggedMessages.length).toBe(1)
+      expect(logger.loggedMessages.length).toBe(3)
+      expect(logger.loggedMessages[1]).toEqual({ messageType: 'add' })
+      expect(logger.loggedMessages[2]).toEqual({ messageType: 'add' })
     })
   })
 
@@ -114,13 +116,13 @@ describe('PermissionsConsumerMultiSchema', () => {
 
       publisher = diContainer.cradle.permissionPublisherMultiSchema
       consumer = diContainer.cradle.permissionConsumerMultiSchema
-    })
+    }, 99999)
 
     afterEach(async () => {
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
       await diContainer.dispose()
-    })
+    }, 99999)
 
     it('Processes messages', async () => {
       publisher.publish({
@@ -139,6 +141,24 @@ describe('PermissionsConsumerMultiSchema', () => {
 
       expect(consumer.addCounter).toBe(1)
       expect(consumer.removeCounter).toBe(2)
+    })
+
+    it('Reconnects if connection is lost', async () => {
+      await (await diContainer.cradle.amqpConnectionManager.getConnection()).close()
+      publisher.publish({
+        messageType: 'add',
+      })
+
+      await waitAndRetry(() => {
+        publisher.publish({
+          messageType: 'add',
+        })
+
+        return consumer.addCounter > 0
+      })
+
+      expect(consumer.addCounter > 0).toBe(true)
+      await consumer.close()
     })
   })
 })

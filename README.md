@@ -198,3 +198,52 @@ SQS queues are built in a way that every message is only consumed once, and then
 Both publishers and consumers accept a queue name and configuration as parameters. If the referenced queue (or SNS topic) does not exist at the moment the publisher or the consumer is instantiated, it is automatically created. Similarly, if the referenced topic does not exist during instantiation, it is also automatically created.
 
 If you do not want to create a new queue/topic, you can set `queueLocator` field for `queueConfiguration`. In that case `message-queue-toolkit` will not attempt to create a new queue or topic, and instead throw an error if they don't already exist.
+
+## Automatic Reconnects (RabbitMQ)
+
+`message-queue-toolkit` automatically reestablishes connections for all publishers and consumers via `AmqpConnectionManager` mechanism.
+
+Example:
+
+```ts
+export const TEST_AMQP_CONFIG: AmqpConfig = {
+    vhost: '',
+    hostname: 'localhost',
+    username: 'guest',
+    password: 'guest',
+    port: 5672,
+    useTls: false,
+}
+
+const amqpConnectionManager = new AmqpConnectionManager(config, logger)
+await amqpConnectionManager.init()
+
+const publisher = new TestAmqpPublisher(
+    { amqpConnectionManager },
+    {
+        /// other amqp options
+    })
+await publisher.init()
+
+const consumer = new TestAmqpConsumer(
+    { amqpConnectionManager },
+    {
+        /// other amqp options
+    })
+await consumer.start()
+
+// break connection, to simulate unexpected disconnection in production
+await (await amqpConnectionManager.getConnection()).close()
+
+const message = { 
+    // some test message
+}
+
+// This will fail, but will trigger reconnection within amqpConnectionManager
+publisher.publish(message)
+    
+// eventually connection is reestablished and propagated across all the AMQP services that use same amqpConnectionManager 
+
+// This will succeed and consumer, which also received new connection, will be able to consume it
+publisher.publish(message)
+```

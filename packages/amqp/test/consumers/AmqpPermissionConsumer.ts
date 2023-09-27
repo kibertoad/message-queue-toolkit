@@ -1,13 +1,13 @@
 import type { Either } from '@lokalise/node-core'
 
-import { AbstractAmqpConsumer } from '../../lib/AbstractAmqpConsumer'
+import { AbstractAmqpConsumerMonoSchema } from '../../lib/AbstractAmqpConsumerMonoSchema'
 import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
 
-export class AmqpPermissionConsumer extends AbstractAmqpConsumer<PERMISSIONS_MESSAGE_TYPE> {
+export class AmqpPermissionConsumer extends AbstractAmqpConsumerMonoSchema<PERMISSIONS_MESSAGE_TYPE> {
   public static QUEUE_NAME = 'user_permissions'
 
   constructor(dependencies: AMQPConsumerDependencies) {

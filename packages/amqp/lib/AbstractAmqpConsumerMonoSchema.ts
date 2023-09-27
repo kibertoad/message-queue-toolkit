@@ -9,7 +9,7 @@ import type {
 import { AbstractAmqpBaseConsumer } from './AbstractAmqpBaseConsumer'
 import type { AMQPConsumerDependencies } from './AbstractAmqpService'
 
-export abstract class AbstractAmqpConsumer<MessagePayloadType extends object>
+export abstract class AbstractAmqpConsumerMonoSchema<MessagePayloadType extends object>
   extends AbstractAmqpBaseConsumer<MessagePayloadType>
   implements QueueConsumer
 {

@@ -47,7 +47,14 @@ export abstract class AbstractAmqpPublisherMultiSchema<MessagePayloadType extend
       this.logMessage(resolvedLogMessage)
     }
 
-    this.channel.sendToQueue(this.queueName, objectToBuffer(message))
+    try {
+      this.channel.sendToQueue(this.queueName, objectToBuffer(message))
+    } catch (err) {
+      // @ts-ignore
+      if (err.message === 'Channel closed') {
+        void this.reconnect()
+      }
+    }
   }
 
   /* c8 ignore start */

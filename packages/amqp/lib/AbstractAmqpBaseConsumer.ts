@@ -6,7 +6,7 @@ import type {
   ExistingQueueOptions,
 } from '@message-queue-toolkit/core'
 import { isMessageError, parseMessage } from '@message-queue-toolkit/core'
-import type { Message } from 'amqplib'
+import type { Connection, Message } from 'amqplib'
 
 import type { AMQPConsumerDependencies, CreateAMQPQueueOptions } from './AbstractAmqpService'
 import { AbstractAmqpService } from './AbstractAmqpService'
@@ -108,12 +108,12 @@ export abstract class AbstractAmqpBaseConsumer<MessagePayloadType extends object
     }
   }
 
-  async start() {
-    await this.init()
-    if (!this.channel) {
-      throw new Error('Channel is not set')
-    }
+  async receiveNewConnection(connection: Connection): Promise<void> {
+    await super.receiveNewConnection(connection)
+    await this.consume()
+  }
 
+  private async consume() {
     await this.channel.consume(this.queueName, (message) => {
       if (message === null) {
         return
@@ -156,6 +156,15 @@ export abstract class AbstractAmqpBaseConsumer<MessagePayloadType extends object
           this.transactionObservabilityManager?.stop(transactionSpanId)
         })
     })
+  }
+
+  async start() {
+    await this.init()
+    if (!this.channel) {
+      throw new Error('Channel is not set')
+    }
+
+    await this.consume()
   }
 
   protected resolveMessage(message: Message) {

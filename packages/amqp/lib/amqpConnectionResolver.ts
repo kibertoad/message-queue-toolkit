@@ -4,7 +4,7 @@ import { globalLogger } from '@lokalise/node-core'
 import { connect } from 'amqplib'
 
 const CONNECT_RETRY_SECONDS = 10
-const MAX_RETRY_ATTEMPTS = 5
+const MAX_RETRY_ATTEMPTS = 10
 
 export type AmqpConfig = {
   hostname: string
@@ -22,14 +22,18 @@ export async function resolveAmqpConnection(config: AmqpConfig) {
   while (true) {
     const url = `${protocol}://${config.username}:${config.password}@${config.hostname}:${config.port}/${config.vhost}`
 
+    const retryTime = CONNECT_RETRY_SECONDS * 1000 * (counter + 1)
     try {
-      return await connect(url)
+      const connection = await connect(url)
+      return connection
     } catch (e) {
       globalLogger.error(
-        `Failed to connect to AMQP broker at ${config.hostname}:${config.port}. Retrying in ${CONNECT_RETRY_SECONDS} seconds...`,
+        `Failed to connect to AMQP broker at ${config.hostname}:${config.port}. Retrying in ${
+          retryTime / 1000
+        } seconds...`,
       )
     }
-    await setTimeout(CONNECT_RETRY_SECONDS * 1000)
+    await setTimeout(retryTime)
     counter++
 
     if (counter > MAX_RETRY_ATTEMPTS) {

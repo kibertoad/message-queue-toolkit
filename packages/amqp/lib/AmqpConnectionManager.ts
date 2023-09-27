@@ -1,0 +1,106 @@
+import type { Logger } from '@message-queue-toolkit/core'
+import type { Connection } from 'amqplib'
+
+import type { AmqpConfig } from './amqpConnectionResolver'
+import { resolveAmqpConnection } from './amqpConnectionResolver'
+
+export type ConnectionReceiver = {
+  receiveNewConnection(connection: Connection): Promise<void>
+}
+
+export class AmqpConnectionManager {
+  private readonly config: AmqpConfig
+  private readonly logger: Logger
+  private readonly connectionReceivers: ConnectionReceiver[]
+  private connection?: Connection
+  public reconnectsActive: boolean
+
+  public isReconnecting: boolean
+
+  constructor(config: AmqpConfig, logger: Logger) {
+    this.config = config
+    this.connectionReceivers = []
+    this.reconnectsActive = true
+    this.isReconnecting = false
+    this.logger = logger
+  }
+
+  private async createConnection() {
+    const connection = await resolveAmqpConnection(this.config)
+    connection.on('error', (err) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      this.logger.error(`AmqpConnectionManager: Connection error: ${err.message}`)
+      this.connection = undefined
+      if (this.reconnectsActive) {
+        void this.reconnect()
+      }
+    })
+    connection.on('close', () => {
+      if (this.reconnectsActive && !this.isReconnecting) {
+        this.logger.error(`AmqpConnectionManager: Connection closed unexpectedly`)
+      }
+      if (this.reconnectsActive) {
+        void this.reconnect()
+      }
+    })
+
+    const promises: Promise<unknown>[] = []
+
+    this.logger.info(
+      `Propagating new connection across ${this.connectionReceivers.length} receivers`,
+    )
+    for (const receiver of this.connectionReceivers) {
+      promises.push(receiver.receiveNewConnection(connection))
+    }
+    await Promise.all(promises)
+
+    return connection
+  }
+
+  getConnectionSync() {
+    return this.connection
+  }
+
+  async getConnection(): Promise<Connection> {
+    if (!this.connection) {
+      this.connection = await this.createConnection()
+    }
+    return this.connection
+  }
+
+  async reconnect() {
+    if (this.isReconnecting) {
+      return
+    }
+    this.logger.info('AmqpConnectionManager: Start reconnecting')
+
+    this.isReconnecting = true
+    const oldConnection = this.connection
+    this.connection = await this.createConnection()
+    if (oldConnection) {
+      try {
+        await oldConnection.close()
+      } catch {
+        // this can fail
+      }
+    }
+    this.isReconnecting = false
+
+    console.log('Finish reconnecting')
+  }
+
+  async init() {
+    this.reconnectsActive = true
+    await this.getConnection()
+  }
+
+  async close() {
+    this.reconnectsActive = false
+    await this.connection?.close()
+    this.connection = undefined
+  }
+
+  subscribeConnectionReceiver(connectionReceiver: ConnectionReceiver) {
+    this.connectionReceivers.push(connectionReceiver)
+  }
+}

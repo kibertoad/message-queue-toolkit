@@ -6,6 +6,7 @@ import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 import { objectToBuffer } from '../../../core/lib/utils/queueUtils'
 import { waitAndRetry } from '../../../core/lib/utils/waitUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
+import type { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublisher'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
 import type { Dependencies } from '../utils/testContext'
@@ -17,25 +18,29 @@ import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 
-async function waitForPermissions(userIds: number[]) {
-  return await waitAndRetry(async () => {
-    const usersPerms = userIds.reduce((acc, userId) => {
-      if (userPermissionMap[userId]) {
-        acc.push(userPermissionMap[userId])
-      }
-      return acc
-    }, [] as string[][])
+function checkPermissions(userIds: number[]) {
+  const usersPerms = userIds.reduce((acc, userId) => {
+    if (userPermissionMap[userId]) {
+      acc.push(userPermissionMap[userId])
+    }
+    return acc
+  }, [] as string[][])
 
-    if (usersPerms && usersPerms.length !== userIds.length) {
+  if (usersPerms && usersPerms.length !== userIds.length) {
+    return null
+  }
+
+  for (const userPerms of usersPerms)
+    if (userPerms.length !== perms.length) {
       return null
     }
 
-    for (const userPerms of usersPerms)
-      if (userPerms.length !== perms.length) {
-        return null
-      }
+  return usersPerms
+}
 
-    return usersPerms
+async function waitForPermissions(userIds: number[]) {
+  return await waitAndRetry(async () => {
+    return checkPermissions(userIds)
   })
 }
 
@@ -43,6 +48,8 @@ describe('PermissionsConsumer', () => {
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
     let channel: Channel
+    let publisher: AmqpPermissionPublisher
+    let consumer: AmqpPermissionConsumer
     beforeEach(async () => {
       delete userPermissionMap[100]
       delete userPermissionMap[200]
@@ -51,11 +58,16 @@ describe('PermissionsConsumer', () => {
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
 
-      channel = await diContainer.cradle.amqpConnection.createChannel()
+      channel = await diContainer.cradle.amqpConnectionManager.getConnectionSync()!.createChannel()
+      publisher = diContainer.cradle.permissionPublisher
+      consumer = diContainer.cradle.permissionConsumer
       await diContainer.cradle.permissionConsumer.start()
     })
 
     afterEach(async () => {
+      const connection = await diContainer.cradle.amqpConnectionManager.getConnection()
+      channel = await connection.createChannel()
+
       await channel.deleteQueue(AmqpPermissionConsumer.QUEUE_NAME)
       await channel.close()
       const { awilixManager } = diContainer.cradle
@@ -88,6 +100,42 @@ describe('PermissionsConsumer', () => {
 
       expect(updatedUsersPermissions).toBeDefined()
       expect(updatedUsersPermissions[0]).toHaveLength(2)
+    })
+
+    it('Reconnects if connection is lost', async () => {
+      await (await diContainer.cradle.amqpConnectionManager.getConnection()).close()
+
+      const users = Object.values(userPermissionMap)
+      expect(users).toHaveLength(0)
+
+      userPermissionMap[100] = []
+      userPermissionMap[200] = []
+      userPermissionMap[300] = []
+
+      publisher.publish({
+        messageType: 'add',
+        userIds,
+        permissions: perms,
+      })
+
+      const updatedUsersPermissions = await waitAndRetry(() => {
+        publisher.publish({
+          messageType: 'add',
+          userIds,
+          permissions: perms,
+        })
+
+        return checkPermissions(userIds)
+      })
+
+      if (null === updatedUsersPermissions) {
+        throw new Error('Users permissions unexpectedly null')
+      }
+
+      expect(updatedUsersPermissions).toBeDefined()
+      expect(updatedUsersPermissions[0]).toHaveLength(2)
+
+      await consumer.close()
     })
 
     it('Wait for users to be created and then create permissions', async () => {

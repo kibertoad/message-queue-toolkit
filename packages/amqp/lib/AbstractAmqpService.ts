@@ -9,10 +9,11 @@ import type { Channel, Connection, Message } from 'amqplib'
 import type { Options } from 'amqplib/properties'
 
 import type { AMQPLocatorType } from './AbstractAmqpBaseConsumer'
+import type { AmqpConnectionManager, ConnectionReceiver } from './AmqpConnectionManager'
 import { deleteAmqp } from './utils/amqpInitter'
 
 export type AMQPDependencies = QueueDependencies & {
-  amqpConnection: Connection
+  amqpConnectionManager: AmqpConnectionManager
 }
 
 export type AMQPConsumerDependencies = AMQPDependencies & QueueConsumerDependencies
@@ -28,17 +29,21 @@ export type AMQPQueueLocatorType = {
 }
 
 export abstract class AbstractAmqpService<
-  MessagePayloadType extends object,
-  DependenciesType extends AMQPDependencies = AMQPDependencies,
-> extends AbstractQueueService<
-  MessagePayloadType,
-  Message,
-  DependenciesType,
-  CreateAMQPQueueOptions,
-  AMQPQueueLocatorType,
-  NewQueueOptions<CreateAMQPQueueOptions> | ExistingQueueOptions<AMQPLocatorType>
-> {
-  protected readonly connection: Connection
+    MessagePayloadType extends object,
+    DependenciesType extends AMQPDependencies = AMQPDependencies,
+  >
+  extends AbstractQueueService<
+    MessagePayloadType,
+    Message,
+    DependenciesType,
+    CreateAMQPQueueOptions,
+    AMQPQueueLocatorType,
+    NewQueueOptions<CreateAMQPQueueOptions> | ExistingQueueOptions<AMQPLocatorType>
+  >
+  implements ConnectionReceiver
+{
+  protected connection?: Connection
+  private connectionManager: AmqpConnectionManager
   // @ts-ignore
   protected channel: Channel
   private isShuttingDown: boolean
@@ -53,32 +58,31 @@ export abstract class AbstractAmqpService<
     this.queueName = options.locatorConfig
       ? options.locatorConfig.queueName
       : options.creationConfig?.queueName
-    this.connection = dependencies.amqpConnection
     this.isShuttingDown = false
+    this.connectionManager = dependencies.amqpConnectionManager
+    this.connection = this.connectionManager.getConnectionSync()
+    this.connectionManager.subscribeConnectionReceiver(this)
   }
 
-  private async destroyConnection(): Promise<void> {
-    if (this.channel) {
-      try {
-        await this.channel.close()
-      } finally {
-        // @ts-ignore
-        this.channel = undefined
-      }
-    }
-  }
+  async receiveNewConnection(connection: Connection) {
+    this.connection = connection
 
-  public async init() {
     this.isShuttingDown = false
-
     // If channel exists, recreate it
     if (this.channel) {
       this.isShuttingDown = true
-      await this.destroyConnection()
+      await this.destroyChannel()
       this.isShuttingDown = false
     }
 
-    this.channel = await this.connection.createChannel()
+    try {
+      this.channel = await this.connection.createChannel()
+    } catch (err) {
+      // @ts-ignore
+      this.logger.error(`Error creating channel: ${err.message}`)
+      await this.connectionManager.reconnect()
+      return
+    }
 
     if (this.deletionConfig && this.creationConfig) {
       await deleteAmqp(this.channel, this.deletionConfig, this.creationConfig)
@@ -87,7 +91,7 @@ export abstract class AbstractAmqpService<
     this.channel.on('close', () => {
       if (!this.isShuttingDown) {
         this.logger.error(`AMQP connection lost!`)
-        this.init().catch((err) => {
+        this.reconnect().catch((err) => {
           this.handleError(err)
           throw err
         })
@@ -103,22 +107,50 @@ export abstract class AbstractAmqpService<
         this.creationConfig.queueOptions,
       )
     } else {
-      // queue check breaks channel if not successful
-      const checkChannel = await this.connection.createChannel()
-      checkChannel.on('error', () => {
-        // it's OK
-      })
+      await this.checkQueueExists()
+    }
+  }
+
+  private async checkQueueExists() {
+    // queue check breaks channel if not successful
+    const checkChannel = await this.connection!.createChannel()
+    checkChannel.on('error', () => {
+      // it's OK
+    })
+    try {
+      await checkChannel.checkQueue(this.locatorConfig!.queueName)
+      await checkChannel.close()
+    } catch (err) {
+      throw new Error(`Queue with queueName ${this.locatorConfig!.queueName} does not exist.`)
+    }
+  }
+
+  private async destroyChannel(): Promise<void> {
+    if (this.channel) {
       try {
-        await checkChannel.checkQueue(this.locatorConfig!.queueName)
-        await checkChannel.close()
+        await this.channel.close()
       } catch (err) {
-        throw new Error(`Queue with queueName ${this.locatorConfig!.queueName} does not exist.`)
+        // We don't care about connection closing errors
+      } finally {
+        // @ts-ignore
+        this.channel = undefined
       }
     }
   }
 
+  public async init() {
+    // if we don't have connection yet, it's fine, we'll wait for a later receiveNewConnection() call
+    if (this.connection) {
+      await this.receiveNewConnection(this.connection)
+    }
+  }
+
+  public async reconnect() {
+    await this.connectionManager.reconnect()
+  }
+
   async close(): Promise<void> {
     this.isShuttingDown = true
-    await this.destroyConnection()
+    await this.destroyChannel()
   }
 }

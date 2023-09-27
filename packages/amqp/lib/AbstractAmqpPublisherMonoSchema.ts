@@ -14,7 +14,7 @@ import type { AMQPLocatorType } from './AbstractAmqpBaseConsumer'
 import { AbstractAmqpService } from './AbstractAmqpService'
 import type { AMQPDependencies, CreateAMQPQueueOptions } from './AbstractAmqpService'
 
-export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
+export abstract class AbstractAmqpPublisherMonoSchema<MessagePayloadType extends object>
   extends AbstractAmqpService<MessagePayloadType>
   implements SyncPublisher<MessagePayloadType>
 {
@@ -39,7 +39,14 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
       this.logMessage(resolvedLogMessage)
     }
 
-    this.channel.sendToQueue(this.queueName, objectToBuffer(message))
+    try {
+      this.channel.sendToQueue(this.queueName, objectToBuffer(message))
+    } catch (err) {
+      // @ts-ignore
+      if (err.message === 'Channel closed') {
+        void this.reconnect()
+      }
+    }
   }
 
   /* c8 ignore start */

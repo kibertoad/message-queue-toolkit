@@ -1,12 +1,11 @@
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
-import type { Connection } from 'amqplib'
 import type { Resolver } from 'awilix'
 import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
+import { AmqpConnectionManager } from '../../lib/AmqpConnectionManager'
 import type { AmqpConfig } from '../../lib/amqpConnectionResolver'
-import { resolveAmqpConnection } from '../../lib/amqpConnectionResolver'
 import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver'
 import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer'
 import { AmqpPermissionConsumerMultiSchema } from '../consumers/AmqpPermissionConsumerMultiSchema'
@@ -27,7 +26,6 @@ export async function registerDependencies(
   const diContainer = createContainer({
     injectionMode: 'PROXY',
   })
-  const amqpConnection = await resolveAmqpConnection(config)
   const awilixManager = new AwilixManager({
     diContainer,
     asyncDispose: true,
@@ -42,15 +40,15 @@ export async function registerDependencies(
     awilixManager: asFunction(() => {
       return awilixManager
     }, SINGLETON_CONFIG),
-    amqpConnection: asFunction(
-      () => {
-        return amqpConnection
+    amqpConnectionManager: asFunction(
+      ({ logger }: Dependencies) => {
+        return new AmqpConnectionManager(config, logger)
       },
       {
         lifetime: Lifetime.SINGLETON,
-        dispose: (connection) => {
-          return connection.close()
-        },
+        asyncInit: 'init',
+        asyncDispose: 'close',
+        asyncDisposePriority: 100,
       },
     ),
     consumerErrorResolver: asFunction(() => {
@@ -109,7 +107,7 @@ type DiConfig = Record<keyof Dependencies, Resolver<any>>
 
 export interface Dependencies {
   logger: Logger
-  amqpConnection: Connection
+  amqpConnectionManager: AmqpConnectionManager
   awilixManager: AwilixManager
 
   // vendor-specific dependencies
