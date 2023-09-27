@@ -119,14 +119,18 @@ describe('PermissionsConsumer', () => {
       })
 
       const updatedUsersPermissions = await waitAndRetry(() => {
+        const checkResult = checkPermissions(userIds)
+        if (checkResult) {
+          return checkResult
+        }
+
         publisher.publish({
           messageType: 'add',
           userIds,
           permissions: perms,
         })
-
-        return checkPermissions(userIds)
-      })
+        return false
+      }, 50)
 
       if (null === updatedUsersPermissions) {
         throw new Error('Users permissions unexpectedly null')

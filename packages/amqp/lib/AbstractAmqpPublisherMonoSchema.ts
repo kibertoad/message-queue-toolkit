@@ -47,7 +47,10 @@ export abstract class AbstractAmqpPublisherMonoSchema<MessagePayloadType extends
       // but if server closes connection unexpectedly (e. g. RabbitMQ is shut down), then we don't land here
       // @ts-ignore
       if (err.message === 'Channel closed') {
+        this.logger.error(`AMQP channel closed`)
         void this.reconnect()
+      } else {
+        throw err
       }
     }
   }
