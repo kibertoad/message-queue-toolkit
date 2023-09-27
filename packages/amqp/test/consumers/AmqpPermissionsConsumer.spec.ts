@@ -139,6 +139,7 @@ describe('PermissionsConsumer', () => {
       expect(updatedUsersPermissions).toBeDefined()
       expect(updatedUsersPermissions[0]).toHaveLength(2)
 
+      await publisher.close()
       await consumer.close()
     })
 
