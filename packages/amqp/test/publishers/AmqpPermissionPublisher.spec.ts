@@ -11,6 +11,7 @@ import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumer } from '../fakes/FakeConsumer'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { FakeLogger } from '../fakes/FakeLogger'
+import { createSilentChannel } from '../utils/channelUtils'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
@@ -188,8 +189,10 @@ describe('PermissionPublisher', () => {
       await diContainer.cradle.amqpConnectionManager.init()
 
       let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null
-      channel = await diContainer.cradle.amqpConnectionManager.getConnectionSync()!.createChannel()
-      await channel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
+      const consumerChannel = await createSilentChannel(
+        diContainer.cradle.amqpConnectionManager.getConnectionSync()!,
+      )
+      await consumerChannel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
         if (message === null) {
           return
         }
@@ -215,7 +218,7 @@ describe('PermissionPublisher', () => {
 
       await permissionPublisher.close()
       try {
-        await channel.close()
+        await consumerChannel.close()
       } catch {
         // it's ok
       }
