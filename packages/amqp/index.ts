@@ -12,4 +12,6 @@ export { AbstractAmqpPublisherMultiSchema } from './lib/AbstractAmqpPublisherMul
 export type { AmqpConfig } from './lib/amqpConnectionResolver'
 
 export { resolveAmqpConnection } from './lib/amqpConnectionResolver'
+export { AmqpConnectionManager } from './lib/AmqpConnectionManager'
+export type { ConnectionReceiver } from './lib/AmqpConnectionManager'
 export { deserializeAmqpMessage } from './lib/amqpMessageDeserializer'

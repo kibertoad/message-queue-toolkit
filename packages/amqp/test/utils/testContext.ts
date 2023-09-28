@@ -48,7 +48,7 @@ export async function registerDependencies(
         lifetime: Lifetime.SINGLETON,
         asyncInit: 'init',
         asyncDispose: 'close',
-        asyncDisposePriority: 100,
+        asyncDisposePriority: 1,
       },
     ),
     consumerErrorResolver: asFunction(() => {

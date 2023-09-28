@@ -209,12 +209,7 @@ describe('PermissionPublisher', () => {
         permissions: perms,
       } satisfies PERMISSIONS_MESSAGE_TYPE
 
-      await diContainer.cradle.amqpConnectionManager.close()
-
-      // wait till we are done reconnecting
-      await waitAndRetry(() => {
-        return diContainer.cradle.amqpConnectionManager.getConnectionSync()
-      })
+      await diContainer.cradle.amqpConnectionManager.getConnectionSync()!.close()
 
       const updatedUsersPermissions = await waitAndRetry(
         () => {

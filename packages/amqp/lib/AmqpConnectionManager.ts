@@ -6,6 +6,7 @@ import { resolveAmqpConnection } from './amqpConnectionResolver'
 
 export type ConnectionReceiver = {
   receiveNewConnection(connection: Connection): Promise<void>
+  close(): Promise<void>
 }
 
 export class AmqpConnectionManager {
@@ -96,6 +97,11 @@ export class AmqpConnectionManager {
 
   async close() {
     this.reconnectsActive = false
+
+    for (const receiver of this.connectionReceivers) {
+      await receiver.close()
+    }
+
     try {
       await this.connection?.close()
     } catch {
