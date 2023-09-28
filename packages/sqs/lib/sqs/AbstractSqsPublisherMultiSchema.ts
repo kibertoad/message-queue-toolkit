@@ -7,6 +7,7 @@ import type {
   MessageValidationError,
   ExistingQueueOptions,
   NewQueueOptions,
+  MultiSchemaPublisherOptions,
 } from '@message-queue-toolkit/core'
 import { MessageSchemaContainer } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
@@ -30,9 +31,8 @@ export abstract class AbstractSqsPublisherMultiSchema<MessagePayloadType extends
 
   constructor(
     dependencies: SQSDependencies,
-    options: (NewQueueOptions<SQSCreationConfig> | ExistingQueueOptions<SQSQueueLocatorType>) & {
-      messageSchemas: readonly ZodSchema<MessagePayloadType>[]
-    },
+    options: (NewQueueOptions<SQSCreationConfig> | ExistingQueueOptions<SQSQueueLocatorType>) &
+      MultiSchemaPublisherOptions<MessagePayloadType>,
   ) {
     super(dependencies, options)
 
@@ -50,6 +50,12 @@ export abstract class AbstractSqsPublisherMultiSchema<MessagePayloadType extends
         throw resolveSchemaResult.error
       }
       resolveSchemaResult.result.parse(message)
+
+      if (this.logMessages) {
+        // @ts-ignore
+        const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
+        this.logMessage(resolvedLogMessage)
+      }
 
       const input = {
         // SendMessageRequest

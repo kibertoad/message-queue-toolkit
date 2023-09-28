@@ -15,6 +15,8 @@ export class SnsSqsPermissionConsumerMonoSchema extends AbstractSnsSqsConsumerMo
   public static CONSUMED_QUEUE_NAME = 'user_permissions'
   public static SUBSCRIBED_TOPIC_NAME = 'user_permissions'
 
+  public preHandlerBarrierCounter: number = 0
+
   constructor(
     dependencies: SNSSQSConsumerDependencies,
     options:
@@ -69,5 +71,10 @@ export class SnsSqsPermissionConsumerMonoSchema extends AbstractSnsSqsConsumerMo
     return {
       result: 'success',
     }
+  }
+
+  async preHandlerBarrier(_message: PERMISSIONS_MESSAGE_TYPE): Promise<boolean> {
+    this.preHandlerBarrierCounter++
+    return this.preHandlerBarrierCounter > 2
   }
 }

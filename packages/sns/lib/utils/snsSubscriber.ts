@@ -2,8 +2,10 @@ import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import { SubscribeCommand } from '@aws-sdk/client-sns'
 import type { SubscribeCommandInput } from '@aws-sdk/client-sns/dist-types/commands/SubscribeCommand'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
-import { GetQueueAttributesCommand } from '@aws-sdk/client-sqs'
+import type { ExtraSQSCreationParams } from '@message-queue-toolkit/sqs'
 import { assertQueue } from '@message-queue-toolkit/sqs'
+
+import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
 
 import { assertTopic } from './snsUtils'
 
@@ -18,24 +20,18 @@ export async function subscribeToTopic(
   queueConfiguration: CreateQueueCommandInput,
   topicConfiguration: CreateTopicCommandInput,
   subscriptionConfiguration: SNSSubscriptionOptions,
+  extraParams?: ExtraSNSCreationParams & ExtraSQSCreationParams,
 ) {
-  const topicArn = await assertTopic(snsClient, topicConfiguration)
-  const queueUrl = await assertQueue(sqsClient, queueConfiguration)
-
-  const getQueueAttributesCommand = new GetQueueAttributesCommand({
-    QueueUrl: queueUrl,
-    AttributeNames: ['QueueArn'],
+  const topicArn = await assertTopic(snsClient, topicConfiguration, {
+    queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
   })
-  const queueAttributesResponse = await sqsClient.send(getQueueAttributesCommand)
-  const sqsArn = queueAttributesResponse.Attributes?.QueueArn
-
-  if (!sqsArn) {
-    throw new Error(`Queue ${queueUrl} ARN is not defined`)
-  }
+  const { queueUrl, queueArn } = await assertQueue(sqsClient, queueConfiguration, {
+    topicArnsWithPublishPermissionsPrefix: extraParams?.topicArnsWithPublishPermissionsPrefix,
+  })
 
   const subscribeCommand = new SubscribeCommand({
     TopicArn: topicArn,
-    Endpoint: sqsArn,
+    Endpoint: queueArn,
     Protocol: 'sqs',
     ReturnSubscriptionArn: true,
     ...subscriptionConfiguration,
@@ -46,5 +42,6 @@ export async function subscribeToTopic(
     subscriptionArn: subscriptionResult.SubscriptionArn,
     topicArn,
     queueUrl,
+    queueArn,
   }
 }

@@ -53,6 +53,16 @@ export abstract class AbstractSqsConsumerMonoSchema<
     }
   }
 
+  /**
+   * Override to implement barrier pattern
+   */
+  protected override preHandlerBarrier(
+    _message: MessagePayloadType,
+    _messageType: string,
+  ): Promise<boolean> {
+    return Promise.resolve(true)
+  }
+
   protected resolveSchema() {
     return this.schemaEither
   }

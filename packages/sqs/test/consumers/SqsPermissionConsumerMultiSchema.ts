@@ -17,6 +17,23 @@ import {
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
 } from './userConsumerSchemas'
 
+type SqsPermissionConsumerMultiSchemaOptions = (
+  | Pick<
+      NewSQSConsumerOptionsMultiSchema<
+        SupportedMessages,
+        SqsPermissionConsumerMultiSchema,
+        SQSCreationConfig
+      >,
+      'creationConfig' | 'logMessages'
+    >
+  | Pick<
+      ExistingSQSConsumerOptionsMultiSchema<SupportedMessages, SqsPermissionConsumerMultiSchema>,
+      'locatorConfig' | 'logMessages'
+    >
+) & {
+  addPreHandlerBarrier?: (message: SupportedMessages) => Promise<boolean>
+}
+
 type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 
 export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSchema<
@@ -29,22 +46,7 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
 
   constructor(
     dependencies: SQSConsumerDependencies,
-    options:
-      | Pick<
-          NewSQSConsumerOptionsMultiSchema<
-            SupportedMessages,
-            SqsPermissionConsumerMultiSchema,
-            SQSCreationConfig
-          >,
-          'creationConfig'
-        >
-      | Pick<
-          ExistingSQSConsumerOptionsMultiSchema<
-            SupportedMessages,
-            SqsPermissionConsumerMultiSchema
-          >,
-          'locatorConfig'
-        > = {
+    options: SqsPermissionConsumerMultiSchemaOptions = {
       creationConfig: {
         queue: {
           QueueName: SqsPermissionConsumerMultiSchema.QUEUE_NAME,
@@ -65,12 +67,18 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
         SupportedMessages,
         SqsPermissionConsumerMultiSchema
       >()
-        .addConfig(PERMISSIONS_ADD_MESSAGE_SCHEMA, async (_message, _context) => {
-          this.addCounter++
-          return {
-            result: 'success',
-          }
-        })
+        .addConfig(
+          PERMISSIONS_ADD_MESSAGE_SCHEMA,
+          async (_message, _context) => {
+            this.addCounter++
+            return {
+              result: 'success',
+            }
+          },
+          {
+            preHandlerBarrier: options.addPreHandlerBarrier,
+          },
+        )
         .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {
           this.removeCounter++
           return {

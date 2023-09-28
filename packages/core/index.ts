@@ -20,6 +20,7 @@ export type {
   Deserializer,
   CommonQueueLocator,
   DeletionConfig,
+  MultiSchemaPublisherOptions,
 } from './lib/queues/AbstractQueueService'
 
 export {
@@ -32,6 +33,7 @@ export {
   HandlerContainer,
   MessageHandlerConfig,
   MessageHandlerConfigBuilder,
+  BarrierCallbackMultiConsumers,
 } from './lib/queues/HandlerContainer'
 export type { HandlerContainerOptions, Handler } from './lib/queues/HandlerContainer'
 

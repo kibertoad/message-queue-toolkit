@@ -1,4 +1,9 @@
 # message-queue-toolkit ✉️
+
+[![NPM Version](https://img.shields.io/npm/v/@message-queue-toolkit/core.svg)](https://www.npmjs.com/package/@message-queue-toolkit/core)
+[![NPM Downloads](https://img.shields.io/npm/dm/@message-queue-toolkit/core.svg)](https://npmjs.org/package/@message-queue-toolkit/core)
+[![Build Status](https://github.com/kibertoad/message-queue-toolkit/workflows/ci/badge.svg)](https://github.com/kibertoad/message-queue-toolkit/actions)
+
 Useful utilities, interfaces and base classes for message queue handling.
 
 ## Overview
@@ -16,26 +21,52 @@ It consists of the following submodules:
 
 ### Publishers
 
-`message-queue-toolkit` provides base classes for implementing publishers for each of the supported protocol. They implement the following public methods:
+`message-queue-toolkit` provides base classes for implementing publishers for each of the supported protocol.
+
+#### Mono-schema publishers
+
+Mono-schema publishers only support a single message type and are simpler to implement. They expose the following public methods:
 
 * `constructor()`, which accepts the following parameters:
     * `dependencies` – a set of dependencies depending on the protocol;
     * `options`, composed by
         * `messageSchema` – the `zod` schema for the message;
-        * `messageTypeField`;
+        * `messageTypeField` - which field in the message describes the type of a message. This field needs to be defined as `z.literal` in the schema;
         * `locatorConfig` - configuration for resolving existing queue and/or topic. Should not be specified together with the `creationConfig`.
         * `creationConfig` - configuration for queue and/or topic to create, if one does not exist. Should not be specified together with the `locatorConfig`.
-* `init()`, which needs to be invoked before the publisher can be used;
-* `close()`, which needs to be invoked when stopping the application;
-* `publish()`, which accepts the following parameters:
+* `init()`, prepare publisher for use (e. g. establish all necessary connections);
+* `close()`, stop publisher use (e. g. disconnect);
+* `publish()`, send a message to a queue or topic. It accepts the following parameters:
     * `message` – a message following a `zod` schema;
     * `options` – a protocol-dependent set of message parameters. For more information please check documentation for options for each protocol: [AMQP](https://amqp-node.github.io/amqplib/channel_api.html#channel_sendToQueue), [SQS](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/interfaces/sendmessagecommandinput.html) and [SNS](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sns/interfaces/publishcommandinput.html).
 
 > **_NOTE:_**  See [SqsPermissionPublisherMonoSchema.ts](./packages/sqs/test/publishers/SqsPermissionPublisherMonoSchema.ts) for a practical example.
 
+#### Multi-schema publishers
+
+Multi-schema publishers support multiple messages types. They implement the following public methods:
+
+* `constructor()`, which accepts the following parameters:
+    * `dependencies` – a set of dependencies depending on the protocol;
+    * `options`, composed by
+        * `messageSchemas` – the `zod` schemas for all supported messages;
+        * `messageTypeField` - which field in the message describes the type of a message. This field needs to be defined as `z.literal` in the schema and is used for resolving the correct schema for validation
+        * `locatorConfig` - configuration for resolving existing queue and/or topic. Should not be specified together with the `creationConfig`.
+        * `creationConfig` - configuration for queue and/or topic to create, if one does not exist. Should not be specified together with the `locatorConfig`.
+* `init()`, prepare publisher for use (e. g. establish all necessary connections);
+* `close()`, stop publisher use (e. g. disconnect);
+* `publish()`, send a message to a queue or topic. It accepts the following parameters:
+    * `message` – a message following one of the `zod` schemas, supported by the publisher;
+    * `options` – a protocol-dependent set of message parameters. For more information please check documentation for options for each protocol: [AMQP](https://amqp-node.github.io/amqplib/channel_api.html#channel_sendToQueue), [SQS](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/interfaces/sendmessagecommandinput.html) and [SNS](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sns/interfaces/publishcommandinput.html).
+
+
 ### Consumers
 
-`message-queue-toolkit` provides base classes for implementing consumers for each of the supported protocol. They implement the following public methods:
+`message-queue-toolkit` provides base classes for implementing consumers for each of the supported protocol.
+
+#### Mono-schema consumers
+
+Mono-schema consumers only support a single message type and are simpler to implement. They expose the following public methods:
 
 * `constructor()`, which accepts the following parameters:
     * `dependencies` – a set of dependencies depending on the protocol;
@@ -48,12 +79,86 @@ It consists of the following submodules:
         * `subscriptionConfig` - SNS SQS consumer only - configuration for SNS -> SQS subscription to create, if one doesn't exist.
         * `consumerOverrides` – available only for SQS consumers;
         * `subscribedToTopic` – parameters for a topic to use during creation if it does not exist. Ignored if `queueLocator.subscriptionArn` is set. Available only for SNS consumers;
-* `init()`, which needs to be invoked before the consumer can be used;
-* `close()`, which needs to be invoked when stopping the application;
+* `init()`, prepare consumer for use (e. g. establish all necessary connections);
+* `close()`, stop listening for messages and disconnect;
+* `processMessage()`, which accepts as parameter a `message` following a `zod` schema and should be overridden with logic on what to do with the message;
+* `start()`, which invokes `init()` and `processMessage()` and handles errors.
+* `preHandlerBarrier`, which accepts as a parameter a `message` following a `zod` schema and can be overridden to enable the barrier pattern (see [Barrier pattern](#barrier-pattern))
+
+> **_NOTE:_**  See [SqsPermissionConsumerMonoSchema.ts](./packages/sqs/test/consumers/SqsPermissionConsumerMonoSchema.ts) for a practical example.
+
+#### Multi-schema consumers
+
+Multi-schema consumers support multiple message types via handler configs. They expose the following public methods:
+
+* `constructor()`, which accepts the following parameters:
+    * `dependencies` – a set of dependencies depending on the protocol;
+    * `options`, composed by
+        * `handlers` – configuration for handling each of the supported message types. See "Multi-schema handler definition" for more details;
+        * `messageTypeField` - which field in the message describes the type of a message. This field needs to be defined as `z.literal` in the schema and is used for routing the message to the correct handler;
+        * `queueName`; (for SNS publishers this is a misnomer which actually refers to a topic name)
+        * `locatorConfig` - configuration for resolving existing queue and/or topic. Should not be specified together with the `creationConfig`.
+        * `creationConfig` - configuration for queue and/or topic to create, if one does not exist. Should not be specified together with the `locatorConfig`.
+        * `subscriptionConfig` - SNS SQS consumer only - configuration for SNS -> SQS subscription to create, if one doesn't exist.
+        * `consumerOverrides` – available only for SQS consumers;
+        * `subscribedToTopic` – parameters for a topic to use during creation if it does not exist. Ignored if `queueLocator.subscriptionArn` is set. Available only for SNS consumers;
+* `init()`, prepare consumer for use (e. g. establish all necessary connections);
+* `close()`, stop listening for messages and disconnect;
+
 * `processMessage()`, which accepts as parameter a `message` following a `zod` schema and should be overridden with logic on what to do with the message;
 * `start()`, which invokes `init()` and `processMessage()` and handles errors.
 
-> **_NOTE:_**  See [SqsPermissionConsumerMonoSchema.ts](./packages/sqs/test/consumers/SqsPermissionConsumerMonoSchema.ts) for a practical example.
+##### Multi-schema handler definition
+
+You can define handlers for each of the supported messages in a type-safe way using the MessageHandlerConfigBuilder.
+
+Here is an example:
+
+```ts
+type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
+
+export class TestConsumerMultiSchema extends AbstractSqsConsumerMultiSchema<
+    SupportedMessages,
+    TestConsumerMultiSchema
+> {
+    constructor(
+        dependencies: SQSConsumerDependencies,
+    ) {
+        super(dependencies, {
+            //
+            // rest of configuration skipped
+            //
+            handlers: new MessageHandlerConfigBuilder<
+                SupportedMessages,
+                SqsPermissionConsumerMultiSchema
+            >()
+                .addConfig(
+                    PERMISSIONS_ADD_MESSAGE_SCHEMA,
+                    async (message, context) => {
+                        // process message
+                        return {
+                            result: 'success',
+                        }
+                    },
+                    {
+                        preHandlerBarrier: async (message) => {
+                            // do barrier check here
+                            return true
+                        }
+                    },
+                )
+                .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, 
+                    async (message, context) => {
+                      // process message
+                      return {
+                          result: 'success',
+                      }
+                })
+                .build(),
+        })
+    }
+}
+```
 
 #### Error Handling
 
@@ -71,6 +176,16 @@ If
 Then the message is automatically nacked without requeueing by the abstract consumer and processing fails.
 
 > **_NOTE:_**  See [userConsumerSchemas.ts](./packages/sqs/test/consumers/userConsumerSchemas.ts) and [SqsPermissionsConsumerMonoSchema.spec.ts](./packages/sqs/test/consumers/SqsPermissionsConsumerMonoSchema.spec.ts) for a practical example.
+
+### Barrier pattern
+The barrier pattern facilitates the out-of-order message handling by retrying the message later if the system is not yet in the proper state to be able to process that message (e. g. some prerequisite messages have not yet arrived).
+
+To enable this pattern you should implement `preHandlerBarrier` in order to define the conditions for starting to process the message.
+If the barrier method returns `false`, message will be returned into the queue for the later processing. If the barrier method returns `true`, message will be processed.
+
+> **_NOTE:_**  See [SqsPermissionConsumerMonoSchema.ts](./packages/sns/test/consumers/SnsSqsPermissionConsumerMonoSchema.ts) for a practical example on mono consumers.
+> **_NOTE:_**  See [SqsPermissionConsumerMultiSchema.ts](./packages/sns/test/consumers/SnsSqsPermissionConsumerMultiSchema.ts) for a practical example on multi consumers.
+
 
 ## Fan-out to Multiple Consumers
 

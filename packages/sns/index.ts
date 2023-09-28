@@ -3,7 +3,15 @@ export type {
   SNSTopicConfig,
   SNSConsumerDependencies,
   SNSQueueLocatorType,
+  SNSCreationConfig,
+  SNSDependencies,
+  NewSNSOptions,
+  ExistingSNSOptions,
+  ExistingSNSOptionsMultiSchema,
+  NewSNSOptionsMultiSchema,
 } from './lib/sns/AbstractSnsService'
+
+export { AbstractSnsService } from './lib/sns/AbstractSnsService'
 
 export { SnsConsumerErrorResolver } from './lib/errors/SnsConsumerErrorResolver'
 
@@ -41,3 +49,7 @@ export {
 export { subscribeToTopic } from './lib/utils/snsSubscriber'
 export { initSns, initSnsSqs } from './lib/utils/snsInitter'
 export { readSnsMessage } from './lib/utils/snsMessageReader'
+export {
+  generateFilterAttributes,
+  generateTopicSubscriptionPolicy,
+} from './lib/utils/snsAttributeUtils'

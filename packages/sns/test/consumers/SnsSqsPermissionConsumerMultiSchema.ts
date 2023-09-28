@@ -26,6 +26,7 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
   public static SUBSCRIBED_TOPIC_NAME = 'user_permissions_multi'
 
   public addCounter = 0
+  public addBarrierCounter = 0
   public removeCounter = 0
 
   constructor(
@@ -48,12 +49,21 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
         SupportedEvents,
         SnsSqsPermissionConsumerMultiSchema
       >()
-        .addConfig(PERMISSIONS_ADD_MESSAGE_SCHEMA, async (_message, _context) => {
-          this.addCounter++
-          return {
-            result: 'success',
-          }
-        })
+        .addConfig(
+          PERMISSIONS_ADD_MESSAGE_SCHEMA,
+          async (_message, _context) => {
+            this.addCounter++
+            return {
+              result: 'success',
+            }
+          },
+          {
+            preHandlerBarrier: async (_message) => {
+              this.addBarrierCounter++
+              return this.addBarrierCounter > 2
+            },
+          },
+        )
         .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {
           this.removeCounter++
           return {

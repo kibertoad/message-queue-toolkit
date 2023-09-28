@@ -1,20 +1,45 @@
 import type { Either } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
-export class MessageHandlerConfig<const MessagePayloadSchemas, const ExecutionContext> {
-  public readonly schema: ZodSchema<MessagePayloadSchemas>
-  public readonly handler: Handler<MessagePayloadSchemas, ExecutionContext>
+export type LogFormatter<MessagePayloadSchema> = (message: MessagePayloadSchema) => unknown
+
+export type BarrierCallbackMultiConsumers<MessagePayloadSchema extends object, ExecutionContext> = (
+  message: MessagePayloadSchema,
+  context: ExecutionContext,
+) => Promise<boolean>
+
+export const defaultLogFormatter = <MessagePayloadSchema>(message: MessagePayloadSchema) => message
+
+export type HandlerConfigOptions<MessagePayloadSchema extends object, ExecutionContext> = {
+  messageLogFormatter?: LogFormatter<MessagePayloadSchema>
+  preHandlerBarrier?: BarrierCallbackMultiConsumers<MessagePayloadSchema, ExecutionContext>
+}
+
+export class MessageHandlerConfig<
+  const MessagePayloadSchema extends object,
+  const ExecutionContext,
+> {
+  public readonly schema: ZodSchema<MessagePayloadSchema>
+  public readonly handler: Handler<MessagePayloadSchema, ExecutionContext>
+  public readonly messageLogFormatter: LogFormatter<MessagePayloadSchema>
+  public readonly preHandlerBarrier?: BarrierCallbackMultiConsumers<
+    MessagePayloadSchema,
+    ExecutionContext
+  >
 
   constructor(
-    schema: ZodSchema<MessagePayloadSchemas>,
-    handler: Handler<MessagePayloadSchemas, ExecutionContext>,
+    schema: ZodSchema<MessagePayloadSchema>,
+    handler: Handler<MessagePayloadSchema, ExecutionContext>,
+    options?: HandlerConfigOptions<MessagePayloadSchema, ExecutionContext>,
   ) {
     this.schema = schema
     this.handler = handler
+    this.messageLogFormatter = options?.messageLogFormatter ?? defaultLogFormatter
+    this.preHandlerBarrier = options?.preHandlerBarrier
   }
 }
 
-export class MessageHandlerConfigBuilder<MessagePayloadSchemas, ExecutionContext> {
+export class MessageHandlerConfigBuilder<MessagePayloadSchemas extends object, ExecutionContext> {
   private readonly configs: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext>[]
 
   constructor() {
@@ -24,9 +49,10 @@ export class MessageHandlerConfigBuilder<MessagePayloadSchemas, ExecutionContext
   addConfig<MessagePayloadSchema extends MessagePayloadSchemas>(
     schema: ZodSchema<MessagePayloadSchema>,
     handler: Handler<MessagePayloadSchema, ExecutionContext>,
+    options?: HandlerConfigOptions<MessagePayloadSchema, ExecutionContext>,
   ) {
     // @ts-ignore
-    this.configs.push(new MessageHandlerConfig(schema, handler))
+    this.configs.push(new MessageHandlerConfig(schema, handler, options))
     return this
   }
 
@@ -46,7 +72,10 @@ export type HandlerContainerOptions<MessagePayloadSchemas extends object, Execut
 }
 
 export class HandlerContainer<MessagePayloadSchemas extends object, ExecutionContext> {
-  private readonly messageHandlers: Record<string, Handler<MessagePayloadSchemas, ExecutionContext>>
+  private readonly messageHandlers: Record<
+    string,
+    MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext>
+  >
   private readonly messageTypeField: string
 
   constructor(options: HandlerContainerOptions<MessagePayloadSchemas, ExecutionContext>) {
@@ -55,7 +84,9 @@ export class HandlerContainer<MessagePayloadSchemas extends object, ExecutionCon
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public resolveHandler(messageType: string): Handler<MessagePayloadSchemas, ExecutionContext> {
+  public resolveHandler(
+    messageType: string,
+  ): MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext> {
     const handler = this.messageHandlers[messageType]
     if (!handler) {
       throw new Error(`Unsupported message type: ${messageType}`)
@@ -65,15 +96,15 @@ export class HandlerContainer<MessagePayloadSchemas extends object, ExecutionCon
 
   private resolveHandlerMap(
     supportedHandlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext>[],
-  ): Record<string, Handler<MessagePayloadSchemas, ExecutionContext>> {
+  ): Record<string, MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext>> {
     return supportedHandlers.reduce(
       (acc, entry) => {
         // @ts-ignore
         const messageType = entry.schema.shape[this.messageTypeField].value
-        acc[messageType] = entry.handler
+        acc[messageType] = entry
         return acc
       },
-      {} as Record<string, Handler<MessagePayloadSchemas, ExecutionContext>>,
+      {} as Record<string, MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext>>,
     )
   }
 }

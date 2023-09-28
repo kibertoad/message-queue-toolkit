@@ -10,6 +10,7 @@ import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import type { SQSMessage } from '../types/MessageTypes'
+import { readSqsMessage } from '../utils/sqsMessageReader'
 
 import type {
   SQSConsumerDependencies,
@@ -17,15 +18,18 @@ import type {
   SQSQueueLocatorType,
 } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
-import { readSqsMessage } from '../utils/sqsMessageReader'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
+export type ExtraSQSCreationParams = {
+  topicArnsWithPublishPermissionsPrefix?: string
+}
+
 export type SQSCreationConfig = {
   queue: SQSQueueAWSConfig
-}
+} & ExtraSQSCreationParams
 
 export type NewSQSConsumerOptions<CreationConfigType extends SQSCreationConfig> =
   NewQueueOptions<CreationConfigType> & {
@@ -70,6 +74,23 @@ export abstract class AbstractSqsConsumer<
 
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
   }
+
+  private async internalProcessMessage(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<Either<'retryLater', 'success'>> {
+    const barrierPassed = await this.preHandlerBarrier(message, messageType)
+
+    if (barrierPassed) {
+      return this.processMessage(message, messageType)
+    }
+    return { error: 'retryLater' }
+  }
+
+  protected abstract preHandlerBarrier(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<boolean>
 
   abstract processMessage(
     message: MessagePayloadType,
@@ -147,7 +168,11 @@ export abstract class AbstractSqsConsumer<
         const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
         this.transactionObservabilityManager?.start(transactionSpanId)
-        const result: Either<'retryLater' | Error, 'success'> = await this.processMessage(
+        if (this.logMessages) {
+          const resolvedLogMessage = this.resolveMessageLog(deserializedMessage.result, messageType)
+          this.logMessage(resolvedLogMessage)
+        }
+        const result: Either<'retryLater' | Error, 'success'> = await this.internalProcessMessage(
           deserializedMessage.result,
           messageType,
         )
@@ -164,11 +189,7 @@ export abstract class AbstractSqsConsumer<
             this.transactionObservabilityManager?.stop(transactionSpanId)
           })
 
-        if (result.result) {
-          return message
-        } else {
-          return Promise.reject(result)
-        }
+        return result.result ? message : Promise.reject(result)
       },
       sqs: this.sqsClient,
       ...this.consumerOptionsOverride,

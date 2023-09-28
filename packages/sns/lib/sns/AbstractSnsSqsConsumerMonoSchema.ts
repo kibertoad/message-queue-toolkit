@@ -93,6 +93,16 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
     return readSnsMessage(message, this.errorResolver)
   }
 
+  /**
+   * Override to implement barrier pattern
+   */
+  protected preHandlerBarrier(
+    _message: MessagePayloadType,
+    _messageType: string,
+  ): Promise<boolean> {
+    return Promise.resolve(true)
+  }
+
   override async init(): Promise<void> {
     if (this.deletionConfig && this.creationConfig && this.subscriptionConfig) {
       await deleteSnsSqs(

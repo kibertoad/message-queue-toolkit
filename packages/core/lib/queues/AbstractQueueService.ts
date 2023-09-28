@@ -44,18 +44,26 @@ export type DeletionConfig = {
   forceDeleteInProduction?: boolean
 }
 
+export type CommonQueueOptions = {
+  logMessages?: boolean
+}
+
 export type NewQueueOptions<CreationConfigType extends object> = {
   messageTypeField: string
   locatorConfig?: never
   deletionConfig?: DeletionConfig
   creationConfig: CreationConfigType
-}
+} & CommonQueueOptions
 
 export type ExistingQueueOptions<QueueLocatorType extends object> = {
   messageTypeField: string
   locatorConfig: QueueLocatorType
   deletionConfig?: DeletionConfig
   creationConfig?: never
+} & CommonQueueOptions
+
+export type MultiSchemaPublisherOptions<MessagePayloadSchemas extends object> = {
+  messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
 }
 
 export type MultiSchemaConsumerOptions<MessagePayloadSchemas extends object, ExecutionContext> = {
@@ -83,8 +91,9 @@ export abstract class AbstractQueueService<
     | ExistingQueueOptions<QueueLocatorType>,
 > {
   protected readonly errorReporter: ErrorReporter
-  protected readonly logger: Logger
+  public readonly logger: Logger
   protected readonly messageTypeField: string
+  protected readonly logMessages: boolean
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
   protected readonly deletionConfig?: DeletionConfig
@@ -97,14 +106,31 @@ export abstract class AbstractQueueService<
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig
+
+    this.logMessages = options.logMessages ?? false
   }
 
   protected abstract resolveSchema(
     message: MessagePayloadSchemas,
   ): Either<Error, ZodSchema<MessagePayloadSchemas>>
+
   protected abstract resolveMessage(
     message: MessageEnvelopeType,
   ): Either<MessageInvalidFormatError | MessageValidationError, unknown>
+
+  /**
+   * Format message for logging
+   */
+  protected resolveMessageLog(message: MessagePayloadSchemas, _messageType: string): unknown {
+    return message
+  }
+
+  /**
+   * Log preformatted and potentially presanitized message payload
+   */
+  protected logMessage(messageLogEntry: unknown) {
+    this.logger.debug(messageLogEntry)
+  }
 
   protected handleError(err: unknown) {
     const logObject = resolveGlobalErrorLogObject(err)

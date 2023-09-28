@@ -1,12 +1,12 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@message-queue-toolkit/core'
-import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
+import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 import z from 'zod'
 
-import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
+import { assertTopic, deleteTopic, getTopicAttributes } from '../../lib/utils/snsUtils'
 import type { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SnsPermissionPublisherMonoSchema } from '../publishers/SnsPermissionPublisherMonoSchema'
 import { userPermissionMap } from '../repositories/PermissionRepository'
@@ -50,6 +50,38 @@ describe('SNS PermissionsConsumer', () => {
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
       await deleteQueue(sqsClient, SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME)
+    })
+
+    it('sets correct policy when policy fields are set', async () => {
+      const newConsumer = new SnsSqsPermissionConsumerMonoSchema(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: 'policy-queue',
+          },
+          topic: {
+            Name: 'policy-topic',
+          },
+          topicArnsWithPublishPermissionsPrefix: 'dummy*',
+          queueUrlsWithSubscribePermissionsPrefix: 'dummy*',
+        },
+      })
+      await newConsumer.init()
+
+      const queue = await getQueueAttributes(
+        sqsClient,
+        {
+          queueUrl: newConsumer.queueUrl,
+        },
+        ['Policy'],
+      )
+      const topic = await getTopicAttributes(snsClient, newConsumer.topicArn)
+
+      expect(queue.result?.attributes?.Policy).toBe(
+        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-west-1:000000000000:policy-queue","Condition":{"ArnLike":{"aws:SourceArn":"dummy*"}}}]}`,
+      )
+      expect(topic.result?.attributes?.Policy).toBe(
+        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-west-1:000000000000:policy-topic","Condition":{"StringLike":{"sns:Endpoint":"dummy*"}}}]}`,
+      )
     })
 
     it('throws an error when invalid queue locator is passed', async () => {
@@ -101,10 +133,13 @@ describe('SNS PermissionsConsumer', () => {
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SnsPermissionPublisherMonoSchema
+    let consumer: SnsSqsPermissionConsumerMonoSchema
     let fakeResolver: FakeConsumerErrorResolver
+
     beforeEach(async () => {
       diContainer = await registerDependencies()
       publisher = diContainer.cradle.permissionPublisher
+      consumer = diContainer.cradle.permissionConsumer
       fakeResolver = diContainer.cradle.consumerErrorResolver as FakeConsumerErrorResolver
 
       delete userPermissionMap[100]
@@ -140,6 +175,7 @@ describe('SNS PermissionsConsumer', () => {
           throw new Error('Users permissions unexpectedly null')
         }
 
+        expect(consumer.preHandlerBarrierCounter).toBe(3)
         expect(updatedUsersPermissions).toBeDefined()
         expect(updatedUsersPermissions[0]).toHaveLength(2)
       })

@@ -18,8 +18,8 @@ export class SqsPermissionConsumerMonoSchema extends AbstractSqsConsumerMonoSche
   constructor(
     dependencies: SQSConsumerDependencies,
     options:
-      | Pick<NewSQSConsumerOptions<SQSCreationConfig>, 'creationConfig'>
-      | Pick<ExistingSQSConsumerOptions, 'locatorConfig'> = {
+      | Pick<NewSQSConsumerOptions<SQSCreationConfig>, 'creationConfig' | 'logMessages'>
+      | Pick<ExistingSQSConsumerOptions, 'locatorConfig' | 'logMessages'> = {
       creationConfig: {
         queue: {
           QueueName: SqsPermissionConsumerMonoSchema.QUEUE_NAME,

@@ -85,16 +85,16 @@ export async function registerDependencies(
       lifetime: Lifetime.SINGLETON,
       asyncInit: 'init',
       asyncDispose: 'close',
-      asyncInitPriority: 20,
-      asyncDisposePriority: 20,
+      asyncInitPriority: 40,
+      asyncDisposePriority: 40,
       enabled: queuesEnabled,
     }),
     permissionPublisherMultiSchema: asClass(SnsPermissionPublisherMultiSchema, {
       lifetime: Lifetime.SINGLETON,
       asyncInit: 'init',
       asyncDispose: 'close',
-      asyncInitPriority: 20,
-      asyncDisposePriority: 20,
+      asyncInitPriority: 40,
+      asyncDisposePriority: 40,
       enabled: queuesEnabled,
     }),
 
@@ -119,7 +119,8 @@ export async function registerDependencies(
   return diContainer
 }
 
-type DiConfig = Record<keyof Dependencies, Resolver<unknown>>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DiConfig = Record<keyof Dependencies, Resolver<any>>
 
 export interface Dependencies {
   logger: Logger

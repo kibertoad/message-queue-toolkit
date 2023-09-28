@@ -2,10 +2,10 @@ import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 
-import { assertQueue, deleteQueue, getQueueAttributes } from './sqsUtils'
-
 import type { SQSCreationConfig } from '../sqs/AbstractSqsConsumer'
 import type { SQSQueueLocatorType } from '../sqs/AbstractSqsService'
+
+import { assertQueue, deleteQueue, getQueueAttributes } from './sqsUtils'
 
 export async function deleteSqs(
   sqsClient: SQSClient,
@@ -36,9 +36,14 @@ export async function initSqs(
 ) {
   // reuse existing queue only
   if (locatorConfig) {
-    const checkResult = await getQueueAttributes(sqsClient, locatorConfig)
+    const checkResult = await getQueueAttributes(sqsClient, locatorConfig, ['QueueArn'])
     if (checkResult.error === 'not_found') {
       throw new Error(`Queue with queueUrl ${locatorConfig.queueUrl} does not exist.`)
+    }
+
+    const queueArn = checkResult.result?.attributes?.QueueArn
+    if (!queueArn) {
+      throw new Error('Queue ARN was not set')
     }
 
     const queueUrl = locatorConfig.queueUrl
@@ -46,6 +51,7 @@ export async function initSqs(
     const splitUrl = queueUrl.split('/')
     const queueName = splitUrl[splitUrl.length - 1]
     return {
+      queueArn,
       queueUrl,
       queueName,
     }
@@ -56,11 +62,14 @@ export async function initSqs(
     throw new Error('queueConfig.QueueName is mandatory when locator is not provided')
   }
 
-  const queueUrl = await assertQueue(sqsClient, creationConfig.queue)
+  const { queueUrl, queueArn } = await assertQueue(sqsClient, creationConfig.queue, {
+    topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
+  })
   const queueName = creationConfig.queue.QueueName
 
   return {
     queueUrl,
+    queueArn,
     queueName,
   }
 }
