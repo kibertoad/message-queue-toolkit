@@ -1,21 +1,19 @@
 import type { Either } from '@lokalise/node-core'
 import type {
   ExistingQueueOptions,
-  MessageInvalidFormatError,
-  MessageValidationError,
   NewQueueOptions,
   SyncPublisher,
   MultiSchemaPublisherOptions,
 } from '@message-queue-toolkit/core'
-import { MessageSchemaContainer, objectToBuffer } from '@message-queue-toolkit/core'
+import { MessageSchemaContainer } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
 import type { AMQPLocatorType } from './AbstractAmqpBaseConsumer'
-import { AbstractAmqpService } from './AbstractAmqpService'
+import { AbstractAmqpBasePublisher } from './AbstractAmqpBasePublisher'
 import type { AMQPDependencies, CreateAMQPQueueOptions } from './AbstractAmqpService'
 
 export abstract class AbstractAmqpPublisherMultiSchema<MessagePayloadType extends object>
-  extends AbstractAmqpService<MessagePayloadType>
+  extends AbstractAmqpBasePublisher<MessagePayloadType>
   implements SyncPublisher<MessagePayloadType>
 {
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
@@ -47,15 +45,8 @@ export abstract class AbstractAmqpPublisherMultiSchema<MessagePayloadType extend
       this.logMessage(resolvedLogMessage)
     }
 
-    this.channel.sendToQueue(this.queueName, objectToBuffer(message))
+    this.sendToQueue(message)
   }
-
-  /* c8 ignore start */
-  protected resolveMessage(): Either<MessageInvalidFormatError | MessageValidationError, unknown> {
-    throw new Error('Not implemented for publisher')
-  }
-
-  /* c8 ignore stop */
 
   protected override resolveSchema(
     message: MessagePayloadType,

@@ -1,21 +1,18 @@
 import type { Either } from '@lokalise/node-core'
 import type {
   ExistingQueueOptions,
-  MessageInvalidFormatError,
-  MessageValidationError,
   MonoSchemaQueueOptions,
   NewQueueOptions,
   SyncPublisher,
 } from '@message-queue-toolkit/core'
-import { objectToBuffer } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
 import type { AMQPLocatorType } from './AbstractAmqpBaseConsumer'
-import { AbstractAmqpService } from './AbstractAmqpService'
+import { AbstractAmqpBasePublisher } from './AbstractAmqpBasePublisher'
 import type { AMQPDependencies, CreateAMQPQueueOptions } from './AbstractAmqpService'
 
-export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
-  extends AbstractAmqpService<MessagePayloadType>
+export abstract class AbstractAmqpPublisherMonoSchema<MessagePayloadType extends object>
+  extends AbstractAmqpBasePublisher<MessagePayloadType>
   implements SyncPublisher<MessagePayloadType>
 {
   private readonly messageSchema: ZodSchema<MessagePayloadType>
@@ -39,17 +36,12 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
       this.logMessage(resolvedLogMessage)
     }
 
-    this.channel.sendToQueue(this.queueName, objectToBuffer(message))
+    this.sendToQueue(message)
   }
 
   /* c8 ignore start */
-  protected resolveMessage(): Either<MessageInvalidFormatError | MessageValidationError, unknown> {
-    throw new Error('Not implemented for publisher')
-  }
-
   protected override resolveSchema(): Either<Error, ZodSchema<MessagePayloadType>> {
     throw new Error('Not implemented for publisher')
   }
-
   /* c8 ignore stop */
 }
