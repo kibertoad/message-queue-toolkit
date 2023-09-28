@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/amqp",
-  "version": "3.5.0",
+  "version": "4.0.0",
   "private": false,
   "license": "MIT",
   "description": "AMQP adapter for message-queue-toolkit",
