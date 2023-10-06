@@ -10,9 +10,9 @@ services:
       - SERVICES=sns,sqs
       - DEBUG=0
       - DATA_DIR=${DATA_DIR-}
-      - LAMBDA_EXECUTOR=local
       - DOCKER_HOST=unix:///var/run/docker.sock
       - HOSTNAME_EXTERNAL=localstack
+      - LOCALSTACK_HOST=localstack
     #      - LOCALSTACK_API_KEY=someDummyKey
     volumes:
       - '${TMPDIR:-/tmp}/localstack:/var/log/localstack'

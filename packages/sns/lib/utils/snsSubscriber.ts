@@ -2,6 +2,7 @@ import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import { SubscribeCommand } from '@aws-sdk/client-sns'
 import type { SubscribeCommandInput } from '@aws-sdk/client-sns/dist-types/commands/SubscribeCommand'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
+import type { ExtraParams } from '@message-queue-toolkit/core/dist/lib/types/MessageQueueTypes'
 import type { ExtraSQSCreationParams } from '@message-queue-toolkit/sqs'
 import { assertQueue } from '@message-queue-toolkit/sqs'
 
@@ -20,7 +21,7 @@ export async function subscribeToTopic(
   queueConfiguration: CreateQueueCommandInput,
   topicConfiguration: CreateTopicCommandInput,
   subscriptionConfiguration: SNSSubscriptionOptions,
-  extraParams?: ExtraSNSCreationParams & ExtraSQSCreationParams,
+  extraParams?: ExtraSNSCreationParams & ExtraSQSCreationParams & ExtraParams,
 ) {
   const topicArn = await assertTopic(snsClient, topicConfiguration, {
     queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
@@ -37,11 +38,20 @@ export async function subscribeToTopic(
     ...subscriptionConfiguration,
   })
 
-  const subscriptionResult = await snsClient.send(subscribeCommand)
-  return {
-    subscriptionArn: subscriptionResult.SubscriptionArn,
-    topicArn,
-    queueUrl,
-    queueArn,
+  try {
+    const subscriptionResult = await snsClient.send(subscribeCommand)
+    return {
+      subscriptionArn: subscriptionResult.SubscriptionArn,
+      topicArn,
+      queueUrl,
+      queueArn,
+    }
+  } catch (err) {
+    const logger = extraParams?.logger ?? console
+    // @ts-ignore
+    logger.error(
+      `Error while creating subscription for queue "${queueConfiguration.QueueName}", topic "${topicConfiguration.Name}": ${err.message}`,
+    )
+    throw err
   }
 }

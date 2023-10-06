@@ -77,6 +77,9 @@ export abstract class AbstractSnsSqsConsumerMultiSchema<
       this.locatorConfig,
       this.creationConfig,
       this.subscriptionConfig,
+      {
+        logger: this.logger,
+      },
     )
     this.queueUrl = initSnsSqsResult.queueUrl
     this.topicArn = initSnsSqsResult.topicArn
