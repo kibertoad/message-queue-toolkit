@@ -51,7 +51,8 @@ describe('SNSPermissionPublisher', () => {
       )
     })
 
-    it('throws an error when invalid queue locator is passed', async () => {
+    // FixMe https://github.com/localstack/localstack/issues/9306
+    it.skip('throws an error when invalid queue locator is passed', async () => {
       const newPublisher = new SnsPermissionPublisherMonoSchema(diContainer.cradle, {
         locatorConfig: {
           topicArn: 'dummy',
