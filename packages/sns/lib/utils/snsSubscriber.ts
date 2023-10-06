@@ -50,7 +50,9 @@ export async function subscribeToTopic(
     const logger = extraParams?.logger ?? console
     // @ts-ignore
     logger.error(
-      `Error while creating subscription for queue "${queueConfiguration.QueueName}", topic "${topicConfiguration.Name}": ${err.message}`,
+      `Error while creating subscription for queue "${queueConfiguration.QueueName}", topic "${
+        topicConfiguration.Name
+      }": ${(err as Error).message}`,
     )
     throw err
   }
