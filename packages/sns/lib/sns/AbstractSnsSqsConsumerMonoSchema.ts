@@ -112,6 +112,9 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
         this.creationConfig.queue,
         this.creationConfig.topic,
         this.subscriptionConfig,
+        {
+          logger: this.logger,
+        },
       )
     } else if (this.deletionConfig && this.creationConfig) {
       await deleteSqs(this.sqsClient, this.deletionConfig, this.creationConfig)
@@ -123,6 +126,9 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
       this.locatorConfig,
       this.creationConfig,
       this.subscriptionConfig,
+      {
+        logger: this.logger,
+      },
     )
     this.queueUrl = initSnsSqsResult.queueUrl
     this.topicArn = initSnsSqsResult.topicArn

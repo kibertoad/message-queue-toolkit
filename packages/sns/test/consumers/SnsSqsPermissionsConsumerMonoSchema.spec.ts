@@ -84,7 +84,8 @@ describe('SNS PermissionsConsumer', () => {
       )
     })
 
-    it('throws an error when invalid queue locator is passed', async () => {
+    // FixMe https://github.com/localstack/localstack/issues/9306
+    it.skip('throws an error when invalid queue locator is passed', async () => {
       await assertQueue(sqsClient, {
         QueueName: 'existingQueue',
       })

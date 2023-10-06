@@ -27,6 +27,10 @@ export type LogFn = {
   (msg: string, ...args: any[]): void
 }
 
+export type ExtraParams = {
+  logger?: Logger
+}
+
 export type Logger = {
   error: LogFn
   info: LogFn

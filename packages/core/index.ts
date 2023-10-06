@@ -5,6 +5,7 @@ export type {
   TransactionObservabilityManager,
   Logger,
   SchemaMap,
+  ExtraParams,
 } from './lib/types/MessageQueueTypes'
 
 export { AbstractQueueService } from './lib/queues/AbstractQueueService'

@@ -8,7 +8,7 @@ services:
       - rabbit_data:/var/lib/rabbitmq
 
   localstack:
-    image: localstack/localstack:2.1.0
+    image: localstack/localstack:2.3.2
     network_mode: bridge
     hostname: localstack
     ports:
@@ -18,9 +18,9 @@ services:
       - SERVICES=sns,sqs
       - DEBUG=0
       - DATA_DIR=${DATA_DIR-}
-      - LAMBDA_EXECUTOR=local
       - DOCKER_HOST=unix:///var/run/docker.sock
       - HOSTNAME_EXTERNAL=localstack
+      - LOCALSTACK_HOST=localstack
     #      - LOCALSTACK_API_KEY=someDummyKey
     volumes:
       - '${TMPDIR:-/tmp}/localstack:/var/log/localstack'

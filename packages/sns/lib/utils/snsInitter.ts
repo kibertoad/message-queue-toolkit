@@ -1,6 +1,6 @@
 import type { SNSClient, CreateTopicCommandInput } from '@aws-sdk/client-sns'
 import type { SQSClient, CreateQueueCommandInput } from '@aws-sdk/client-sqs'
-import type { DeletionConfig } from '@message-queue-toolkit/core'
+import type { DeletionConfig, ExtraParams } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 import type { SQSCreationConfig } from '@message-queue-toolkit/sqs'
 import { deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
@@ -18,6 +18,7 @@ export async function initSnsSqs(
   locatorConfig?: SNSSQSQueueLocatorType,
   creationConfig?: SNSCreationConfig & SQSCreationConfig,
   subscriptionConfig?: SNSSubscriptionOptions,
+  extraParams?: ExtraParams,
 ) {
   if (!locatorConfig?.subscriptionArn) {
     if (!creationConfig?.topic) {
@@ -46,6 +47,7 @@ export async function initSnsSqs(
         queueUrlsWithSubscribePermissionsPrefix:
           creationConfig.queueUrlsWithSubscribePermissionsPrefix,
         topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
+        logger: extraParams?.logger,
       },
     )
     if (!subscriptionArn) {
@@ -86,6 +88,7 @@ export async function deleteSnsSqs(
   queueConfiguration: CreateQueueCommandInput,
   topicConfiguration: CreateTopicCommandInput,
   subscriptionConfiguration: SNSSubscriptionOptions,
+  extraParams?: ExtraParams,
 ) {
   if (!deletionConfig.deleteIfExists) {
     return
@@ -103,6 +106,7 @@ export async function deleteSnsSqs(
     queueConfiguration,
     topicConfiguration,
     subscriptionConfiguration,
+    extraParams,
   )
 
   if (!subscriptionArn) {
