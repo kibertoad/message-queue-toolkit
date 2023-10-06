@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/sns",
-  "version": "3.7.0",
+  "version": "3.8.0",
   "private": false,
   "license": "MIT",
   "description": "SNS adapter for message-queue-toolkit",
@@ -26,14 +26,14 @@
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@lokalise/node-core": "^6.3.2",
-    "sqs-consumer": "^7.2.2",
-    "zod": "^3.21.4"
+    "@lokalise/node-core": "^6.4.0",
+    "sqs-consumer": "^7.3.0",
+    "zod": "^3.22.4"
   },
   "peerDependencies": {
     "@aws-sdk/client-sns": "^3.385.0",
     "@aws-sdk/client-sqs": "^3.385.0",
-    "@message-queue-toolkit/core": "^3.6.0",
+    "@message-queue-toolkit/core": "^3.7.0",
     "@message-queue-toolkit/sqs": "^3.7.0"
   },
   "devDependencies": {
