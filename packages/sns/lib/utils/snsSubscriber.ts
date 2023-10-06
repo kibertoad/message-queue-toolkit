@@ -2,7 +2,7 @@ import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import { SubscribeCommand } from '@aws-sdk/client-sns'
 import type { SubscribeCommandInput } from '@aws-sdk/client-sns/dist-types/commands/SubscribeCommand'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
-import type { ExtraParams } from '@message-queue-toolkit/core/dist/lib/types/MessageQueueTypes'
+import type { ExtraParams } from '@message-queue-toolkit/core'
 import type { ExtraSQSCreationParams } from '@message-queue-toolkit/sqs'
 import { assertQueue } from '@message-queue-toolkit/sqs'
 
