@@ -79,8 +79,13 @@ export class SnsSqsPermissionConsumerMonoSchema extends AbstractSnsSqsConsumerMo
 
   async preHandlerBarrier(_message: PERMISSIONS_MESSAGE_TYPE): Promise<BarrierResult<number>> {
     this.preHandlerBarrierCounter++
+    if (this.preHandlerBarrierCounter < 3) {
+      return {
+        isPassing: false,
+      }
+    }
     return {
-      isPassing: this.preHandlerBarrierCounter > 2,
+      isPassing: true,
       output: this.preHandlerBarrierCounter,
     }
   }

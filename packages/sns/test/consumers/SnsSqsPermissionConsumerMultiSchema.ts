@@ -60,8 +60,14 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
           {
             preHandlerBarrier: async (_message, _context) => {
               this.addBarrierCounter++
+              if (this.addBarrierCounter < 3) {
+                return {
+                  isPassing: false,
+                }
+              }
+
               return {
-                isPassing: this.addBarrierCounter > 2,
+                isPassing: true,
                 output: this.addBarrierCounter,
               }
             },
