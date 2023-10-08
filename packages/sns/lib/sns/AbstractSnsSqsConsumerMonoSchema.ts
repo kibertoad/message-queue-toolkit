@@ -1,6 +1,6 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { Either } from '@lokalise/node-core'
-import type { MonoSchemaQueueOptions } from '@message-queue-toolkit/core'
+import type { MonoSchemaQueueOptions, BarrierResult } from '@message-queue-toolkit/core'
 import type {
   SQSConsumerDependencies,
   NewSQSConsumerOptions,
@@ -50,13 +50,20 @@ export type SNSSQSQueueLocatorType = SQSQueueLocatorType &
     subscriptionArn?: string
   }
 
+const DEFAULT_BARRIER_RESULT = {
+  isPassing: true,
+  output: undefined,
+} as const
+
 export abstract class AbstractSnsSqsConsumerMonoSchema<
   MessagePayloadType extends object,
+  BarrierOutput = undefined,
 > extends AbstractSqsConsumer<
   MessagePayloadType,
   SNSSQSQueueLocatorType,
   SNSCreationConfig & SQSCreationConfig,
-  NewSnsSqsConsumerOptions | ExistingSnsSqsConsumerOptionsMono<MessagePayloadType>
+  NewSnsSqsConsumerOptions | ExistingSnsSqsConsumerOptionsMono<MessagePayloadType>,
+  BarrierOutput
 > {
   private readonly subscriptionConfig?: SNSSubscriptionOptions
   private readonly snsClient: SNSClient
@@ -99,8 +106,9 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
   protected preHandlerBarrier(
     _message: MessagePayloadType,
     _messageType: string,
-  ): Promise<boolean> {
-    return Promise.resolve(true)
+  ): Promise<BarrierResult<BarrierOutput>> {
+    // @ts-ignore
+    return Promise.resolve(DEFAULT_BARRIER_RESULT)
   }
 
   override async init(): Promise<void> {

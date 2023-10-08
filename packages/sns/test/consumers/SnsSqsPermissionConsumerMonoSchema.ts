@@ -1,4 +1,5 @@
 import type { Either } from '@lokalise/node-core'
+import type { BarrierResult } from '@message-queue-toolkit/core'
 
 import type {
   SNSSQSConsumerDependencies,
@@ -11,7 +12,10 @@ import { userPermissionMap } from '../repositories/PermissionRepository'
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
 
-export class SnsSqsPermissionConsumerMonoSchema extends AbstractSnsSqsConsumerMonoSchema<PERMISSIONS_MESSAGE_TYPE> {
+export class SnsSqsPermissionConsumerMonoSchema extends AbstractSnsSqsConsumerMonoSchema<
+  PERMISSIONS_MESSAGE_TYPE,
+  number
+> {
   public static CONSUMED_QUEUE_NAME = 'user_permissions'
   public static SUBSCRIBED_TOPIC_NAME = 'user_permissions'
 
@@ -73,8 +77,11 @@ export class SnsSqsPermissionConsumerMonoSchema extends AbstractSnsSqsConsumerMo
     }
   }
 
-  async preHandlerBarrier(_message: PERMISSIONS_MESSAGE_TYPE): Promise<boolean> {
+  async preHandlerBarrier(_message: PERMISSIONS_MESSAGE_TYPE): Promise<BarrierResult<number>> {
     this.preHandlerBarrierCounter++
-    return this.preHandlerBarrierCounter > 2
+    return {
+      isPassing: this.preHandlerBarrierCounter > 2,
+      output: this.preHandlerBarrierCounter,
+    }
   }
 }

@@ -51,16 +51,19 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
       >()
         .addConfig(
           PERMISSIONS_ADD_MESSAGE_SCHEMA,
-          async (_message, _context) => {
+          async (_message, _context, _barrierOutput: number) => {
             this.addCounter++
             return {
               result: 'success',
             }
           },
           {
-            preHandlerBarrier: async (_message) => {
+            preHandlerBarrier: async (_message, _context) => {
               this.addBarrierCounter++
-              return this.addBarrierCounter > 2
+              return {
+                isPassing: this.addBarrierCounter > 2,
+                output: this.addBarrierCounter,
+              }
             },
           },
         )
