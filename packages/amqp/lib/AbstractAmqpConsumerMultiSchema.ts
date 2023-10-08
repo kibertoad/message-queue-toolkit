@@ -1,5 +1,9 @@
 import type { Either } from '@lokalise/node-core'
-import type { QueueConsumer, MultiSchemaConsumerOptions } from '@message-queue-toolkit/core'
+import type {
+  QueueConsumer,
+  MultiSchemaConsumerOptions,
+  BarrierResult,
+} from '@message-queue-toolkit/core'
 import { HandlerContainer, MessageSchemaContainer } from '@message-queue-toolkit/core'
 
 import type { NewAMQPConsumerOptions } from './AbstractAmqpBaseConsumer'
@@ -10,7 +14,7 @@ export abstract class AbstractAmqpConsumerMultiSchema<
     MessagePayloadType extends object,
     ExecutionContext,
   >
-  extends AbstractAmqpBaseConsumer<MessagePayloadType>
+  extends AbstractAmqpBaseConsumer<MessagePayloadType, unknown>
   implements QueueConsumer
 {
   messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
@@ -56,9 +60,14 @@ export abstract class AbstractAmqpConsumerMultiSchema<
   protected override async preHandlerBarrier(
     message: MessagePayloadType,
     messageType: string,
-  ): Promise<boolean> {
+  ): Promise<BarrierResult<unknown>> {
     const handler = this.handlerContainer.resolveHandler(messageType)
-    // @ts-ignore
-    return handler.preHandlerBarrier ? await handler.preHandlerBarrier(message, this) : true
+    return handler.preHandlerBarrier
+      ? // @ts-ignore
+        await handler.preHandlerBarrier(message, this)
+      : {
+          isPassing: true,
+          output: undefined,
+        }
   }
 }

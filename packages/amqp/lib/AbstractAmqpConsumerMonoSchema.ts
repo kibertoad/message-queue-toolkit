@@ -1,5 +1,9 @@
 import type { Either } from '@lokalise/node-core'
-import type { QueueConsumer, MonoSchemaQueueOptions } from '@message-queue-toolkit/core'
+import type {
+  QueueConsumer,
+  MonoSchemaQueueOptions,
+  BarrierResult,
+} from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
 import type {
@@ -9,8 +13,16 @@ import type {
 import { AbstractAmqpBaseConsumer } from './AbstractAmqpBaseConsumer'
 import type { AMQPConsumerDependencies } from './AbstractAmqpService'
 
-export abstract class AbstractAmqpConsumerMonoSchema<MessagePayloadType extends object>
-  extends AbstractAmqpBaseConsumer<MessagePayloadType>
+const DEFAULT_BARRIER_RESULT = {
+  isPassing: true,
+  output: undefined,
+} as const
+
+export abstract class AbstractAmqpConsumerMonoSchema<
+    MessagePayloadType extends object,
+    BarrierOutput = undefined,
+  >
+  extends AbstractAmqpBaseConsumer<MessagePayloadType, BarrierOutput>
   implements QueueConsumer
 {
   private readonly messageSchema: ZodSchema<MessagePayloadType>
@@ -37,7 +49,8 @@ export abstract class AbstractAmqpConsumerMonoSchema<MessagePayloadType extends 
   /**
    * Override to implement barrier pattern
    */
-  protected preHandlerBarrier(_message: MessagePayloadType): Promise<boolean> {
-    return Promise.resolve(true)
+  protected preHandlerBarrier(_message: MessagePayloadType): Promise<BarrierResult<BarrierOutput>> {
+    // @ts-ignore
+    return Promise.resolve(DEFAULT_BARRIER_RESULT)
   }
 }
