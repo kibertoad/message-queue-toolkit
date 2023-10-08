@@ -119,7 +119,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
         },
         addPreHandlerBarrier: async (_msg) => {
           barrierCounter++
-          return barrierCounter > 1
+          return { isPassing: barrierCounter > 1, output: barrierCounter }
         },
       })
       await newConsumer.start()
@@ -149,7 +149,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
           if (barrierCounter === 1) {
             throw new Error()
           }
-          return Promise.resolve(true)
+          return Promise.resolve({ isPassing: true, output: barrierCounter })
         },
       })
       await newConsumer.start()

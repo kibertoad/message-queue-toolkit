@@ -40,8 +40,17 @@ export class SqsPermissionConsumerMonoSchema extends AbstractSqsConsumerMonoSche
     })
   }
 
+  protected override preHandlerBarrier(_message: PERMISSIONS_MESSAGE_TYPE, _messageType: string) {
+    return Promise.resolve({
+      isPassing: true,
+      output: undefined,
+    })
+  }
+
   override async processMessage(
     message: PERMISSIONS_MESSAGE_TYPE,
+    _messageType: string,
+    _barrierOutput: undefined,
   ): Promise<Either<'retryLater', 'success'>> {
     const matchedUserPermissions = message.userIds.reduce((acc, userId) => {
       if (userPermissionMap[userId]) {

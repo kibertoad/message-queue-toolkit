@@ -1,4 +1,5 @@
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
+import type { BarrierResult } from '@message-queue-toolkit/core'
 
 import type { SQSCreationConfig } from '../../lib/sqs/AbstractSqsConsumer'
 import type {
@@ -31,7 +32,7 @@ type SqsPermissionConsumerMultiSchemaOptions = (
       'locatorConfig' | 'logMessages'
     >
 ) & {
-  addPreHandlerBarrier?: (message: SupportedMessages) => Promise<boolean>
+  addPreHandlerBarrier?: (message: SupportedMessages) => Promise<BarrierResult<number>>
 }
 
 type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
@@ -69,7 +70,7 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
       >()
         .addConfig(
           PERMISSIONS_ADD_MESSAGE_SCHEMA,
-          async (_message, _context) => {
+          async (_message, _context, _barrierOutput) => {
             this.addCounter++
             return {
               result: 'success',

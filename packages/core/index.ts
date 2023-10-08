@@ -4,6 +4,7 @@ export type {
   SyncPublisher,
   TransactionObservabilityManager,
   Logger,
+  LogFn,
   SchemaMap,
   ExtraParams,
 } from './lib/types/MessageQueueTypes'
@@ -35,6 +36,7 @@ export {
   MessageHandlerConfig,
   MessageHandlerConfigBuilder,
   BarrierCallbackMultiConsumers,
+  BarrierResult,
 } from './lib/queues/HandlerContainer'
 export type { HandlerContainerOptions, Handler } from './lib/queues/HandlerContainer'
 
