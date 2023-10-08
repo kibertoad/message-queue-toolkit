@@ -3,9 +3,18 @@ import type { ZodSchema } from 'zod'
 
 export type LogFormatter<MessagePayloadSchema> = (message: MessagePayloadSchema) => unknown
 
-export type BarrierResult<BarrierOutput> = {
-  isPassing: boolean
+export type BarrierResult<BarrierOutput> =
+  | BarrierResultPositive<BarrierOutput>
+  | BarrierResultNegative
+
+export type BarrierResultPositive<BarrierOutput> = {
+  isPassing: true
   output: BarrierOutput
+}
+
+export type BarrierResultNegative = {
+  isPassing: false
+  output?: never
 }
 
 export type BarrierCallbackMultiConsumers<

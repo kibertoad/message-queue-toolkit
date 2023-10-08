@@ -64,13 +64,12 @@ export abstract class AbstractSqsConsumerMonoSchema<
   /**
    * Override to implement barrier pattern
    */
-  protected override preHandlerBarrier(
-    _message: MessagePayloadType,
-    _messageType: string,
-  ): Promise<BarrierResult<BarrierOutput>> {
+  /* c8 ignore start */
+  protected override preHandlerBarrier(_message: MessagePayloadType, _messageType: string) {
     // @ts-ignore
-    return Promise.resolve(DEFAULT_BARRIER_RESULT)
+    return Promise.resolve(DEFAULT_BARRIER_RESULT as BarrierResult<BarrierOutput>)
   }
+  /* c8 ignore end */
 
   abstract override processMessage(
     message: MessagePayloadType,

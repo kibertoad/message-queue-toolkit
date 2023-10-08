@@ -1,4 +1,5 @@
 import type { Either } from '@lokalise/node-core'
+import type { BarrierResult } from '@message-queue-toolkit/core'
 
 import type {
   ExistingSQSConsumerOptions,
@@ -12,7 +13,10 @@ import { userPermissionMap } from '../repositories/PermissionRepository'
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
 
-export class SqsPermissionConsumerMonoSchema extends AbstractSqsConsumerMonoSchema<PERMISSIONS_MESSAGE_TYPE> {
+export class SqsPermissionConsumerMonoSchema extends AbstractSqsConsumerMonoSchema<
+  PERMISSIONS_MESSAGE_TYPE,
+  string[][]
+> {
   public static QUEUE_NAME = 'user_permissions'
 
   constructor(
@@ -40,18 +44,10 @@ export class SqsPermissionConsumerMonoSchema extends AbstractSqsConsumerMonoSche
     })
   }
 
-  protected override preHandlerBarrier(_message: PERMISSIONS_MESSAGE_TYPE, _messageType: string) {
-    return Promise.resolve({
-      isPassing: true,
-      output: undefined,
-    })
-  }
-
-  override async processMessage(
+  protected override async preHandlerBarrier(
     message: PERMISSIONS_MESSAGE_TYPE,
     _messageType: string,
-    _barrierOutput: undefined,
-  ): Promise<Either<'retryLater', 'success'>> {
+  ): Promise<BarrierResult<string[][]>> {
     const matchedUserPermissions = message.userIds.reduce((acc, userId) => {
       if (userPermissionMap[userId]) {
         acc.push(userPermissionMap[userId])
@@ -59,13 +55,24 @@ export class SqsPermissionConsumerMonoSchema extends AbstractSqsConsumerMonoSche
       return acc
     }, [] as string[][])
 
-    if (!matchedUserPermissions || matchedUserPermissions.length < message.userIds.length) {
-      // not all users were already created, we need to wait to be able to set permissions
+    if (matchedUserPermissions && matchedUserPermissions.length == message.userIds.length) {
       return {
-        error: 'retryLater',
+        isPassing: true,
+        output: matchedUserPermissions,
       }
     }
 
+    // not all users were already created, we need to wait to be able to set permissions
+    return {
+      isPassing: false,
+    }
+  }
+
+  override async processMessage(
+    message: PERMISSIONS_MESSAGE_TYPE,
+    _messageType: string,
+    matchedUserPermissions: string[][],
+  ): Promise<Either<'retryLater', 'success'>> {
     // Do not do this in production, some kind of bulk insertion is needed here
     for (const userPermissions of matchedUserPermissions) {
       userPermissions.push(...message.permissions)

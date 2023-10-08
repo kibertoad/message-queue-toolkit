@@ -37,6 +37,8 @@ export {
   MessageHandlerConfigBuilder,
   BarrierCallbackMultiConsumers,
   BarrierResult,
+  BarrierResultPositive,
+  BarrierResultNegative,
 } from './lib/queues/HandlerContainer'
 export type { HandlerContainerOptions, Handler } from './lib/queues/HandlerContainer'
 
