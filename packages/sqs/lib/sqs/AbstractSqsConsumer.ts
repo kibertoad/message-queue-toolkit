@@ -1,11 +1,12 @@
 import type { Either, ErrorResolver } from '@lokalise/node-core'
+import { isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import type {
   QueueConsumer as QueueConsumer,
   NewQueueOptions,
   ExistingQueueOptions,
   TransactionObservabilityManager,
+  BarrierResult,
 } from '@message-queue-toolkit/core'
-import { isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
@@ -51,6 +52,7 @@ export abstract class AbstractSqsConsumer<
       | ExistingSQSConsumerOptions<QueueLocatorType> =
       | NewSQSConsumerOptions<CreationConfigType>
       | ExistingSQSConsumerOptions<QueueLocatorType>,
+    BarrierOutput = unknown,
   >
   extends AbstractSqsService<
     MessagePayloadType,
@@ -79,10 +81,10 @@ export abstract class AbstractSqsConsumer<
     message: MessagePayloadType,
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
-    const barrierPassed = await this.preHandlerBarrier(message, messageType)
+    const barrierResult = await this.preHandlerBarrier(message, messageType)
 
-    if (barrierPassed) {
-      return this.processMessage(message, messageType)
+    if (barrierResult.isPassing) {
+      return this.processMessage(message, messageType, barrierResult.output)
     }
     return { error: 'retryLater' }
   }
@@ -90,11 +92,12 @@ export abstract class AbstractSqsConsumer<
   protected abstract preHandlerBarrier(
     message: MessagePayloadType,
     messageType: string,
-  ): Promise<boolean>
+  ): Promise<BarrierResult<BarrierOutput>>
 
   abstract processMessage(
     message: MessagePayloadType,
     messageType: string,
+    barrierOutput: BarrierOutput,
   ): Promise<Either<'retryLater', 'success'>>
 
   private deserializeMessage(message: SQSMessage): Either<'abort', MessagePayloadType> {

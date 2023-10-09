@@ -1,3 +1,4 @@
+import type { BarrierResult } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 
 import type { NewAMQPConsumerOptions } from '../../lib/AbstractAmqpBaseConsumer'
@@ -27,7 +28,7 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
   constructor(
     dependencies: AMQPConsumerDependencies,
     options?: Partial<NewAMQPConsumerOptions> & {
-      addPreHandlerBarrier?: (message: SupportedEvents) => Promise<boolean>
+      addPreHandlerBarrier?: (message: SupportedEvents) => Promise<BarrierResult<number>>
     },
   ) {
     super(dependencies, {

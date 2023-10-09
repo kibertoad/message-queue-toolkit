@@ -2,6 +2,7 @@ import type { Either } from '@lokalise/node-core'
 import type {
   MonoSchemaQueueOptions,
   QueueConsumer as QueueConsumer,
+  BarrierResult,
 } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
@@ -12,6 +13,11 @@ import type {
 } from './AbstractSqsConsumer'
 import { AbstractSqsConsumer } from './AbstractSqsConsumer'
 import type { SQSConsumerDependencies, SQSQueueLocatorType } from './AbstractSqsService'
+
+const DEFAULT_BARRIER_RESULT = {
+  isPassing: true,
+  output: undefined,
+} as const
 
 export type NewSQSConsumerOptionsMono<
   MessagePayloadType extends object,
@@ -25,6 +31,7 @@ export type ExistingSQSConsumerOptionsMono<
 
 export abstract class AbstractSqsConsumerMonoSchema<
     MessagePayloadType extends object,
+    BarrierOutput = undefined,
     QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
     CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
     ConsumerOptionsType extends
@@ -37,7 +44,8 @@ export abstract class AbstractSqsConsumerMonoSchema<
     MessagePayloadType,
     QueueLocatorType,
     CreationConfigType,
-    ConsumerOptionsType
+    ConsumerOptionsType,
+    BarrierOutput
   >
   implements QueueConsumer
 {
@@ -56,12 +64,18 @@ export abstract class AbstractSqsConsumerMonoSchema<
   /**
    * Override to implement barrier pattern
    */
-  protected override preHandlerBarrier(
-    _message: MessagePayloadType,
-    _messageType: string,
-  ): Promise<boolean> {
-    return Promise.resolve(true)
+  /* c8 ignore start */
+  protected override preHandlerBarrier(_message: MessagePayloadType, _messageType: string) {
+    // @ts-ignore
+    return Promise.resolve(DEFAULT_BARRIER_RESULT as BarrierResult<BarrierOutput>)
   }
+  /* c8 ignore end */
+
+  abstract override processMessage(
+    message: MessagePayloadType,
+    messageType: string,
+    barrierOutput: BarrierOutput,
+  ): Promise<Either<'retryLater', 'success'>>
 
   protected resolveSchema() {
     return this.schemaEither

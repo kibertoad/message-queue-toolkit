@@ -1,5 +1,6 @@
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
+import type { BarrierResult } from '@message-queue-toolkit/core'
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
@@ -117,9 +118,15 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
             QueueName: publisher.queueName,
           },
         },
-        addPreHandlerBarrier: async (_msg) => {
+        addPreHandlerBarrier: async (_msg): Promise<BarrierResult<number>> => {
           barrierCounter++
-          return barrierCounter > 1
+          if (barrierCounter < 2) {
+            return {
+              isPassing: false,
+            }
+          }
+
+          return { isPassing: true, output: barrierCounter }
         },
       })
       await newConsumer.start()
@@ -149,7 +156,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
           if (barrierCounter === 1) {
             throw new Error()
           }
-          return Promise.resolve(true)
+          return Promise.resolve({ isPassing: true, output: barrierCounter })
         },
       })
       await newConsumer.start()

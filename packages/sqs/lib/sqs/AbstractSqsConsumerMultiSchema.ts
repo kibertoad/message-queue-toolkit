@@ -1,9 +1,10 @@
 import type { Either } from '@lokalise/node-core'
+import { HandlerContainer, MessageSchemaContainer } from '@message-queue-toolkit/core'
 import type {
   ExistingQueueOptionsMultiSchema,
   NewQueueOptionsMultiSchema,
+  BarrierResult,
 } from '@message-queue-toolkit/core'
-import { HandlerContainer, MessageSchemaContainer } from '@message-queue-toolkit/core'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import type { SQSCreationConfig } from './AbstractSqsConsumer'
@@ -82,12 +83,18 @@ export abstract class AbstractSqsConsumerMultiSchema<
     return handler.messageLogFormatter(message)
   }
 
-  protected override async preHandlerBarrier(
+  protected override async preHandlerBarrier<BarrierOutput>(
     message: MessagePayloadType,
     messageType: string,
-  ): Promise<boolean> {
-    const handler = this.handlerContainer.resolveHandler(messageType)
+  ): Promise<BarrierResult<BarrierOutput>> {
+    const handler = this.handlerContainer.resolveHandler<BarrierOutput>(messageType)
     // @ts-ignore
-    return handler.preHandlerBarrier ? await handler.preHandlerBarrier(message, this) : true
+    return handler.preHandlerBarrier
+      ? // @ts-ignore
+        await handler.preHandlerBarrier(message, this)
+      : {
+          isPassing: true,
+          output: undefined,
+        }
   }
 }

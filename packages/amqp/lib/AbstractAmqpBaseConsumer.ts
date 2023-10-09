@@ -4,6 +4,7 @@ import type {
   NewQueueOptions,
   TransactionObservabilityManager,
   ExistingQueueOptions,
+  BarrierResult,
 } from '@message-queue-toolkit/core'
 import { isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import type { Connection, Message } from 'amqplib'
@@ -22,7 +23,10 @@ export type NewAMQPConsumerOptions = NewQueueOptions<CreateAMQPQueueOptions>
 
 export type ExistingAMQPConsumerOptions = ExistingQueueOptions<AMQPLocatorType>
 
-export abstract class AbstractAmqpBaseConsumer<MessagePayloadType extends object>
+export abstract class AbstractAmqpBaseConsumer<
+    MessagePayloadType extends object,
+    BarrierOutput = undefined,
+  >
   extends AbstractAmqpService<MessagePayloadType, AMQPConsumerDependencies>
   implements QueueConsumer
 {
@@ -46,10 +50,10 @@ export abstract class AbstractAmqpBaseConsumer<MessagePayloadType extends object
     message: MessagePayloadType,
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
-    const barrierPassed = await this.preHandlerBarrier(message, messageType)
+    const barrierResult = await this.preHandlerBarrier(message, messageType)
 
-    if (barrierPassed) {
-      return this.processMessage(message, messageType)
+    if (barrierResult.isPassing) {
+      return this.processMessage(message, messageType, barrierResult.output)
     }
     return { error: 'retryLater' }
   }
@@ -57,11 +61,12 @@ export abstract class AbstractAmqpBaseConsumer<MessagePayloadType extends object
   protected abstract preHandlerBarrier(
     message: MessagePayloadType,
     messageType: string,
-  ): Promise<boolean>
+  ): Promise<BarrierResult<BarrierOutput>>
 
   abstract processMessage(
     message: MessagePayloadType,
     messageType: string,
+    barrierOutput: BarrierOutput,
   ): Promise<Either<'retryLater', 'success'>>
 
   private deserializeMessage(message: Message | null): Either<'abort', MessagePayloadType> {
