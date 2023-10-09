@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/sqs",
-  "version": "3.7.0",
+  "version": "4.0.0",
   "private": false,
   "license": "MIT",
   "description": "SQS adapter for message-queue-toolkit",
@@ -26,13 +26,13 @@
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@lokalise/node-core": "^6.0.0",
+    "@lokalise/node-core": "^6.4.0",
     "sqs-consumer": "^7.2.2",
-    "zod": "^3.21.4"
+    "zod": "^3.22.4"
   },
   "peerDependencies": {
     "@aws-sdk/client-sqs": "^3.385.0",
-    "@message-queue-toolkit/core": "^3.6.0"
+    "@message-queue-toolkit/core": "^4.0.0"
   },
   "devDependencies": {
     "@aws-sdk/client-sqs": "^3.385.0",
