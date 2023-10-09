@@ -61,8 +61,14 @@ describe('PermissionsConsumerMultiSchema', () => {
       const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
         addPreHandlerBarrier: (_msg) => {
           barrierCounter++
+          if (barrierCounter < 2) {
+            return Promise.resolve({
+              isPassing: false,
+            })
+          }
+
           return Promise.resolve({
-            isPassing: barrierCounter > 1,
+            isPassing: true,
             output: barrierCounter,
           })
         },
