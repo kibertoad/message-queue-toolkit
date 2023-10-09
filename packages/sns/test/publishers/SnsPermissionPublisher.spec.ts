@@ -127,7 +127,9 @@ describe('SNSPermissionPublisher', () => {
         {
           Name: SnsPermissionPublisherMonoSchema.TOPIC_NAME,
         },
-        {},
+        {
+          updateAttributesIfExists: false,
+        },
       )
 
       let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null

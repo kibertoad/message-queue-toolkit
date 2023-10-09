@@ -44,6 +44,8 @@ export {
   deleteTopic,
   getTopicAttributes,
   deleteSubscription,
+  findSubscriptionByTopicAndQueue,
+  getSubscriptionAttributes,
 } from './lib/utils/snsUtils'
 
 export { subscribeToTopic } from './lib/utils/snsSubscriber'

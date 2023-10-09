@@ -87,7 +87,9 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
       consumerOverrides: {
         terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
       },
-      subscriptionConfig: {},
+      subscriptionConfig: {
+        updateAttributesIfExists: false,
+      },
       ...options,
     })
   }

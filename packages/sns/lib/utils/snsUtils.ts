@@ -2,7 +2,9 @@ import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import {
   CreateTopicCommand,
   DeleteTopicCommand,
+  GetSubscriptionAttributesCommand,
   GetTopicAttributesCommand,
+  ListSubscriptionsByTopicCommand,
   SetTopicAttributesCommand,
   UnsubscribeCommand,
 } from '@aws-sdk/client-sns'
@@ -12,16 +14,43 @@ import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
 
 import { generateTopicSubscriptionPolicy } from './snsAttributeUtils'
 
-type QueueAttributesResult = {
+type AttributesResult = {
   attributes?: Record<string, string>
 }
 
 export async function getTopicAttributes(
   snsClient: SNSClient,
   topicArn: string,
-): Promise<Either<'not_found', QueueAttributesResult>> {
+): Promise<Either<'not_found', AttributesResult>> {
   const command = new GetTopicAttributesCommand({
     TopicArn: topicArn,
+  })
+
+  try {
+    const response = await snsClient.send(command)
+    return {
+      result: {
+        attributes: response.Attributes,
+      },
+    }
+  } catch (err) {
+    // @ts-ignore
+    if (err.Code === 'AWS.SimpleQueueService.NonExistentQueue') {
+      return {
+        // @ts-ignore
+        error: 'not_found',
+      }
+    }
+    throw err
+  }
+}
+
+export async function getSubscriptionAttributes(
+  snsClient: SNSClient,
+  subscriptionArn: string,
+): Promise<Either<'not_found', AttributesResult>> {
+  const command = new GetSubscriptionAttributesCommand({
+    SubscriptionArn: subscriptionArn,
   })
 
   try {
@@ -96,4 +125,19 @@ export async function deleteSubscription(client: SNSClient, subscriptionArn: str
   } catch (err) {
     // we don't care it operation has failed
   }
+}
+
+export async function findSubscriptionByTopicAndQueue(
+  snsClient: SNSClient,
+  topicArn: string,
+  queueArn: string,
+) {
+  const listSubscriptionsCommand = new ListSubscriptionsByTopicCommand({
+    TopicArn: topicArn,
+  })
+
+  const listSubscriptionResult = await snsClient.send(listSubscriptionsCommand)
+  return listSubscriptionResult.Subscriptions?.find((entry) => {
+    return entry.Endpoint === queueArn
+  })
 }

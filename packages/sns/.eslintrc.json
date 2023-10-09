@@ -61,6 +61,7 @@
         "newlines-between": "always"
       }
     ],
+    "prefer-const": "off",
     "max-lines": ["error", { "max": 600 }],
     "complexity": ["error", { "max": 20 }]
   },

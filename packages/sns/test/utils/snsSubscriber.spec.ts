@@ -5,7 +5,11 @@ import type { AwilixContainer } from 'awilix'
 import { afterEach, describe, expect } from 'vitest'
 
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber'
-import { deleteTopic } from '../../lib/utils/snsUtils'
+import {
+  deleteTopic,
+  findSubscriptionByTopicAndQueue,
+  getSubscriptionAttributes,
+} from '../../lib/utils/snsUtils'
 import { FakeLogger } from '../fakes/FakeLogger'
 
 import type { Dependencies } from './testContext'
@@ -50,6 +54,7 @@ describe('snsSubscriber', () => {
             FilterPolicy: `{"type":["remove"]}`,
             FilterPolicyScope: 'MessageAttributes',
           },
+          updateAttributesIfExists: false,
         },
       )
 
@@ -68,6 +73,7 @@ describe('snsSubscriber', () => {
               FilterPolicy: `{"type":["add"]}`,
               FilterPolicyScope: 'MessageBody',
             },
+            updateAttributesIfExists: false,
           },
           {
             logger,
@@ -81,6 +87,76 @@ describe('snsSubscriber', () => {
       expect(logger.loggedErrors[0]).toBe(
         'Error while creating subscription for queue "queue", topic "topic": Invalid parameter: Attributes Reason: Subscription already exists with different attributes',
       )
+    })
+
+    it('updates conflicting subscription', async () => {
+      const logger = new FakeLogger()
+      const subscription = await subscribeToTopic(
+        sqsClient,
+        snsClient,
+        {
+          QueueName: QUEUE_NAME,
+        },
+        {
+          Name: TOPIC_NAME,
+        },
+        {
+          Attributes: {
+            FilterPolicy: `{"type":["remove"]}`,
+            FilterPolicyScope: 'MessageAttributes',
+          },
+          updateAttributesIfExists: false,
+        },
+      )
+
+      await subscribeToTopic(
+        sqsClient,
+        snsClient,
+        {
+          QueueName: QUEUE_NAME,
+        },
+        {
+          Name: TOPIC_NAME,
+        },
+        {
+          Attributes: {
+            FilterPolicy: `{"type":["add"]}`,
+            FilterPolicyScope: 'MessageBody',
+          },
+          updateAttributesIfExists: true,
+        },
+        {
+          logger,
+        },
+      )
+
+      const updatedSubscription = await findSubscriptionByTopicAndQueue(
+        snsClient,
+        subscription.topicArn,
+        subscription.queueArn,
+      )
+
+      const subscriptionAttributes = await getSubscriptionAttributes(
+        snsClient,
+        updatedSubscription!.SubscriptionArn!,
+      )
+      expect(subscriptionAttributes).toEqual({
+        result: {
+          attributes: {
+            ConfirmationWasAuthenticated: 'true',
+            Endpoint: subscription.queueArn,
+            FilterPolicy: `{"type":["add"]}`,
+            FilterPolicyScope: 'MessageBody',
+            Owner: '000000000000',
+            PendingConfirmation: 'false',
+            Protocol: 'sqs',
+            RawMessageDelivery: 'false',
+            SubscriptionArn: expect.any(String),
+            SubscriptionPrincipal: expect.any(String),
+            TopicArn: subscription.topicArn,
+          },
+        },
+      })
     })
   })
 })
