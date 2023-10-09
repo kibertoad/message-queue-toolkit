@@ -72,10 +72,11 @@ export abstract class AbstractSqsConsumerMultiSchema<
   public override async processMessage(
     message: MessagePayloadType,
     messageType: string,
+    barrierOutput: unknown,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler(messageType)
     // @ts-ignore
-    return handler.handler(message, this)
+    return handler.handler(message, this, barrierOutput)
   }
 
   protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
