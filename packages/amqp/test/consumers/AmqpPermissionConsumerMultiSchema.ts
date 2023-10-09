@@ -48,7 +48,10 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
       >()
         .addConfig(
           PERMISSIONS_ADD_MESSAGE_SCHEMA,
-          async (_message, _context) => {
+          async (_message, _context, barrierOutput) => {
+            if (options?.addPreHandlerBarrier && !barrierOutput) {
+              return { error: 'retryLater' }
+            }
             this.addCounter++
             return {
               result: 'success',
