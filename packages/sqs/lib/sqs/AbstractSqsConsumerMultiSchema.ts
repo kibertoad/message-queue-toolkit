@@ -49,8 +49,13 @@ export abstract class AbstractSqsConsumerMultiSchema<
 > {
   messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   handlerContainer: HandlerContainer<MessagePayloadType, ExecutionContext>
+  protected readonly executionContext: ExecutionContext
 
-  constructor(dependencies: SQSConsumerDependencies, options: ConsumerOptionsType) {
+  constructor(
+    dependencies: SQSConsumerDependencies,
+    options: ConsumerOptionsType,
+    executionContext: ExecutionContext,
+  ) {
     super(dependencies, options)
 
     const messageSchemas = options.handlers.map((entry) => entry.schema)
@@ -63,6 +68,7 @@ export abstract class AbstractSqsConsumerMultiSchema<
       messageTypeField: this.messageTypeField,
       messageHandlers: options.handlers,
     })
+    this.executionContext = executionContext
   }
 
   protected override resolveSchema(message: MessagePayloadType) {
@@ -75,8 +81,7 @@ export abstract class AbstractSqsConsumerMultiSchema<
     barrierOutput: unknown,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler(messageType)
-    // @ts-ignore
-    return handler.handler(message, this, barrierOutput)
+    return handler.handler(message, this.executionContext, barrierOutput)
   }
 
   protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
@@ -91,8 +96,7 @@ export abstract class AbstractSqsConsumerMultiSchema<
     const handler = this.handlerContainer.resolveHandler<BarrierOutput>(messageType)
     // @ts-ignore
     return handler.preHandlerBarrier
-      ? // @ts-ignore
-        await handler.preHandlerBarrier(message, this)
+      ? await handler.preHandlerBarrier(message, this.executionContext)
       : {
           isPassing: true,
           output: undefined,

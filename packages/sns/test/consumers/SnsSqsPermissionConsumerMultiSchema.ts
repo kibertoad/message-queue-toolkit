@@ -17,10 +17,13 @@ import {
 } from './userConsumerSchemas'
 
 type SupportedEvents = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
+type ExecutionContext = {
+  incrementAmount: number
+}
 
 export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerMultiSchema<
   SupportedEvents,
-  SnsSqsPermissionConsumerMultiSchema
+  ExecutionContext
 > {
   public static CONSUMED_QUEUE_NAME = 'user_permissions_multi'
   public static SUBSCRIBED_TOPIC_NAME = 'user_permissions_multi'
@@ -44,53 +47,56 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
       },
     },
   ) {
-    super(dependencies, {
-      handlers: new MessageHandlerConfigBuilder<
-        SupportedEvents,
-        SnsSqsPermissionConsumerMultiSchema
-      >()
-        .addConfig(
-          PERMISSIONS_ADD_MESSAGE_SCHEMA,
-          async (_message, _context, _barrierOutput: number) => {
-            this.addCounter++
+    super(
+      dependencies,
+      {
+        handlers: new MessageHandlerConfigBuilder<SupportedEvents, ExecutionContext>()
+          .addConfig(
+            PERMISSIONS_ADD_MESSAGE_SCHEMA,
+            async (_message, context, _barrierOutput: number) => {
+              this.addCounter += context.incrementAmount
+              return {
+                result: 'success',
+              }
+            },
+            {
+              preHandlerBarrier: async (_message, context) => {
+                this.addBarrierCounter += context.incrementAmount
+                if (this.addBarrierCounter < 3) {
+                  return {
+                    isPassing: false,
+                  }
+                }
+
+                return {
+                  isPassing: true,
+                  output: this.addBarrierCounter,
+                }
+              },
+            },
+          )
+          .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, context) => {
+            this.removeCounter += context.incrementAmount
             return {
               result: 'success',
             }
-          },
-          {
-            preHandlerBarrier: async (_message, _context) => {
-              this.addBarrierCounter++
-              if (this.addBarrierCounter < 3) {
-                return {
-                  isPassing: false,
-                }
-              }
-
-              return {
-                isPassing: true,
-                output: this.addBarrierCounter,
-              }
-            },
-          },
-        )
-        .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {
-          this.removeCounter++
-          return {
-            result: 'success',
-          }
-        })
-        .build(),
-      messageTypeField: 'messageType',
-      deletionConfig: {
-        deleteIfExists: true,
+          })
+          .build(),
+        messageTypeField: 'messageType',
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        consumerOverrides: {
+          terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
+        },
+        subscriptionConfig: {
+          updateAttributesIfExists: false,
+        },
+        ...options,
       },
-      consumerOverrides: {
-        terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
+      {
+        incrementAmount: 1,
       },
-      subscriptionConfig: {
-        updateAttributesIfExists: false,
-      },
-      ...options,
-    })
+    )
   }
 }

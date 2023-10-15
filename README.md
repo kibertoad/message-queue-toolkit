@@ -116,13 +116,17 @@ Here is an example:
 
 ```ts
 type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
+type ExecutionContext = {
+    userService: UserService
+}
 
 export class TestConsumerMultiSchema extends AbstractSqsConsumerMultiSchema<
     SupportedMessages,
-    TestConsumerMultiSchema
+    ExecutionContext
 > {
     constructor(
         dependencies: SQSConsumerDependencies,
+        userService: UserService,
     ) {
         super(dependencies, {
             //
@@ -130,12 +134,15 @@ export class TestConsumerMultiSchema extends AbstractSqsConsumerMultiSchema<
             //
             handlers: new MessageHandlerConfigBuilder<
                 SupportedMessages,
-                SqsPermissionConsumerMultiSchema
+                ExecutionContext
             >()
                 .addConfig(
                     PERMISSIONS_ADD_MESSAGE_SCHEMA,
                     async (message, context) => {
-                        // process message
+                        const users = await context.userService.getUsers()
+                        //
+                        // execute some domain logic here
+                        //
                         return {
                             result: 'success',
                         }
@@ -149,12 +156,17 @@ export class TestConsumerMultiSchema extends AbstractSqsConsumerMultiSchema<
                 )
                 .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, 
                     async (message, context) => {
-                      // process message
+                        const users = await context.userService.getUsers()
+                        //
+                        // execute some domain logic here
+                        //
                       return {
                           result: 'success',
                       }
                 })
                 .build(),
+        }, {
+            userService,
         })
     }
 }

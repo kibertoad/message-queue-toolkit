@@ -48,10 +48,15 @@ export abstract class AbstractSnsSqsConsumerMultiSchema<
     options:
       | NewSnsSqsConsumerOptionsMulti<MessagePayloadSchemas, ExecutionContext>
       | ExistingSnsSqsConsumerOptionsMulti<MessagePayloadSchemas, ExecutionContext>,
+    executionContext: ExecutionContext,
   ) {
-    super(dependencies, {
-      ...options,
-    })
+    super(
+      dependencies,
+      {
+        ...options,
+      },
+      executionContext,
+    )
 
     this.subscriptionConfig = options.subscriptionConfig
     this.snsClient = dependencies.snsClient

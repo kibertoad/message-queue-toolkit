@@ -36,10 +36,13 @@ type SqsPermissionConsumerMultiSchemaOptions = (
 }
 
 type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
+type ExecutionContext = {
+  incrementAmount: number
+}
 
 export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSchema<
   SupportedMessages,
-  SqsPermissionConsumerMultiSchema
+  ExecutionContext
 > {
   public addCounter = 0
   public removeCounter = 0
@@ -55,41 +58,44 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
       },
     },
   ) {
-    super(dependencies, {
-      messageTypeField: 'messageType',
-      deletionConfig: {
-        deleteIfExists: true,
-      },
-      consumerOverrides: {
-        terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
-      },
-      ...options,
-      handlers: new MessageHandlerConfigBuilder<
-        SupportedMessages,
-        SqsPermissionConsumerMultiSchema
-      >()
-        .addConfig(
-          PERMISSIONS_ADD_MESSAGE_SCHEMA,
-          async (_message, _context, barrierOutput) => {
-            if (options.addPreHandlerBarrier && !barrierOutput) {
-              return { error: 'retryLater' }
-            }
-            this.addCounter++
+    super(
+      dependencies,
+      {
+        messageTypeField: 'messageType',
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        consumerOverrides: {
+          terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
+        },
+        ...options,
+        handlers: new MessageHandlerConfigBuilder<SupportedMessages, ExecutionContext>()
+          .addConfig(
+            PERMISSIONS_ADD_MESSAGE_SCHEMA,
+            async (_message, context, barrierOutput) => {
+              if (options.addPreHandlerBarrier && !barrierOutput) {
+                return { error: 'retryLater' }
+              }
+              this.addCounter += context.incrementAmount
+              return {
+                result: 'success',
+              }
+            },
+            {
+              preHandlerBarrier: options.addPreHandlerBarrier,
+            },
+          )
+          .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, context) => {
+            this.removeCounter += context.incrementAmount
             return {
               result: 'success',
             }
-          },
-          {
-            preHandlerBarrier: options.addPreHandlerBarrier,
-          },
-        )
-        .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {
-          this.removeCounter++
-          return {
-            result: 'success',
-          }
-        })
-        .build(),
-    })
+          })
+          .build(),
+      },
+      {
+        incrementAmount: 1,
+      },
+    )
   }
 }
