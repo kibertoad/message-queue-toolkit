@@ -5,29 +5,34 @@ import { AbstractAmqpConsumerMultiSchema } from '../../lib/AbstractAmqpConsumerM
 import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService'
 import type { CommonMessage } from '../../lib/types/MessageTypes'
 
-export class FakeConsumerMultiSchema extends AbstractAmqpConsumerMultiSchema<
+export class FakeConsumerMultiSchema<ExecutionContext> extends AbstractAmqpConsumerMultiSchema<
   CommonMessage,
-  FakeConsumerMultiSchema
+  ExecutionContext
 > {
   constructor(
     dependencies: AMQPConsumerDependencies,
     queueName = 'dummy',
-    handlers: MessageHandlerConfig<CommonMessage, FakeConsumerMultiSchema>[],
+    handlers: MessageHandlerConfig<CommonMessage, ExecutionContext>[],
+    executionContext: ExecutionContext,
   ) {
-    super(dependencies, {
-      creationConfig: {
-        queueName: queueName,
-        queueOptions: {
-          durable: true,
-          autoDelete: false,
+    super(
+      dependencies,
+      {
+        creationConfig: {
+          queueName: queueName,
+          queueOptions: {
+            durable: true,
+            autoDelete: false,
+          },
         },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        handlers,
+        messageTypeField: 'messageType',
       },
-      deletionConfig: {
-        deleteIfExists: true,
-      },
-      handlers,
-      messageTypeField: 'messageType',
-    })
+      executionContext,
+    )
   }
 
   processMessage(): Promise<Either<'retryLater', 'success'>> {
