@@ -103,6 +103,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
           () => {
             return consumer.addCounter === 1 && consumer.removeCounter === 2
           },
+          // Removing this makes test flaky
           30,
           20,
         )

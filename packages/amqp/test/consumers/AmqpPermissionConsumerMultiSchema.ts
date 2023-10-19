@@ -15,10 +15,13 @@ import {
 } from './userConsumerSchemas'
 
 type SupportedEvents = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
+type ExecutionContext = {
+  incrementAmount: number
+}
 
 export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMultiSchema<
   SupportedEvents,
-  AmqpPermissionConsumerMultiSchema
+  ExecutionContext
 > {
   public static QUEUE_NAME = 'user_permissions_multi'
 
@@ -31,45 +34,48 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
       addPreHandlerBarrier?: (message: SupportedEvents) => Promise<BarrierResult<number>>
     },
   ) {
-    super(dependencies, {
-      creationConfig: {
-        queueName: AmqpPermissionConsumerMultiSchema.QUEUE_NAME,
-        queueOptions: {
-          durable: true,
-          autoDelete: false,
+    super(
+      dependencies,
+      {
+        creationConfig: {
+          queueName: AmqpPermissionConsumerMultiSchema.QUEUE_NAME,
+          queueOptions: {
+            durable: true,
+            autoDelete: false,
+          },
         },
-      },
-      deletionConfig: {
-        deleteIfExists: true,
-      },
-      handlers: new MessageHandlerConfigBuilder<
-        SupportedEvents,
-        AmqpPermissionConsumerMultiSchema
-      >()
-        .addConfig(
-          PERMISSIONS_ADD_MESSAGE_SCHEMA,
-          async (_message, _context, barrierOutput) => {
-            if (options?.addPreHandlerBarrier && !barrierOutput) {
-              return { error: 'retryLater' }
-            }
-            this.addCounter++
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        handlers: new MessageHandlerConfigBuilder<SupportedEvents, ExecutionContext>()
+          .addConfig(
+            PERMISSIONS_ADD_MESSAGE_SCHEMA,
+            async (_message, context, barrierOutput) => {
+              if (options?.addPreHandlerBarrier && !barrierOutput) {
+                return { error: 'retryLater' }
+              }
+              this.addCounter += context.incrementAmount
+              return {
+                result: 'success',
+              }
+            },
+            {
+              preHandlerBarrier: options?.addPreHandlerBarrier,
+            },
+          )
+          .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, context) => {
+            this.removeCounter += context.incrementAmount
             return {
               result: 'success',
             }
-          },
-          {
-            preHandlerBarrier: options?.addPreHandlerBarrier,
-          },
-        )
-        .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, _context) => {
-          this.removeCounter++
-          return {
-            result: 'success',
-          }
-        })
-        .build(),
-      messageTypeField: 'messageType',
-      ...options,
-    })
+          })
+          .build(),
+        messageTypeField: 'messageType',
+        ...options,
+      },
+      {
+        incrementAmount: 1,
+      },
+    )
   }
 }
