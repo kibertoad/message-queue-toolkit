@@ -1,5 +1,4 @@
 export type {
-  SQSQueueAWSConfig,
   SQSQueueConfig,
   SQSConsumerDependencies,
   SQSQueueLocatorType,

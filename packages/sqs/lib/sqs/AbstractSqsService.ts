@@ -19,21 +19,7 @@ export type SQSDependencies = QueueDependencies & {
 
 export type SQSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
 
-export type SQSQueueAWSConfig = CreateQueueRequest
-export type SQSQueueConfig = {
-  tags?: Record<string, string>
-  Attributes?: {
-    DelaySeconds?: number
-    MaximumMessageSize?: number
-    MessageRetentionPeriod?: number
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Policy?: any
-    ReceiveMessageWaitTimeSeconds?: number
-    VisibilityTimeout?: number
-    RedrivePolicy?: string
-    RedriveAllowPolicy?: string
-  }
-}
+export type SQSQueueConfig = CreateQueueRequest
 
 export type SQSQueueLocatorType = {
   queueUrl: string

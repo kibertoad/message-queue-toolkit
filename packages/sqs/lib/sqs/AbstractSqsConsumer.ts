@@ -15,7 +15,7 @@ import { readSqsMessage } from '../utils/sqsMessageReader'
 
 import type {
   SQSConsumerDependencies,
-  SQSQueueAWSConfig,
+  SQSQueueConfig,
   SQSQueueLocatorType,
 } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
@@ -29,7 +29,7 @@ export type ExtraSQSCreationParams = {
 }
 
 export type SQSCreationConfig = {
-  queue: SQSQueueAWSConfig
+  queue: SQSQueueConfig
 } & ExtraSQSCreationParams
 
 export type NewSQSConsumerOptions<CreationConfigType extends SQSCreationConfig> =
