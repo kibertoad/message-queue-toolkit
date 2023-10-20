@@ -11,7 +11,22 @@ updates:
     schedule:
       interval: 'weekly'
     open-pull-requests-limit: 10
-    ignore:
-      - dependency-name: '@typescript-eslint/eslint-plugin'
-      - dependency-name: '@typescript-eslint/parser'
-      - dependency-name: '@types/node'
+    groups:
+      lint:
+        patterns:
+          - "@typescript-eslint/*"
+          - "eslint"
+          - "eslint-*"
+          - "prettier"
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+      typescript:
+        patterns:
+          - "@types/*"
+          - "typescript"
+      awilix:
+        patterns:
+          - "awilix"
+          - "awilix-*"
