@@ -26,16 +26,16 @@
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@lokalise/node-core": "^6.4.0",
-    "sqs-consumer": "^7.2.2",
+    "@lokalise/node-core": "^6.5.0",
+    "sqs-consumer": "^7.3.0",
     "zod": "^3.22.4"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.385.0",
+    "@aws-sdk/client-sqs": "^3.431.0",
     "@message-queue-toolkit/core": "^4.0.0"
   },
   "devDependencies": {
-    "@aws-sdk/client-sqs": "^3.385.0",
+    "@aws-sdk/client-sqs": "^3.431.0",
     "@message-queue-toolkit/core": "*",
     "@types/node": "^20.7.0",
     "@typescript-eslint/eslint-plugin": "^6.7.3",
