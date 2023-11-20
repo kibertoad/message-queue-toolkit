@@ -206,7 +206,9 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
         } as any)
 
         const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-        await waitAndRetry(() => fakeResolver.handleErrorCallsCount)
+        await waitAndRetry(() => {
+          return fakeResolver.handleErrorCallsCount > 0
+        })
 
         expect(fakeResolver.handleErrorCallsCount).toBe(1)
       })
