@@ -59,11 +59,16 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       } as any)
 
       const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-      await waitAndRetry(() => {
-        return fakeResolver.handleErrorCallsCount > 0
-      })
+      await waitAndRetry(
+        () => {
+          return fakeResolver.handleErrorCallsCount > 0
+        },
+        20,
+        30,
+      )
 
       expect(fakeResolver.handleErrorCallsCount).toBe(1)
+      expect(fakeResolver.errors[0].message).toContain('"received": "undefined"')
     })
 
     it('Non-JSON message in the queue', async () => {
@@ -79,6 +84,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       })
 
       expect(errorCount).toBe(1)
+      expect(fakeResolver.errors[0].message).toContain('Expected object, received string')
     })
   })
 })
