@@ -141,6 +141,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
+      await newConsumer.close()
     })
 
     it('throws an error on first try', async () => {
@@ -166,11 +167,12 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       })
 
       await waitAndRetry(() => {
-        return newConsumer.addCounter === 1
+        return newConsumer.addCounter > 0
       })
 
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
+      await newConsumer.close()
     })
   })
 
