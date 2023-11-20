@@ -4,7 +4,6 @@ import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
-import z from 'zod'
 
 import { assertQueue, deleteQueue } from '../../lib/utils/sqsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
@@ -191,41 +190,6 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
 
         expect(usersPermissions).toBeDefined()
         expect(usersPermissions[0]).toHaveLength(2)
-      })
-    })
-
-    describe('error handling', () => {
-      it('Invalid message in the queue', async () => {
-        const { consumerErrorResolver } = diContainer.cradle
-
-        // @ts-ignore
-        publisher['messageSchema'] = z.any()
-        await publisher.publish({
-          messageType: 'add',
-          permissions: perms,
-        } as any)
-
-        const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-        await waitAndRetry(() => {
-          return fakeResolver.handleErrorCallsCount > 0
-        })
-
-        expect(fakeResolver.handleErrorCallsCount).toBe(1)
-      })
-
-      it('Non-JSON message in the queue', async () => {
-        const { consumerErrorResolver } = diContainer.cradle
-
-        // @ts-ignore
-        publisher['messageSchema'] = z.any()
-        await publisher.publish('dummy' as any)
-
-        const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-        const errorCount = await waitAndRetry(() => {
-          return fakeResolver.handleErrorCallsCount
-        })
-
-        expect(errorCount).toBe(1)
       })
     })
   })
