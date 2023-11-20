@@ -47,7 +47,6 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       await diContainer.dispose()
     })
 
-    // This doesn't pass in CI, but works perfectly locally. I don't know why
     it('Invalid message in the queue', async () => {
       const { consumerErrorResolver } = diContainer.cradle
 
@@ -67,7 +66,6 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       expect(fakeResolver.errors[0].message).toContain('"received": "undefined"')
     })
 
-    // This doesn't pass in CI, but works perfectly locally. I don't know why
     it('Non-JSON message in the queue', async () => {
       const { consumerErrorResolver } = diContainer.cradle
 
