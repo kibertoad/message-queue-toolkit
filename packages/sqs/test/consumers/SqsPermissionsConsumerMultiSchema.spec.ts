@@ -4,7 +4,7 @@ import type { BarrierResult } from '@message-queue-toolkit/core'
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
+import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 
 import { assertQueue, deleteQueue } from '../../lib/utils/sqsUtils'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
@@ -19,10 +19,14 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
   describe('init', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
-    beforeAll(async () => {
+    beforeEach(async () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
       await deleteQueue(sqsClient, 'existingQueue')
+    })
+
+    afterEach(async () => {
+      await diContainer.dispose()
     })
 
     it('throws an error when invalid queue locator is passed', async () => {
@@ -68,7 +72,6 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     })
 
     afterEach(async () => {
-      await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
 
@@ -106,7 +109,6 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     })
 
     afterEach(async () => {
-      await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
 
@@ -181,17 +183,13 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     let publisher: SqsPermissionPublisherMultiSchema
     let consumer: SqsPermissionConsumerMultiSchema
     let sqsClient: SQSClient
-    beforeAll(async () => {
+    beforeEach(async () => {
       diContainer = await registerDependencies({
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisherMultiSchema
       consumer = diContainer.cradle.permissionConsumerMultiSchema
-    })
-
-    beforeEach(async () => {
-      await consumer.start()
 
       const command = new ReceiveMessageCommand({
         QueueUrl: publisher.queueUrl,
@@ -204,15 +202,8 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       fakeErrorResolver.clear()
     })
 
-    afterAll(async () => {
-      const { awilixManager } = diContainer.cradle
-      await awilixManager.executeDispose()
-      await diContainer.dispose()
-    })
-
     afterEach(async () => {
-      await diContainer.cradle.permissionConsumerMultiSchema.close()
-      await diContainer.cradle.permissionConsumerMultiSchema.close(true)
+      await diContainer.dispose()
     })
 
     describe('happy path', () => {

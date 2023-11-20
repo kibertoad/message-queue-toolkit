@@ -199,7 +199,9 @@ export abstract class AbstractSqsConsumer<
     })
 
     this.consumer.on('error', (err) => {
-      this.handleError(err)
+      this.handleError(err, {
+        queueName: this.queueName,
+      })
     })
 
     this.consumer.start()

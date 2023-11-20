@@ -105,8 +105,6 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
     })
 
     afterEach(async () => {
-      const { awilixManager } = diContainer.cradle
-      await awilixManager.executeDispose()
       await diContainer.dispose()
     })
 
