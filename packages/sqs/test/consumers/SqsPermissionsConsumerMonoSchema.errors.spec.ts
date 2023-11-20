@@ -14,7 +14,7 @@ import type { Dependencies } from '../utils/testContext'
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 
-describe.skip('SqsPermissionsConsumerMonoSchema', () => {
+describe('SqsPermissionsConsumerMonoSchema', () => {
   describe('error handling', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisherMonoSchema

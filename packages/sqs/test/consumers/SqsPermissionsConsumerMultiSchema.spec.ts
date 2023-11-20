@@ -73,6 +73,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     })
 
     afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
 
@@ -110,6 +111,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     })
 
     afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
 
@@ -204,6 +206,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     })
 
     afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
 
