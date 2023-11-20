@@ -43,11 +43,12 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
     })
 
     afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
 
     // This doesn't pass in CI, but works perfectly locally. I don't know why
-    it.skip('Invalid message in the queue', async () => {
+    it('Invalid message in the queue', async () => {
       const { consumerErrorResolver } = diContainer.cradle
 
       // @ts-ignore
@@ -66,6 +67,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       expect(fakeResolver.errors[0].message).toContain('"received": "undefined"')
     })
 
+    // This doesn't pass in CI, but works perfectly locally. I don't know why
     it('Non-JSON message in the queue', async () => {
       const { consumerErrorResolver } = diContainer.cradle
 

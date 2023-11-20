@@ -26,6 +26,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     })
 
     afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
 

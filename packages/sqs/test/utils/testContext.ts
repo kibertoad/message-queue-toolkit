@@ -35,17 +35,20 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
     logger: asFunction(() => {
       return TestLogger
     }, SINGLETON_CONFIG),
-    awilixManager: asFunction(() => {
-      return awilixManager
-    }, SINGLETON_CONFIG),
+    awilixManager: asFunction(
+      () => {
+        return awilixManager
+      },
+      {
+        ...SINGLETON_CONFIG,
+      },
+    ),
     sqsClient: asFunction(
       () => {
         return new SQSClient(TEST_SQS_CONFIG)
       },
       {
         lifetime: Lifetime.SINGLETON,
-        asyncDispose: 'destroy',
-        asyncDisposePriority: 40,
       },
     ),
     consumerErrorResolver: asFunction(() => {
@@ -56,7 +59,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       lifetime: Lifetime.SINGLETON,
       asyncInit: 'start',
       asyncDispose: 'close',
-      asyncDisposePriority: 10,
+      asyncDisposePriority: 1,
     }),
     permissionPublisher: asClass(SqsPermissionPublisherMonoSchema, {
       lifetime: Lifetime.SINGLETON,

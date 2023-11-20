@@ -57,6 +57,8 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       })
 
       await expect(() => newConsumer.init()).rejects.toThrow(/does not exist/)
+
+      await newConsumer.close()
     })
 
     it('does not create a new queue when queue locator is passed', async () => {
@@ -74,6 +76,8 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       expect(newConsumer.queueUrl).toBe(
         'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
       )
+
+      await newConsumer.close()
     })
   })
 
@@ -105,6 +109,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
     })
 
     afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
 
