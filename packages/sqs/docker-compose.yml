@@ -1,6 +1,6 @@
 services:
   localstack:
-    image: localstack/localstack:2.3.2
+    image: localstack/localstack:3.0.0
     network_mode: bridge
     hostname: localstack
     ports:
@@ -11,7 +11,6 @@ services:
       - DEBUG=0
       - DATA_DIR=${DATA_DIR-}
       - DOCKER_HOST=unix:///var/run/docker.sock
-      - HOSTNAME_EXTERNAL=localstack
       - LOCALSTACK_HOST=localstack
     #      - LOCALSTACK_API_KEY=someDummyKey
     volumes:

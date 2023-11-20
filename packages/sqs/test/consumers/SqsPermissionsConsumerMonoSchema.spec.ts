@@ -98,7 +98,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
         QueueUrl: diContainer.cradle.permissionPublisher.queueUrl,
       })
       const reply = await sqsClient.send(command)
-      expect(reply.Messages).toBeUndefined()
+      expect(reply.Messages!.length).toBe(0)
 
       const fakeErrorResolver = diContainer.cradle
         .consumerErrorResolver as FakeConsumerErrorResolver

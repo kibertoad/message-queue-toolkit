@@ -80,7 +80,7 @@ describe('SqsPermissionPublisher', () => {
         QueueUrl: publisher.queueUrl,
       })
       const reply = await sqsClient.send(command)
-      expect(reply.Messages).toBeUndefined()
+      expect(reply.Messages!.length).toBe(0)
     })
 
     afterAll(async () => {

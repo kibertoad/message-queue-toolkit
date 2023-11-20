@@ -92,13 +92,14 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       })
 
       expect(logger.loggedMessages.length).toBe(1)
+      await newConsumer.close()
     })
   })
 
   describe('preHandlerBarrier', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisherMultiSchema
-
+ const x = Array.from
     beforeEach(async () => {
       diContainer = await registerDependencies()
       await diContainer.cradle.permissionConsumerMultiSchema.close()
@@ -195,7 +196,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
         QueueUrl: publisher.queueUrl,
       })
       const reply = await sqsClient.send(command)
-      expect(reply.Messages).toBeUndefined()
+      expect(reply.Messages!.length).toBe(0)
 
       const fakeErrorResolver = diContainer.cradle
         .consumerErrorResolver as FakeConsumerErrorResolver
