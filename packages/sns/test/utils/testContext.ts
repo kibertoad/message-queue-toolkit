@@ -42,14 +42,14 @@ export async function registerDependencies(
     awilixManager: asFunction(() => {
       return awilixManager
     }, SINGLETON_CONFIG),
+
+    // Not disposing sqs client allows consumers to terminate correctly
     sqsClient: asFunction(
       () => {
         return new SQSClient(TEST_AWS_CONFIG)
       },
       {
         lifetime: Lifetime.SINGLETON,
-        asyncDispose: 'destroy',
-        asyncDisposePriority: 40,
       },
     ),
     snsClient: asFunction(
@@ -58,8 +58,6 @@ export async function registerDependencies(
       },
       {
         lifetime: Lifetime.SINGLETON,
-        asyncDispose: 'destroy',
-        asyncDisposePriority: 40,
       },
     ),
 

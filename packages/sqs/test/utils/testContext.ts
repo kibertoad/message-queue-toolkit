@@ -43,6 +43,8 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
         ...SINGLETON_CONFIG,
       },
     ),
+
+    // Not disposing sqs client allows consumers to terminate correctly
     sqsClient: asFunction(
       () => {
         return new SQSClient(TEST_SQS_CONFIG)
