@@ -91,7 +91,7 @@ describe('SNSPermissionPublisher', () => {
       snsClient = diContainer.cradle.snsClient
       await diContainer.cradle.permissionConsumer.close()
 
-      await deleteQueue(sqsClient, queueName, true)
+      await deleteQueue(sqsClient, queueName)
       await deleteTopic(snsClient, SnsPermissionPublisherMonoSchema.TOPIC_NAME)
 
       delete userPermissionMap[100]
