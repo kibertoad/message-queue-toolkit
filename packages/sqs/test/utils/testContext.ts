@@ -35,14 +35,9 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
     logger: asFunction(() => {
       return TestLogger
     }, SINGLETON_CONFIG),
-    awilixManager: asFunction(
-      () => {
-        return awilixManager
-      },
-      {
-        ...SINGLETON_CONFIG,
-      },
-    ),
+    awilixManager: asFunction(() => {
+      return awilixManager
+    }, SINGLETON_CONFIG),
 
     // Not disposing sqs client allows consumers to terminate correctly
     sqsClient: asFunction(
@@ -61,7 +56,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       lifetime: Lifetime.SINGLETON,
       asyncInit: 'start',
       asyncDispose: 'close',
-      asyncDisposePriority: 1,
+      asyncDisposePriority: 10,
     }),
     permissionPublisher: asClass(SqsPermissionPublisherMonoSchema, {
       lifetime: Lifetime.SINGLETON,
