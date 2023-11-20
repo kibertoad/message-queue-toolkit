@@ -99,7 +99,6 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
   describe('preHandlerBarrier', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisherMultiSchema
- const x = Array.from
     beforeEach(async () => {
       diContainer = await registerDependencies()
       await diContainer.cradle.permissionConsumerMultiSchema.close()

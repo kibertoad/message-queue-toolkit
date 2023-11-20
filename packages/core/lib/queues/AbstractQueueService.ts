@@ -41,6 +41,7 @@ export type ExistingQueueOptionsMultiSchema<
 
 export type DeletionConfig = {
   deleteIfExists?: boolean
+  waitForConfirmation?: boolean
   forceDeleteInProduction?: boolean
 }
 

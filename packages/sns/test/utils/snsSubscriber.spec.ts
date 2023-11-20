@@ -34,7 +34,7 @@ describe('snsSubscriber', () => {
     await diContainer.dispose()
 
     await deleteTopic(snsClient, TOPIC_NAME)
-    await deleteQueue(sqsClient, QUEUE_NAME)
+    await deleteQueue(sqsClient, QUEUE_NAME, true)
   })
 
   describe('subscribeToTopic', () => {
