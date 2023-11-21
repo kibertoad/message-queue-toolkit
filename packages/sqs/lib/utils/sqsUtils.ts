@@ -5,14 +5,18 @@ import {
   DeleteQueueCommand,
   GetQueueAttributesCommand,
   SetQueueAttributesCommand,
+  ListQueuesCommand,
 } from '@aws-sdk/client-sqs'
 import type { QueueAttributeName } from '@aws-sdk/client-sqs/dist-types/models/models_0'
 import type { Either } from '@lokalise/node-core'
+import { waitAndRetry } from '@message-queue-toolkit/core'
 
 import type { ExtraSQSCreationParams } from '../sqs/AbstractSqsConsumer'
 import type { SQSQueueLocatorType } from '../sqs/AbstractSqsService'
 
 import { generateQueuePublishForTopicPolicy } from './sqsAttributeUtils'
+
+const AWS_QUEUE_DOES_NOT_EXIST_ERROR_NAME = 'QueueDoesNotExist'
 
 type QueueAttributesResult = {
   attributes?: Record<string, string>
@@ -94,7 +98,11 @@ export async function assertQueue(
   }
 }
 
-export async function deleteQueue(client: SQSClient, queueName: string) {
+export async function deleteQueue(
+  client: SQSClient,
+  queueName: string,
+  waitForConfirmation = true,
+) {
   try {
     const queueUrlCommand = new GetQueueUrlCommand({
       QueueName: queueName,
@@ -106,7 +114,24 @@ export async function deleteQueue(client: SQSClient, queueName: string) {
     })
 
     await client.send(command)
+
+    if (waitForConfirmation) {
+      await waitAndRetry(async () => {
+        const queueList = await client.send(
+          new ListQueuesCommand({
+            QueueNamePrefix: queueName,
+          }),
+        )
+        return !queueList.QueueUrls || queueList.QueueUrls.length === 0
+      })
+    }
   } catch (err) {
+    // This is fine
+    // @ts-ignore
+    if (err.name === AWS_QUEUE_DOES_NOT_EXIST_ERROR_NAME) {
+      return
+    }
+
     // @ts-ignore
     console.log(`Failed to delete: ${err.message}`)
   }

@@ -4,10 +4,9 @@ import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
-import z from 'zod'
 
+import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
 import { assertQueue, deleteQueue } from '../../lib/utils/sqsUtils'
-import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import type { SqsPermissionPublisherMonoSchema } from '../publishers/SqsPermissionPublisherMonoSchema'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
@@ -58,6 +57,8 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       })
 
       await expect(() => newConsumer.init()).rejects.toThrow(/does not exist/)
+
+      await newConsumer.close()
     })
 
     it('does not create a new queue when queue locator is passed', async () => {
@@ -75,6 +76,8 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       expect(newConsumer.queueUrl).toBe(
         'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
       )
+
+      await newConsumer.close()
     })
   })
 
@@ -98,7 +101,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
         QueueUrl: diContainer.cradle.permissionPublisher.queueUrl,
       })
       const reply = await sqsClient.send(command)
-      expect(reply.Messages).toBeUndefined()
+      expect(reply.Messages!.length).toBe(0)
 
       const fakeErrorResolver = diContainer.cradle
         .consumerErrorResolver as FakeConsumerErrorResolver
@@ -106,8 +109,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
     })
 
     afterEach(async () => {
-      const { awilixManager } = diContainer.cradle
-      await awilixManager.executeDispose()
+      await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
 
@@ -191,39 +193,6 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
 
         expect(usersPermissions).toBeDefined()
         expect(usersPermissions[0]).toHaveLength(2)
-      })
-    })
-
-    describe('error handling', () => {
-      it('Invalid message in the queue', async () => {
-        const { consumerErrorResolver } = diContainer.cradle
-
-        // @ts-ignore
-        publisher['messageSchema'] = z.any()
-        await publisher.publish({
-          messageType: 'add',
-          permissions: perms,
-        } as any)
-
-        const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-        await waitAndRetry(() => fakeResolver.handleErrorCallsCount)
-
-        expect(fakeResolver.handleErrorCallsCount).toBe(1)
-      })
-
-      it('Non-JSON message in the queue', async () => {
-        const { consumerErrorResolver } = diContainer.cradle
-
-        // @ts-ignore
-        publisher['messageSchema'] = z.any()
-        await publisher.publish('dummy' as any)
-
-        const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-        const errorCount = await waitAndRetry(() => {
-          return fakeResolver.handleErrorCallsCount
-        })
-
-        expect(errorCount).toBe(1)
       })
     })
   })

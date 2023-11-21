@@ -4,10 +4,10 @@ import type { BarrierResult } from '@message-queue-toolkit/core'
 import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it, afterAll, beforeAll } from 'vitest'
+import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 
+import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
 import { assertQueue, deleteQueue } from '../../lib/utils/sqsUtils'
-import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { FakeLogger } from '../fakes/FakeLogger'
 import type { SqsPermissionPublisherMultiSchema } from '../publishers/SqsPermissionPublisherMultiSchema'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
@@ -19,10 +19,15 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
   describe('init', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
-    beforeAll(async () => {
+    beforeEach(async () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
       await deleteQueue(sqsClient, 'existingQueue')
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
     })
 
     it('throws an error when invalid queue locator is passed', async () => {
@@ -92,13 +97,13 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       })
 
       expect(logger.loggedMessages.length).toBe(1)
+      await newConsumer.close()
     })
   })
 
   describe('preHandlerBarrier', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisherMultiSchema
-
     beforeEach(async () => {
       diContainer = await registerDependencies()
       await diContainer.cradle.permissionConsumerMultiSchema.close()
@@ -141,6 +146,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
+      await newConsumer.close()
     })
 
     it('throws an error on first try', async () => {
@@ -166,11 +172,12 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       })
 
       await waitAndRetry(() => {
-        return newConsumer.addCounter === 1
+        return newConsumer.addCounter > 0
       })
 
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
+      await newConsumer.close()
     })
   })
 
@@ -179,38 +186,28 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     let publisher: SqsPermissionPublisherMultiSchema
     let consumer: SqsPermissionConsumerMultiSchema
     let sqsClient: SQSClient
-    beforeAll(async () => {
+    beforeEach(async () => {
       diContainer = await registerDependencies({
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisherMultiSchema
       consumer = diContainer.cradle.permissionConsumerMultiSchema
-    })
-
-    beforeEach(async () => {
-      await consumer.start()
 
       const command = new ReceiveMessageCommand({
         QueueUrl: publisher.queueUrl,
       })
       const reply = await sqsClient.send(command)
-      expect(reply.Messages).toBeUndefined()
+      expect(reply.Messages!.length).toBe(0)
 
       const fakeErrorResolver = diContainer.cradle
         .consumerErrorResolver as FakeConsumerErrorResolver
       fakeErrorResolver.clear()
     })
 
-    afterAll(async () => {
-      const { awilixManager } = diContainer.cradle
-      await awilixManager.executeDispose()
-      await diContainer.dispose()
-    })
-
     afterEach(async () => {
-      await diContainer.cradle.permissionConsumerMultiSchema.close()
-      await diContainer.cradle.permissionConsumerMultiSchema.close(true)
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
     })
 
     describe('happy path', () => {

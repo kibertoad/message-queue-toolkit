@@ -26,7 +26,11 @@ export async function deleteSqs(
     throw new Error('QueueName must be set for automatic deletion')
   }
 
-  await deleteQueue(sqsClient, creationConfig.queue.QueueName)
+  await deleteQueue(
+    sqsClient,
+    creationConfig.queue.QueueName,
+    deletionConfig.waitForConfirmation !== false,
+  )
 }
 
 export async function initSqs(

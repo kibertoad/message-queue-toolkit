@@ -113,8 +113,12 @@ export async function deleteSnsSqs(
     throw new Error('subscriptionArn must be set for automatic deletion')
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  await deleteQueue(sqsClient, queueConfiguration.QueueName!)
+  await deleteQueue(
+    sqsClient,
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    queueConfiguration.QueueName!,
+    deletionConfig.waitForConfirmation !== false,
+  )
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   await deleteTopic(snsClient, topicConfiguration.Name!)
   await deleteSubscription(snsClient, subscriptionArn)

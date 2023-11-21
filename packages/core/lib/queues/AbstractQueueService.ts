@@ -41,6 +41,7 @@ export type ExistingQueueOptionsMultiSchema<
 
 export type DeletionConfig = {
   deleteIfExists?: boolean
+  waitForConfirmation?: boolean
   forceDeleteInProduction?: boolean
 }
 
@@ -132,11 +133,18 @@ export abstract class AbstractQueueService<
     this.logger.debug(messageLogEntry)
   }
 
-  protected handleError(err: unknown) {
+  protected handleError(err: unknown, context?: Record<string, unknown>) {
     const logObject = resolveGlobalErrorLogObject(err)
-    this.logger.error(logObject)
+    if (logObject === 'string') {
+      this.logger.error(context, logObject)
+    } else if (typeof logObject === 'object') {
+      this.logger.error({
+        ...logObject,
+        ...context,
+      })
+    }
     if (types.isNativeError(err)) {
-      this.errorReporter.report({ error: err })
+      this.errorReporter.report({ error: err, context })
     }
   }
 

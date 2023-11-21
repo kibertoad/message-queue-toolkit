@@ -2,13 +2,13 @@ import { SNSClient } from '@aws-sdk/client-sns'
 import { SQSClient } from '@aws-sdk/client-sqs'
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
+import { FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
 import type { Resolver } from 'awilix'
 import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
 import { SnsSqsPermissionConsumerMonoSchema } from '../consumers/SnsSqsPermissionConsumerMonoSchema'
 import { SnsSqsPermissionConsumerMultiSchema } from '../consumers/SnsSqsPermissionConsumerMultiSchema'
-import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { SnsPermissionPublisherMonoSchema } from '../publishers/SnsPermissionPublisherMonoSchema'
 import { SnsPermissionPublisherMultiSchema } from '../publishers/SnsPermissionPublisherMultiSchema'
 
@@ -42,14 +42,14 @@ export async function registerDependencies(
     awilixManager: asFunction(() => {
       return awilixManager
     }, SINGLETON_CONFIG),
+
+    // Not disposing sqs client allows consumers to terminate correctly
     sqsClient: asFunction(
       () => {
         return new SQSClient(TEST_AWS_CONFIG)
       },
       {
         lifetime: Lifetime.SINGLETON,
-        asyncDispose: 'destroy',
-        asyncDisposePriority: 40,
       },
     ),
     snsClient: asFunction(
@@ -58,8 +58,6 @@ export async function registerDependencies(
       },
       {
         lifetime: Lifetime.SINGLETON,
-        asyncDispose: 'destroy',
-        asyncDisposePriority: 40,
       },
     ),
 
