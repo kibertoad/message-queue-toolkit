@@ -1,22 +1,24 @@
-import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver'
+import { SqsConsumerErrorResolver } from '../errors/SqsConsumerErrorResolver'
 
 export class FakeConsumerErrorResolver extends SqsConsumerErrorResolver {
   public errors: Error[]
-  public handleErrorCallsCount: number
+
+  get handleErrorCallsCount() {
+    return this.errors.length
+  }
+
   constructor() {
     super()
 
-    this.handleErrorCallsCount = 0
     this.errors = []
   }
 
   public override processError(error: unknown) {
-    this.handleErrorCallsCount++
     this.errors.push(error as Error)
     return super.processError(error)
   }
 
   public clear() {
-    this.handleErrorCallsCount = 0
+    this.errors = []
   }
 }

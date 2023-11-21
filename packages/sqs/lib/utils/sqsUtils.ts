@@ -16,6 +16,8 @@ import type { SQSQueueLocatorType } from '../sqs/AbstractSqsService'
 
 import { generateQueuePublishForTopicPolicy } from './sqsAttributeUtils'
 
+const AWS_QUEUE_DOES_NOT_EXIST_ERROR_NAME = 'QueueDoesNotExist'
+
 type QueueAttributesResult = {
   attributes?: Record<string, string>
 }
@@ -126,7 +128,7 @@ export async function deleteQueue(
   } catch (err) {
     // This is fine
     // @ts-ignore
-    if (err.name === 'QueueDoesNotExist') {
+    if (err.name === AWS_QUEUE_DOES_NOT_EXIST_ERROR_NAME) {
       return
     }
 

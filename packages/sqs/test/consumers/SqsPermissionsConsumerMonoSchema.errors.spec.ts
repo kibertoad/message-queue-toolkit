@@ -6,7 +6,7 @@ import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 import z from 'zod'
 
-import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
+import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
 import type { SqsPermissionPublisherMonoSchema } from '../publishers/SqsPermissionPublisherMonoSchema'
 import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
