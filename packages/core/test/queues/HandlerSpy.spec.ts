@@ -53,6 +53,37 @@ describe('HandlerSpy', () => {
       expect(message.message).toEqual(TEST_MESSAGE)
     })
 
+    it('Finds multiple previously consumed events', async () => {
+      const spy = new HandlerSpy<Message>()
+
+      spy.addProcessedMessage({
+        processingResult: 'retryLater',
+        message: TEST_MESSAGE,
+      })
+
+      spy.addProcessedMessage({
+        processingResult: 'success',
+        message: TEST_MESSAGE,
+      })
+
+      const message = await spy.waitForEvent(
+        {
+          status: 'done',
+        },
+        'success',
+      )
+
+      const message2 = await spy.waitForEvent(
+        {
+          status: 'done',
+        },
+        'retryLater',
+      )
+
+      expect(message.message).toEqual(TEST_MESSAGE)
+      expect(message2.message).toEqual(TEST_MESSAGE)
+    })
+
     it('Waits for an event to be consumed', async () => {
       const spy = new HandlerSpy<Message>()
 

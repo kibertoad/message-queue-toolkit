@@ -91,7 +91,12 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
 
   addProcessedMessage(processingResult: SpyResult<MessagePayloadSchemas>) {
     // @ts-ignore
-    this.messageBuffer.set(processingResult.message[this.messageIdField], processingResult)
+    const cacheId = `${processingResult.message[this.messageIdField]}-${Date.now()}-${(
+      Math.random() + 1
+    )
+      .toString(36)
+      .substring(7)}`
+    this.messageBuffer.set(cacheId, processingResult)
 
     const foundPromise = this.spyPromises.find((spyPromise) => {
       return this.messageMatchesFilter(
