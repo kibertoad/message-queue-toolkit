@@ -54,16 +54,13 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     fields: Partial<MessagePayloadSchemas>,
     processingResult?: MessageProcessingResult,
   ): Promise<SpyResult<MessagePayloadSchemas>> {
-    // @ts-ignore
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    const processedMessageEntry: SpyResultCacheEntry = Object.values(this.messageBuffer.items).find(
+    const processedMessageEntry = Object.values(this.messageBuffer.items).find(
       // @ts-ignore
       (spyResult: SpyResultCacheEntry<MessagePayloadSchemas>) => {
         return this.messageMatchesFilter(spyResult.value, fields, processingResult)
       },
     )
     if (processedMessageEntry) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return Promise.resolve(processedMessageEntry.value)
     }
 
