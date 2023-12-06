@@ -12,13 +12,42 @@ export type SpyResult<MessagePayloadSchemas extends object> = {
   processingResult: MessageProcessingResult
 }
 
+type SpyResultCacheEntry<MessagePayloadSchemas extends object> = {
+  value: SpyResult<MessagePayloadSchemas>
+}
+
+type SpyPromiseMetadata<MessagePayloadSchemas extends object> = {
+  fields: Partial<MessagePayloadSchemas>
+  processingResult?: MessageProcessingResult
+  promise: Promise<SpyResult<MessagePayloadSchemas>>
+  resolve: (
+    value: SpyResult<MessagePayloadSchemas> | PromiseLike<SpyResult<MessagePayloadSchemas>>,
+  ) => void
+}
+
 export class HandlerSpy<MessagePayloadSchemas extends object> {
   private readonly messageBuffer: Fifo<SpyResult<MessagePayloadSchemas>>
   private readonly messageIdField: string
+  private readonly spyPromises: SpyPromiseMetadata<MessagePayloadSchemas>[]
 
   constructor(params: HandlerSpyParams = {}) {
     this.messageBuffer = new Fifo(params.bufferSize ?? 100)
     this.messageIdField = params.messageIdField ?? 'id'
+    this.spyPromises = []
+  }
+
+  private messageMatchesFilter(
+    spyResult: SpyResult<MessagePayloadSchemas>,
+    fields: Partial<MessagePayloadSchemas>,
+    processingResult?: MessageProcessingResult,
+  ) {
+    return (
+      Object.entries(fields).every(([key, value]) => {
+        // @ts-ignore
+        return spyResult.message[key] === value
+      }) &&
+      (!processingResult || spyResult.processingResult === processingResult)
+    )
   }
 
   waitForEvent(
@@ -26,17 +55,34 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     processingResult?: MessageProcessingResult,
   ): Promise<SpyResult<MessagePayloadSchemas>> {
     // @ts-ignore
-      const processedMessageEntry: { value: SpyResult<MessagePayloadSchemas> } = Object.values(this.messageBuffer.items).find((spyResult) => {
-      return Object.entries(fields).every(([key, value]) => {
-        // @ts-ignore
-        return spyResult.value.message[key] === value
-      })
-    })
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    const processedMessageEntry: SpyResultCacheEntry = Object.values(this.messageBuffer.items).find(
+      // @ts-ignore
+      (spyResult: SpyResultCacheEntry<MessagePayloadSchemas>) => {
+        return this.messageMatchesFilter(spyResult.value, fields, processingResult)
+      },
+    )
     if (processedMessageEntry) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return Promise.resolve(processedMessageEntry.value)
     }
 
-    throw new Error('Not found')
+    let resolve: (
+      value: SpyResult<MessagePayloadSchemas> | PromiseLike<SpyResult<MessagePayloadSchemas>>,
+    ) => void
+    const spyPromise = new Promise<SpyResult<MessagePayloadSchemas>>((_resolve) => {
+      resolve = _resolve
+    })
+
+    this.spyPromises.push({
+      promise: spyPromise,
+      processingResult,
+      fields,
+      // @ts-ignore
+      resolve,
+    })
+
+    return spyPromise
   }
 
   clear() {
@@ -46,5 +92,24 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
   addProcessedMessage(processingResult: SpyResult<MessagePayloadSchemas>) {
     // @ts-ignore
     this.messageBuffer.set(processingResult.message[this.messageIdField], processingResult)
+
+    const foundPromise = this.spyPromises.find((spyPromise) => {
+      return this.messageMatchesFilter(
+        processingResult,
+        spyPromise.fields,
+        spyPromise.processingResult,
+      )
+    })
+
+    if (foundPromise) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      foundPromise.resolve(processingResult)
+
+      const index = this.spyPromises.indexOf(foundPromise)
+      if (index > -1) {
+        // only splice array when item is found
+        this.spyPromises.splice(index, 1) // 2nd parameter means remove one item only
+      }
+    }
   }
 }
