@@ -23,7 +23,7 @@ type SpyResultCacheEntry<MessagePayloadSchemas extends object> = {
 }
 
 type SpyPromiseMetadata<MessagePayloadSchemas extends object> = {
-  fields: Partial<MessagePayloadSchemas>
+  fields: DeepPartial<MessagePayloadSchemas>
   processingResult?: MessageProcessingResult
   promise: Promise<SpyResult<MessagePayloadSchemas>>
   resolve: (
@@ -43,6 +43,19 @@ export type PublicHandlerSpy<MessagePayloadSchemas extends object> = Omit<
   'addProcessedMessage'
 >
 
+// eslint-disable-next-line @typescript-eslint/ban-types
+type DeepPartial<T> = T extends Function
+  ? T
+  : T extends object
+    ? {
+        [P in keyof T]?: T[P] extends Array<infer U>
+          ? Array<DeepPartial<U>>
+          : T[P] extends ReadonlyArray<infer U>
+            ? ReadonlyArray<DeepPartial<U>>
+            : DeepPartial<T[P]>
+      }
+    : T
+
 export class HandlerSpy<MessagePayloadSchemas extends object> {
   public name = 'HandlerSpy'
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,7 +72,7 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
 
   private messageMatchesFilter(
     spyResult: SpyResult<object>,
-    fields: Partial<MessagePayloadSchemas>,
+    fields: DeepPartial<MessagePayloadSchemas>,
     processingResult?: MessageProcessingResult,
   ) {
     return (
@@ -80,7 +93,7 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
   }
 
   waitForMessage(
-    fields: Partial<MessagePayloadSchemas>,
+    fields: DeepPartial<MessagePayloadSchemas>,
     processingResult?: MessageProcessingResult,
   ): Promise<SpyResult<MessagePayloadSchemas>> {
     const processedMessageEntry = Object.values(this.messageBuffer.items).find(
