@@ -108,6 +108,7 @@ describe('SqsPermissionPublisher', () => {
       })
 
       expect(receivedMessage).toEqual({
+        id: '2',
         messageType: 'add',
         permissions: ['perm1', 'perm2'],
         userIds: [100, 200, 300],

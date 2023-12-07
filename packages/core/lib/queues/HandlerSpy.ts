@@ -31,7 +31,7 @@ type SpyPromiseMetadata<MessagePayloadSchemas extends object> = {
 export function isHandlerSpy<T extends object>(value: unknown): value is HandlerSpy<T> {
   return (
     isObject(value) &&
-    (value instanceof HandlerSpy || Object.prototype.toString.call(value) === '[object HandlerSpy]')
+    (value instanceof HandlerSpy || (value as unknown as HandlerSpy<object>).name === 'HandlerSpy')
   )
 }
 
@@ -41,6 +41,7 @@ export type PublicHandlerSpy<MessagePayloadSchemas extends object> = Omit<
 >
 
 export class HandlerSpy<MessagePayloadSchemas extends object> {
+  public name = 'HandlerSpy'
   private readonly messageBuffer: Fifo<SpyResult<MessagePayloadSchemas>>
   private readonly messageIdField: keyof MessagePayloadSchemas
   private readonly spyPromises: SpyPromiseMetadata<MessagePayloadSchemas>[]
