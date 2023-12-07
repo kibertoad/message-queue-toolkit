@@ -86,6 +86,7 @@ describe('PermissionsConsumer', () => {
       void channel.sendToQueue(
         AmqpPermissionConsumer.QUEUE_NAME,
         objectToBuffer({
+          id: '1',
           messageType: 'add',
           userIds,
           permissions: perms,
@@ -113,6 +114,7 @@ describe('PermissionsConsumer', () => {
       userPermissionMap[300] = []
 
       publisher.publish({
+        id: '2',
         messageType: 'add',
         userIds,
         permissions: perms,
@@ -125,6 +127,7 @@ describe('PermissionsConsumer', () => {
         }
 
         publisher.publish({
+          id: '3',
           messageType: 'add',
           userIds,
           permissions: perms,
@@ -150,6 +153,7 @@ describe('PermissionsConsumer', () => {
       channel.sendToQueue(
         AmqpPermissionConsumer.QUEUE_NAME,
         objectToBuffer({
+          id: '4',
           userIds,
           messageType: 'add',
           permissions: perms,
@@ -183,6 +187,7 @@ describe('PermissionsConsumer', () => {
       channel.sendToQueue(
         AmqpPermissionConsumer.QUEUE_NAME,
         objectToBuffer({
+          id: '5',
           userIds,
           messageType: 'add',
           permissions: perms,
@@ -212,6 +217,7 @@ describe('PermissionsConsumer', () => {
       channel.sendToQueue(
         AmqpPermissionConsumer.QUEUE_NAME,
         objectToBuffer({
+          id: '6',
           messageType: 'add',
           permissions: perms,
         } as PERMISSIONS_MESSAGE_TYPE),
@@ -231,7 +237,7 @@ describe('PermissionsConsumer', () => {
       const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
       await waitAndRetry(() => fakeResolver.handleErrorCallsCount)
 
-      expect(fakeResolver.handleErrorCallsCount).toBe(1)
+      expect(fakeResolver.handleErrorCallsCount).toBe(2)
     })
   })
 })

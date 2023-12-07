@@ -9,6 +9,7 @@ import { AmqpConsumerErrorResolver } from './errors/AmqpConsumerErrorResolver'
 describe('messageDeserializer', () => {
   it('deserializes valid JSON', () => {
     const messagePayload: PERMISSIONS_MESSAGE_TYPE = {
+      id: '1',
       messageType: 'add',
       userIds: [1],
       permissions: ['perm'],

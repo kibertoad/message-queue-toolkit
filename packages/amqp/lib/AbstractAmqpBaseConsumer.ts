@@ -118,6 +118,32 @@ export abstract class AbstractAmqpBaseConsumer<
     await this.consume()
   }
 
+  private tryToExtractId(message: Message | null): Either<'abort', string> {
+    if (message === null) {
+      return ABORT_EARLY_EITHER
+    }
+
+    const resolveMessageResult = this.resolveMessage(message)
+    if (isMessageError(resolveMessageResult.error)) {
+      this.handleError(resolveMessageResult.error)
+      return ABORT_EARLY_EITHER
+    }
+    // Empty content for whatever reason
+    if (!resolveMessageResult.result) {
+      return ABORT_EARLY_EITHER
+    }
+
+    // @ts-ignore
+    if (this.messageIdField in resolveMessageResult.result) {
+      return {
+        // @ts-ignore
+        result: resolveMessageResult.result[this.messageIdField],
+      }
+    }
+
+    return ABORT_EARLY_EITHER
+  }
+
   private async consume() {
     await this.channel.consume(this.queueName, (message) => {
       if (message === null) {
@@ -127,6 +153,8 @@ export abstract class AbstractAmqpBaseConsumer<
       const deserializedMessage = this.deserializeMessage(message)
       if (deserializedMessage.error === 'abort') {
         this.channel.nack(message, false, false)
+        const messageId = this.tryToExtractId(message)
+        this.handleMessageProcessed(null, 'invalid_message', messageId.result)
         return
       }
       // @ts-ignore
@@ -146,15 +174,18 @@ export abstract class AbstractAmqpBaseConsumer<
         .then((result) => {
           if (result.error === 'retryLater') {
             this.channel.nack(message, false, true)
+            this.handleMessageProcessed(deserializedMessage.result, 'retryLater')
           }
           if (result.result === 'success') {
             this.channel.ack(message)
+            this.handleMessageProcessed(deserializedMessage.result, 'consumed')
           }
         })
         .catch((err) => {
           // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
           // If we fail due to unknown reason, let's retry
           this.channel.nack(message, false, true)
+          this.handleMessageProcessed(deserializedMessage.result, 'retryLater')
           this.handleError(err)
         })
         .finally(() => {
