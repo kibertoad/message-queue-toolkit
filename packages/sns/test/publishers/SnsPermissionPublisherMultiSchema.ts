@@ -33,6 +33,7 @@ export class SnsPermissionPublisherMultiSchema extends AbstractSnsPublisherMulti
         deleteIfExists: false,
       },
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
+      handlerSpy: true,
       messageTypeField: 'messageType',
       ...options,
     })

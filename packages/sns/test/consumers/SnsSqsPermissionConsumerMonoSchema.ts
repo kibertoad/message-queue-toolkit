@@ -38,6 +38,7 @@ export class SnsSqsPermissionConsumerMonoSchema extends AbstractSnsSqsConsumerMo
   ) {
     super(dependencies, {
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
+      handlerSpy: true,
       messageTypeField: 'messageType',
       deletionConfig: {
         deleteIfExists: true,

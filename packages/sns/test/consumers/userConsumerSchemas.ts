@@ -1,16 +1,19 @@
 import z from 'zod'
 
 export const PERMISSIONS_MESSAGE_SCHEMA = z.object({
+  id: z.string(),
   messageType: z.enum(['add', 'remove']),
   userIds: z.array(z.number()).describe('User IDs'),
   permissions: z.array(z.string()).nonempty().describe('List of user permissions'),
 })
 
 export const PERMISSIONS_ADD_MESSAGE_SCHEMA = z.object({
+  id: z.string(),
   messageType: z.literal('add'),
 })
 
 export const PERMISSIONS_REMOVE_MESSAGE_SCHEMA = z.object({
+  id: z.string(),
   messageType: z.literal('remove'),
 })
 

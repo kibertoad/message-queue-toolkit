@@ -60,6 +60,7 @@ export abstract class AbstractSnsPublisherMultiSchema<MessagePayloadType extends
       } satisfies PublishCommandInput
       const command = new PublishCommand(input)
       await this.snsClient.send(command)
+      this.handleMessageProcessed(message, 'published')
     } catch (error) {
       this.handleError(error)
       throw error
