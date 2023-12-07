@@ -8,6 +8,17 @@ type Message = {
   payload?: Record<string, unknown>
 }
 
+type DeepMessage = {
+  id: string
+  status: string
+  payload?: {
+    fieldA: number
+    fieldB: string[]
+    fieldC: string
+    fieldD: boolean
+  }
+}
+
 const TEST_MESSAGE: Message = {
   id: 'abc',
   status: 'done',
@@ -131,6 +142,35 @@ describe('HandlerSpy', () => {
       })
 
       expect(message.message).toEqual(TEST_MESSAGE_4)
+    })
+
+    it('Finds previously consumed event with a deep partial match, with incomplete fields', async () => {
+      const spy = new HandlerSpy<DeepMessage>()
+      const message: DeepMessage = {
+        id: 'abc',
+        status: 'good',
+        payload: {
+          fieldA: 1,
+          fieldB: ['w'],
+          fieldC: 're',
+          fieldD: true,
+        },
+      }
+
+      spy.addProcessedMessage({
+        processingResult: 'consumed',
+        message,
+      })
+
+      const messageResult = await spy.waitForMessage({
+        payload: {
+          fieldA: 1,
+          fieldB: ['w'],
+          fieldC: 're',
+        },
+      })
+
+      expect(messageResult.message).toEqual(message)
     })
 
     it('Finds previously consumed event with an array match in order', async () => {
