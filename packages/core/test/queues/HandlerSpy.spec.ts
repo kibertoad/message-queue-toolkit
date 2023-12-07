@@ -26,6 +26,35 @@ const TEST_MESSAGE_3: Message = {
   },
 }
 
+const TEST_MESSAGE_4: Message = {
+  id: 'abcd',
+  status: 'inprogress',
+  payload: {
+    projectId: 1,
+    userId: 2,
+  },
+}
+
+const TEST_MESSAGE_5A: Message = {
+  id: 'abcd',
+  status: 'inprogress',
+  payload: {
+    projectId: 1,
+    userId: 2,
+    tasks: ['b', 'a'],
+  },
+}
+
+const TEST_MESSAGE_5B: Message = {
+  id: 'abcd',
+  status: 'inprogress',
+  payload: {
+    projectId: 1,
+    userId: 2,
+    tasks: ['a', 'b'],
+  },
+}
+
 describe('HandlerSpy', () => {
   describe('clear', () => {
     it('Remove stored events', () => {
@@ -79,6 +108,53 @@ describe('HandlerSpy', () => {
       })
 
       expect(message.message).toEqual(TEST_MESSAGE_3)
+    })
+
+    it('Finds previously consumed event with a deep partial match', async () => {
+      const spy = new HandlerSpy<Message>()
+
+      spy.addProcessedMessage({
+        processingResult: 'consumed',
+        message: TEST_MESSAGE_3,
+      })
+
+      spy.addProcessedMessage({
+        processingResult: 'consumed',
+        message: TEST_MESSAGE_4,
+      })
+
+      const message = await spy.waitForMessage({
+        payload: {
+          projectId: 1,
+          userId: 2,
+        },
+      })
+
+      expect(message.message).toEqual(TEST_MESSAGE_4)
+    })
+
+    it('Finds previously consumed event with an array match in order', async () => {
+      const spy = new HandlerSpy<Message>()
+
+      spy.addProcessedMessage({
+        processingResult: 'consumed',
+        message: TEST_MESSAGE_5A,
+      })
+
+      spy.addProcessedMessage({
+        processingResult: 'consumed',
+        message: TEST_MESSAGE_5B,
+      })
+
+      const message = await spy.waitForMessage({
+        payload: {
+          projectId: 1,
+          userId: 2,
+          tasks: ['a', 'b'],
+        },
+      })
+
+      expect(message.message).toEqual(TEST_MESSAGE_5B)
     })
 
     it('Finds multiple previously consumed events', async () => {
