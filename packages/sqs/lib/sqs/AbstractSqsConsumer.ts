@@ -192,7 +192,18 @@ export abstract class AbstractSqsConsumer<
             this.transactionObservabilityManager?.stop(transactionSpanId)
           })
 
-        return result.result ? message : Promise.reject(result)
+        // success
+        if (result.result) {
+          this.handleMessageProcessed(deserializedMessage.result, 'consumed')
+          return message
+        }
+
+        // failure
+        this.handleMessageProcessed(
+          deserializedMessage.result,
+          result.error === 'retryLater' ? 'retryLater' : 'error',
+        )
+        return Promise.reject(result.error)
       },
       sqs: this.sqsClient,
       ...this.consumerOptionsOverride,

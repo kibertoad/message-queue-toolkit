@@ -1,6 +1,5 @@
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
-import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
@@ -17,26 +16,24 @@ import { SqsPermissionConsumerMonoSchema } from './SqsPermissionConsumerMonoSche
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 
-async function waitForPermissions(userIds: number[]) {
-  return await waitAndRetry(async () => {
-    const usersPerms = userIds.reduce((acc, userId) => {
-      if (userPermissionMap[userId]) {
-        acc.push(userPermissionMap[userId])
-      }
-      return acc
-    }, [] as string[][])
+async function retrievePermissions(userIds: number[]) {
+  const usersPerms = userIds.reduce((acc, userId) => {
+    if (userPermissionMap[userId]) {
+      acc.push(userPermissionMap[userId])
+    }
+    return acc
+  }, [] as string[][])
 
-    if (usersPerms && usersPerms.length !== userIds.length) {
+  if (usersPerms && usersPerms.length !== userIds.length) {
+    return null
+  }
+
+  for (const userPerms of usersPerms)
+    if (userPerms.length !== perms.length) {
       return null
     }
 
-    for (const userPerms of usersPerms)
-      if (userPerms.length !== perms.length) {
-        return null
-      }
-
-    return usersPerms
-  })
+  return usersPerms
 }
 
 describe('SqsPermissionsConsumerMonoSchema', () => {
@@ -85,6 +82,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisherMonoSchema
     let sqsClient: SQSClient
+    let consumer: SqsPermissionConsumerMonoSchema
 
     beforeEach(async () => {
       diContainer = await registerDependencies({
@@ -92,6 +90,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
+      consumer = diContainer.cradle.permissionConsumer
 
       delete userPermissionMap[100]
       delete userPermissionMap[200]
@@ -123,12 +122,14 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
         userPermissionMap[300] = []
 
         await publisher.publish({
+          id: 'abcd',
           messageType: 'add',
           userIds,
           permissions: perms,
         })
 
-        const updatedUsersPermissions = await waitForPermissions(userIds)
+        await consumer.handlerSpy.waitForEventWithId('abcd', 'consumed')
+        const updatedUsersPermissions = await retrievePermissions(userIds)
 
         if (null === updatedUsersPermissions) {
           throw new Error('Users permissions unexpectedly null')
@@ -143,20 +144,24 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
         expect(users).toHaveLength(0)
 
         await publisher.publish({
+          id: '123',
           messageType: 'add',
           userIds,
           permissions: perms,
         })
 
         // no users in the database, so message will go back to the queue
-        const usersFromDb = await waitForPermissions(userIds)
+        await consumer.handlerSpy.waitForEventWithId('123', 'retryLater')
+
+        const usersFromDb = await retrievePermissions(userIds)
         expect(usersFromDb).toBeNull()
 
         userPermissionMap[100] = []
         userPermissionMap[200] = []
         userPermissionMap[300] = []
 
-        const usersPermissions = await waitForPermissions(userIds)
+        await consumer.handlerSpy.waitForEventWithId('123', 'consumed')
+        const usersPermissions = await retrievePermissions(userIds)
 
         if (null === usersPermissions) {
           throw new Error('Users permissions unexpectedly null')
@@ -173,19 +178,23 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
         userPermissionMap[100] = []
 
         await publisher.publish({
+          id: 'abc',
           messageType: 'add',
           userIds,
           permissions: perms,
         })
 
         // not all users are in the database, so message will go back to the queue
-        const usersFromDb = await waitForPermissions(userIds)
+        await consumer.handlerSpy.waitForEventWithId('abc', 'retryLater')
+
+        const usersFromDb = await retrievePermissions(userIds)
         expect(usersFromDb).toBeNull()
 
         userPermissionMap[200] = []
         userPermissionMap[300] = []
 
-        const usersPermissions = await waitForPermissions(userIds)
+        await consumer.handlerSpy.waitForEventWithId('abc', 'consumed')
+        const usersPermissions = await retrievePermissions(userIds)
 
         if (null === usersPermissions) {
           throw new Error('Users permissions unexpectedly null')

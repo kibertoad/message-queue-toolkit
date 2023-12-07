@@ -58,6 +58,7 @@ export abstract class AbstractSqsPublisherMonoSchema<MessagePayloadType extends 
       } satisfies SendMessageCommandInput
       const command = new SendMessageCommand(input)
       await this.sqsClient.send(command)
+      this.handleMessageProcessed(message, 'published')
     } catch (error) {
       this.handleError(error)
       throw error

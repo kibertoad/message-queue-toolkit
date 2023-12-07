@@ -21,7 +21,7 @@ describe('HandlerSpy', () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'success',
+        processingResult: 'consumed',
         message: TEST_MESSAGE_2,
       })
 
@@ -37,12 +37,12 @@ describe('HandlerSpy', () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'success',
+        processingResult: 'consumed',
         message: TEST_MESSAGE_2,
       })
 
       spy.addProcessedMessage({
-        processingResult: 'success',
+        processingResult: 'consumed',
         message: TEST_MESSAGE,
       })
 
@@ -62,7 +62,7 @@ describe('HandlerSpy', () => {
       })
 
       spy.addProcessedMessage({
-        processingResult: 'success',
+        processingResult: 'consumed',
         message: TEST_MESSAGE,
       })
 
@@ -70,7 +70,7 @@ describe('HandlerSpy', () => {
         {
           status: 'done',
         },
-        'success',
+        'consumed',
       )
 
       const message2 = await spy.waitForEvent(
@@ -88,7 +88,7 @@ describe('HandlerSpy', () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'success',
+        processingResult: 'consumed',
         message: TEST_MESSAGE_2,
       })
 
@@ -97,7 +97,7 @@ describe('HandlerSpy', () => {
       })
 
       spy.addProcessedMessage({
-        processingResult: 'success',
+        processingResult: 'consumed',
         message: TEST_MESSAGE,
       })
 

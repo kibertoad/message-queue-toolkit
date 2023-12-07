@@ -5,9 +5,15 @@ import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
 import type { ZodSchema, ZodType } from 'zod'
 
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
-import type { Logger, TransactionObservabilityManager } from '../types/MessageQueueTypes'
+import type {
+  Logger,
+  TransactionObservabilityManager,
+  MessageProcessingResult,
+} from '../types/MessageQueueTypes'
 
 import type { MessageHandlerConfig } from './HandlerContainer'
+import type { HandlerSpy, PublicHandlerSpy, HandlerSpyParams } from './HandlerSpy'
+import { resolveHandlerSpy } from './HandlerSpy'
 
 export type QueueDependencies = {
   errorReporter: ErrorReporter
@@ -46,6 +52,7 @@ export type DeletionConfig = {
 }
 
 export type CommonQueueOptions = {
+  handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
 }
 
@@ -98,6 +105,16 @@ export abstract class AbstractQueueService<
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
   protected readonly deletionConfig?: DeletionConfig
+  protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
+
+  get handlerSpy(): PublicHandlerSpy<MessagePayloadSchemas> {
+    if (!this._handlerSpy) {
+      throw new Error(
+        'HandlerSpy was not instantiated, please pass `handlerSpy` parameter during queue service creation.',
+      )
+    }
+    return this._handlerSpy
+  }
 
   constructor({ errorReporter, logger }: DependenciesType, options: OptionsType) {
     this.errorReporter = errorReporter
@@ -109,6 +126,7 @@ export abstract class AbstractQueueService<
     this.deletionConfig = options.deletionConfig
 
     this.logMessages = options.logMessages ?? false
+    this._handlerSpy = resolveHandlerSpy<MessagePayloadSchemas>(options)
   }
 
   protected abstract resolveSchema(
@@ -145,6 +163,18 @@ export abstract class AbstractQueueService<
     }
     if (types.isNativeError(err)) {
       this.errorReporter.report({ error: err, context })
+    }
+  }
+
+  protected handleMessageProcessed(
+    message: MessagePayloadSchemas,
+    processingResult: MessageProcessingResult,
+  ) {
+    if (this._handlerSpy) {
+      this._handlerSpy.addProcessedMessage({
+        message,
+        processingResult,
+      })
     }
   }
 

@@ -1,6 +1,9 @@
+import { isObject } from '@lokalise/node-core'
 import { Fifo } from 'toad-cache'
 
 import type { MessageProcessingResult } from '../types/MessageQueueTypes'
+
+import type { CommonQueueOptions } from './AbstractQueueService'
 
 export type HandlerSpyParams = {
   bufferSize?: number
@@ -25,13 +28,26 @@ type SpyPromiseMetadata<MessagePayloadSchemas extends object> = {
   ) => void
 }
 
+export function isHandlerSpy<T extends object>(value: unknown): value is HandlerSpy<T> {
+  return (
+    isObject(value) &&
+    (value instanceof HandlerSpy || Object.prototype.toString.call(value) === '[object HandlerSpy]')
+  )
+}
+
+export type PublicHandlerSpy<MessagePayloadSchemas extends object> = Omit<
+  HandlerSpy<MessagePayloadSchemas>,
+  'addProcessedMessage'
+>
+
 export class HandlerSpy<MessagePayloadSchemas extends object> {
   private readonly messageBuffer: Fifo<SpyResult<MessagePayloadSchemas>>
-  private readonly messageIdField: string
+  private readonly messageIdField: keyof MessagePayloadSchemas
   private readonly spyPromises: SpyPromiseMetadata<MessagePayloadSchemas>[]
 
   constructor(params: HandlerSpyParams = {}) {
     this.messageBuffer = new Fifo(params.bufferSize ?? 100)
+    // @ts-ignore
     this.messageIdField = params.messageIdField ?? 'id'
     this.spyPromises = []
   }
@@ -47,6 +63,16 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
         return spyResult.message[key] === value
       }) &&
       (!processingResult || spyResult.processingResult === processingResult)
+    )
+  }
+
+  waitForEventWithId(id: string, processingResult?: MessageProcessingResult) {
+    return this.waitForEvent(
+      // @ts-ignore
+      {
+        [this.messageIdField]: id,
+      },
+      processingResult,
     )
   }
 
@@ -114,4 +140,18 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
       }
     }
   }
+}
+
+export function resolveHandlerSpy<T extends object>(queueOptions: CommonQueueOptions) {
+  if (isHandlerSpy(queueOptions.handlerSpy)) {
+    return queueOptions.handlerSpy as unknown as HandlerSpy<T>
+  }
+  if (!queueOptions.handlerSpy) {
+    return undefined
+  }
+  if (queueOptions.handlerSpy === true) {
+    return new HandlerSpy() as unknown as HandlerSpy<T>
+  }
+
+  return new HandlerSpy(queueOptions.handlerSpy) as unknown as HandlerSpy<T>
 }
