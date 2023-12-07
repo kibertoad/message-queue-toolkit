@@ -128,7 +128,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
           permissions: perms,
         })
 
-        await consumer.handlerSpy.waitForEventWithId('abcd', 'consumed')
+        await consumer.handlerSpy.waitForMessageWithId('abcd', 'consumed')
         const updatedUsersPermissions = await retrievePermissions(userIds)
 
         if (null === updatedUsersPermissions) {
@@ -151,7 +151,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
         })
 
         // no users in the database, so message will go back to the queue
-        await consumer.handlerSpy.waitForEventWithId('123', 'retryLater')
+        await consumer.handlerSpy.waitForMessageWithId('123', 'retryLater')
 
         const usersFromDb = await retrievePermissions(userIds)
         expect(usersFromDb).toBeNull()
@@ -160,7 +160,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
         userPermissionMap[200] = []
         userPermissionMap[300] = []
 
-        await consumer.handlerSpy.waitForEventWithId('123', 'consumed')
+        await consumer.handlerSpy.waitForMessageWithId('123', 'consumed')
         const usersPermissions = await retrievePermissions(userIds)
 
         if (null === usersPermissions) {
@@ -185,7 +185,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
         })
 
         // not all users are in the database, so message will go back to the queue
-        await consumer.handlerSpy.waitForEventWithId('abc', 'retryLater')
+        await consumer.handlerSpy.waitForMessageWithId('abc', 'retryLater')
 
         const usersFromDb = await retrievePermissions(userIds)
         expect(usersFromDb).toBeNull()
@@ -193,7 +193,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
         userPermissionMap[200] = []
         userPermissionMap[300] = []
 
-        await consumer.handlerSpy.waitForEventWithId('abc', 'consumed')
+        await consumer.handlerSpy.waitForMessageWithId('abc', 'consumed')
         const usersPermissions = await retrievePermissions(userIds)
 
         if (null === usersPermissions) {

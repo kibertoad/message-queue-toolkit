@@ -13,6 +13,7 @@ export class SqsPermissionPublisherMonoSchema extends AbstractSqsPublisherMonoSc
           QueueName: SqsPermissionPublisherMonoSchema.QUEUE_NAME,
         },
       },
+      handlerSpy: true,
       deletionConfig: {
         deleteIfExists: false,
       },

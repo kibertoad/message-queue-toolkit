@@ -211,6 +211,52 @@ Both publishers and consumers accept a queue name and configuration as parameter
 
 If you do not want to create a new queue/topic, you can set `queueLocator` field for `queueConfiguration`. In that case `message-queue-toolkit` will not attempt to create a new queue or topic, and instead throw an error if they don't already exist.
 
+## Handler spies
+
+In certain cases you want to await until certain publisher publishes a message, or a certain handler consumes a message. For that you can use handler spy functionality, built into message-queue-toolkit directly.
+
+In order to enable this functionality, configure spyHandler on the publisher or consumer:
+
+```ts
+export class TestConsumerMultiSchema extends AbstractSqsConsumerMultiSchema<
+    SupportedMessages,
+    ExecutionContext
+> {
+    constructor(
+        dependencies: SQSConsumerDependencies,
+        userService: UserService,
+    ) {
+        super(dependencies, {
+            //
+            // rest of configuration skipped
+            //
+            handlerSpy: {
+                bufferSize: 100, // how many processed messages should be retained in memory for spy lookup. Default is 100
+                messageIdField: 'id', // which field within a message payload uniquely identifies it. Default is `id`
+            },
+        }
+    }
+}
+```
+
+Then you can use handler spies in your tests or production code to await certain events:
+
+```ts
+      await myConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      
+      await myConsumer.handlerSpy.waitForMessageWithId('1')
+
+      await myConsumer.handlerSpy.waitForMessageWithId('1')
+
+      await myConsumer.handlerSpy.waitForMessage({
+          projectId: 1,
+      })
+
+      await myPublisher.handlerSpy.waitForMessage({
+          userId: 1
+      }, 'consumed')
+```
+
 ## Automatic Reconnects (RabbitMQ)
 
 `message-queue-toolkit` automatically reestablishes connections for all publishers and consumers via `AmqpConnectionManager` mechanism.

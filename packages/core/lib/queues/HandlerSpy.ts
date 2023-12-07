@@ -66,8 +66,8 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     )
   }
 
-  waitForEventWithId(id: string, processingResult?: MessageProcessingResult) {
-    return this.waitForEvent(
+  waitForMessageWithId(id: string, processingResult?: MessageProcessingResult) {
+    return this.waitForMessage(
       // @ts-ignore
       {
         [this.messageIdField]: id,
@@ -76,7 +76,7 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     )
   }
 
-  waitForEvent(
+  waitForMessage(
     fields: Partial<MessagePayloadSchemas>,
     processingResult?: MessageProcessingResult,
   ): Promise<SpyResult<MessagePayloadSchemas>> {

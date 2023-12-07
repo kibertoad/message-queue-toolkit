@@ -32,7 +32,7 @@ describe('HandlerSpy', () => {
     })
   })
 
-  describe('waitForEvent', () => {
+  describe('waitForMessage', () => {
     it('Finds previously consumed event', async () => {
       const spy = new HandlerSpy<Message>()
 
@@ -46,7 +46,7 @@ describe('HandlerSpy', () => {
         message: TEST_MESSAGE,
       })
 
-      const message = await spy.waitForEvent({
+      const message = await spy.waitForMessage({
         status: 'done',
       })
 
@@ -66,14 +66,14 @@ describe('HandlerSpy', () => {
         message: TEST_MESSAGE,
       })
 
-      const message = await spy.waitForEvent(
+      const message = await spy.waitForMessage(
         {
           status: 'done',
         },
         'consumed',
       )
 
-      const message2 = await spy.waitForEvent(
+      const message2 = await spy.waitForMessage(
         {
           status: 'done',
         },
@@ -92,7 +92,7 @@ describe('HandlerSpy', () => {
         message: TEST_MESSAGE_2,
       })
 
-      const spyPromise = spy.waitForEvent({
+      const spyPromise = spy.waitForMessage({
         status: 'done',
       })
 

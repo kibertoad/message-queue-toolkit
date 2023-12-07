@@ -46,6 +46,7 @@ describe('SqsPermissionPublisher', () => {
   describe('logging', () => {
     it('logs a message when logging is enabled', async () => {
       const message = {
+        id: '1',
         userIds,
         messageType: 'add',
         permissions: perms,
@@ -53,9 +54,7 @@ describe('SqsPermissionPublisher', () => {
 
       await publisher.publish(message)
 
-      await waitAndRetry(() => {
-        return logger.loggedMessages.length === 1
-      })
+      await publisher.handlerSpy.waitForMessageWithId('1')
 
       expect(logger.loggedMessages.length).toBe(1)
     })
@@ -76,6 +75,7 @@ describe('SqsPermissionPublisher', () => {
       const { permissionPublisher } = diContainer.cradle
 
       const message = {
+        id: '2',
         userIds,
         messageType: 'add',
         permissions: perms,
