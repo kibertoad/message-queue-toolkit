@@ -115,8 +115,10 @@ export abstract class AbstractSqsConsumer<
       return ABORT_EARLY_EITHER
     }
 
+    // @ts-ignore
     if (this.messageIdField in resolveMessageResult.result) {
       return {
+        // @ts-ignore
         result: resolveMessageResult.result[this.messageIdField],
       }
     }
