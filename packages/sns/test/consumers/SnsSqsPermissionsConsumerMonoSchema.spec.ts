@@ -165,6 +165,7 @@ describe('SNS PermissionsConsumer', () => {
         userPermissionMap[300] = []
 
         await publisher.publish({
+          id: '1',
           messageType: 'add',
           userIds,
           permissions: perms,
@@ -186,6 +187,7 @@ describe('SNS PermissionsConsumer', () => {
         expect(users).toHaveLength(0)
 
         await publisher.publish({
+          id: '2',
           messageType: 'add',
           userIds,
           permissions: perms,
@@ -216,6 +218,7 @@ describe('SNS PermissionsConsumer', () => {
         userPermissionMap[100] = []
 
         await publisher.publish({
+          id: '3',
           messageType: 'add',
           userIds,
           permissions: perms,

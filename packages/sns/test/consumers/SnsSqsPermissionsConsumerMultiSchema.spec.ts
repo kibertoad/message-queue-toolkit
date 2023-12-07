@@ -1,6 +1,5 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
-import { waitAndRetry } from '@message-queue-toolkit/core'
 import { assertQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
@@ -90,23 +89,21 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     describe('happy path', () => {
       it('Processes messages', async () => {
         await publisher.publish({
+          id: '1',
           messageType: 'add',
         })
         await publisher.publish({
+          id: '2',
           messageType: 'remove',
         })
         await publisher.publish({
+          id: '3',
           messageType: 'remove',
         })
 
-        await waitAndRetry(
-          () => {
-            return consumer.addCounter === 1 && consumer.removeCounter === 2
-          },
-          // Removing this makes test flaky
-          30,
-          20,
-        )
+        await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+        await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+        await consumer.handlerSpy.waitForMessageWithId('3', 'consumed')
 
         expect(consumer.addBarrierCounter).toBe(3)
         expect(consumer.addCounter).toBe(1)

@@ -108,6 +108,7 @@ describe('SNSPermissionPublisher', () => {
       const { permissionPublisher } = diContainer.cradle
 
       const message = {
+        id: '1',
         userIds,
         messageType: 'add',
         permissions: perms,
@@ -158,6 +159,7 @@ describe('SNSPermissionPublisher', () => {
       })
 
       expect(receivedMessage).toEqual({
+        id: '1',
         messageType: 'add',
         permissions: ['perm1', 'perm2'],
         userIds: [100, 200, 300],

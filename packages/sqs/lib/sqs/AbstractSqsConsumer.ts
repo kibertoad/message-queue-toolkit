@@ -189,8 +189,8 @@ export abstract class AbstractSqsConsumer<
         const deserializedMessage = this.deserializeMessage(message)
         if (deserializedMessage.error === 'abort') {
           await this.failProcessing(message)
-          const messageId = this.tryToExtractId(message)
 
+          const messageId = this.tryToExtractId(message)
           this.handleMessageProcessed(null, 'invalid_message', messageId.result)
           return
         }

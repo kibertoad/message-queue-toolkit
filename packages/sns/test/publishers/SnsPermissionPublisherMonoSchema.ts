@@ -24,6 +24,7 @@ export class SnsPermissionPublisherMonoSchema extends AbstractSnsPublisherMonoSc
       deletionConfig: {
         deleteIfExists: false,
       },
+      handlerSpy: true,
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
       ...options,

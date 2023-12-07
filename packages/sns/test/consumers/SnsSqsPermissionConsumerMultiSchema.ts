@@ -50,6 +50,7 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
     super(
       dependencies,
       {
+        handlerSpy: true,
         handlers: new MessageHandlerConfigBuilder<SupportedEvents, ExecutionContext>()
           .addConfig(
             PERMISSIONS_ADD_MESSAGE_SCHEMA,
