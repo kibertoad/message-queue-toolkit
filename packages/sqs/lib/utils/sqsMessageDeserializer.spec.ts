@@ -8,6 +8,7 @@ import { deserializeSQSMessage } from './sqsMessageDeserializer'
 describe('messageDeserializer', () => {
   it('deserializes valid JSON', () => {
     const messagePayload: PERMISSIONS_MESSAGE_TYPE = {
+      id: '1',
       messageType: 'add',
       userIds: [1],
       permissions: ['perm'],

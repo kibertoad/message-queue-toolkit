@@ -62,6 +62,7 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
       dependencies,
       {
         messageTypeField: 'messageType',
+        handlerSpy: true,
         deletionConfig: {
           deleteIfExists: true,
         },

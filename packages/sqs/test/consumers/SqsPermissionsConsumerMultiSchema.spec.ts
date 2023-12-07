@@ -1,7 +1,6 @@
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import type { BarrierResult } from '@message-queue-toolkit/core'
-import { waitAndRetry } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
@@ -89,12 +88,11 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       await newConsumer.start()
 
       await publisher.publish({
+        id: '1',
         messageType: 'add',
       })
 
-      await waitAndRetry(() => {
-        return logger.loggedMessages.length === 1
-      })
+      await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
       expect(logger.loggedMessages.length).toBe(1)
       await newConsumer.close()
@@ -137,12 +135,11 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       await newConsumer.start()
 
       await publisher.publish({
+        id: '2',
         messageType: 'add',
       })
 
-      await waitAndRetry(() => {
-        return newConsumer.addCounter === 1
-      })
+      await newConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
 
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
@@ -168,12 +165,11 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       await newConsumer.start()
 
       await publisher.publish({
+        id: '3',
         messageType: 'add',
       })
 
-      await waitAndRetry(() => {
-        return newConsumer.addCounter > 0
-      })
+      await newConsumer.handlerSpy.waitForMessageWithId('3', 'consumed')
 
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
@@ -213,18 +209,21 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     describe('happy path', () => {
       it('Processes messages', async () => {
         await publisher.publish({
+          id: '10',
           messageType: 'add',
         })
         await publisher.publish({
+          id: '20',
           messageType: 'remove',
         })
         await publisher.publish({
+          id: '30',
           messageType: 'remove',
         })
 
-        await waitAndRetry(() => {
-          return consumer.addCounter === 1 && consumer.removeCounter === 2
-        })
+        await consumer.handlerSpy.waitForMessageWithId('10', 'consumed')
+        await consumer.handlerSpy.waitForMessageWithId('20', 'consumed')
+        await consumer.handlerSpy.waitForMessageWithId('30', 'consumed')
 
         expect(consumer.addCounter).toBe(1)
         expect(consumer.removeCounter).toBe(2)

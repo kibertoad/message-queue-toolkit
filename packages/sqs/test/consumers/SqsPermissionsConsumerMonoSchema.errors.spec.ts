@@ -12,12 +12,15 @@ import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
+import type { SqsPermissionConsumerMonoSchema } from './SqsPermissionConsumerMonoSchema'
+
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 
 describe('SqsPermissionsConsumerMonoSchema', () => {
   describe('error handling', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisherMonoSchema
+    let consumer: SqsPermissionConsumerMonoSchema
     let sqsClient: SQSClient
 
     beforeEach(async () => {
@@ -26,6 +29,7 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
+      consumer = diContainer.cradle.permissionConsumer
 
       delete userPermissionMap[100]
       delete userPermissionMap[200]
@@ -53,14 +57,14 @@ describe('SqsPermissionsConsumerMonoSchema', () => {
       // @ts-ignore
       publisher['messageSchema'] = z.any()
       await publisher.publish({
+        id: 'abc',
         messageType: 'add',
         permissions: perms,
       } as any)
 
       const fakeResolver = consumerErrorResolver as FakeConsumerErrorResolver
-      await waitAndRetry(() => {
-        return fakeResolver.handleErrorCallsCount > 0
-      })
+      const messageResult = await consumer.handlerSpy.waitForMessageWithId('abc')
+      expect(messageResult.processingResult).toBe('invalid_message')
 
       expect(fakeResolver.handleErrorCallsCount).toBe(1)
       expect(fakeResolver.errors[0].message).toContain('"received": "undefined"')

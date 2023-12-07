@@ -1,6 +1,11 @@
+import { randomUUID } from 'node:crypto'
+
+import { isObject } from '@lokalise/node-core'
 import { Fifo } from 'toad-cache'
 
 import type { MessageProcessingResult } from '../types/MessageQueueTypes'
+
+import type { CommonQueueOptions } from './AbstractQueueService'
 
 export type HandlerSpyParams = {
   bufferSize?: number
@@ -8,7 +13,7 @@ export type HandlerSpyParams = {
 }
 
 export type SpyResult<MessagePayloadSchemas extends object> = {
-  message: MessagePayloadSchemas
+  message: MessagePayloadSchemas | null
   processingResult: MessageProcessingResult
 }
 
@@ -25,19 +30,34 @@ type SpyPromiseMetadata<MessagePayloadSchemas extends object> = {
   ) => void
 }
 
+export function isHandlerSpy<T extends object>(value: unknown): value is HandlerSpy<T> {
+  return (
+    isObject(value) &&
+    (value instanceof HandlerSpy || (value as unknown as HandlerSpy<object>).name === 'HandlerSpy')
+  )
+}
+
+export type PublicHandlerSpy<MessagePayloadSchemas extends object> = Omit<
+  HandlerSpy<MessagePayloadSchemas>,
+  'addProcessedMessage'
+>
+
 export class HandlerSpy<MessagePayloadSchemas extends object> {
-  private readonly messageBuffer: Fifo<SpyResult<MessagePayloadSchemas>>
-  private readonly messageIdField: string
+  public name = 'HandlerSpy'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readonly messageBuffer: Fifo<SpyResult<any>>
+  private readonly messageIdField: keyof MessagePayloadSchemas
   private readonly spyPromises: SpyPromiseMetadata<MessagePayloadSchemas>[]
 
   constructor(params: HandlerSpyParams = {}) {
     this.messageBuffer = new Fifo(params.bufferSize ?? 100)
+    // @ts-ignore
     this.messageIdField = params.messageIdField ?? 'id'
     this.spyPromises = []
   }
 
   private messageMatchesFilter(
-    spyResult: SpyResult<MessagePayloadSchemas>,
+    spyResult: SpyResult<object>,
     fields: Partial<MessagePayloadSchemas>,
     processingResult?: MessageProcessingResult,
   ) {
@@ -50,7 +70,17 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     )
   }
 
-  waitForEvent(
+  waitForMessageWithId(id: string, processingResult?: MessageProcessingResult) {
+    return this.waitForMessage(
+      // @ts-ignore
+      {
+        [this.messageIdField]: id,
+      },
+      processingResult,
+    )
+  }
+
+  waitForMessage(
     fields: Partial<MessagePayloadSchemas>,
     processingResult?: MessageProcessingResult,
   ): Promise<SpyResult<MessagePayloadSchemas>> {
@@ -86,18 +116,29 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     this.messageBuffer.clear()
   }
 
-  addProcessedMessage(processingResult: SpyResult<MessagePayloadSchemas>) {
+  addProcessedMessage(processingResult: SpyResult<MessagePayloadSchemas>, messageId?: string) {
+    const resolvedMessageId =
+      processingResult.message?.[this.messageIdField] ?? messageId ?? randomUUID()
+
+    // If we failed to parse message, let's store id at least
+    const resolvedProcessingResult = processingResult.message
+      ? processingResult
+      : {
+          ...processingResult,
+          message: {
+            [this.messageIdField]: messageId,
+          },
+        }
+
     // @ts-ignore
-    const cacheId = `${processingResult.message[this.messageIdField]}-${Date.now()}-${(
-      Math.random() + 1
-    )
+    const cacheId = `${resolvedMessageId}-${Date.now()}-${(Math.random() + 1)
       .toString(36)
       .substring(7)}`
-    this.messageBuffer.set(cacheId, processingResult)
+    this.messageBuffer.set(cacheId, resolvedProcessingResult)
 
     const foundPromise = this.spyPromises.find((spyPromise) => {
       return this.messageMatchesFilter(
-        processingResult,
+        resolvedProcessingResult,
         spyPromise.fields,
         spyPromise.processingResult,
       )
@@ -114,4 +155,18 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
       }
     }
   }
+}
+
+export function resolveHandlerSpy<T extends object>(queueOptions: CommonQueueOptions) {
+  if (isHandlerSpy(queueOptions.handlerSpy)) {
+    return queueOptions.handlerSpy as unknown as HandlerSpy<T>
+  }
+  if (!queueOptions.handlerSpy) {
+    return undefined
+  }
+  if (queueOptions.handlerSpy === true) {
+    return new HandlerSpy() as unknown as HandlerSpy<T>
+  }
+
+  return new HandlerSpy(queueOptions.handlerSpy) as unknown as HandlerSpy<T>
 }

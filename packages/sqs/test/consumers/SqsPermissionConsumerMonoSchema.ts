@@ -34,6 +34,7 @@ export class SqsPermissionConsumerMonoSchema extends AbstractSqsConsumerMonoSche
     super(dependencies, {
       messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
       messageTypeField: 'messageType',
+      handlerSpy: true,
       deletionConfig: {
         deleteIfExists: true,
       },

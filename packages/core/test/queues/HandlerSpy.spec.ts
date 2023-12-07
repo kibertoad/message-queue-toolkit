@@ -1,4 +1,6 @@
-import { HandlerSpy } from '../../lib/queues/HandlerSpy'
+import { expect } from 'vitest'
+
+import { HandlerSpy, isHandlerSpy } from '../../lib/queues/HandlerSpy'
 
 type Message = {
   id: string
@@ -11,7 +13,7 @@ const TEST_MESSAGE: Message = {
 }
 
 const TEST_MESSAGE_2: Message = {
-  id: 'abc',
+  id: 'abcd',
   status: 'inprogress',
 }
 
@@ -21,7 +23,7 @@ describe('HandlerSpy', () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'success',
+        processingResult: 'consumed',
         message: TEST_MESSAGE_2,
       })
 
@@ -32,21 +34,21 @@ describe('HandlerSpy', () => {
     })
   })
 
-  describe('waitForEvent', () => {
+  describe('waitForMessage', () => {
     it('Finds previously consumed event', async () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'success',
+        processingResult: 'consumed',
         message: TEST_MESSAGE_2,
       })
 
       spy.addProcessedMessage({
-        processingResult: 'success',
+        processingResult: 'consumed',
         message: TEST_MESSAGE,
       })
 
-      const message = await spy.waitForEvent({
+      const message = await spy.waitForMessage({
         status: 'done',
       })
 
@@ -62,18 +64,18 @@ describe('HandlerSpy', () => {
       })
 
       spy.addProcessedMessage({
-        processingResult: 'success',
+        processingResult: 'consumed',
         message: TEST_MESSAGE,
       })
 
-      const message = await spy.waitForEvent(
+      const message = await spy.waitForMessage(
         {
           status: 'done',
         },
-        'success',
+        'consumed',
       )
 
-      const message2 = await spy.waitForEvent(
+      const message2 = await spy.waitForMessage(
         {
           status: 'done',
         },
@@ -84,26 +86,82 @@ describe('HandlerSpy', () => {
       expect(message2.message).toEqual(TEST_MESSAGE)
     })
 
-    it('Waits for an event to be consumed', async () => {
+    it('Waits for an message to be consumed', async () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'success',
+        processingResult: 'consumed',
         message: TEST_MESSAGE_2,
       })
 
-      const spyPromise = spy.waitForEvent({
+      const spyPromise = spy.waitForMessage({
         status: 'done',
       })
 
       spy.addProcessedMessage({
-        processingResult: 'success',
+        processingResult: 'consumed',
         message: TEST_MESSAGE,
       })
 
       const message = await spyPromise
 
       expect(message.message).toEqual(TEST_MESSAGE)
+    })
+  })
+
+  describe('waitForMessageById', () => {
+    it('Waits for an message to be consumed by id', async () => {
+      const spy = new HandlerSpy<Message>()
+
+      spy.addProcessedMessage({
+        processingResult: 'consumed',
+        message: TEST_MESSAGE_2,
+      })
+
+      const spyPromise = spy.waitForMessageWithId(TEST_MESSAGE.id)
+
+      spy.addProcessedMessage({
+        processingResult: 'consumed',
+        message: TEST_MESSAGE,
+      })
+
+      const message = await spyPromise
+
+      expect(message.message).toEqual(TEST_MESSAGE)
+    })
+
+    it('Waits for an invalid message to be rejected by id', async () => {
+      const spy = new HandlerSpy<Message>()
+
+      spy.addProcessedMessage(
+        {
+          processingResult: 'invalid_message',
+          message: null,
+        },
+        'abc',
+      )
+
+      const messageResult = await spy.waitForMessageWithId('abc')
+
+      expect(messageResult.message).toEqual({
+        id: 'abc',
+      })
+      expect(messageResult.processingResult).toBe('invalid_message')
+    })
+  })
+
+  describe('isHandlerSpy', () => {
+    it('HandlerSpy returns true', async () => {
+      const spy = new HandlerSpy<Message>()
+
+      expect(isHandlerSpy(spy)).toBe(true)
+    })
+
+    it('Not a HandlerSpy returns false', async () => {
+      expect(isHandlerSpy({})).toBe(false)
+      expect(isHandlerSpy('abc')).toBe(false)
+      expect(isHandlerSpy(null)).toBe(false)
+      expect(isHandlerSpy(undefined)).toBe(false)
     })
   })
 })
