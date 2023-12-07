@@ -5,6 +5,7 @@ import { HandlerSpy, isHandlerSpy } from '../../lib/queues/HandlerSpy'
 type Message = {
   id: string
   status: string
+  payload?: Record<string, unknown>
 }
 
 const TEST_MESSAGE: Message = {
@@ -15,6 +16,14 @@ const TEST_MESSAGE: Message = {
 const TEST_MESSAGE_2: Message = {
   id: 'abcd',
   status: 'inprogress',
+}
+
+const TEST_MESSAGE_3: Message = {
+  id: 'abcd',
+  status: 'inprogress',
+  payload: {
+    projectId: 1,
+  },
 }
 
 describe('HandlerSpy', () => {
@@ -53,6 +62,23 @@ describe('HandlerSpy', () => {
       })
 
       expect(message.message).toEqual(TEST_MESSAGE)
+    })
+
+    it('Finds previously consumed event with a deep match', async () => {
+      const spy = new HandlerSpy<Message>()
+
+      spy.addProcessedMessage({
+        processingResult: 'consumed',
+        message: TEST_MESSAGE_3,
+      })
+
+      const message = await spy.waitForMessage({
+        payload: {
+          projectId: 1,
+        },
+      })
+
+      expect(message.message).toEqual(TEST_MESSAGE_3)
     })
 
     it('Finds multiple previously consumed events', async () => {

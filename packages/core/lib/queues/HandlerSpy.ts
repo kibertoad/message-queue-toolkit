@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { isObject } from '@lokalise/node-core'
+import { deepEqual } from 'fast-equals'
 import { Fifo } from 'toad-cache'
 
 import type { MessageProcessingResult } from '../types/MessageQueueTypes'
@@ -64,7 +65,7 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     return (
       Object.entries(fields).every(([key, value]) => {
         // @ts-ignore
-        return spyResult.message[key] === value
+        return deepEqual(spyResult.message[key], value)
       }) &&
       (!processingResult || spyResult.processingResult === processingResult)
     )
