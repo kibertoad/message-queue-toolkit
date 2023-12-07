@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import { isObject } from '@lokalise/node-core'
 import { Fifo } from 'toad-cache'
 
@@ -11,7 +13,7 @@ export type HandlerSpyParams = {
 }
 
 export type SpyResult<MessagePayloadSchemas extends object> = {
-  message: MessagePayloadSchemas
+  message: MessagePayloadSchemas | null
   processingResult: MessageProcessingResult
 }
 
@@ -42,7 +44,8 @@ export type PublicHandlerSpy<MessagePayloadSchemas extends object> = Omit<
 
 export class HandlerSpy<MessagePayloadSchemas extends object> {
   public name = 'HandlerSpy'
-  private readonly messageBuffer: Fifo<SpyResult<MessagePayloadSchemas>>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readonly messageBuffer: Fifo<SpyResult<any>>
   private readonly messageIdField: keyof MessagePayloadSchemas
   private readonly spyPromises: SpyPromiseMetadata<MessagePayloadSchemas>[]
 
@@ -54,7 +57,7 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
   }
 
   private messageMatchesFilter(
-    spyResult: SpyResult<MessagePayloadSchemas>,
+    spyResult: SpyResult<object>,
     fields: Partial<MessagePayloadSchemas>,
     processingResult?: MessageProcessingResult,
   ) {
@@ -113,18 +116,29 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     this.messageBuffer.clear()
   }
 
-  addProcessedMessage(processingResult: SpyResult<MessagePayloadSchemas>) {
+  addProcessedMessage(processingResult: SpyResult<MessagePayloadSchemas>, messageId?: string) {
+    const resolvedMessageId =
+      processingResult.message?.[this.messageIdField] ?? messageId ?? randomUUID()
+
+    // If we failed to parse message, let's store id at least
+    const resolvedProcessingResult = processingResult.message
+      ? processingResult
+      : {
+          ...processingResult,
+          message: {
+            [this.messageIdField]: messageId,
+          },
+        }
+
     // @ts-ignore
-    const cacheId = `${processingResult.message[this.messageIdField]}-${Date.now()}-${(
-      Math.random() + 1
-    )
+    const cacheId = `${resolvedMessageId}-${Date.now()}-${(Math.random() + 1)
       .toString(36)
       .substring(7)}`
-    this.messageBuffer.set(cacheId, processingResult)
+    this.messageBuffer.set(cacheId, resolvedProcessingResult)
 
     const foundPromise = this.spyPromises.find((spyPromise) => {
       return this.messageMatchesFilter(
-        processingResult,
+        resolvedProcessingResult,
         spyPromise.fields,
         spyPromise.processingResult,
       )

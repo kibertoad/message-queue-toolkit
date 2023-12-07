@@ -129,6 +129,25 @@ describe('HandlerSpy', () => {
 
       expect(message.message).toEqual(TEST_MESSAGE)
     })
+
+    it('Waits for an invalid message to be rejected by id', async () => {
+      const spy = new HandlerSpy<Message>()
+
+      spy.addProcessedMessage(
+        {
+          processingResult: 'invalid_message',
+          message: null,
+        },
+        'abc',
+      )
+
+      const messageResult = await spy.waitForMessageWithId('abc')
+
+      expect(messageResult.message).toEqual({
+        id: 'abc',
+      })
+      expect(messageResult.processingResult).toBe('invalid_message')
+    })
   })
 
   describe('isHandlerSpy', () => {

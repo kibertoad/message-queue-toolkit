@@ -100,6 +100,30 @@ export abstract class AbstractSqsConsumer<
     barrierOutput: BarrierOutput,
   ): Promise<Either<'retryLater', 'success'>>
 
+  private tryToExtractId(message: SQSMessage): Either<'abort', string> {
+    if (message === null) {
+      return ABORT_EARLY_EITHER
+    }
+
+    const resolveMessageResult = this.resolveMessage(message)
+    if (isMessageError(resolveMessageResult.error)) {
+      this.handleError(resolveMessageResult.error)
+      return ABORT_EARLY_EITHER
+    }
+    // Empty content for whatever reason
+    if (!resolveMessageResult.result) {
+      return ABORT_EARLY_EITHER
+    }
+
+    if (this.messageIdField in resolveMessageResult.result) {
+      return {
+        result: resolveMessageResult.result[this.messageIdField],
+      }
+    }
+
+    return ABORT_EARLY_EITHER
+  }
+
   private deserializeMessage(message: SQSMessage): Either<'abort', MessagePayloadType> {
     if (message === null) {
       return ABORT_EARLY_EITHER
@@ -163,6 +187,9 @@ export abstract class AbstractSqsConsumer<
         const deserializedMessage = this.deserializeMessage(message)
         if (deserializedMessage.error === 'abort') {
           await this.failProcessing(message)
+          const messageId = this.tryToExtractId(message)
+
+          this.handleMessageProcessed(null, 'invalid_message', messageId.result)
           return
         }
         // @ts-ignore

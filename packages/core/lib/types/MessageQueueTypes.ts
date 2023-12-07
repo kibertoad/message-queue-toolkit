@@ -5,7 +5,12 @@ export interface QueueConsumer {
   close(): Promise<unknown>
 }
 
-export type MessageProcessingResult = 'retryLater' | 'consumed' | 'published' | 'error'
+export type MessageProcessingResult =
+  | 'retryLater'
+  | 'consumed'
+  | 'published'
+  | 'error'
+  | 'invalid_message'
 
 export interface SyncPublisher<MessagePayloadType> {
   publish(message: MessagePayloadType): void

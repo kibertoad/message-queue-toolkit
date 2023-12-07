@@ -52,19 +52,19 @@ export type DeletionConfig = {
 }
 
 export type CommonQueueOptions = {
+  messageTypeField: string
+  messageIdField?: string
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
 }
 
 export type NewQueueOptions<CreationConfigType extends object> = {
-  messageTypeField: string
   locatorConfig?: never
   deletionConfig?: DeletionConfig
   creationConfig: CreationConfigType
 } & CommonQueueOptions
 
 export type ExistingQueueOptions<QueueLocatorType extends object> = {
-  messageTypeField: string
   locatorConfig: QueueLocatorType
   deletionConfig?: DeletionConfig
   creationConfig?: never
@@ -101,6 +101,7 @@ export abstract class AbstractQueueService<
   protected readonly errorReporter: ErrorReporter
   public readonly logger: Logger
   protected readonly messageTypeField: string
+  protected readonly messageIdField: string
   protected readonly logMessages: boolean
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
@@ -121,6 +122,7 @@ export abstract class AbstractQueueService<
     this.logger = logger
 
     this.messageTypeField = options.messageTypeField
+    this.messageIdField = options.messageIdField ?? 'id'
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig
@@ -167,14 +169,18 @@ export abstract class AbstractQueueService<
   }
 
   protected handleMessageProcessed(
-    message: MessagePayloadSchemas,
+    message: MessagePayloadSchemas | null,
     processingResult: MessageProcessingResult,
+    messageId?: string,
   ) {
     if (this._handlerSpy) {
-      this._handlerSpy.addProcessedMessage({
-        message,
-        processingResult,
-      })
+      this._handlerSpy.addProcessedMessage(
+        {
+          message,
+          processingResult,
+        },
+        messageId,
+      )
     }
   }
 
