@@ -37,6 +37,7 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
     super(
       dependencies,
       {
+        handlerSpy: true,
         creationConfig: {
           queueName: AmqpPermissionConsumerMultiSchema.QUEUE_NAME,
           queueOptions: {

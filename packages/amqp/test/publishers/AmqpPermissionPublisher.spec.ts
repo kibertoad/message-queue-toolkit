@@ -62,6 +62,7 @@ describe('PermissionPublisher', () => {
 
     it('logs a message when logging is enabled', async () => {
       const message = {
+        id: '1',
         userIds,
         messageType: 'add',
         permissions: perms,
@@ -74,6 +75,7 @@ describe('PermissionPublisher', () => {
       })
 
       expect(logger.loggedMessages[1]).toEqual({
+        id: '1',
         messageType: 'add',
         permissions: ['perm1', 'perm2'],
         userIds: [100, 200, 300],
@@ -161,6 +163,7 @@ describe('PermissionPublisher', () => {
       const { permissionPublisher } = diContainer.cradle
 
       const message = {
+        id: '2',
         userIds,
         messageType: 'add',
         permissions: perms,
@@ -186,6 +189,7 @@ describe('PermissionPublisher', () => {
       })
 
       expect(receivedMessage).toEqual({
+        id: '2',
         messageType: 'add',
         permissions: ['perm1', 'perm2'],
         userIds: [100, 200, 300],
@@ -204,6 +208,7 @@ describe('PermissionPublisher', () => {
       await permissionConsumer.start()
 
       const message = {
+        id: '3',
         userIds,
         messageType: 'add',
         permissions: perms,
