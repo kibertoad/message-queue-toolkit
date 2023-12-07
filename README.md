@@ -242,19 +242,26 @@ export class TestConsumerMultiSchema extends AbstractSqsConsumerMultiSchema<
 Then you can use handler spies in your tests or production code to await certain events:
 
 ```ts
-      await myConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
-      
-      await myConsumer.handlerSpy.waitForMessageWithId('1')
+await myConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
-      await myConsumer.handlerSpy.waitForMessageWithId('1')
+await myConsumer.handlerSpy.waitForMessageWithId('1')
 
-      await myConsumer.handlerSpy.waitForMessage({
-          projectId: 1,
-      })
+await myConsumer.handlerSpy.waitForMessageWithId('1')
 
-      await myPublisher.handlerSpy.waitForMessage({
-          userId: 1
-      }, 'consumed')
+await myConsumer.handlerSpy.waitForMessage({
+    projectId: 1,
+})
+
+await myPublisher.handlerSpy.waitForMessage({
+    userId: 1
+}, 'consumed')
+```
+
+You can also check details of the message processing outcome:
+
+```ts
+const result = await myConsumer.handlerSpy.waitForMessageWithId('1')
+expect(result.processingResult).toEqual('consumed')
 ```
 
 ## Automatic Reconnects (RabbitMQ)
