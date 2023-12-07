@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@lokalise/node-core": "^8.3.0",
+    "fast-equals": "^5.0.1",
     "toad-cache": "^3.4.1"
   },
   "devDependencies": {
