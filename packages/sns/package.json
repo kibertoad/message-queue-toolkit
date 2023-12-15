@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/sns",
-  "version": "7.0.0",
+  "version": "8.0.0",
   "private": false,
   "license": "MIT",
   "description": "SNS adapter for message-queue-toolkit",
@@ -33,8 +33,8 @@
   "peerDependencies": {
     "@aws-sdk/client-sns": "^3.465.0",
     "@aws-sdk/client-sqs": "^3.465.0",
-    "@message-queue-toolkit/core": "^5.0.0",
-    "@message-queue-toolkit/sqs": "^7.0.0"
+    "@message-queue-toolkit/core": "^6.0.0",
+    "@message-queue-toolkit/sqs": "^8.0.0"
   },
   "devDependencies": {
     "@aws-sdk/client-sns": "^3.465.0",
