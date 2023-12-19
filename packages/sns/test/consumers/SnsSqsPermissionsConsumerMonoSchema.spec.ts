@@ -18,26 +18,24 @@ import { SnsSqsPermissionConsumerMonoSchema } from './SnsSqsPermissionConsumerMo
 const userIds = [100, 200, 300]
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 
-async function waitForPermissions(userIds: number[]) {
-  return await waitAndRetry(async () => {
-    const usersPerms = userIds.reduce((acc, userId) => {
-      if (userPermissionMap[userId]) {
-        acc.push(userPermissionMap[userId])
-      }
-      return acc
-    }, [] as string[][])
+async function resolvePermissions(userIds: number[]) {
+  const usersPerms = userIds.reduce((acc, userId) => {
+    if (userPermissionMap[userId]) {
+      acc.push(userPermissionMap[userId])
+    }
+    return acc
+  }, [] as string[][])
 
-    if (usersPerms && usersPerms.length !== userIds.length) {
+  if (usersPerms && usersPerms.length !== userIds.length) {
+    return null
+  }
+
+  for (const userPerms of usersPerms)
+    if (userPerms.length !== perms.length) {
       return null
     }
 
-    for (const userPerms of usersPerms)
-      if (userPerms.length !== perms.length) {
-        return null
-      }
-
-    return usersPerms
-  })
+  return usersPerms
 }
 
 describe('SNS PermissionsConsumer', () => {
@@ -171,7 +169,8 @@ describe('SNS PermissionsConsumer', () => {
           permissions: perms,
         })
 
-        const updatedUsersPermissions = await waitForPermissions(userIds)
+        await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+        const updatedUsersPermissions = await resolvePermissions(userIds)
 
         if (null === updatedUsersPermissions) {
           throw new Error('Users permissions unexpectedly null')
@@ -193,15 +192,17 @@ describe('SNS PermissionsConsumer', () => {
           permissions: perms,
         })
 
+        await consumer.handlerSpy.waitForMessageWithId('2', 'retryLater')
         // no users in the database, so message will go back to the queue
-        const usersFromDb = await waitForPermissions(userIds)
+        const usersFromDb = await resolvePermissions(userIds)
         expect(usersFromDb).toBeNull()
 
         userPermissionMap[100] = []
         userPermissionMap[200] = []
         userPermissionMap[300] = []
 
-        const usersPermissions = await waitForPermissions(userIds)
+        await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+        const usersPermissions = await resolvePermissions(userIds)
 
         if (null === usersPermissions) {
           throw new Error('Users permissions unexpectedly null')
@@ -224,14 +225,16 @@ describe('SNS PermissionsConsumer', () => {
           permissions: perms,
         })
 
+        await consumer.handlerSpy.waitForMessageWithId('3', 'retryLater')
         // not all users are in the database, so message will go back to the queue
-        const usersFromDb = await waitForPermissions(userIds)
+        const usersFromDb = await resolvePermissions(userIds)
         expect(usersFromDb).toBeNull()
 
         userPermissionMap[200] = []
         userPermissionMap[300] = []
 
-        const usersPermissions = await waitForPermissions(userIds)
+        await consumer.handlerSpy.waitForMessageWithId('3', 'consumed')
+        const usersPermissions = await resolvePermissions(userIds)
 
         if (null === usersPermissions) {
           throw new Error('Users permissions unexpectedly null')
@@ -247,13 +250,13 @@ describe('SNS PermissionsConsumer', () => {
         // @ts-ignore
         publisher['messageSchema'] = z.any()
         await publisher.publish({
+          id: 'abc',
           messageType: 'add',
           permissions: perms,
         } as any)
 
-        await waitAndRetry(() => {
-          return fakeResolver.handleErrorCallsCount > 0
-        })
+        const messageResult = await consumer.handlerSpy.waitForMessageWithId('abc')
+        expect(messageResult.processingResult).toBe('invalid_message')
 
         expect(fakeResolver.handleErrorCallsCount).toBe(1)
       })
