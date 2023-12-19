@@ -1,6 +1,6 @@
 services:
   rabbitmq:
-    image: rabbitmq:3.10.17
+    image: rabbitmq:3.11.20
     ports:
       - ${DOCKER_RABBITMQ_CLIENT_PORT:-5672}:5672
       - ${DOCKER_RABBITMQ_MANAGEMENT_PORT:-15672}:15672
