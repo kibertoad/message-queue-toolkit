@@ -52,6 +52,7 @@ export abstract class AbstractSqsConsumer<
       | ExistingSQSConsumerOptions<QueueLocatorType> =
       | NewSQSConsumerOptions<CreationConfigType>
       | ExistingSQSConsumerOptions<QueueLocatorType>,
+    PrehandlerOutput = unknown,
     BarrierOutput = unknown,
   >
   extends AbstractSqsService<
@@ -81,22 +82,30 @@ export abstract class AbstractSqsConsumer<
     message: MessagePayloadType,
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
-    const barrierResult = await this.preHandlerBarrier(message, messageType)
+    const prehandlerOutput = await this.processPrehandlers(message, messageType)
+    const barrierResult = await this.preHandlerBarrier(message, messageType, prehandlerOutput)
 
     if (barrierResult.isPassing) {
-      return this.processMessage(message, messageType, barrierResult.output)
+      return this.processMessage(message, messageType, prehandlerOutput, barrierResult.output)
     }
     return { error: 'retryLater' }
   }
 
+  protected abstract processPrehandlers(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<PrehandlerOutput>
+
   protected abstract preHandlerBarrier(
     message: MessagePayloadType,
     messageType: string,
+    prehandlerOutput: PrehandlerOutput,
   ): Promise<BarrierResult<BarrierOutput>>
 
   abstract processMessage(
     message: MessagePayloadType,
     messageType: string,
+    prehandlerOutput: PrehandlerOutput,
     barrierOutput: BarrierOutput,
   ): Promise<Either<'retryLater', 'success'>>
 

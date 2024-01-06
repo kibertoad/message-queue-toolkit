@@ -35,15 +35,17 @@ export type NewQueueOptionsMultiSchema<
   MessagePayloadSchemas extends object,
   CreationConfigType extends object,
   ExecutionContext,
+  PrehandlerOutput,
 > = NewQueueOptions<CreationConfigType> &
-  MultiSchemaConsumerOptions<MessagePayloadSchemas, ExecutionContext>
+  MultiSchemaConsumerOptions<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
 
 export type ExistingQueueOptionsMultiSchema<
   MessagePayloadSchemas extends object,
   QueueLocatorType extends object,
   ExecutionContext,
+  PrehandlerOutput,
 > = ExistingQueueOptions<QueueLocatorType> &
-  MultiSchemaConsumerOptions<MessagePayloadSchemas, ExecutionContext>
+  MultiSchemaConsumerOptions<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
 
 export type DeletionConfig = {
   deleteIfExists?: boolean
@@ -74,8 +76,12 @@ export type MultiSchemaPublisherOptions<MessagePayloadSchemas extends object> = 
   messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
 }
 
-export type MultiSchemaConsumerOptions<MessagePayloadSchemas extends object, ExecutionContext> = {
-  handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext>[]
+export type MultiSchemaConsumerOptions<
+  MessagePayloadSchemas extends object,
+  ExecutionContext,
+  PrehandlerOutput,
+> = {
+  handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
 }
 
 export type MonoSchemaQueueOptions<MessagePayloadType extends object> = {

@@ -146,6 +146,34 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       await newConsumer.close()
     })
 
+    it('can access prehandler output', async () => {
+      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: publisher.queueName,
+          },
+        },
+        addPreHandlerBarrier: async (
+          message,
+          executionContext,
+          prehandlerOutput,
+        ): Promise<BarrierResult<number>> => {
+          expect(prehandlerOutput.messageId).toBe(message.id)
+
+          return { isPassing: true, output: 1 }
+        },
+      })
+      await newConsumer.start()
+
+      await publisher.publish({
+        id: '2',
+        messageType: 'add',
+      })
+
+      await newConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+      await newConsumer.close()
+    })
+
     it('throws an error on first try', async () => {
       let barrierCounter = 0
       const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
@@ -173,6 +201,94 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
+      await newConsumer.close()
+    })
+  })
+
+  describe('prehandlers', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    let publisher: SqsPermissionPublisherMultiSchema
+    beforeEach(async () => {
+      diContainer = await registerDependencies()
+      await diContainer.cradle.permissionConsumerMultiSchema.close()
+      publisher = diContainer.cradle.permissionPublisherMultiSchema
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('processes one prehandler', async () => {
+      expect.assertions(1)
+
+      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: publisher.queueName,
+          },
+        },
+        removeHandlerOverride: async (message, _context, prehandlerOutput) => {
+          expect(prehandlerOutput.messageId).toEqual(message.id)
+          return {
+            result: 'success',
+          }
+        },
+        removePreHandlers: [
+          (message, context, prehandlerOutput, next) => {
+            prehandlerOutput.messageId = message.id
+            next()
+          },
+        ],
+      })
+      await newConsumer.start()
+
+      await publisher.publish({
+        id: '2',
+        messageType: 'remove',
+      })
+
+      await newConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+
+      await newConsumer.close()
+    })
+
+    it('processes two prehandlers', async () => {
+      expect.assertions(1)
+
+      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: publisher.queueName,
+          },
+        },
+        removeHandlerOverride: async (message, _context, prehandlerOutput) => {
+          expect(prehandlerOutput.messageId).toEqual(message.id + ' adjusted')
+          return {
+            result: 'success',
+          }
+        },
+        removePreHandlers: [
+          (message, context, prehandlerOutput, next) => {
+            prehandlerOutput.messageId = message.id
+            next()
+          },
+
+          (message, context, prehandlerOutput, next) => {
+            prehandlerOutput.messageId += ' adjusted'
+            next()
+          },
+        ],
+      })
+      await newConsumer.start()
+
+      await publisher.publish({
+        id: '2',
+        messageType: 'remove',
+      })
+
+      await newConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+
       await newConsumer.close()
     })
   })
