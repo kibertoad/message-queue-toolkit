@@ -44,6 +44,7 @@ export type {
   HandlerContainerOptions,
   Handler,
   Prehandler,
+  PrehandlingOutputs,
 } from './lib/queues/HandlerContainer'
 export { HandlerSpy } from './lib/queues/HandlerSpy'
 export type { SpyResult, HandlerSpyParams, PublicHandlerSpy } from './lib/queues/HandlerSpy'

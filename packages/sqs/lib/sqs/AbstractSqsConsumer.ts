@@ -6,6 +6,7 @@ import type {
   ExistingQueueOptions,
   TransactionObservabilityManager,
   BarrierResult,
+  PrehandlingOutputs,
 } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
@@ -86,7 +87,10 @@ export abstract class AbstractSqsConsumer<
     const barrierResult = await this.preHandlerBarrier(message, messageType, prehandlerOutput)
 
     if (barrierResult.isPassing) {
-      return this.processMessage(message, messageType, prehandlerOutput, barrierResult.output)
+      return this.processMessage(message, messageType, {
+        prehandlerOutput,
+        barrierOutput: barrierResult.output,
+      })
     }
     return { error: 'retryLater' }
   }
@@ -105,8 +109,7 @@ export abstract class AbstractSqsConsumer<
   abstract processMessage(
     message: MessagePayloadType,
     messageType: string,
-    prehandlerOutput: PrehandlerOutput,
-    barrierOutput: BarrierOutput,
+    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, BarrierOutput>,
   ): Promise<Either<'retryLater', 'success'>>
 
   private tryToExtractId(message: SQSMessage): Either<'abort', string> {

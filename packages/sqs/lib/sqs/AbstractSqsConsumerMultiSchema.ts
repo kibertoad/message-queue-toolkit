@@ -5,6 +5,7 @@ import type {
   NewQueueOptionsMultiSchema,
   BarrierResult,
   Prehandler,
+  PrehandlingOutputs,
 } from '@message-queue-toolkit/core'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
@@ -99,12 +100,11 @@ export abstract class AbstractSqsConsumerMultiSchema<
   public override async processMessage(
     message: MessagePayloadType,
     messageType: string,
-    prehandlerOutput: PrehandlerOutput,
-    barrierOutput: unknown,
+    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, unknown>,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler(messageType)
 
-    return handler.handler(message, this.executionContext, prehandlerOutput, barrierOutput)
+    return handler.handler(message, this.executionContext, prehandlingOutputs)
   }
 
   protected override processPrehandlers(message: MessagePayloadType, messageType: string) {
@@ -116,8 +116,9 @@ export abstract class AbstractSqsConsumerMultiSchema<
 
     return new Promise<PrehandlerOutput>((resolve, reject) => {
       try {
-        const prehandlerOutput = {}
+        const prehandlerOutput = {} as PrehandlerOutput
         const next = this.resolveNextFunction(
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           handler.prehandlers!,
           message,
           0,
@@ -137,7 +138,7 @@ export abstract class AbstractSqsConsumerMultiSchema<
     prehandlers: Prehandler<MessagePayloadType, ExecutionContext, unknown>[],
     message: MessagePayloadType,
     index: number,
-    prehandlerOutput: unknown,
+    prehandlerOutput: PrehandlerOutput,
     resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
     reject: (err: Error) => void,
   ) {
@@ -147,7 +148,7 @@ export abstract class AbstractSqsConsumerMultiSchema<
       }
 
       if (prehandlers.length < index + 1) {
-        resolve(prehandlerOutput as PrehandlerOutput)
+        resolve(prehandlerOutput)
       } else {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         prehandlers[index](

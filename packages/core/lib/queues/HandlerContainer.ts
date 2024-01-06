@@ -1,6 +1,11 @@
 import type { Either } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
+export type PrehandlingOutputs<PrehandlerOutput, BarrierOutput> = {
+  prehandlerOutput: PrehandlerOutput
+  barrierOutput: BarrierOutput
+}
+
 export type LogFormatter<MessagePayloadSchema> = (message: MessagePayloadSchema) => unknown
 
 export type BarrierResult<BarrierOutput> =
@@ -20,8 +25,8 @@ export type BarrierResultNegative = {
 export type BarrierCallbackMultiConsumers<
   MessagePayloadSchema extends object,
   ExecutionContext,
-  BarrierOutput,
   PrehandlerOutput,
+  BarrierOutput,
 > = (
   message: MessagePayloadSchema,
   context: ExecutionContext,
@@ -47,8 +52,8 @@ export type HandlerConfigOptions<
   preHandlerBarrier?: BarrierCallbackMultiConsumers<
     MessagePayloadSchema,
     ExecutionContext,
-    BarrierOutput,
-    PrehandlerOutput
+    PrehandlerOutput,
+    BarrierOutput
   >
   prehandlers?: Prehandler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput>[]
 }
@@ -70,8 +75,8 @@ export class MessageHandlerConfig<
   public readonly preHandlerBarrier?: BarrierCallbackMultiConsumers<
     MessagePayloadSchema,
     ExecutionContext,
-    BarrierOutput,
-    PrehandlerOutput
+    PrehandlerOutput,
+    BarrierOutput
   >
   public readonly prehandlers?: Prehandler<
     MessagePayloadSchema,
@@ -153,8 +158,7 @@ export type Handler<
 > = (
   message: MessagePayloadSchemas,
   context: ExecutionContext,
-  prehandlerOutput: PrehandlerOutput,
-  barrierOutput: BarrierOutput,
+  prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, BarrierOutput>,
 ) => Promise<Either<'retryLater', 'success'>>
 
 export type HandlerContainerOptions<
