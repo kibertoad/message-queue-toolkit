@@ -34,7 +34,11 @@ type SqsPermissionConsumerMultiSchemaOptions = (
       'locatorConfig' | 'logMessages'
     >
 ) & {
-  addPreHandlerBarrier?: (message: SupportedMessages) => Promise<BarrierResult<number>>
+  addPreHandlerBarrier?: (
+    message: SupportedMessages,
+    _executionContext: ExecutionContext,
+    prehandlerOutput: PrehandlerOutput,
+  ) => Promise<BarrierResult<number>>
   removeHandlerOverride?: (
     _message: SupportedMessages,
     context: ExecutionContext,
@@ -123,7 +127,9 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
               prehandlers: [
                 (message, _context, prehandlerOutput, next) => {
                   prehandlerOutput.messageId = message.id
-                  next()
+                  next({
+                    result: 'success',
+                  })
                 },
               ],
             },

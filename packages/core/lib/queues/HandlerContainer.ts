@@ -1,6 +1,9 @@
 import type { Either } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
+import type { DoNotProcessMessageError } from '../errors/DoNotProcessError'
+import type { RetryMessageLaterError } from '../errors/RetryMessageLaterError'
+
 export type PrehandlingOutputs<PrehandlerOutput, BarrierOutput> = {
   prehandlerOutput: PrehandlerOutput
   barrierOutput: BarrierOutput
@@ -22,6 +25,8 @@ export type BarrierResultNegative = {
   output?: never
 }
 
+export type PrehandlerResult = Either<DoNotProcessMessageError | RetryMessageLaterError, 'success'>
+
 export type BarrierCallbackMultiConsumers<
   MessagePayloadSchema extends object,
   ExecutionContext,
@@ -37,7 +42,7 @@ export type Prehandler<MessagePayloadSchema extends object, ExecutionContext, Pr
   message: MessagePayloadSchema,
   context: ExecutionContext,
   prehandlerOutput: Partial<PrehandlerOutput>,
-  next: (err?: Error) => void,
+  next: (result: PrehandlerResult) => void,
 ) => void
 
 export const defaultLogFormatter = <MessagePayloadSchema>(message: MessagePayloadSchema) => message

@@ -6,6 +6,7 @@ import type {
   Prehandler,
   PrehandlingOutputs,
 } from '@message-queue-toolkit/core'
+import type { PrehandlerResult } from '@message-queue-toolkit/core/dist/lib/queues/HandlerContainer'
 import type { ZodSchema } from 'zod'
 import { undefined } from 'zod'
 
@@ -142,7 +143,9 @@ export abstract class AbstractSqsConsumerMonoSchema<
           resolve,
           reject,
         )
-        next()
+        next({
+          result: 'success',
+        })
       } catch (err) {
         reject(err as Error)
       }
@@ -158,9 +161,9 @@ export abstract class AbstractSqsConsumerMonoSchema<
     resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
     reject: (err: Error) => void,
   ) {
-    return (err?: Error) => {
-      if (err) {
-        reject(err)
+    return (prehandlerResult: PrehandlerResult) => {
+      if (prehandlerResult.error) {
+        reject(prehandlerResult.error)
       }
 
       if (prehandlers.length < index + 1) {

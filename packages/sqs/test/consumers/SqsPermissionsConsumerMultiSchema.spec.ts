@@ -228,8 +228,8 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
             QueueName: publisher.queueName,
           },
         },
-        removeHandlerOverride: async (message, _context, prehandlerOutput) => {
-          expect(prehandlerOutput.messageId).toEqual(message.id)
+        removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
+          expect(prehandlerOutputs.prehandlerOutput.messageId).toEqual(message.id)
           return {
             result: 'success',
           }
@@ -237,7 +237,9 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
         removePreHandlers: [
           (message, context, prehandlerOutput, next) => {
             prehandlerOutput.messageId = message.id
-            next()
+            next({
+              result: 'success',
+            })
           },
         ],
       })
@@ -262,8 +264,8 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
             QueueName: publisher.queueName,
           },
         },
-        removeHandlerOverride: async (message, _context, prehandlerOutput) => {
-          expect(prehandlerOutput.messageId).toEqual(message.id + ' adjusted')
+        removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
+          expect(prehandlerOutputs.prehandlerOutput.messageId).toEqual(message.id + ' adjusted')
           return {
             result: 'success',
           }
@@ -271,12 +273,16 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
         removePreHandlers: [
           (message, context, prehandlerOutput, next) => {
             prehandlerOutput.messageId = message.id
-            next()
+            next({
+              result: 'success',
+            })
           },
 
           (message, context, prehandlerOutput, next) => {
             prehandlerOutput.messageId += ' adjusted'
-            next()
+            next({
+              result: 'success',
+            })
           },
         ],
       })

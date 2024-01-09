@@ -7,6 +7,7 @@ import type {
   Prehandler,
   PrehandlingOutputs,
 } from '@message-queue-toolkit/core'
+import type { PrehandlerResult } from '@message-queue-toolkit/core/dist/lib/queues/HandlerContainer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import type { SQSCreationConfig } from './AbstractSqsConsumer'
@@ -126,7 +127,7 @@ export abstract class AbstractSqsConsumerMultiSchema<
           resolve,
           reject,
         )
-        next()
+        next({ result: 'success' })
       } catch (err) {
         reject(err as Error)
       }
@@ -142,9 +143,9 @@ export abstract class AbstractSqsConsumerMultiSchema<
     resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
     reject: (err: Error) => void,
   ) {
-    return (err?: Error) => {
-      if (err) {
-        reject(err)
+    return (prehandlerResult: PrehandlerResult) => {
+      if (prehandlerResult.error) {
+        reject(prehandlerResult.error)
       }
 
       if (prehandlers.length < index + 1) {
@@ -182,7 +183,8 @@ export abstract class AbstractSqsConsumerMultiSchema<
     const handler = this.handlerContainer.resolveHandler<BarrierOutput>(messageType)
     // @ts-ignore
     return handler.preHandlerBarrier
-      ? await handler.preHandlerBarrier(message, this.executionContext, prehandlerOutput)
+      ? // @ts-ignore
+        await handler.preHandlerBarrier(message, this.executionContext, prehandlerOutput)
       : {
           isPassing: true,
           output: undefined,

@@ -31,6 +31,10 @@ export {
   MessageInvalidFormatError,
 } from './lib/errors/Errors'
 
+export { RetryMessageLaterError } from './lib/errors/RetryMessageLaterError'
+
+export { DoNotProcessMessageError } from './lib/errors/DoNotProcessError'
+
 export {
   HandlerContainer,
   MessageHandlerConfig,
