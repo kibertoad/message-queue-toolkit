@@ -23,7 +23,7 @@ const DEFAULT_BARRIER_RESULT = {
   output: undefined,
 } as const
 
-type CommonSQSConsumerOptionsMono<
+export type CommonSQSConsumerOptionsMono<
   MessagePayloadType extends object,
   ExecutionContext,
   PrehandlerOutput,

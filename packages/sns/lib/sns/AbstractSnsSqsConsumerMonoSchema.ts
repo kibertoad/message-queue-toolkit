@@ -1,6 +1,7 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { Either } from '@lokalise/node-core'
-import type { MonoSchemaQueueOptions, BarrierResult } from '@message-queue-toolkit/core'
+import type { MonoSchemaQueueOptions, BarrierResult, Prehandler } from '@message-queue-toolkit/core'
+import type { PrehandlerResult } from '@message-queue-toolkit/core/dist/lib/queues/HandlerContainer'
 import type {
   SQSConsumerDependencies,
   NewSQSConsumerOptions,
@@ -8,6 +9,7 @@ import type {
   SQSQueueLocatorType,
   SQSCreationConfig,
   SQSMessage,
+  CommonSQSConsumerOptionsMono,
 } from '@message-queue-toolkit/sqs'
 import { AbstractSqsConsumer, deleteSqs } from '@message-queue-toolkit/sqs'
 import type { ZodSchema } from 'zod'
@@ -30,16 +32,26 @@ export type NewSnsSqsConsumerOptions = NewSQSConsumerOptions<
     subscriptionConfig?: SNSSubscriptionOptions
   }
 
-export type NewSnsSqsConsumerOptionsMono<MessagePayloadType extends object> =
-  NewSnsSqsConsumerOptions & MonoSchemaQueueOptions<MessagePayloadType>
+export type NewSnsSqsConsumerOptionsMono<
+  MessagePayloadType extends object,
+  ExecutionContext,
+  PrehandlerOutput,
+> = NewSnsSqsConsumerOptions &
+  MonoSchemaQueueOptions<MessagePayloadType> &
+  CommonSQSConsumerOptionsMono<MessagePayloadType, ExecutionContext, PrehandlerOutput>
 
 export type ExistingSnsSqsConsumerOptions = ExistingSQSConsumerOptions<SNSSQSQueueLocatorType> &
   ExistingSNSOptions & {
     subscriptionConfig?: SNSSubscriptionOptions
   }
 
-export type ExistingSnsSqsConsumerOptionsMono<MessagePayloadType extends object> =
-  ExistingSnsSqsConsumerOptions & MonoSchemaQueueOptions<MessagePayloadType>
+export type ExistingSnsSqsConsumerOptionsMono<
+  MessagePayloadType extends object,
+  ExecutionContext,
+  PrehandlerOutput,
+> = ExistingSnsSqsConsumerOptions &
+  MonoSchemaQueueOptions<MessagePayloadType> &
+  CommonSQSConsumerOptionsMono<MessagePayloadType, ExecutionContext, PrehandlerOutput>
 
 export type SNSSQSConsumerDependencies = SQSConsumerDependencies & {
   snsClient: SNSClient
@@ -57,18 +69,28 @@ const DEFAULT_BARRIER_RESULT = {
 
 export abstract class AbstractSnsSqsConsumerMonoSchema<
   MessagePayloadType extends object,
+  ExecutionContext = undefined,
+  PrehandlerOutput = undefined,
   BarrierOutput = undefined,
 > extends AbstractSqsConsumer<
   MessagePayloadType,
   SNSSQSQueueLocatorType,
   SNSCreationConfig & SQSCreationConfig,
-  NewSnsSqsConsumerOptions | ExistingSnsSqsConsumerOptionsMono<MessagePayloadType>,
+  | NewSnsSqsConsumerOptions
+  | ExistingSnsSqsConsumerOptionsMono<MessagePayloadType, ExecutionContext, PrehandlerOutput>,
+  PrehandlerOutput,
   BarrierOutput
 > {
   private readonly subscriptionConfig?: SNSSubscriptionOptions
   private readonly snsClient: SNSClient
   private readonly messageSchema: ZodSchema<MessagePayloadType>
   private readonly schemaEither: Either<Error, ZodSchema<MessagePayloadType>>
+  private readonly prehandlers?: Prehandler<
+    MessagePayloadType,
+    ExecutionContext,
+    PrehandlerOutput
+  >[]
+
   // @ts-ignore
   public topicArn: string
   // @ts-ignore
@@ -76,9 +98,7 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
 
   protected constructor(
     dependencies: SNSSQSConsumerDependencies,
-    options:
-      | NewSnsSqsConsumerOptionsMono<MessagePayloadType>
-      | ExistingSnsSqsConsumerOptionsMono<MessagePayloadType>,
+    options: NewSnsSqsConsumerOptionsMono<MessagePayloadType, ExecutionContext, PrehandlerOutput>,
   ) {
     super(dependencies, {
       ...options,
@@ -86,6 +106,7 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
 
     this.subscriptionConfig = options.subscriptionConfig
     this.snsClient = dependencies.snsClient
+    this.prehandlers = options.prehandlers
     this.messageSchema = options.messageSchema
     this.schemaEither = {
       result: this.messageSchema,
@@ -109,6 +130,68 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
   ): Promise<BarrierResult<BarrierOutput>> {
     // @ts-ignore
     return Promise.resolve(DEFAULT_BARRIER_RESULT)
+  }
+
+  protected override processPrehandlers(message: MessagePayloadType) {
+    if (!this.prehandlers || this.prehandlers.length === 0) {
+      return Promise.resolve({} as PrehandlerOutput)
+    }
+
+    return new Promise<PrehandlerOutput>((resolve, reject) => {
+      try {
+        const prehandlerOutput = {} as PrehandlerOutput
+        const next = this.resolveNextFunction(
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          this.prehandlers!,
+          message,
+          0,
+          prehandlerOutput,
+          resolve,
+          reject,
+        )
+        next({
+          result: 'success',
+        })
+      } catch (err) {
+        reject(err as Error)
+      }
+    })
+  }
+
+  // eslint-disable-next-line max-params
+  private resolveNextFunction(
+    prehandlers: Prehandler<MessagePayloadType, ExecutionContext, PrehandlerOutput>[],
+    message: MessagePayloadType,
+    index: number,
+    prehandlerOutput: PrehandlerOutput,
+    resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
+    reject: (err: Error) => void,
+  ) {
+    return (prehandlerResult: PrehandlerResult) => {
+      if (prehandlerResult.error) {
+        reject(prehandlerResult.error)
+      }
+
+      if (prehandlers.length < index + 1) {
+        resolve(prehandlerOutput)
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        prehandlers[index](
+          message,
+          this as unknown as ExecutionContext,
+          // @ts-ignore
+          prehandlerOutput,
+          this.resolveNextFunction(
+            prehandlers,
+            message,
+            index + 1,
+            prehandlerOutput,
+            resolve,
+            reject,
+          ),
+        )
+      }
+    }
   }
 
   override async init(): Promise<void> {
