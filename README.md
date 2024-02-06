@@ -254,7 +254,7 @@ await myConsumer.handlerSpy.waitForMessage({
 
 await myPublisher.handlerSpy.waitForMessage({
     userId: 1
-}, 'consumed')
+}, 'published')
 ```
 
 You can also check details of the message processing outcome:
