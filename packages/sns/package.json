@@ -45,7 +45,7 @@
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "@vitest/coverage-v8": "^1.2.2",
-    "awilix": "^9.0.0",
+    "awilix": "^10.0.1",
     "awilix-manager": "^4.0.0",
     "del-cli": "^5.1.0",
     "eslint": "^8.55.0",
