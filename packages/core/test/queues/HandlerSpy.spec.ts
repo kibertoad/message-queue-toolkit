@@ -8,6 +8,12 @@ type Message = {
   payload?: Record<string, unknown>
 }
 
+type MessageB = {
+  id2: string
+  status2: string
+  payload?: Record<string, unknown>
+}
+
 type DeepMessage = {
   id: string
   status: string
@@ -24,9 +30,19 @@ const TEST_MESSAGE: Message = {
   status: 'done',
 }
 
+const TEST_MESSAGEB: MessageB = {
+  id2: 'abc',
+  status2: 'done',
+}
+
 const TEST_MESSAGE_2: Message = {
   id: 'abcd',
   status: 'inprogress',
+}
+
+const TEST_MESSAGE_2B: MessageB = {
+  id2: 'abcd',
+  status2: 'inprogress',
 }
 
 const TEST_MESSAGE_3: Message = {
@@ -102,6 +118,26 @@ describe('HandlerSpy', () => {
       })
 
       expect(message.message).toEqual(TEST_MESSAGE)
+    })
+
+    it('Finds previously consumed event with type narrowing', async () => {
+      const spy = new HandlerSpy<Message | MessageB>()
+
+      spy.addProcessedMessage({
+        processingResult: 'consumed',
+        message: TEST_MESSAGE_2B,
+      })
+
+      spy.addProcessedMessage({
+        processingResult: 'consumed',
+        message: TEST_MESSAGEB,
+      })
+
+      const message = await spy.waitForMessage<MessageB>({
+        status2: 'done',
+      })
+
+      expect(message.message).toEqual(TEST_MESSAGEB)
     })
 
     it('Finds previously consumed event with a deep match', async () => {
@@ -270,6 +306,26 @@ describe('HandlerSpy', () => {
       const message = await spyPromise
 
       expect(message.message).toEqual(TEST_MESSAGE)
+    })
+
+    it('Finds previously consumed event with type narrowing', async () => {
+      const spy = new HandlerSpy<Message | MessageB>({
+        messageIdField: 'id2',
+      })
+
+      spy.addProcessedMessage({
+        processingResult: 'consumed',
+        message: TEST_MESSAGE_2B,
+      })
+
+      spy.addProcessedMessage({
+        processingResult: 'consumed',
+        message: TEST_MESSAGEB,
+      })
+
+      const message = await spy.waitForMessageWithId<MessageB>(TEST_MESSAGEB.id2)
+
+      expect(message.message).toEqual(TEST_MESSAGEB)
     })
 
     it('Waits for an invalid message to be rejected by id', async () => {
