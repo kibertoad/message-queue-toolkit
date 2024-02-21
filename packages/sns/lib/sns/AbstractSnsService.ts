@@ -90,8 +90,8 @@ export abstract class AbstractSnsService<
     this.snsClient = dependencies.snsClient
   }
 
-  // TODO: should we keep it public? TBD marking as private for now to facilitate testing
-  private async init() {
+  // TODO: should we keep it public? TBD
+  public async init() {
     if (this.deletionConfig && this.creationConfig) {
       await deleteSns(this.snsClient, this.deletionConfig, this.creationConfig)
     }
