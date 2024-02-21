@@ -37,28 +37,8 @@ export abstract class AbstractSnsPublisherMonoSchema<MessagePayloadType extends 
     }
   }
 
-  async publish(message: MessagePayloadType, options: SNSMessageOptions = {}): Promise<void> {
-    try {
-      this.messageSchema.parse(message)
-
-      if (this.logMessages) {
-        // @ts-ignore
-        const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
-        this.logMessage(resolvedLogMessage)
-      }
-
-      const input = {
-        Message: JSON.stringify(message),
-        TopicArn: this.topicArn,
-        ...options,
-      } satisfies PublishCommandInput
-      const command = new PublishCommand(input)
-      await this.snsClient.send(command)
-      this.handleMessageProcessed(message, 'published')
-    } catch (error) {
-      this.handleError(error)
-      throw error
-    }
+  publish(message: MessagePayloadType, options: SNSMessageOptions = {}): Promise<void> {
+    return this.internalPublish(message, this.messageSchema, options)
   }
 
   /* c8 ignore start */
