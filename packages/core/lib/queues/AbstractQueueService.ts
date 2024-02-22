@@ -58,7 +58,11 @@ export type CommonQueueOptions = {
   logMessages?: boolean
 }
 
-export type NewQueueOptions<CreationConfigType extends object> = {
+export type CommonCreationConfigType = {
+  updateAttributesIfExists?: boolean
+}
+
+export type NewQueueOptions<CreationConfigType extends CommonCreationConfigType> = {
   locatorConfig?: never
   deletionConfig?: DeletionConfig
   creationConfig: CreationConfigType

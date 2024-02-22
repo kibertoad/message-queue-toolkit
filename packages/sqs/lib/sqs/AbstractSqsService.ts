@@ -1,5 +1,4 @@
-import type { SQSClient } from '@aws-sdk/client-sqs'
-import type { CreateQueueRequest } from '@aws-sdk/client-sqs/dist-types/models/models_0'
+import type { SQSClient, CreateQueueRequest } from '@aws-sdk/client-sqs'
 import type {
   QueueConsumerDependencies,
   QueueDependencies,

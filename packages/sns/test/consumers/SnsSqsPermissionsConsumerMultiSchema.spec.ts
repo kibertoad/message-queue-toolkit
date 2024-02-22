@@ -1,6 +1,6 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
-import { assertQueue } from '@message-queue-toolkit/sqs'
+import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
@@ -20,6 +20,9 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
       diContainer = await registerDependencies({}, false)
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
+    })
+    beforeEach(async () => {
+      await deleteQueue(sqsClient, 'existingQueue')
     })
 
     // FixMe https://github.com/localstack/localstack/issues/9306
@@ -66,6 +69,44 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
         'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
       )
       await deleteTopic(snsClient, 'existingTopic')
+    })
+
+    it('updates existing queue when one with different attributes exist', async () => {
+      await assertQueue(sqsClient, {
+        QueueName: 'existingQueue',
+        Attributes: {
+          KmsMasterKeyId: 'somevalue',
+        },
+      })
+
+      const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
+        creationConfig: {
+          topic: {
+            Name: 'sometopic',
+          },
+          queue: {
+            QueueName: 'existingQueue',
+            Attributes: {
+              KmsMasterKeyId: 'othervalue',
+            },
+          },
+          updateAttributesIfExists: true,
+        },
+        deletionConfig: {
+          deleteIfExists: false,
+        },
+      })
+
+      await newConsumer.init()
+      expect(newConsumer.queueUrl).toBe(
+        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+      )
+
+      const attributes = await getQueueAttributes(sqsClient, {
+        queueUrl: newConsumer.queueUrl,
+      })
+
+      expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
     })
   })
 
