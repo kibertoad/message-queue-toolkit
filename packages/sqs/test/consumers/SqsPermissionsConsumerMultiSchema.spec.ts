@@ -6,7 +6,7 @@ import { asClass, asFunction } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
-import {assertQueue, deleteQueue, getQueueAttributes} from '../../lib/utils/sqsUtils'
+import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import { FakeLogger } from '../fakes/FakeLogger'
 import type { SqsPermissionPublisherMultiSchema } from '../publishers/SqsPermissionPublisherMultiSchema'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
@@ -86,7 +86,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       )
 
       const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.queueUrl
+        queueUrl: newConsumer.queueUrl,
       })
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')

@@ -2,19 +2,12 @@ import type { SQSClient } from '@aws-sdk/client-sqs'
 import { SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
 import type { QueueAttributeName } from '@aws-sdk/client-sqs/dist-types/models/models_0'
 import type { DeletionConfig } from '@message-queue-toolkit/core'
-import { shallowEqual, isProduction } from '@message-queue-toolkit/core'
-import { findSubscriptionByTopicAndQueue } from '@message-queue-toolkit/sns'
-import { SNSSubscriptionOptions } from '@message-queue-toolkit/sns/dist/lib/utils/snsSubscriber'
+import { isProduction } from '@message-queue-toolkit/core'
 
 import type { SQSCreationConfig } from '../sqs/AbstractSqsConsumer'
 import type { SQSQueueLocatorType } from '../sqs/AbstractSqsService'
 
-import {
-  assertQueue,
-  deleteQueue,
-  getQueueAttributes,
-  getQueueUrl,
-} from './sqsUtils'
+import { assertQueue, deleteQueue, getQueueAttributes } from './sqsUtils'
 
 export async function deleteSqs(
   sqsClient: SQSClient,
@@ -42,7 +35,7 @@ export async function deleteSqs(
   )
 }
 
-async function updateQueueAttributes(
+export async function updateQueueAttributes(
   sqsClient: SQSClient,
   queueUrl: string,
   attributes: Partial<Record<QueueAttributeName, string>> = {},
@@ -87,31 +80,10 @@ export async function initSqs(
     throw new Error('queueConfig.QueueName is mandatory when locator is not provided')
   }
 
-  // we will try to update existing queue if exists
-  if (creationConfig.updateAttributesIfExists) {
-    const queueExistsResult = await getQueueUrl(sqsClient, creationConfig.queue.QueueName)
-
-    if (queueExistsResult.result) {
-      const queueUrl = queueExistsResult.result
-      const existingAttributes = await getQueueAttributes(sqsClient, {
-        queueUrl,
-      })
-
-      if (shallowEqual(existingAttributes.result, creationConfig.queue.Attributes)) {
-      } else {
-        await updateQueueAttributes(sqsClient, queueUrl, creationConfig.queue.Attributes)
-      }
-
-      return {
-        queueUrl,
-        queueArn: 'dummy',
-        queueName: creationConfig.queue.QueueName,
-      }
-    }
-  }
   // create new queue
   const { queueUrl, queueArn } = await assertQueue(sqsClient, creationConfig.queue, {
     topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
+    updateAttributesIfExists: creationConfig.updateAttributesIfExists,
   })
   const queueName = creationConfig.queue.QueueName
 

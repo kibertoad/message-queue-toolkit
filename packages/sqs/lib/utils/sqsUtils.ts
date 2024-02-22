@@ -9,12 +9,13 @@ import {
 } from '@aws-sdk/client-sqs'
 import type { QueueAttributeName } from '@aws-sdk/client-sqs/dist-types/models/models_0'
 import type { Either } from '@lokalise/node-core'
-import { waitAndRetry } from '@message-queue-toolkit/core'
+import { shallowEqual, waitAndRetry } from '@message-queue-toolkit/core'
 
 import type { ExtraSQSCreationParams } from '../sqs/AbstractSqsConsumer'
 import type { SQSQueueLocatorType } from '../sqs/AbstractSqsService'
 
 import { generateQueuePublishForTopicPolicy } from './sqsAttributeUtils'
+import { updateQueueAttributes } from './sqsInitter'
 
 const AWS_QUEUE_DOES_NOT_EXIST_ERROR_NAME = 'QueueDoesNotExist'
 
@@ -77,6 +78,34 @@ export async function assertQueue(
   queueConfig: CreateQueueCommandInput,
   extraParams?: ExtraSQSCreationParams,
 ) {
+  // we will try to update existing queue if exists
+  if (extraParams?.updateAttributesIfExists) {
+    const queueExistsResult = await getQueueUrl(sqsClient, queueConfig.QueueName!)
+
+    if (queueExistsResult.result) {
+      const queueUrl = queueExistsResult.result
+      const existingAttributes = await getQueueAttributes(sqsClient, {
+        queueUrl,
+      })
+
+      const queueArn = existingAttributes.result?.attributes!.QueueArn
+      if (!queueArn) {
+        throw new Error('Queue ARN was not set')
+      }
+
+      if (shallowEqual(existingAttributes.result, queueConfig.Attributes)) {
+      } else {
+        await updateQueueAttributes(sqsClient, queueUrl, queueConfig.Attributes)
+      }
+
+      return {
+        queueUrl,
+        queueArn,
+        queueName: queueConfig.QueueName,
+      }
+    }
+  }
+
   const command = new CreateQueueCommand(queueConfig)
   await sqsClient.send(command)
 

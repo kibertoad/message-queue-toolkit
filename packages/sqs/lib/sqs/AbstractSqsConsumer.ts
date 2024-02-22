@@ -26,6 +26,7 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
 
 export type ExtraSQSCreationParams = {
   topicArnsWithPublishPermissionsPrefix?: string
+  updateAttributesIfExists?: boolean
 }
 
 export type SQSCreationConfig = {

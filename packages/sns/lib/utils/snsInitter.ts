@@ -44,6 +44,7 @@ export async function initSnsSqs(
       creationConfig.topic,
       subscriptionConfig,
       {
+        updateAttributesIfExists: creationConfig.updateAttributesIfExists,
         queueUrlsWithSubscribePermissionsPrefix:
           creationConfig.queueUrlsWithSubscribePermissionsPrefix,
         topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,

@@ -35,7 +35,7 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
   constructor(
     dependencies: SNSSQSConsumerDependencies,
     options:
-      | Pick<NewSnsSqsConsumerOptions, 'creationConfig'>
+      | Pick<NewSnsSqsConsumerOptions, 'creationConfig' | 'deletionConfig'>
       | Pick<ExistingSnsSqsConsumerOptions, 'locatorConfig'> = {
       creationConfig: {
         queue: {
