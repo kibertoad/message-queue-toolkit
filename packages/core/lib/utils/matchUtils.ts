@@ -11,7 +11,9 @@ export function shallowEqual(
     return true
   }
 
+  // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
   const keys1 = Object.keys(object1!)
+  // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
   const keys2 = Object.keys(object2!)
 
   if (keys1.length !== keys2.length) {
@@ -20,6 +22,7 @@ export function shallowEqual(
 
   // eslint-disable-next-line prefer-const
   for (let key of keys1) {
+    // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
     if (object1![key] !== object2![key]) {
       return false
     }

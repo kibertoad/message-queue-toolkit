@@ -20,6 +20,8 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
       diContainer = await registerDependencies({}, false)
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
+    })
+    beforeEach(async () => {
       await deleteQueue(sqsClient, 'existingQueue')
     })
 
