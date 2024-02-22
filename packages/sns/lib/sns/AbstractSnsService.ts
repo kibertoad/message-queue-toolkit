@@ -63,6 +63,7 @@ export type ExtraSNSCreationParams = {
 
 export type SNSCreationConfig = {
   topic: SNSTopicAWSConfig
+  updateAttributesIfExists?: boolean
 } & ExtraSNSCreationParams
 
 export abstract class AbstractSnsService<
