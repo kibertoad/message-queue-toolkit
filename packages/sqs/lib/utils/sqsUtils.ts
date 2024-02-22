@@ -89,6 +89,7 @@ export async function assertQueue(
 ) {
   // we will try to update existing queue if exists
   if (extraParams?.updateAttributesIfExists) {
+    // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
     const queueExistsResult = await getQueueUrl(sqsClient, queueConfig.QueueName!)
 
     if (queueExistsResult.result) {
@@ -97,7 +98,11 @@ export async function assertQueue(
         queueUrl,
       })
 
-      const queueArn = existingAttributes.result?.attributes!.QueueArn
+      if (!existingAttributes.result?.attributes) {
+        throw new Error('Attributes are not set')
+      }
+
+      const queueArn = existingAttributes.result?.attributes.QueueArn
       if (!queueArn) {
         throw new Error('Queue ARN was not set')
       }
