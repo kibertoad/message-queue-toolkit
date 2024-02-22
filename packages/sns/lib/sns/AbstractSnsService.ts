@@ -91,7 +91,6 @@ export abstract class AbstractSnsService<
     this.snsClient = dependencies.snsClient
   }
 
-  // TODO: should we keep it public? TBD
   public async init() {
     if (this.deletionConfig && this.creationConfig) {
       await deleteSns(this.snsClient, this.deletionConfig, this.creationConfig)
@@ -109,7 +108,6 @@ export abstract class AbstractSnsService<
     messageSchema: ZodSchema<MessagePayloadType>,
     options: SNSMessageOptions = {},
   ): Promise<void> {
-    // TODO: decide it should be here or in try-catch
     if (this.topicArn === undefined) {
       // Lazy loading
       await this.init()
