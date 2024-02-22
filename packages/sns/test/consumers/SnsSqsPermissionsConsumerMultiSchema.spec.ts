@@ -130,7 +130,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
 
       await newConsumer.init()
       expect(newConsumer.queueUrl).toBe(
-          'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
       )
 
       const attributes = await getQueueAttributes(sqsClient, {
