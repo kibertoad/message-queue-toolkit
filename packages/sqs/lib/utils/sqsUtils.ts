@@ -26,20 +26,30 @@ export async function getQueueUrl(
   sqsClient: SQSClient,
   queueName: string,
 ): Promise<Either<'not_found', string>> {
-  const result = await sqsClient.send(
-    new GetQueueUrlCommand({
-      QueueName: queueName,
-    }),
-  )
+  try {
+    const result = await sqsClient.send(
+      new GetQueueUrlCommand({
+        QueueName: queueName,
+      }),
+    )
 
-  if (result.QueueUrl) {
-    return {
-      result: result.QueueUrl,
+    if (result.QueueUrl) {
+      return {
+        result: result.QueueUrl,
+      }
     }
-  }
 
-  return {
-    error: 'not_found',
+    return {
+      error: 'not_found',
+    }
+  } catch (err) {
+    // @ts-ignore
+    if (err.Code === 'AWS.SimpleQueueService.NonExistentQueue') {
+      return {
+        error: 'not_found',
+      }
+    }
+    throw err
   }
 }
 
@@ -79,6 +89,7 @@ export async function assertQueue(
 ) {
   // we will try to update existing queue if exists
   if (extraParams?.updateAttributesIfExists) {
+    // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
     const queueExistsResult = await getQueueUrl(sqsClient, queueConfig.QueueName!)
 
     if (queueExistsResult.result) {
@@ -87,7 +98,11 @@ export async function assertQueue(
         queueUrl,
       })
 
-      const queueArn = existingAttributes.result?.attributes!.QueueArn
+      if (!existingAttributes.result?.attributes) {
+        throw new Error('Attributes are not set')
+      }
+
+      const queueArn = existingAttributes.result?.attributes.QueueArn
       if (!queueArn) {
         throw new Error('Queue ARN was not set')
       }
