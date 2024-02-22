@@ -109,6 +109,29 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
         expect(consumer.addCounter).toBe(1)
         expect(consumer.removeCounter).toBe(2)
       })
+
+      it('Handles prehandlers', async () => {
+        await publisher.publish({
+          id: '1',
+          messageType: 'add',
+        })
+        await publisher.publish({
+          id: '2',
+          messageType: 'remove',
+        })
+        await publisher.publish({
+          id: '3',
+          messageType: 'remove',
+        })
+
+        await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+        await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+        await consumer.handlerSpy.waitForMessageWithId('3', 'consumed')
+
+        expect(consumer.addBarrierCounter).toBe(3)
+        expect(consumer.addCounter).toBe(1)
+        expect(consumer.removeCounter).toBe(2)
+      })
     })
   })
 })

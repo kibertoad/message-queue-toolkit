@@ -1,10 +1,14 @@
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
+import type { PrehandlerResult } from '@message-queue-toolkit/core/dist/lib/queues/HandlerContainer'
+import type { SQSCreationConfig } from '@message-queue-toolkit/sqs'
+import type { NewSQSConsumerOptionsMultiSchema } from '@message-queue-toolkit/sqs/dist/lib/sqs/AbstractSqsConsumerMultiSchema'
 
 import type {
   SNSSQSConsumerDependencies,
   NewSnsSqsConsumerOptions,
   ExistingSnsSqsConsumerOptions,
 } from '../../lib/sns/AbstractSnsSqsConsumerMonoSchema'
+import type { NewSnsSqsConsumerOptionsMulti } from '../../lib/sns/AbstractSnsSqsConsumerMultiSchema'
 import { AbstractSnsSqsConsumerMultiSchema } from '../../lib/sns/AbstractSnsSqsConsumerMultiSchema'
 
 import type {
@@ -20,10 +24,14 @@ type SupportedEvents = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE
 type ExecutionContext = {
   incrementAmount: number
 }
+type PrehandlerOutput = {
+  prehandlerCount: number
+}
 
 export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerMultiSchema<
   SupportedEvents,
-  ExecutionContext
+  ExecutionContext,
+  PrehandlerOutput
 > {
   public static CONSUMED_QUEUE_NAME = 'user_permissions_multi'
   public static SUBSCRIBED_TOPIC_NAME = 'user_permissions_multi'
@@ -31,6 +39,7 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
   public addCounter = 0
   public addBarrierCounter = 0
   public removeCounter = 0
+  public prehandlerCounter = 0
 
   constructor(
     dependencies: SNSSQSConsumerDependencies,
@@ -61,6 +70,21 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
               }
             },
             {
+              prehandlers: [
+                (
+                  message: SupportedEvents,
+                  context: ExecutionContext,
+                  prehandlerOutput: Partial<PrehandlerOutput>,
+                  next: (result: PrehandlerResult) => void,
+                ) => {
+                  if (message.prehandlerIncrement) {
+                    this.prehandlerCounter += message.prehandlerIncrement
+                  }
+                  next({
+                    result: 'success',
+                  })
+                },
+              ],
               preHandlerBarrier: async (_message, context) => {
                 this.addBarrierCounter += context.incrementAmount
                 if (this.addBarrierCounter < 3) {
@@ -93,7 +117,11 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
         subscriptionConfig: {
           updateAttributesIfExists: false,
         },
-        ...options,
+        // FixMe this casting shouldn't be necessary
+        ...(options as Pick<
+          NewSnsSqsConsumerOptionsMulti<SupportedEvents, ExecutionContext, PrehandlerOutput>,
+          'creationConfig' | 'logMessages'
+        >),
       },
       {
         incrementAmount: 1,
