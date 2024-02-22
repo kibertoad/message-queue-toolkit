@@ -1,4 +1,3 @@
-import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import {
   CreateQueueCommand,
   GetQueueUrlCommand,
@@ -7,7 +6,7 @@ import {
   SetQueueAttributesCommand,
   ListQueuesCommand,
 } from '@aws-sdk/client-sqs'
-import type { QueueAttributeName } from '@aws-sdk/client-sqs/dist-types/models/models_0'
+import type { CreateQueueCommandInput, SQSClient, QueueAttributeName } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
 import { shallowEqual, waitAndRetry } from '@message-queue-toolkit/core'
 
