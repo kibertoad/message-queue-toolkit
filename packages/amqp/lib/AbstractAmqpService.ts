@@ -22,6 +22,7 @@ export type AMQPQueueConfig = Options.AssertQueue
 export type CreateAMQPQueueOptions = {
   queueOptions: AMQPQueueConfig
   queueName: string
+  updateAttributesIfExists?: boolean
 }
 
 export type AMQPQueueLocatorType = {
@@ -145,6 +146,12 @@ export abstract class AbstractAmqpService<
   }
 
   public async init() {
+    if (this.creationConfig?.updateAttributesIfExists) {
+      throw new Error(
+        'updateAttributesIfExists parameter is not currently supported by the Amqp adapter',
+      )
+    }
+
     // if we don't have connection yet, it's fine, we'll wait for a later receiveNewConnection() call
     if (this.connection) {
       await this.receiveNewConnection(this.connection)
