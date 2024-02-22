@@ -30,6 +30,7 @@ export type ExtraSQSCreationParams = {
 
 export type SQSCreationConfig = {
   queue: SQSQueueConfig
+  updateAttributesIfExists?: boolean
 } & ExtraSQSCreationParams
 
 export type NewSQSConsumerOptions<CreationConfigType extends SQSCreationConfig> =

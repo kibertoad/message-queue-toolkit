@@ -19,13 +19,34 @@ import { generateQueuePublishForTopicPolicy } from './sqsAttributeUtils'
 const AWS_QUEUE_DOES_NOT_EXIST_ERROR_NAME = 'QueueDoesNotExist'
 
 type QueueAttributesResult = {
-  attributes?: Record<string, string>
+  attributes?: Partial<Record<QueueAttributeName, string>>
+}
+
+export async function getQueueUrl(
+  sqsClient: SQSClient,
+  queueName: string,
+): Promise<Either<'not_found', string>> {
+  const result = await sqsClient.send(
+    new GetQueueUrlCommand({
+      QueueName: queueName,
+    }),
+  )
+
+  if (result.QueueUrl) {
+    return {
+      result: result.QueueUrl,
+    }
+  }
+
+  return {
+    error: 'not_found',
+  }
 }
 
 export async function getQueueAttributes(
   sqsClient: SQSClient,
   queueLocator: SQSQueueLocatorType,
-  attributeNames?: QueueAttributeName[],
+  attributeNames: QueueAttributeName[] = ['All'],
 ): Promise<Either<'not_found', QueueAttributesResult>> {
   const command = new GetQueueAttributesCommand({
     QueueUrl: queueLocator.queueUrl,

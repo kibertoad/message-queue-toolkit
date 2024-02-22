@@ -25,7 +25,7 @@ type SqsPermissionConsumerMultiSchemaOptions = (
         SqsPermissionConsumerMultiSchema,
         SQSCreationConfig
       >,
-      'creationConfig' | 'logMessages'
+      'creationConfig' | 'logMessages' | 'deletionConfig'
     >
   | Pick<
       ExistingSQSConsumerOptionsMultiSchema<SupportedMessages, SqsPermissionConsumerMultiSchema>,

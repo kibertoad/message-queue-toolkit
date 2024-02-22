@@ -6,7 +6,7 @@ import { asClass, asFunction } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
-import { assertQueue, deleteQueue } from '../../lib/utils/sqsUtils'
+import {assertQueue, deleteQueue, getQueueAttributes} from '../../lib/utils/sqsUtils'
 import { FakeLogger } from '../fakes/FakeLogger'
 import type { SqsPermissionPublisherMultiSchema } from '../publishers/SqsPermissionPublisherMultiSchema'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
@@ -54,6 +54,42 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       expect(newConsumer.queueUrl).toBe(
         'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
       )
+    })
+
+    it('updates existing queue when one with different attributes exist', async () => {
+      await assertQueue(sqsClient, {
+        QueueName: 'existingQueue',
+        Attributes: {
+          KmsMasterKeyId: 'somevalue',
+        },
+      })
+
+      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: 'existingQueue',
+            Attributes: {
+              KmsMasterKeyId: 'othervalue',
+            },
+          },
+          updateAttributesIfExists: true,
+        },
+        deletionConfig: {
+          deleteIfExists: false,
+        },
+        logMessages: true,
+      })
+
+      await newConsumer.init()
+      expect(newConsumer.queueUrl).toBe(
+        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+      )
+
+      const attributes = await getQueueAttributes(sqsClient, {
+        queueUrl: newConsumer.queueUrl
+      })
+
+      expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
     })
   })
 
