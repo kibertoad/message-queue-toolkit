@@ -1,5 +1,3 @@
-import type { SendMessageCommandInput } from '@aws-sdk/client-sqs'
-import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
 import type {
   AsyncPublisher,

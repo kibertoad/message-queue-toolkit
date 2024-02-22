@@ -1,5 +1,3 @@
-import { PublishCommand } from '@aws-sdk/client-sns'
-import type { PublishCommandInput } from '@aws-sdk/client-sns/dist-types/commands/PublishCommand'
 import type { Either } from '@lokalise/node-core'
 import type {
   AsyncPublisher,
