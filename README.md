@@ -34,7 +34,7 @@ Mono-schema publishers only support a single message type and are simpler to imp
         * `messageTypeField` - which field in the message describes the type of a message. This field needs to be defined as `z.literal` in the schema;
         * `locatorConfig` - configuration for resolving existing queue and/or topic. Should not be specified together with the `creationConfig`.
         * `creationConfig` - configuration for queue and/or topic to create, if one does not exist. Should not be specified together with the `locatorConfig`.
-* `init()`, prepare publisher for use (e. g. establish all necessary connections);
+* `init()`, prepare publisher for use (e. g. establish all necessary connections), it will be called automatically by `publish()` if not called before explicitly (lazy loading).
 * `close()`, stop publisher use (e. g. disconnect);
 * `publish()`, send a message to a queue or topic. It accepts the following parameters:
     * `message` – a message following a `zod` schema;
