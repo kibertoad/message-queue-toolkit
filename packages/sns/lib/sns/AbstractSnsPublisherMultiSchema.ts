@@ -40,12 +40,12 @@ export abstract class AbstractSnsPublisherMultiSchema<MessagePayloadType extends
   }
 
   async publish(message: MessagePayloadType, options: SNSMessageOptions = {}): Promise<void> {
-    const resolveSchemaResult = this.resolveSchema(message)
-    if (resolveSchemaResult.error) {
-      throw resolveSchemaResult.error
+    const messageSchemaResult = this.resolveSchema(message)
+    if (messageSchemaResult.error) {
+      throw messageSchemaResult.error
     }
 
-    return this.internalPublish(message, resolveSchemaResult.result, options)
+    return this.internalPublish(message, messageSchemaResult.result, options)
   }
 
   protected override resolveMessage(): Either<
