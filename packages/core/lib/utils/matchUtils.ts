@@ -21,7 +21,7 @@ export function shallowEqual(
   // eslint-disable-next-line prefer-const
   for (let key of keys1) {
     if (object1![key] !== object2![key]) {
-      return false;
+      return false
     }
   }
 
