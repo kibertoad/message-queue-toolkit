@@ -26,20 +26,30 @@ export async function getQueueUrl(
   sqsClient: SQSClient,
   queueName: string,
 ): Promise<Either<'not_found', string>> {
-  const result = await sqsClient.send(
-    new GetQueueUrlCommand({
-      QueueName: queueName,
-    }),
-  )
+  try {
+    const result = await sqsClient.send(
+      new GetQueueUrlCommand({
+        QueueName: queueName,
+      }),
+    )
 
-  if (result.QueueUrl) {
-    return {
-      result: result.QueueUrl,
+    if (result.QueueUrl) {
+      return {
+        result: result.QueueUrl,
+      }
     }
-  }
 
-  return {
-    error: 'not_found',
+    return {
+      error: 'not_found',
+    }
+  } catch (err) {
+    // @ts-ignore
+    if (err.Code === 'AWS.SimpleQueueService.NonExistentQueue') {
+      return {
+        error: 'not_found',
+      }
+    }
+    throw err
   }
 }
 
