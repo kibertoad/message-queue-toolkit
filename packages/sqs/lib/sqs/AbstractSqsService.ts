@@ -1,4 +1,5 @@
-import type { SQSClient, CreateQueueRequest } from '@aws-sdk/client-sqs'
+import type { SQSClient, CreateQueueRequest, SendMessageCommandInput } from '@aws-sdk/client-sqs'
+import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type {
   QueueConsumerDependencies,
   QueueDependencies,
@@ -6,11 +7,13 @@ import type {
   ExistingQueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
+import type { ZodSchema } from 'zod'
 
 import type { SQSMessage } from '../types/MessageTypes'
 import { deleteSqs, initSqs } from '../utils/sqsInitter'
 
 import type { SQSCreationConfig } from './AbstractSqsConsumer'
+import type { SQSMessageOptions } from './AbstractSqsPublisherMonoSchema'
 
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient
@@ -69,6 +72,40 @@ export abstract class AbstractSqsService<
     this.queueArn = queueArn
     this.queueUrl = queueUrl
     this.queueName = queueName
+  }
+
+  protected async internalPublish(
+    message: MessagePayloadType,
+    messageSchema: ZodSchema<MessagePayloadType>,
+    options: SQSMessageOptions = {},
+  ): Promise<void> {
+    if (!this.queueArn) {
+      // Lazy loading
+      await this.init()
+    }
+
+    try {
+      messageSchema.parse(message)
+
+      if (this.logMessages) {
+        // @ts-ignore
+        const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
+        this.logMessage(resolvedLogMessage)
+      }
+
+      const input = {
+        // SendMessageRequest
+        QueueUrl: this.queueUrl,
+        MessageBody: JSON.stringify(message),
+        ...options,
+      } satisfies SendMessageCommandInput
+      const command = new SendMessageCommand(input)
+      await this.sqsClient.send(command)
+      this.handleMessageProcessed(message, 'published')
+    } catch (error) {
+      this.handleError(error)
+      throw error
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

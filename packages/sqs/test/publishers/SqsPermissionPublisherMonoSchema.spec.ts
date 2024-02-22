@@ -16,7 +16,7 @@ import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import type { SqsPermissionPublisherMonoSchema } from './SqsPermissionPublisherMonoSchema'
+import { SqsPermissionPublisherMonoSchema } from './SqsPermissionPublisherMonoSchema'
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
@@ -115,6 +115,22 @@ describe('SqsPermissionPublisher', () => {
       })
 
       consumer.stop()
+    })
+
+    it('publish message with lazy loading', async () => {
+      const newPublisher = new SqsPermissionPublisherMonoSchema(diContainer.cradle)
+
+      const message = {
+        id: '1',
+        userIds,
+        messageType: 'add',
+        permissions: perms,
+      } satisfies PERMISSIONS_MESSAGE_TYPE
+
+      await newPublisher.publish(message)
+
+      const res = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
+      expect(res.message).toEqual(message)
     })
   })
 })
