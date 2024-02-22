@@ -42,6 +42,8 @@ Mono-schema publishers only support a single message type and are simpler to imp
 
 > **_NOTE:_**  See [SqsPermissionPublisherMonoSchema.ts](./packages/sqs/test/publishers/SqsPermissionPublisherMonoSchema.ts) for a practical example.
 
+> **_NOTE:_**  Lazy loading is not supported for AMQP publishers.
+
 #### Multi-schema publishers
 
 Multi-schema publishers support multiple messages types. They implement the following public methods:
