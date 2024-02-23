@@ -53,9 +53,13 @@ export abstract class AbstractSqsService<
   // @ts-ignore
   public queueArn: string
 
+  private isInitted: boolean
+  private initPromise?: Promise<void>
+
   constructor(dependencies: DependenciesType, options: SQSOptionsType) {
     super(dependencies, options)
 
+    this.isInitted = false
     this.sqsClient = dependencies.sqsClient
   }
 
@@ -72,6 +76,7 @@ export abstract class AbstractSqsService<
     this.queueArn = queueArn
     this.queueUrl = queueUrl
     this.queueName = queueName
+    this.isInitted = true
   }
 
   protected async internalPublish(
@@ -79,9 +84,13 @@ export abstract class AbstractSqsService<
     messageSchema: ZodSchema<MessagePayloadType>,
     options: SQSMessageOptions = {},
   ): Promise<void> {
-    if (!this.queueArn) {
-      // Lazy loading
-      await this.init()
+    // If it's not initted yet, do the lazy init
+    if (!this.isInitted) {
+      // avoid multiple concurrent inits
+      if (!this.initPromise) {
+        this.initPromise = this.init()
+      }
+      await this.initPromise
     }
 
     try {
