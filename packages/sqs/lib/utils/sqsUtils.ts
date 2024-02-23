@@ -107,7 +107,8 @@ export async function assertQueue(
         throw new Error('Queue ARN was not set')
       }
 
-      if (!isShallowSubset(existingAttributes.result, queueConfig.Attributes)) {
+      // Only perform update if there are new or changed values in the queue config
+      if (!isShallowSubset(queueConfig.Attributes, existingAttributes.result.attributes)) {
         await updateQueueAttributes(sqsClient, queueUrl, queueConfig.Attributes)
       }
 
