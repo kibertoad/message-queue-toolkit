@@ -82,58 +82,77 @@ export async function getQueueAttributes(
   }
 }
 
+async function updateExistingQueue(
+  sqsClient: SQSClient,
+  queueUrl: string,
+  queueConfig: CreateQueueCommandInput,
+  extraParams?: ExtraSQSCreationParams,
+) {
+  const existingAttributes = await getQueueAttributes(sqsClient, {
+    queueUrl,
+  })
+
+  if (!existingAttributes.result?.attributes) {
+    throw new Error('Attributes are not set')
+  }
+
+  const queueArn = existingAttributes.result?.attributes.QueueArn
+  if (!queueArn) {
+    throw new Error('Queue ARN was not set')
+  }
+
+  // we will try to update existing queue if exists
+  if (extraParams?.updateAttributesIfExists) {
+    const updatedAttributes: Partial<Record<QueueAttributeName, string>> = {
+      ...queueConfig.Attributes,
+    }
+    if (extraParams?.topicArnsWithPublishPermissionsPrefix) {
+      updatedAttributes.Policy = generateQueuePublishForTopicPolicy(
+        queueArn,
+        extraParams.topicArnsWithPublishPermissionsPrefix,
+      )
+    }
+
+    // Only perform update if there are new or changed values in the queue config
+    if (!isShallowSubset(updatedAttributes, existingAttributes.result.attributes)) {
+      await updateQueueAttributes(sqsClient, queueUrl, updatedAttributes)
+    }
+  }
+
+  return {
+    queueUrl,
+    queueArn,
+    queueName: queueConfig.QueueName,
+  }
+}
+
 export async function assertQueue(
   sqsClient: SQSClient,
   queueConfig: CreateQueueCommandInput,
   extraParams?: ExtraSQSCreationParams,
 ) {
-  // we will try to update existing queue if exists
-  if (extraParams?.updateAttributesIfExists) {
-    // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
-    const queueExistsResult = await getQueueUrl(sqsClient, queueConfig.QueueName!)
+  // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
+  const queueUrlResult = await getQueueUrl(sqsClient, queueConfig.QueueName!)
+  const queueExists = !!queueUrlResult.result
 
-    if (queueExistsResult.result) {
-      const queueUrl = queueExistsResult.result
-      const existingAttributes = await getQueueAttributes(sqsClient, {
-        queueUrl,
-      })
-
-      if (!existingAttributes.result?.attributes) {
-        throw new Error('Attributes are not set')
-      }
-
-      const queueArn = existingAttributes.result?.attributes.QueueArn
-      if (!queueArn) {
-        throw new Error('Queue ARN was not set')
-      }
-
-      // Only perform update if there are new or changed values in the queue config
-      if (!isShallowSubset(queueConfig.Attributes, existingAttributes.result.attributes)) {
-        await updateQueueAttributes(sqsClient, queueUrl, queueConfig.Attributes)
-      }
-
-      return {
-        queueUrl,
-        queueArn,
-        queueName: queueConfig.QueueName,
-      }
-    }
+  if (queueExists) {
+    return updateExistingQueue(sqsClient, queueUrlResult.result, queueConfig, extraParams)
   }
 
+  // create new queue
   const command = new CreateQueueCommand(queueConfig)
   await sqsClient.send(command)
 
-  const getUrlCommand = new GetQueueUrlCommand({
-    QueueName: queueConfig.QueueName,
-  })
-  const response = await sqsClient.send(getUrlCommand)
+  // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
+  const newQueueUrlResult = await getQueueUrl(sqsClient, queueConfig.QueueName!)
+  const newQueueExists = !!newQueueUrlResult.result
 
-  if (!response.QueueUrl) {
+  if (!newQueueExists) {
     throw new Error(`Queue ${queueConfig.QueueName ?? ''} was not created`)
   }
 
   const getQueueAttributesCommand = new GetQueueAttributesCommand({
-    QueueUrl: response.QueueUrl,
+    QueueUrl: newQueueUrlResult.result,
     AttributeNames: ['QueueArn'],
   })
   const queueAttributesResponse = await sqsClient.send(getQueueAttributesCommand)
@@ -145,7 +164,7 @@ export async function assertQueue(
 
   if (extraParams?.topicArnsWithPublishPermissionsPrefix) {
     const setTopicAttributesCommand = new SetQueueAttributesCommand({
-      QueueUrl: response.QueueUrl,
+      QueueUrl: newQueueUrlResult.result,
       Attributes: {
         Policy: generateQueuePublishForTopicPolicy(
           queueArn,
@@ -158,7 +177,8 @@ export async function assertQueue(
 
   return {
     queueArn,
-    queueUrl: response.QueueUrl,
+    queueUrl: newQueueUrlResult.result,
+    queueName: queueConfig.QueueName,
   }
 }
 

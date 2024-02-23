@@ -109,6 +109,47 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
     })
 
+    it('updates existing queue when one with different attributes exist and sets the policy', async () => {
+      await assertQueue(sqsClient, {
+        QueueName: 'existingQueue',
+        Attributes: {
+          KmsMasterKeyId: 'somevalue',
+        },
+      })
+
+      const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
+        creationConfig: {
+          topic: {
+            Name: 'sometopic',
+          },
+          queue: {
+            QueueName: 'existingQueue',
+            Attributes: {
+              KmsMasterKeyId: 'othervalue',
+            },
+          },
+          updateAttributesIfExists: true,
+          topicArnsWithPublishPermissionsPrefix: 'someservice-',
+        },
+        deletionConfig: {
+          deleteIfExists: false,
+        },
+      })
+
+      await newConsumer.init()
+      expect(newConsumer.queueUrl).toBe(
+        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+      )
+
+      const attributes = await getQueueAttributes(sqsClient, {
+        queueUrl: newConsumer.queueUrl,
+      })
+
+      expect(attributes.result?.attributes!.Policy).toBe(
+        '{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-west-1:000000000000:existingQueue","Condition":{"ArnLike":{"aws:SourceArn":"someservice-"}}}]}',
+      )
+    })
+
     it('does not attempt to update non-existing queue when passing update param', async () => {
       const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
         creationConfig: {
