@@ -31,7 +31,7 @@ export {
   MessageInvalidFormatError,
 } from './lib/errors/Errors'
 
-export { shallowEqual } from './lib/utils/matchUtils'
+export { shallowEqual, isShallowSubset } from './lib/utils/matchUtils'
 
 export {
   HandlerContainer,

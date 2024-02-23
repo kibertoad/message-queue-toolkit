@@ -1,5 +1,35 @@
 import { deepEqual } from 'fast-equals'
 
+export function isShallowSubset(
+  maybeSubset?: Record<string, unknown>,
+  maybeSuperset?: Record<string, unknown>,
+): boolean {
+  if (!maybeSubset) {
+    return true
+  }
+
+  const keysSubset = Object.keys(maybeSubset)
+  // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
+  const keysSuperset = Object.keys(maybeSuperset!)
+
+  if (keysSubset.length === 0) {
+    return true
+  }
+  if (keysSubset.length > keysSuperset.length) {
+    return false
+  }
+
+  // eslint-disable-next-line prefer-const
+  for (let key of keysSubset) {
+    // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
+    if (maybeSubset[key] !== maybeSuperset![key]) {
+      return false
+    }
+  }
+
+  return true
+}
+
 export function shallowEqual(
   object1?: Record<string, unknown>,
   object2?: Record<string, unknown>,
