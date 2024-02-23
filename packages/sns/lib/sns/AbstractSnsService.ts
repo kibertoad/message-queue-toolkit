@@ -85,9 +85,13 @@ export abstract class AbstractSnsService<
   // @ts-ignore
   public topicArn: string
 
+  private isInitted: boolean
+  private initPromise?: Promise<void>
+
   constructor(dependencies: DependenciesType, options: SNSOptionsType) {
     super(dependencies, options)
 
+    this.isInitted = false
     this.snsClient = dependencies.snsClient
   }
 
@@ -98,6 +102,7 @@ export abstract class AbstractSnsService<
 
     const initResult = await initSns(this.snsClient, this.locatorConfig, this.creationConfig)
     this.topicArn = initResult.topicArn
+    this.isInitted = true
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
@@ -108,9 +113,13 @@ export abstract class AbstractSnsService<
     messageSchema: ZodSchema<MessagePayloadType>,
     options: SNSMessageOptions = {},
   ): Promise<void> {
-    if (this.topicArn === undefined) {
-      // Lazy loading
-      await this.init()
+    // If it's not initted yet, do the lazy init
+    if (!this.isInitted) {
+      // avoid multiple concurrent inits
+      if (!this.initPromise) {
+        this.initPromise = this.init()
+      }
+      await this.initPromise
     }
 
     try {
