@@ -80,16 +80,66 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
         logMessages: true,
       })
 
+      const sqsSpy = vi.spyOn(sqsClient, 'send')
+
       await newConsumer.init()
       expect(newConsumer.queueUrl).toBe(
         'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
       )
+
+      const updateCall = sqsSpy.mock.calls.find((entry) => {
+        return entry[0].constructor.name === 'SetQueueAttributesCommand'
+      })
+      expect(updateCall).toBeDefined()
 
       const attributes = await getQueueAttributes(sqsClient, {
         queueUrl: newConsumer.queueUrl,
       })
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
+    })
+
+    it('does not update existing queue when attributes did not change', async () => {
+      await assertQueue(sqsClient, {
+        QueueName: 'existingQueue',
+        Attributes: {
+          KmsMasterKeyId: 'somevalue',
+        },
+      })
+
+      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: 'existingQueue',
+            Attributes: {
+              KmsMasterKeyId: 'somevalue',
+            },
+          },
+          updateAttributesIfExists: true,
+        },
+        deletionConfig: {
+          deleteIfExists: false,
+        },
+        logMessages: true,
+      })
+
+      const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+      await newConsumer.init()
+      expect(newConsumer.queueUrl).toBe(
+        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+      )
+
+      const updateCall = sqsSpy.mock.calls.find((entry) => {
+        return entry[0].constructor.name === 'SetQueueAttributesCommand'
+      })
+      expect(updateCall).toBeUndefined()
+
+      const attributes = await getQueueAttributes(sqsClient, {
+        queueUrl: newConsumer.queueUrl,
+      })
+
+      expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('somevalue')
     })
   })
 

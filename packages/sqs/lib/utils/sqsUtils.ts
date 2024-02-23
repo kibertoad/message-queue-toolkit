@@ -8,7 +8,7 @@ import {
 } from '@aws-sdk/client-sqs'
 import type { CreateQueueCommandInput, SQSClient, QueueAttributeName } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
-import { shallowEqual, waitAndRetry } from '@message-queue-toolkit/core'
+import { isShallowSubset, waitAndRetry } from '@message-queue-toolkit/core'
 
 import type { ExtraSQSCreationParams } from '../sqs/AbstractSqsConsumer'
 import type { SQSQueueLocatorType } from '../sqs/AbstractSqsService'
@@ -107,8 +107,8 @@ export async function assertQueue(
         throw new Error('Queue ARN was not set')
       }
 
-      if (shallowEqual(existingAttributes.result, queueConfig.Attributes)) {
-      } else {
+      // Only perform update if there are new or changed values in the queue config
+      if (!isShallowSubset(queueConfig.Attributes, existingAttributes.result.attributes)) {
         await updateQueueAttributes(sqsClient, queueUrl, queueConfig.Attributes)
       }
 

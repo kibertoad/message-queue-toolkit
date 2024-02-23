@@ -1,29 +1,31 @@
 import { deepEqual } from 'fast-equals'
 
-export function shallowEqual(
-  object1?: Record<string, unknown>,
-  object2?: Record<string, unknown>,
+/**
+ * Returns true if `maybeSubset` does not contain any fields in addition to the fields that `maybeSuperset` contain, and all of the overlapping fields are equal on a shallow level.
+ */
+export function isShallowSubset(
+  maybeSubset?: Record<string, unknown>,
+  maybeSuperset?: Record<string, unknown>,
 ): boolean {
-  if ((object1 && !object2) || (!object1 && object2)) {
-    return false
-  }
-  if (!object1 && !object2) {
+  if (!maybeSubset) {
     return true
   }
 
+  const keysSubset = Object.keys(maybeSubset)
   // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
-  const keys1 = Object.keys(object1!)
-  // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
-  const keys2 = Object.keys(object2!)
+  const keysSuperset = Object.keys(maybeSuperset!)
 
-  if (keys1.length !== keys2.length) {
+  if (keysSubset.length === 0) {
+    return true
+  }
+  if (keysSubset.length > keysSuperset.length) {
     return false
   }
 
   // eslint-disable-next-line prefer-const
-  for (let key of keys1) {
+  for (let key of keysSubset) {
     // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
-    if (object1![key] !== object2![key]) {
+    if (maybeSubset[key] !== maybeSuperset![key]) {
       return false
     }
   }
@@ -31,6 +33,9 @@ export function shallowEqual(
   return true
 }
 
+/**
+ * Returns true if `validatedObject` contains all of the fields included on `matcher`, and their values are deeply equal
+ */
 export function objectMatches(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   matcher: Record<string, any>,
