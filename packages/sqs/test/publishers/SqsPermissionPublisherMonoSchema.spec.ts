@@ -56,7 +56,28 @@ describe('SqsPermissionPublisher', () => {
 
       await publisher.handlerSpy.waitForMessageWithId('1')
 
-      expect(logger.loggedMessages.length).toBe(1)
+      expect(logger.loggedMessages.length).toBe(2)
+      expect(logger.loggedMessages).toMatchInlineSnapshot(`
+        [
+          {
+            "id": "1",
+            "messageType": "add",
+            "permissions": [
+              "perm1",
+              "perm2",
+            ],
+            "userIds": [
+              100,
+              200,
+              300,
+            ],
+          },
+          {
+            "messageId": "1",
+            "processingResult": "published",
+          },
+        ]
+      `)
     })
   })
 

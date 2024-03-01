@@ -19,8 +19,7 @@
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
     "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint .  --ext .ts --fix",
-    "format": "prettier --write .",
+    "lint:fix": "prettier --write . && eslint .  --ext .ts --fix",
     "docker:start:dev": "docker compose up -d",
     "docker:stop:dev": "docker compose down",
     "prepublishOnly": "npm run build:release"
@@ -49,7 +48,7 @@
     "eslint-plugin-import": "^2.29.0",
     "eslint-plugin-prettier": "^5.0.1",
     "eslint-plugin-vitest": "^0.3.10",
-    "prettier": "^3.1.0",
+    "prettier": "^3.2.5",
     "typescript": "^5.3.3",
     "vitest": "1.3.1"
   },
