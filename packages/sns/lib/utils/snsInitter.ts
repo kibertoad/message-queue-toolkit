@@ -121,7 +121,7 @@ export async function deleteSnsSqs(
     deletionConfig.waitForConfirmation !== false,
   )
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  await deleteTopic(snsClient, topicConfiguration.Name)
+  await deleteTopic(snsClient, topicConfiguration.Name!)
   await deleteSubscription(snsClient, subscriptionArn)
 }
 
