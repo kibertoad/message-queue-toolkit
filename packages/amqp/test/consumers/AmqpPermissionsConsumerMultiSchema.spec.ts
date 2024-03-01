@@ -39,15 +39,24 @@ describe('PermissionsConsumerMultiSchema', () => {
 
       await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
-      expect(logger.loggedMessages.length).toBe(3)
-      expect(logger.loggedMessages[1]).toEqual({
-        id: '1',
-        messageType: 'add',
-      })
-      expect(logger.loggedMessages[2]).toEqual({
-        id: '1',
-        messageType: 'add',
-      })
+      expect(logger.loggedMessages.length).toBe(4)
+      expect(logger.loggedMessages).toMatchInlineSnapshot(`
+        [
+          "Propagating new connection across 0 receivers",
+          {
+            "id": "1",
+            "messageType": "add",
+          },
+          {
+            "id": "1",
+            "messageType": "add",
+          },
+          {
+            "messageId": "1",
+            "processingResult": "consumed",
+          },
+        ]
+      `)
     })
   })
 

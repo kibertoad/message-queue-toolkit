@@ -138,7 +138,7 @@ describe('snsSubscriber', () => {
 
       const subscriptionAttributes = await getSubscriptionAttributes(
         snsClient,
-        updatedSubscription!.SubscriptionArn!,
+        updatedSubscription!.SubscriptionArn,
       )
       expect(subscriptionAttributes).toEqual({
         result: {

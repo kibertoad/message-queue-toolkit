@@ -5,8 +5,8 @@ export default defineConfig({
     globals: true,
     poolOptions: {
       threads: {
-        singleThread: true
-      }
+        singleThread: true,
+      },
     },
     watch: false,
     environment: 'node',
@@ -21,7 +21,7 @@ export default defineConfig({
         functions: 100,
         branches: 79,
         statements: 90,
-      }
+      },
     },
   },
 })

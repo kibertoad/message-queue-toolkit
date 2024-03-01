@@ -200,7 +200,12 @@ export abstract class AbstractQueueService<
         messageId,
       )
     }
-    this.logProcessedMessage(message, processingResult, messageId)
+    if (this.logMessages) {
+      // @ts-ignore
+      const resolvedMessageId: string | undefined = message?.[this.messageIdField] ?? messageId
+
+      this.logProcessedMessage(message, processingResult, resolvedMessageId)
+    }
   }
 
   public abstract close(): Promise<unknown>

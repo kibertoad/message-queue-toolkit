@@ -180,7 +180,19 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
       await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
-      expect(logger.loggedMessages.length).toBe(1)
+      expect(logger.loggedMessages.length).toBe(2)
+      expect(logger.loggedMessages).toMatchInlineSnapshot(`
+        [
+          {
+            "id": "1",
+            "messageType": "add",
+          },
+          {
+            "messageId": "1",
+            "processingResult": "consumed",
+          },
+        ]
+      `)
       await newConsumer.close()
     })
   })
