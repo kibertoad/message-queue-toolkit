@@ -13,7 +13,7 @@ import type { SQSMessage } from '../types/MessageTypes'
 import { deleteSqs, initSqs } from '../utils/sqsInitter'
 
 import type { SQSCreationConfig } from './AbstractSqsConsumer'
-import type { SQSMessageOptions } from './AbstractSqsPublisherMonoSchema'
+import type { SQSMessageOptions } from './AbstractSqsPublisherMultiSchema'
 
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient
@@ -37,13 +37,17 @@ export abstract class AbstractSqsService<
     | NewQueueOptions<CreationConfigType>
     | ExistingQueueOptions<QueueLocatorType>,
   DependenciesType extends SQSDependencies = SQSDependencies,
+  PrehandlerOutput = unknown,
+  ExecutionContext = unknown,
 > extends AbstractQueueService<
   MessagePayloadType,
   SQSMessage,
   DependenciesType,
   CreationConfigType,
   QueueLocatorType,
-  SQSOptionsType
+  SQSOptionsType,
+  PrehandlerOutput,
+  ExecutionContext
 > {
   protected readonly sqsClient: SQSClient
   // @ts-ignore

@@ -6,7 +6,6 @@ import type {
   Prehandler,
   PrehandlingOutputs,
 } from '@message-queue-toolkit/core'
-import type { PrehandlerResult } from '@message-queue-toolkit/core/dist/lib/queues/HandlerContainer'
 import type { ZodSchema } from 'zod'
 import { undefined } from 'zod'
 
@@ -88,6 +87,7 @@ export abstract class AbstractSqsConsumerMonoSchema<
     CreationConfigType,
     ConsumerOptionsType,
     PrehandlerOutput,
+    ExecutionContext,
     BarrierOutput
   >
   implements QueueConsumer
@@ -126,34 +126,12 @@ export abstract class AbstractSqsConsumerMonoSchema<
     prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, BarrierOutput>,
   ): Promise<Either<'retryLater', 'success'>>
 
-  protected override processPrehandlers(message: MessagePayloadType) {
-    if (!this.prehandlers || this.prehandlers.length === 0) {
-      return Promise.resolve({} as PrehandlerOutput)
-    }
-
-    return new Promise<PrehandlerOutput>((resolve, reject) => {
-      try {
-        const prehandlerOutput = {} as PrehandlerOutput
-        const next = this.resolveNextFunction(
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          this.prehandlers!,
-          message,
-          0,
-          prehandlerOutput,
-          resolve,
-          reject,
-        )
-        next({
-          result: 'success',
-        })
-      } catch (err) {
-        reject(err as Error)
-      }
-    })
+  protected override processPrehandlers(message: MessagePayloadType, _messageType: string) {
+    return this.processPrehandlersInternal(this.prehandlers, message)
   }
 
   // eslint-disable-next-line max-params
-  private resolveNextFunction(
+  protected override resolveNextFunction(
     prehandlers: Prehandler<MessagePayloadType, ExecutionContext, PrehandlerOutput>[],
     message: MessagePayloadType,
     index: number,
@@ -161,31 +139,15 @@ export abstract class AbstractSqsConsumerMonoSchema<
     resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
     reject: (err: Error) => void,
   ) {
-    return (prehandlerResult: PrehandlerResult) => {
-      if (prehandlerResult.error) {
-        reject(prehandlerResult.error)
-      }
-
-      if (prehandlers.length < index + 1) {
-        resolve(prehandlerOutput)
-      } else {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        prehandlers[index](
-          message,
-          this as unknown as ExecutionContext,
-          // @ts-ignore
-          prehandlerOutput,
-          this.resolveNextFunction(
-            prehandlers,
-            message,
-            index + 1,
-            prehandlerOutput,
-            resolve,
-            reject,
-          ),
-        )
-      }
-    }
+    return this.resolveNextPreHandlerFunctionInternal(
+      prehandlers,
+      this as unknown as ExecutionContext,
+      message,
+      index,
+      prehandlerOutput,
+      resolve,
+      reject,
+    )
   }
 
   protected resolveSchema() {

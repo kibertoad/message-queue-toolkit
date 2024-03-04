@@ -51,6 +51,10 @@ export abstract class AbstractSqsPublisherMultiSchema<MessagePayloadType extends
   }
 
   /* c8 ignore start */
+  protected override resolveNextFunction(): () => void {
+    throw new Error('Not implemented for publisher')
+  }
+
   protected resolveMessage(
     _message: SQSMessage,
   ): Either<MessageInvalidFormatError | MessageValidationError, unknown> {

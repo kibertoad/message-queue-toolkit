@@ -10,13 +10,9 @@ import type {
 import type { ZodSchema } from 'zod'
 
 import type { SQSCreationConfig } from './AbstractSqsConsumer'
+import type { SQSMessageOptions } from './AbstractSqsPublisherMultiSchema'
 import type { SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
-
-export type SQSMessageOptions = {
-  MessageGroupId?: string
-  MessageDeduplicationId?: string
-}
 
 export abstract class AbstractSqsPublisherMonoSchema<MessagePayloadType extends object>
   extends AbstractSqsService<MessagePayloadType>
@@ -43,7 +39,14 @@ export abstract class AbstractSqsPublisherMonoSchema<MessagePayloadType extends 
   }
 
   /* c8 ignore start */
-  protected resolveMessage(): Either<MessageInvalidFormatError | MessageValidationError, unknown> {
+  protected override resolveNextFunction(): () => void {
+    throw new Error('Not implemented for publisher')
+  }
+
+  protected override resolveMessage(): Either<
+    MessageInvalidFormatError | MessageValidationError,
+    unknown
+  > {
     throw new Error('Not implemented for publisher')
   }
 

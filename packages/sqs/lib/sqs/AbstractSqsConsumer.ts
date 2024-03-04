@@ -56,6 +56,7 @@ export abstract class AbstractSqsConsumer<
       | NewSQSConsumerOptions<CreationConfigType>
       | ExistingSQSConsumerOptions<QueueLocatorType>,
     PrehandlerOutput = unknown,
+    ExecutionContext = unknown,
     BarrierOutput = unknown,
   >
   extends AbstractSqsService<
@@ -63,7 +64,9 @@ export abstract class AbstractSqsConsumer<
     QueueLocatorType,
     CreationConfigType,
     ConsumerOptionsType,
-    SQSConsumerDependencies
+    SQSConsumerDependencies,
+    PrehandlerOutput,
+    ExecutionContext
   >
   implements QueueConsumer
 {

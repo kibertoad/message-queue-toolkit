@@ -7,7 +7,6 @@ import type {
   Prehandler,
   PrehandlingOutputs,
 } from '@message-queue-toolkit/core'
-import type { PrehandlerResult } from '@message-queue-toolkit/core/dist/lib/queues/HandlerContainer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import type { SQSCreationConfig } from './AbstractSqsConsumer'
@@ -64,7 +63,8 @@ export abstract class AbstractSqsConsumerMultiSchema<
   QueueLocatorType,
   CreationConfigType,
   ConsumerOptionsType,
-  PrehandlerOutput
+  PrehandlerOutput,
+  ExecutionContext
 > {
   messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   handlerContainer: HandlerContainer<MessagePayloadType, ExecutionContext, PrehandlerOutput>
@@ -109,33 +109,13 @@ export abstract class AbstractSqsConsumerMultiSchema<
   }
 
   protected override processPrehandlers(message: MessagePayloadType, messageType: string) {
-    const handler = this.handlerContainer.resolveHandler(messageType)
+    const handlerConfig = this.handlerContainer.resolveHandler(messageType)
 
-    if (!handler.prehandlers || handler.prehandlers.length === 0) {
-      return Promise.resolve({} as PrehandlerOutput)
-    }
-
-    return new Promise<PrehandlerOutput>((resolve, reject) => {
-      try {
-        const prehandlerOutput = {} as PrehandlerOutput
-        const next = this.resolveNextFunction(
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          handler.prehandlers!,
-          message,
-          0,
-          prehandlerOutput,
-          resolve,
-          reject,
-        )
-        next({ result: 'success' })
-      } catch (err) {
-        reject(err as Error)
-      }
-    })
+    return this.processPrehandlersInternal(handlerConfig.prehandlers, message)
   }
 
   // eslint-disable-next-line max-params
-  private resolveNextFunction(
+  protected override resolveNextFunction(
     prehandlers: Prehandler<MessagePayloadType, ExecutionContext, unknown>[],
     message: MessagePayloadType,
     index: number,
@@ -143,31 +123,15 @@ export abstract class AbstractSqsConsumerMultiSchema<
     resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
     reject: (err: Error) => void,
   ) {
-    return (prehandlerResult: PrehandlerResult) => {
-      if (prehandlerResult.error) {
-        reject(prehandlerResult.error)
-      }
-
-      if (prehandlers.length < index + 1) {
-        resolve(prehandlerOutput)
-      } else {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        prehandlers[index](
-          message,
-          this.executionContext,
-          // @ts-ignore
-          prehandlerOutput,
-          this.resolveNextFunction(
-            prehandlers,
-            message,
-            index + 1,
-            prehandlerOutput,
-            resolve,
-            reject,
-          ),
-        )
-      }
-    }
+    return this.resolveNextPreHandlerFunctionInternal(
+      prehandlers,
+      this.executionContext,
+      message,
+      index,
+      prehandlerOutput,
+      resolve,
+      reject,
+    )
   }
 
   protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
@@ -180,7 +144,9 @@ export abstract class AbstractSqsConsumerMultiSchema<
     messageType: string,
     prehandlerOutput: PrehandlerOutput,
   ): Promise<BarrierResult<BarrierOutput>> {
-    const handler = this.handlerContainer.resolveHandler<BarrierOutput>(messageType)
+    const handler = this.handlerContainer.resolveHandler<BarrierOutput, PrehandlerOutput>(
+      messageType,
+    )
     // @ts-ignore
     return handler.preHandlerBarrier
       ? // @ts-ignore

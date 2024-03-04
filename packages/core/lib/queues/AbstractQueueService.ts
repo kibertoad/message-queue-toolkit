@@ -11,7 +11,7 @@ import type {
   MessageProcessingResult,
 } from '../types/MessageQueueTypes'
 
-import type { MessageHandlerConfig } from './HandlerContainer'
+import type { MessageHandlerConfig, Prehandler, PrehandlerResult } from './HandlerContainer'
 import type { HandlerSpy, PublicHandlerSpy, HandlerSpyParams } from './HandlerSpy'
 import { resolveHandlerSpy } from './HandlerSpy'
 
@@ -107,6 +107,8 @@ export abstract class AbstractQueueService<
     | ExistingQueueOptions<QueueLocatorType> =
     | NewQueueOptions<QueueConfiguration>
     | ExistingQueueOptions<QueueLocatorType>,
+  PrehandlerOutput = undefined,
+  ExecutionContext = undefined,
 > {
   protected readonly errorReporter: ErrorReporter
   public readonly logger: Logger
@@ -211,6 +213,81 @@ export abstract class AbstractQueueService<
       const resolvedMessageId: string | undefined = message?.[this.messageIdField] ?? messageId
 
       this.logProcessedMessage(message, processingResult, resolvedMessageId)
+    }
+  }
+
+  protected processPrehandlersInternal(
+    prehandlers:
+      | Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
+      | undefined,
+    message: MessagePayloadSchemas,
+  ) {
+    if (!prehandlers || prehandlers.length === 0) {
+      return Promise.resolve({} as PrehandlerOutput)
+    }
+
+    return new Promise<PrehandlerOutput>((resolve, reject) => {
+      try {
+        const prehandlerOutput = {} as PrehandlerOutput
+        const next = this.resolveNextFunction(
+          prehandlers,
+          message,
+          0,
+          prehandlerOutput,
+          resolve,
+          reject,
+        )
+        next({ result: 'success' })
+      } catch (err) {
+        reject(err as Error)
+      }
+    })
+  }
+
+  protected abstract resolveNextFunction(
+    prehandlers: Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[],
+    message: MessagePayloadSchemas,
+    index: number,
+    prehandlerOutput: PrehandlerOutput,
+    resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
+    reject: (err: Error) => void,
+  ): (prehandlerResult: PrehandlerResult) => void
+
+  // eslint-disable-next-line max-params
+  protected resolveNextPreHandlerFunctionInternal(
+    prehandlers: Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[],
+    executionContext: ExecutionContext,
+    message: MessagePayloadSchemas,
+    index: number,
+    prehandlerOutput: PrehandlerOutput,
+    resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
+    reject: (err: Error) => void,
+  ): (prehandlerResult: PrehandlerResult) => void {
+    return (prehandlerResult: PrehandlerResult) => {
+      if (prehandlerResult.error) {
+        reject(prehandlerResult.error)
+      }
+
+      if (prehandlers.length < index + 1) {
+        resolve(prehandlerOutput)
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        prehandlers[index](
+          message,
+          executionContext,
+          // @ts-ignore
+          prehandlerOutput,
+          this.resolveNextPreHandlerFunctionInternal(
+            prehandlers,
+            executionContext,
+            message,
+            index + 1,
+            prehandlerOutput,
+            resolve,
+            reject,
+          ),
+        )
+      }
     }
   }
 

@@ -198,9 +198,14 @@ export class HandlerContainer<
     this.messageHandlers = this.resolveHandlerMap(options.messageHandlers)
   }
 
-  public resolveHandler<BarrierResult>(
+  public resolveHandler<BarrierResult, PrehandlerOutput>(
     messageType: string,
-  ): MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, BarrierResult> {
+  ): MessageHandlerConfig<
+    MessagePayloadSchemas,
+    ExecutionContext,
+    PrehandlerOutput,
+    BarrierResult
+  > {
     const handler = this.messageHandlers[messageType]
     if (!handler) {
       throw new Error(`Unsupported message type: ${messageType}`)

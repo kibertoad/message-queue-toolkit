@@ -19,7 +19,7 @@ export { SqsConsumerErrorResolver } from './lib/errors/SqsConsumerErrorResolver'
 
 export { AbstractSqsPublisherMonoSchema } from './lib/sqs/AbstractSqsPublisherMonoSchema'
 export { AbstractSqsPublisherMultiSchema } from './lib/sqs/AbstractSqsPublisherMultiSchema'
-export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisherMonoSchema'
+export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisherMultiSchema'
 
 export { assertQueue, deleteQueue, getQueueAttributes, getQueueUrl } from './lib/utils/sqsUtils'
 export { deleteSqs, updateQueueAttributes } from './lib/utils/sqsInitter'
