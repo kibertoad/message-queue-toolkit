@@ -27,7 +27,7 @@ type SqsPermissionConsumerMultiSchemaOptions = (
         PrehandlerOutput,
         SQSCreationConfig
       >,
-      'creationConfig' | 'logMessages'
+      'creationConfig' | 'logMessages' | 'deletionConfig'
     >
   | Pick<
       ExistingSQSConsumerOptionsMultiSchema<SupportedMessages, ExecutionContext, PrehandlerOutput>,

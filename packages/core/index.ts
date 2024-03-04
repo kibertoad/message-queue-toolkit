@@ -31,6 +31,8 @@ export {
   MessageInvalidFormatError,
 } from './lib/errors/Errors'
 
+export { isShallowSubset, objectMatches } from './lib/utils/matchUtils'
+
 export { RetryMessageLaterError } from './lib/errors/RetryMessageLaterError'
 
 export { DoNotProcessMessageError } from './lib/errors/DoNotProcessError'

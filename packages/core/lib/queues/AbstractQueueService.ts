@@ -60,7 +60,11 @@ export type CommonQueueOptions = {
   logMessages?: boolean
 }
 
-export type NewQueueOptions<CreationConfigType extends object> = {
+export type CommonCreationConfigType = {
+  updateAttributesIfExists?: boolean
+}
+
+export type NewQueueOptions<CreationConfigType extends CommonCreationConfigType> = {
   locatorConfig?: never
   deletionConfig?: DeletionConfig
   creationConfig: CreationConfigType
@@ -159,6 +163,20 @@ export abstract class AbstractQueueService<
     this.logger.debug(messageLogEntry)
   }
 
+  protected logProcessedMessage(
+    _message: MessagePayloadSchemas | null,
+    processingResult: MessageProcessingResult,
+    messageId?: string,
+  ) {
+    this.logger.debug(
+      {
+        processingResult,
+        messageId,
+      },
+      `Finished processing message ${messageId ?? `(unknown id)`}`,
+    )
+  }
+
   protected handleError(err: unknown, context?: Record<string, unknown>) {
     const logObject = resolveGlobalErrorLogObject(err)
     if (logObject === 'string') {
@@ -187,6 +205,12 @@ export abstract class AbstractQueueService<
         },
         messageId,
       )
+    }
+    if (this.logMessages) {
+      // @ts-ignore
+      const resolvedMessageId: string | undefined = message?.[this.messageIdField] ?? messageId
+
+      this.logProcessedMessage(message, processingResult, resolvedMessageId)
     }
   }
 

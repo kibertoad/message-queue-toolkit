@@ -82,8 +82,11 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     )
   }
 
-  waitForMessageWithId(id: string, processingResult?: MessageProcessingResult) {
-    return this.waitForMessage(
+  waitForMessageWithId<T extends MessagePayloadSchemas>(
+    id: string,
+    processingResult?: MessageProcessingResult,
+  ) {
+    return this.waitForMessage<T>(
       // @ts-ignore
       {
         [this.messageIdField]: id,
@@ -92,13 +95,13 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     )
   }
 
-  waitForMessage(
-    fields: DeepPartial<MessagePayloadSchemas>,
+  waitForMessage<T extends MessagePayloadSchemas>(
+    fields: DeepPartial<T>,
     processingResult?: MessageProcessingResult,
-  ): Promise<SpyResult<MessagePayloadSchemas>> {
+  ): Promise<SpyResult<T>> {
     const processedMessageEntry = Object.values(this.messageBuffer.items).find(
       // @ts-ignore
-      (spyResult: SpyResultCacheEntry<MessagePayloadSchemas>) => {
+      (spyResult: SpyResultCacheEntry<T>) => {
         return this.messageMatchesFilter(spyResult.value, fields, processingResult)
       },
     )
@@ -106,10 +109,8 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
       return Promise.resolve(processedMessageEntry.value)
     }
 
-    let resolve: (
-      value: SpyResult<MessagePayloadSchemas> | PromiseLike<SpyResult<MessagePayloadSchemas>>,
-    ) => void
-    const spyPromise = new Promise<SpyResult<MessagePayloadSchemas>>((_resolve) => {
+    let resolve: (value: SpyResult<T> | PromiseLike<SpyResult<T>>) => void
+    const spyPromise = new Promise<SpyResult<T>>((_resolve) => {
       resolve = _resolve
     })
 

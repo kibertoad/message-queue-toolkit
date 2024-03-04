@@ -1,4 +1,6 @@
 import type { SNSClient, CreateTopicCommandInput, Tag } from '@aws-sdk/client-sns'
+import { PublishCommand } from '@aws-sdk/client-sns'
+import type { PublishCommandInput } from '@aws-sdk/client-sns/dist-types/commands/PublishCommand'
 import type {
   QueueConsumerDependencies,
   QueueDependencies,
@@ -8,9 +10,12 @@ import type {
   ExistingQueueOptionsMultiSchema,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
+import type { ZodSchema } from 'zod'
 
 import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
 import { deleteSns, initSns } from '../utils/snsInitter'
+
+import type { SNSMessageOptions } from './AbstractSnsPublisherMonoSchema'
 
 export type SNSDependencies = QueueDependencies & {
   snsClient: SNSClient
@@ -70,6 +75,7 @@ export type ExtraSNSCreationParams = {
 
 export type SNSCreationConfig = {
   topic: SNSTopicAWSConfig
+  updateAttributesIfExists?: boolean
 } & ExtraSNSCreationParams
 
 export abstract class AbstractSnsService<
@@ -91,9 +97,13 @@ export abstract class AbstractSnsService<
   // @ts-ignore
   public topicArn: string
 
+  private isInitted: boolean
+  private initPromise?: Promise<void>
+
   constructor(dependencies: DependenciesType, options: SNSOptionsType) {
     super(dependencies, options)
 
+    this.isInitted = false
     this.snsClient = dependencies.snsClient
   }
 
@@ -104,8 +114,46 @@ export abstract class AbstractSnsService<
 
     const initResult = await initSns(this.snsClient, this.locatorConfig, this.creationConfig)
     this.topicArn = initResult.topicArn
+    this.isInitted = true
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public override async close(): Promise<void> {}
+
+  protected async internalPublish(
+    message: MessagePayloadType,
+    messageSchema: ZodSchema<MessagePayloadType>,
+    options: SNSMessageOptions = {},
+  ): Promise<void> {
+    // If it's not initted yet, do the lazy init
+    if (!this.isInitted) {
+      // avoid multiple concurrent inits
+      if (!this.initPromise) {
+        this.initPromise = this.init()
+      }
+      await this.initPromise
+    }
+
+    try {
+      messageSchema.parse(message)
+
+      if (this.logMessages) {
+        // @ts-ignore
+        const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
+        this.logMessage(resolvedLogMessage)
+      }
+
+      const input = {
+        Message: JSON.stringify(message),
+        TopicArn: this.topicArn,
+        ...options,
+      } satisfies PublishCommandInput
+      const command = new PublishCommand(input)
+      await this.snsClient.send(command)
+      this.handleMessageProcessed(message, 'published')
+    } catch (error) {
+      this.handleError(error)
+      throw error
+    }
+  }
 }

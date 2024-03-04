@@ -1,6 +1,6 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
-import { waitAndRetry } from '@message-queue-toolkit/core'
+import { waitAndRetry } from '@lokalise/node-core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
 import { assertQueue, deleteQueue, FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
@@ -166,6 +166,22 @@ describe('SNSPermissionPublisher', () => {
       })
 
       consumer.stop()
+    })
+
+    it('publish message with lazy loading', async () => {
+      const newPublisher = new SnsPermissionPublisherMonoSchema(diContainer.cradle)
+
+      const message = {
+        id: '1',
+        userIds,
+        messageType: 'add',
+        permissions: perms,
+      } satisfies PERMISSIONS_MESSAGE_TYPE
+
+      await newPublisher.publish(message)
+
+      const res = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
+      expect(res.message).toEqual(message)
     })
   })
 })

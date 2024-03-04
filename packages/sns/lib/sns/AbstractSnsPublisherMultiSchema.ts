@@ -1,5 +1,3 @@
-import { PublishCommand } from '@aws-sdk/client-sns'
-import type { PublishCommandInput } from '@aws-sdk/client-sns/dist-types/commands/PublishCommand'
 import type { Either } from '@lokalise/node-core'
 import type {
   AsyncPublisher,
@@ -40,31 +38,12 @@ export abstract class AbstractSnsPublisherMultiSchema<MessagePayloadType extends
   }
 
   async publish(message: MessagePayloadType, options: SNSMessageOptions = {}): Promise<void> {
-    try {
-      const resolveSchemaResult = this.resolveSchema(message)
-      if (resolveSchemaResult.error) {
-        throw resolveSchemaResult.error
-      }
-      resolveSchemaResult.result.parse(message)
-
-      if (this.logMessages) {
-        // @ts-ignore
-        const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
-        this.logMessage(resolvedLogMessage)
-      }
-
-      const input = {
-        Message: JSON.stringify(message),
-        TopicArn: this.topicArn,
-        ...options,
-      } satisfies PublishCommandInput
-      const command = new PublishCommand(input)
-      await this.snsClient.send(command)
-      this.handleMessageProcessed(message, 'published')
-    } catch (error) {
-      this.handleError(error)
-      throw error
+    const messageSchemaResult = this.resolveSchema(message)
+    if (messageSchemaResult.error) {
+      throw messageSchemaResult.error
     }
+
+    return this.internalPublish(message, messageSchemaResult.result, options)
   }
 
   protected override resolveMessage(): Either<

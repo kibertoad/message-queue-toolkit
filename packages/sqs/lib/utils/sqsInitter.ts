@@ -1,4 +1,5 @@
-import type { SQSClient } from '@aws-sdk/client-sqs'
+import { SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
+import type { SQSClient, QueueAttributeName } from '@aws-sdk/client-sqs'
 import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 
@@ -31,6 +32,18 @@ export async function deleteSqs(
     creationConfig.queue.QueueName,
     deletionConfig.waitForConfirmation !== false,
   )
+}
+
+export async function updateQueueAttributes(
+  sqsClient: SQSClient,
+  queueUrl: string,
+  attributes: Partial<Record<QueueAttributeName, string>> = {},
+) {
+  const command = new SetQueueAttributesCommand({
+    QueueUrl: queueUrl,
+    Attributes: attributes,
+  })
+  await sqsClient.send(command)
 }
 
 export async function initSqs(
@@ -66,8 +79,10 @@ export async function initSqs(
     throw new Error('queueConfig.QueueName is mandatory when locator is not provided')
   }
 
+  // create new queue
   const { queueUrl, queueArn } = await assertQueue(sqsClient, creationConfig.queue, {
     topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
+    updateAttributesIfExists: creationConfig.updateAttributesIfExists,
   })
   const queueName = creationConfig.queue.QueueName
 
