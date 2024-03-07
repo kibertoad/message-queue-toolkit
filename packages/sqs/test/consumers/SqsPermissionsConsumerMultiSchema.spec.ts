@@ -245,6 +245,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     })
 
     it('can access prehandler output', async () => {
+      expect.assertions(1)
       const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
         creationConfig: {
           queue: {
