@@ -11,7 +11,13 @@ import type {
   MessageProcessingResult,
 } from '../types/MessageQueueTypes'
 
-import type { MessageHandlerConfig, Prehandler, PrehandlerResult } from './HandlerContainer'
+import type {
+  BarrierResult,
+  MessageHandlerConfig,
+  Prehandler,
+  PrehandlerResult,
+  PrehandlingOutputs,
+} from './HandlerContainer'
 import type { HandlerSpy, PublicHandlerSpy, HandlerSpyParams } from './HandlerSpy'
 import { resolveHandlerSpy } from './HandlerSpy'
 
@@ -107,8 +113,9 @@ export abstract class AbstractQueueService<
     | ExistingQueueOptions<QueueLocatorType> =
     | NewQueueOptions<QueueConfiguration>
     | ExistingQueueOptions<QueueLocatorType>,
-  PrehandlerOutput = undefined,
   ExecutionContext = undefined,
+  PrehandlerOutput = undefined,
+  BarrierOutput = undefined,
 > {
   protected readonly errorReporter: ErrorReporter
   public readonly logger: Logger
@@ -290,6 +297,23 @@ export abstract class AbstractQueueService<
       }
     }
   }
+
+  protected abstract processPrehandlers(
+    message: MessagePayloadSchemas,
+    messageType: string,
+  ): Promise<PrehandlerOutput>
+
+  protected abstract preHandlerBarrier(
+    message: MessagePayloadSchemas,
+    messageType: string,
+    prehandlerOutput: PrehandlerOutput,
+  ): Promise<BarrierResult<BarrierOutput>>
+
+  abstract processMessage(
+    message: MessagePayloadSchemas,
+    messageType: string,
+    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, BarrierOutput>,
+  ): Promise<Either<'retryLater', 'success'>>
 
   public abstract close(): Promise<unknown>
 }

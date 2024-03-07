@@ -6,6 +6,7 @@ import type {
   ExistingQueueOptions,
   MonoSchemaQueueOptions,
   NewQueueOptions,
+  BarrierResult,
 } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
@@ -47,6 +48,18 @@ export abstract class AbstractSqsPublisherMonoSchema<MessagePayloadType extends 
     MessageInvalidFormatError | MessageValidationError,
     unknown
   > {
+    throw new Error('Not implemented for publisher')
+  }
+
+  protected override processPrehandlers(): Promise<unknown> {
+    throw new Error('Not implemented for publisher')
+  }
+
+  protected override preHandlerBarrier(): Promise<BarrierResult<unknown>> {
+    throw new Error('Not implemented for publisher')
+  }
+
+  override processMessage(): Promise<Either<'retryLater', 'success'>> {
     throw new Error('Not implemented for publisher')
   }
 

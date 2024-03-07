@@ -86,8 +86,8 @@ export abstract class AbstractSqsConsumerMonoSchema<
     QueueLocatorType,
     CreationConfigType,
     ConsumerOptionsType,
-    PrehandlerOutput,
     ExecutionContext,
+    PrehandlerOutput,
     BarrierOutput
   >
   implements QueueConsumer

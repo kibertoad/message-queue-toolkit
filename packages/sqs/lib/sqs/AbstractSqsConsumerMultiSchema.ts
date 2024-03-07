@@ -63,8 +63,8 @@ export abstract class AbstractSqsConsumerMultiSchema<
   QueueLocatorType,
   CreationConfigType,
   ConsumerOptionsType,
-  PrehandlerOutput,
-  ExecutionContext
+  ExecutionContext,
+  PrehandlerOutput
 > {
   messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   handlerContainer: HandlerContainer<MessagePayloadType, ExecutionContext, PrehandlerOutput>

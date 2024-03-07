@@ -5,6 +5,8 @@ import type {
   TransactionObservabilityManager,
   ExistingQueueOptions,
   BarrierResult,
+  PrehandlingOutputs,
+  Prehandler,
 } from '@message-queue-toolkit/core'
 import { isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import type { Connection, Message } from 'amqplib'
@@ -19,15 +21,41 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
 
 export type AMQPLocatorType = { queueName: string }
 
-export type NewAMQPConsumerOptions = NewQueueOptions<CreateAMQPQueueOptions>
+export type CommonQueueOptions<
+  MessagePayloadType extends object,
+  ExecutionContext,
+  PrehandlerOutput,
+> = {
+  prehandlers?: Prehandler<MessagePayloadType, ExecutionContext, PrehandlerOutput>[]
+}
 
-export type ExistingAMQPConsumerOptions = ExistingQueueOptions<AMQPLocatorType>
+export type NewAMQPConsumerOptions<
+  MessagePayloadType extends object,
+  ExecutionContext,
+  PrehandlerOutput,
+> = NewQueueOptions<CreateAMQPQueueOptions> &
+  CommonQueueOptions<MessagePayloadType, ExecutionContext, PrehandlerOutput>
+
+export type ExistingAMQPConsumerOptions<
+  MessagePayloadType extends object,
+  ExecutionContext,
+  PrehandlerOutput,
+> = ExistingQueueOptions<AMQPLocatorType> &
+  CommonQueueOptions<MessagePayloadType, ExecutionContext, PrehandlerOutput>
 
 export abstract class AbstractAmqpBaseConsumer<
     MessagePayloadType extends object,
-    BarrierOutput = undefined,
+    ExecutionContext,
+    PrehandlerOutput,
+    BarrierOutput,
   >
-  extends AbstractAmqpService<MessagePayloadType, AMQPConsumerDependencies>
+  extends AbstractAmqpService<
+    MessagePayloadType,
+    AMQPConsumerDependencies,
+    ExecutionContext,
+    PrehandlerOutput,
+    BarrierOutput
+  >
   implements QueueConsumer
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
@@ -35,7 +63,9 @@ export abstract class AbstractAmqpBaseConsumer<
 
   constructor(
     dependencies: AMQPConsumerDependencies,
-    options: NewAMQPConsumerOptions | ExistingAMQPConsumerOptions,
+    options:
+      | NewAMQPConsumerOptions<MessagePayloadType, ExecutionContext, PrehandlerOutput>
+      | ExistingAMQPConsumerOptions<MessagePayloadType, ExecutionContext, PrehandlerOutput>,
   ) {
     super(dependencies, options)
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
@@ -50,24 +80,17 @@ export abstract class AbstractAmqpBaseConsumer<
     message: MessagePayloadType,
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
-    const barrierResult = await this.preHandlerBarrier(message, messageType)
+    const prehandlerOutput = await this.processPrehandlers(message, messageType)
+    const barrierResult = await this.preHandlerBarrier(message, messageType, prehandlerOutput)
 
     if (barrierResult.isPassing) {
-      return this.processMessage(message, messageType, barrierResult.output)
+      return this.processMessage(message, messageType, {
+        prehandlerOutput,
+        barrierOutput: barrierResult.output,
+      })
     }
     return { error: 'retryLater' }
   }
-
-  protected abstract preHandlerBarrier(
-    message: MessagePayloadType,
-    messageType: string,
-  ): Promise<BarrierResult<BarrierOutput>>
-
-  abstract processMessage(
-    message: MessagePayloadType,
-    messageType: string,
-    barrierOutput: BarrierOutput,
-  ): Promise<Either<'retryLater', 'success'>>
 
   private deserializeMessage(message: Message | null): Either<'abort', MessagePayloadType> {
     if (message === null) {

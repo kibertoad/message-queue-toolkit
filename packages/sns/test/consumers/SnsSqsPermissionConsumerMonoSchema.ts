@@ -12,8 +12,14 @@ import { userPermissionMap } from '../repositories/PermissionRepository'
 import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
 
+type Options =
+  | Pick<NewSnsSqsConsumerOptions, 'creationConfig'>
+  | Pick<ExistingSnsSqsConsumerOptions, 'locatorConfig'>
+
 export class SnsSqsPermissionConsumerMonoSchema extends AbstractSnsSqsConsumerMonoSchema<
   PERMISSIONS_MESSAGE_TYPE,
+  undefined,
+  undefined,
   number
 > {
   public static CONSUMED_QUEUE_NAME = 'user_permissions'
@@ -23,9 +29,7 @@ export class SnsSqsPermissionConsumerMonoSchema extends AbstractSnsSqsConsumerMo
 
   constructor(
     dependencies: SNSSQSConsumerDependencies,
-    options:
-      | Pick<NewSnsSqsConsumerOptions, 'creationConfig'>
-      | Pick<ExistingSnsSqsConsumerOptions, 'locatorConfig'> = {
+    options: Options = {
       creationConfig: {
         queue: {
           QueueName: SnsSqsPermissionConsumerMonoSchema.CONSUMED_QUEUE_NAME,
@@ -49,7 +53,7 @@ export class SnsSqsPermissionConsumerMonoSchema extends AbstractSnsSqsConsumerMo
       subscriptionConfig: {
         updateAttributesIfExists: false,
       },
-      ...options,
+      ...(options as Omit<NewSnsSqsConsumerOptions, 'messageTypeField'>),
     })
   }
 

@@ -39,6 +39,7 @@ export abstract class AbstractSqsService<
   DependenciesType extends SQSDependencies = SQSDependencies,
   PrehandlerOutput = unknown,
   ExecutionContext = unknown,
+  BarrierOutput = unknown,
 > extends AbstractQueueService<
   MessagePayloadType,
   SQSMessage,
@@ -47,7 +48,8 @@ export abstract class AbstractSqsService<
   QueueLocatorType,
   SQSOptionsType,
   PrehandlerOutput,
-  ExecutionContext
+  ExecutionContext,
+  BarrierOutput
 > {
   protected readonly sqsClient: SQSClient
   // @ts-ignore

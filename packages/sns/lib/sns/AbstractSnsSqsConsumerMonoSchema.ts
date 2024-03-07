@@ -1,7 +1,6 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { Either } from '@lokalise/node-core'
 import type { MonoSchemaQueueOptions, BarrierResult, Prehandler } from '@message-queue-toolkit/core'
-import type { PrehandlerResult } from '@message-queue-toolkit/core/dist/lib/queues/HandlerContainer'
 import type {
   SQSConsumerDependencies,
   NewSQSConsumerOptions,
@@ -78,6 +77,7 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
   SNSCreationConfig & SQSCreationConfig,
   | NewSnsSqsConsumerOptions
   | ExistingSnsSqsConsumerOptionsMono<MessagePayloadType, ExecutionContext, PrehandlerOutput>,
+  ExecutionContext,
   PrehandlerOutput,
   BarrierOutput
 > {
@@ -133,33 +133,11 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
   }
 
   protected override processPrehandlers(message: MessagePayloadType) {
-    if (!this.prehandlers || this.prehandlers.length === 0) {
-      return Promise.resolve({} as PrehandlerOutput)
-    }
-
-    return new Promise<PrehandlerOutput>((resolve, reject) => {
-      try {
-        const prehandlerOutput = {} as PrehandlerOutput
-        const next = this.resolveNextFunction(
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          this.prehandlers!,
-          message,
-          0,
-          prehandlerOutput,
-          resolve,
-          reject,
-        )
-        next({
-          result: 'success',
-        })
-      } catch (err) {
-        reject(err as Error)
-      }
-    })
+    return this.processPrehandlersInternal(this.prehandlers, message)
   }
 
   // eslint-disable-next-line max-params
-  private resolveNextFunction(
+  protected override resolveNextFunction(
     prehandlers: Prehandler<MessagePayloadType, ExecutionContext, PrehandlerOutput>[],
     message: MessagePayloadType,
     index: number,
@@ -167,31 +145,15 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
     resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
     reject: (err: Error) => void,
   ) {
-    return (prehandlerResult: PrehandlerResult) => {
-      if (prehandlerResult.error) {
-        reject(prehandlerResult.error)
-      }
-
-      if (prehandlers.length < index + 1) {
-        resolve(prehandlerOutput)
-      } else {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        prehandlers[index](
-          message,
-          this as unknown as ExecutionContext,
-          // @ts-ignore
-          prehandlerOutput,
-          this.resolveNextFunction(
-            prehandlers,
-            message,
-            index + 1,
-            prehandlerOutput,
-            resolve,
-            reject,
-          ),
-        )
-      }
-    }
+    return this.resolveNextPreHandlerFunctionInternal(
+      prehandlers,
+      this as unknown as ExecutionContext,
+      message,
+      index,
+      prehandlerOutput,
+      resolve,
+      reject,
+    )
   }
 
   override async init(): Promise<void> {

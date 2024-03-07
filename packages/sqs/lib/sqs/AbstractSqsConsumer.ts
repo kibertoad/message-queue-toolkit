@@ -5,8 +5,6 @@ import type {
   NewQueueOptions,
   ExistingQueueOptions,
   TransactionObservabilityManager,
-  BarrierResult,
-  PrehandlingOutputs,
 } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
@@ -55,8 +53,8 @@ export abstract class AbstractSqsConsumer<
       | ExistingSQSConsumerOptions<QueueLocatorType> =
       | NewSQSConsumerOptions<CreationConfigType>
       | ExistingSQSConsumerOptions<QueueLocatorType>,
-    PrehandlerOutput = unknown,
     ExecutionContext = unknown,
+    PrehandlerOutput = unknown,
     BarrierOutput = unknown,
   >
   extends AbstractSqsService<
@@ -65,8 +63,9 @@ export abstract class AbstractSqsConsumer<
     CreationConfigType,
     ConsumerOptionsType,
     SQSConsumerDependencies,
+    ExecutionContext,
     PrehandlerOutput,
-    ExecutionContext
+    BarrierOutput
   >
   implements QueueConsumer
 {
@@ -99,23 +98,6 @@ export abstract class AbstractSqsConsumer<
     }
     return { error: 'retryLater' }
   }
-
-  protected abstract processPrehandlers(
-    message: MessagePayloadType,
-    messageType: string,
-  ): Promise<PrehandlerOutput>
-
-  protected abstract preHandlerBarrier(
-    message: MessagePayloadType,
-    messageType: string,
-    prehandlerOutput: PrehandlerOutput,
-  ): Promise<BarrierResult<BarrierOutput>>
-
-  abstract processMessage(
-    message: MessagePayloadType,
-    messageType: string,
-    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, BarrierOutput>,
-  ): Promise<Either<'retryLater', 'success'>>
 
   private tryToExtractId(message: SQSMessage): Either<'abort', string> {
     if (message === null) {

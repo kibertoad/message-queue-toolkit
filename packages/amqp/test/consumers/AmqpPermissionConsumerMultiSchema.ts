@@ -21,6 +21,7 @@ type ExecutionContext = {
 
 export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMultiSchema<
   SupportedEvents,
+  undefined,
   ExecutionContext
 > {
   public static QUEUE_NAME = 'user_permissions_multi'

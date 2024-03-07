@@ -32,6 +32,9 @@ export type AMQPQueueLocatorType = {
 export abstract class AbstractAmqpService<
     MessagePayloadType extends object,
     DependenciesType extends AMQPDependencies = AMQPDependencies,
+    ExecutionContext = unknown,
+    PrehandlerOutput = unknown,
+    BarrierOutput = unknown,
   >
   extends AbstractQueueService<
     MessagePayloadType,
@@ -39,7 +42,10 @@ export abstract class AbstractAmqpService<
     DependenciesType,
     CreateAMQPQueueOptions,
     AMQPQueueLocatorType,
-    NewQueueOptions<CreateAMQPQueueOptions> | ExistingQueueOptions<AMQPLocatorType>
+    NewQueueOptions<CreateAMQPQueueOptions> | ExistingQueueOptions<AMQPLocatorType>,
+    ExecutionContext,
+    PrehandlerOutput,
+    BarrierOutput
   >
   implements ConnectionReceiver
 {
