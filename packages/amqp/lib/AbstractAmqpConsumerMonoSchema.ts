@@ -62,6 +62,8 @@ export abstract class AbstractAmqpConsumerMonoSchema<
     return this.processPrehandlersInternal(this.prehandlers, message)
   }
 
+  // MonoSchema support is going away in the next semver major, so we don't care about coverage strongly
+  /* c8 ignore start */
   // eslint-disable-next-line max-params
   protected override resolveNextFunction(
     prehandlers: Prehandler<MessagePayloadType, ExecutionContext, PrehandlerOutput>[],
@@ -81,6 +83,7 @@ export abstract class AbstractAmqpConsumerMonoSchema<
       reject,
     )
   }
+  /* c8 ignore stop */
 
   protected override resolveSchema(_message: MessagePayloadType) {
     return this.schemaEither

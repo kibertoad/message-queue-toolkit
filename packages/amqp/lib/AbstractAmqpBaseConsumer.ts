@@ -4,8 +4,6 @@ import type {
   NewQueueOptions,
   TransactionObservabilityManager,
   ExistingQueueOptions,
-  BarrierResult,
-  PrehandlingOutputs,
   Prehandler,
 } from '@message-queue-toolkit/core'
 import { isMessageError, parseMessage } from '@message-queue-toolkit/core'
@@ -31,15 +29,15 @@ export type CommonQueueOptions<
 
 export type NewAMQPConsumerOptions<
   MessagePayloadType extends object,
-  ExecutionContext,
-  PrehandlerOutput,
+  ExecutionContext = undefined,
+  PrehandlerOutput = undefined,
 > = NewQueueOptions<CreateAMQPQueueOptions> &
   CommonQueueOptions<MessagePayloadType, ExecutionContext, PrehandlerOutput>
 
 export type ExistingAMQPConsumerOptions<
   MessagePayloadType extends object,
-  ExecutionContext,
-  PrehandlerOutput,
+  ExecutionContext = undefined,
+  PrehandlerOutput = undefined,
 > = ExistingQueueOptions<AMQPLocatorType> &
   CommonQueueOptions<MessagePayloadType, ExecutionContext, PrehandlerOutput>
 

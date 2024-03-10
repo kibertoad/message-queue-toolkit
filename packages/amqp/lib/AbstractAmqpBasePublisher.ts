@@ -1,5 +1,9 @@
 import type { Either } from '@lokalise/node-core'
-import type { MessageInvalidFormatError, MessageValidationError } from '@message-queue-toolkit/core'
+import type {
+  BarrierResult,
+  MessageInvalidFormatError,
+  MessageValidationError,
+} from '@message-queue-toolkit/core'
 import { objectToBuffer } from '@message-queue-toolkit/core'
 
 import { AbstractAmqpService } from './AbstractAmqpService'
@@ -26,6 +30,23 @@ export abstract class AbstractAmqpBasePublisher<
 
   /* c8 ignore start */
   protected resolveMessage(): Either<MessageInvalidFormatError | MessageValidationError, unknown> {
+    throw new Error('Not implemented for publisher')
+  }
+
+  /* c8 ignore start */
+  protected override processPrehandlers(): Promise<unknown> {
+    throw new Error('Not implemented for publisher')
+  }
+
+  protected override preHandlerBarrier(): Promise<BarrierResult<unknown>> {
+    throw new Error('Not implemented for publisher')
+  }
+
+  protected override resolveNextFunction(): () => void {
+    throw new Error('Not implemented for publisher')
+  }
+
+  override processMessage(): Promise<Either<'retryLater', 'success'>> {
     throw new Error('Not implemented for publisher')
   }
   /* c8 ignore stop */

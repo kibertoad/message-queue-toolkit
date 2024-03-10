@@ -3,7 +3,8 @@ import type {
   QueueConsumer,
   MultiSchemaConsumerOptions,
   BarrierResult,
-  Prehandler, PrehandlingOutputs,
+  Prehandler,
+  PrehandlingOutputs,
 } from '@message-queue-toolkit/core'
 import { HandlerContainer, MessageSchemaContainer } from '@message-queue-toolkit/core'
 
@@ -14,7 +15,7 @@ import type { AMQPConsumerDependencies } from './AbstractAmqpService'
 export abstract class AbstractAmqpConsumerMultiSchema<
     MessagePayloadType extends object,
     ExecutionContext,
-    PrehandlerOutput,
+    PrehandlerOutput = undefined,
     BarrierOutput = undefined,
   >
   extends AbstractAmqpBaseConsumer<
@@ -42,7 +43,11 @@ export abstract class AbstractAmqpConsumerMultiSchema<
       messageSchemas,
       messageTypeField: options.messageTypeField,
     })
-    this.handlerContainer = new HandlerContainer<MessagePayloadType, ExecutionContext, PrehandlerOutput>({
+    this.handlerContainer = new HandlerContainer<
+      MessagePayloadType,
+      ExecutionContext,
+      PrehandlerOutput
+    >({
       messageTypeField: this.messageTypeField,
       messageHandlers: options.handlers,
     })
@@ -98,7 +103,9 @@ export abstract class AbstractAmqpConsumerMultiSchema<
     messageType: string,
     prehandlerOutput: PrehandlerOutput,
   ): Promise<BarrierResult<BarrierOutput>> {
-    const handler = this.handlerContainer.resolveHandler<BarrierOutput, PrehandlerOutput>(messageType)
+    const handler = this.handlerContainer.resolveHandler<BarrierOutput, PrehandlerOutput>(
+      messageType,
+    )
     // @ts-ignore
     return handler.preHandlerBarrier
       ? await handler.preHandlerBarrier(message, this.executionContext, prehandlerOutput)

@@ -187,7 +187,6 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     let publisher: SnsPermissionPublisherMultiSchema
     beforeEach(async () => {
       diContainer = await registerDependencies({}, false)
-      //await diContainer.cradle.permissionConsumerMultiSchema.close()
       publisher = diContainer.cradle.permissionPublisherMultiSchema
       await publisher.init()
     })

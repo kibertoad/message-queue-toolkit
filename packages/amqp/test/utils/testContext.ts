@@ -22,6 +22,7 @@ const TestLogger: Logger = console
 export async function registerDependencies(
   config: AmqpConfig,
   dependencyOverrides: DependencyOverrides = {},
+  queuesEnabled = true,
 ) {
   const diContainer = createContainer({
     injectionMode: 'PROXY',
@@ -60,12 +61,14 @@ export async function registerDependencies(
       asyncInit: 'start',
       asyncDispose: 'close',
       asyncDisposePriority: 10,
+      enabled: queuesEnabled,
     }),
     permissionPublisher: asClass(AmqpPermissionPublisher, {
       lifetime: Lifetime.SINGLETON,
       asyncInit: 'init',
       asyncDispose: 'close',
       asyncDisposePriority: 20,
+      enabled: queuesEnabled,
     }),
 
     permissionConsumerMultiSchema: asClass(AmqpPermissionConsumerMultiSchema, {
@@ -73,12 +76,14 @@ export async function registerDependencies(
       asyncInit: 'start',
       asyncDispose: 'close',
       asyncDisposePriority: 10,
+      enabled: queuesEnabled,
     }),
     permissionPublisherMultiSchema: asClass(AmqpPermissionPublisherMultiSchema, {
       lifetime: Lifetime.SINGLETON,
       asyncInit: 'init',
       asyncDispose: 'close',
       asyncDisposePriority: 20,
+      enabled: queuesEnabled,
     }),
 
     // vendor-specific dependencies

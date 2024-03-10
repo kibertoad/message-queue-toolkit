@@ -130,6 +130,96 @@ describe('PermissionsConsumerMultiSchema', () => {
     })
   })
 
+  describe('prehandlers', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    let publisher: AmqpPermissionPublisherMultiSchema
+    beforeEach(async () => {
+      diContainer = await registerDependencies(TEST_AMQP_CONFIG, undefined, false)
+      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      await publisher.init()
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('processes one prehandler', async () => {
+      expect.assertions(1)
+
+      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+        removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
+          expect(prehandlerOutputs.prehandlerOutput.prehandlerCount).toBe(1)
+          return {
+            result: 'success',
+          }
+        },
+        removePreHandlers: [
+          (message, context, prehandlerOutput, next) => {
+            prehandlerOutput.prehandlerCount = prehandlerOutput.prehandlerCount
+              ? prehandlerOutput.prehandlerCount + 1
+              : 1
+            next({
+              result: 'success',
+            })
+          },
+        ],
+      })
+      await newConsumer.start()
+
+      publisher.publish({
+        id: '2',
+        messageType: 'remove',
+      })
+
+      await newConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+
+      await newConsumer.close()
+    })
+
+    it('processes two prehandlers', async () => {
+      expect.assertions(1)
+
+      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+        removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
+          expect(prehandlerOutputs.prehandlerOutput.prehandlerCount).toBe(11)
+          return {
+            result: 'success',
+          }
+        },
+        removePreHandlers: [
+          (message, context, prehandlerOutput, next) => {
+            prehandlerOutput.prehandlerCount = prehandlerOutput.prehandlerCount
+              ? prehandlerOutput.prehandlerCount + 10
+              : 10
+            next({
+              result: 'success',
+            })
+          },
+
+          (message, context, prehandlerOutput, next) => {
+            prehandlerOutput.prehandlerCount = prehandlerOutput.prehandlerCount
+              ? prehandlerOutput.prehandlerCount + 1
+              : 1
+            next({
+              result: 'success',
+            })
+          },
+        ],
+      })
+      await newConsumer.start()
+
+      publisher.publish({
+        id: '2',
+        messageType: 'remove',
+      })
+
+      await newConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+
+      await newConsumer.close()
+    })
+  })
+
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: AmqpPermissionPublisherMultiSchema
