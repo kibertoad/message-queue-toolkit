@@ -1,5 +1,5 @@
 import type { Either } from '@lokalise/node-core'
-import type { BarrierResult } from '@message-queue-toolkit/core'
+import type { BarrierResult, PrehandlingOutputs } from '@message-queue-toolkit/core'
 
 import type {
   ExistingSQSConsumerOptions,
@@ -15,6 +15,8 @@ import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
 
 export class SqsPermissionConsumerMonoSchema extends AbstractSqsConsumerMonoSchema<
   PERMISSIONS_MESSAGE_TYPE,
+  undefined,
+  undefined,
   string[][]
 > {
   public static QUEUE_NAME = 'user_permissions'
@@ -72,8 +74,9 @@ export class SqsPermissionConsumerMonoSchema extends AbstractSqsConsumerMonoSche
   override async processMessage(
     message: PERMISSIONS_MESSAGE_TYPE,
     _messageType: string,
-    matchedUserPermissions: string[][],
+    prehandlingOutputs: PrehandlingOutputs<undefined, string[][]>,
   ): Promise<Either<'retryLater', 'success'>> {
+    const matchedUserPermissions = prehandlingOutputs.barrierOutput
     // Do not do this in production, some kind of bulk insertion is needed here
     for (const userPermissions of matchedUserPermissions) {
       userPermissions.push(...message.permissions)

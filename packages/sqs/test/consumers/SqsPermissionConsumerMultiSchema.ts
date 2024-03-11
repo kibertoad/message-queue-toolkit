@@ -1,5 +1,6 @@
+import type { Either } from '@lokalise/node-core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
-import type { BarrierResult } from '@message-queue-toolkit/core'
+import type { BarrierResult, Prehandler, PrehandlingOutputs } from '@message-queue-toolkit/core'
 
 import type { SQSCreationConfig } from '../../lib/sqs/AbstractSqsConsumer'
 import type {
@@ -22,27 +23,42 @@ type SqsPermissionConsumerMultiSchemaOptions = (
   | Pick<
       NewSQSConsumerOptionsMultiSchema<
         SupportedMessages,
-        SqsPermissionConsumerMultiSchema,
+        ExecutionContext,
+        PrehandlerOutput,
         SQSCreationConfig
       >,
       'creationConfig' | 'logMessages' | 'deletionConfig'
     >
   | Pick<
-      ExistingSQSConsumerOptionsMultiSchema<SupportedMessages, SqsPermissionConsumerMultiSchema>,
+      ExistingSQSConsumerOptionsMultiSchema<SupportedMessages, ExecutionContext, PrehandlerOutput>,
       'locatorConfig' | 'logMessages'
     >
 ) & {
-  addPreHandlerBarrier?: (message: SupportedMessages) => Promise<BarrierResult<number>>
+  addPreHandlerBarrier?: (
+    message: SupportedMessages,
+    _executionContext: ExecutionContext,
+    prehandlerOutput: PrehandlerOutput,
+  ) => Promise<BarrierResult<number>>
+  removeHandlerOverride?: (
+    _message: SupportedMessages,
+    context: ExecutionContext,
+    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
+  ) => Promise<Either<'retryLater', 'success'>>
+  removePreHandlers?: Prehandler<SupportedMessages, ExecutionContext, PrehandlerOutput>[]
 }
 
 type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 type ExecutionContext = {
   incrementAmount: number
 }
+type PrehandlerOutput = {
+  messageId: string
+}
 
 export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSchema<
   SupportedMessages,
-  ExecutionContext
+  ExecutionContext,
+  PrehandlerOutput
 > {
   public addCounter = 0
   public removeCounter = 0
@@ -58,6 +74,17 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
       },
     },
   ) {
+    const defaultRemoveHandler = async (
+      _message: SupportedMessages,
+      context: ExecutionContext,
+      _prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
+    ): Promise<Either<'retryLater', 'success'>> => {
+      this.removeCounter += context.incrementAmount
+      return {
+        result: 'success',
+      }
+    }
+
     super(
       dependencies,
       {
@@ -69,8 +96,21 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
         consumerOverrides: {
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
         },
-        ...options,
-        handlers: new MessageHandlerConfigBuilder<SupportedMessages, ExecutionContext>()
+        // FixMe this casting shouldn't be necessary
+        ...(options as Pick<
+          NewSQSConsumerOptionsMultiSchema<
+            SupportedMessages,
+            ExecutionContext,
+            PrehandlerOutput,
+            SQSCreationConfig
+          >,
+          'creationConfig' | 'logMessages'
+        >),
+        handlers: new MessageHandlerConfigBuilder<
+          SupportedMessages,
+          ExecutionContext,
+          PrehandlerOutput
+        >()
           .addConfig(
             PERMISSIONS_ADD_MESSAGE_SCHEMA,
             async (_message, context, barrierOutput) => {
@@ -84,14 +124,23 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
             },
             {
               preHandlerBarrier: options.addPreHandlerBarrier,
+              prehandlers: [
+                (message, _context, prehandlerOutput, next) => {
+                  prehandlerOutput.messageId = message.id
+                  next({
+                    result: 'success',
+                  })
+                },
+              ],
             },
           )
-          .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, context) => {
-            this.removeCounter += context.incrementAmount
-            return {
-              result: 'success',
-            }
-          })
+          .addConfig(
+            PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
+            options.removeHandlerOverride ?? defaultRemoveHandler,
+            {
+              prehandlers: options.removePreHandlers,
+            },
+          )
           .build(),
       },
       {

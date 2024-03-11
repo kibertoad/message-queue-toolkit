@@ -1,6 +1,7 @@
 import type { Either } from '@lokalise/node-core'
 import type {
   AsyncPublisher,
+  BarrierResult,
   MessageInvalidFormatError,
   MessageValidationError,
   MonoSchemaQueueOptions,
@@ -44,6 +45,22 @@ export abstract class AbstractSnsPublisherMonoSchema<MessagePayloadType extends 
     MessageInvalidFormatError | MessageValidationError,
     unknown
   > {
+    throw new Error('Not implemented for publisher')
+  }
+
+  protected override resolveNextFunction(): () => void {
+    throw new Error('Not implemented for publisher')
+  }
+
+  protected override processPrehandlers(): Promise<undefined> {
+    throw new Error('Not implemented for publisher')
+  }
+
+  protected override preHandlerBarrier(): Promise<BarrierResult<undefined>> {
+    throw new Error('Not implemented for publisher')
+  }
+
+  override processMessage(): Promise<Either<'retryLater', 'success'>> {
     throw new Error('Not implemented for publisher')
   }
 

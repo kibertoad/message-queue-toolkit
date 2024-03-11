@@ -1,4 +1,5 @@
-import type { BarrierResult } from '@message-queue-toolkit/core'
+import type { Either } from '@lokalise/node-core'
+import type { BarrierResult, Prehandler, PrehandlingOutputs } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 
 import type { NewAMQPConsumerOptions } from '../../lib/AbstractAmqpBaseConsumer'
@@ -18,10 +19,14 @@ type SupportedEvents = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE
 type ExecutionContext = {
   incrementAmount: number
 }
+type PrehandlerOutput = {
+  prehandlerCount: number
+}
 
 export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMultiSchema<
   SupportedEvents,
-  ExecutionContext
+  ExecutionContext,
+  PrehandlerOutput
 > {
   public static QUEUE_NAME = 'user_permissions_multi'
 
@@ -30,10 +35,29 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
 
   constructor(
     dependencies: AMQPConsumerDependencies,
-    options?: Partial<NewAMQPConsumerOptions> & {
+    options: Partial<
+      NewAMQPConsumerOptions<SupportedEvents, ExecutionContext, PrehandlerOutput>
+    > & {
       addPreHandlerBarrier?: (message: SupportedEvents) => Promise<BarrierResult<number>>
+      removeHandlerOverride?: (
+        _message: SupportedEvents,
+        context: ExecutionContext,
+        prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
+      ) => Promise<Either<'retryLater', 'success'>>
+      removePreHandlers?: Prehandler<SupportedEvents, ExecutionContext, PrehandlerOutput>[]
     },
   ) {
+    const defaultRemoveHandler = async (
+      _message: SupportedEvents,
+      context: ExecutionContext,
+      _prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
+    ): Promise<Either<'retryLater', 'success'>> => {
+      this.removeCounter += context.incrementAmount
+      return {
+        result: 'success',
+      }
+    }
+
     super(
       dependencies,
       {
@@ -48,7 +72,11 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
         deletionConfig: {
           deleteIfExists: true,
         },
-        handlers: new MessageHandlerConfigBuilder<SupportedEvents, ExecutionContext>()
+        handlers: new MessageHandlerConfigBuilder<
+          SupportedEvents,
+          ExecutionContext,
+          PrehandlerOutput
+        >()
           .addConfig(
             PERMISSIONS_ADD_MESSAGE_SCHEMA,
             async (_message, context, barrierOutput) => {
@@ -64,12 +92,13 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
               preHandlerBarrier: options?.addPreHandlerBarrier,
             },
           )
-          .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, async (_message, context) => {
-            this.removeCounter += context.incrementAmount
-            return {
-              result: 'success',
-            }
-          })
+          .addConfig(
+            PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
+            options?.removeHandlerOverride ?? defaultRemoveHandler,
+            {
+              prehandlers: options?.removePreHandlers,
+            },
+          )
           .build(),
         messageTypeField: 'messageType',
         ...options,

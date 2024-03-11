@@ -50,12 +50,24 @@ export type ExistingSNSOptions = ExistingQueueOptions<SNSQueueLocatorType>
 export type NewSNSOptionsMultiSchema<
   MessagePayloadSchemas extends object,
   ExecutionContext,
-> = NewQueueOptionsMultiSchema<MessagePayloadSchemas, SNSCreationConfig, ExecutionContext>
+  PrehandlerOutput,
+> = NewQueueOptionsMultiSchema<
+  MessagePayloadSchemas,
+  SNSCreationConfig,
+  ExecutionContext,
+  PrehandlerOutput
+>
 
 export type ExistingSNSOptionsMultiSchema<
   MessagePayloadSchemas extends object,
   ExecutionContext,
-> = ExistingQueueOptionsMultiSchema<MessagePayloadSchemas, SNSQueueLocatorType, ExecutionContext>
+  PrehandlerOutput,
+> = ExistingQueueOptionsMultiSchema<
+  MessagePayloadSchemas,
+  SNSQueueLocatorType,
+  ExecutionContext,
+  PrehandlerOutput
+>
 
 export type ExtraSNSCreationParams = {
   queueUrlsWithSubscribePermissionsPrefix?: string

@@ -4,6 +4,8 @@ import type {
   ExistingQueueOptionsMultiSchema,
   NewQueueOptionsMultiSchema,
   BarrierResult,
+  Prehandler,
+  PrehandlingOutputs,
 } from '@message-queue-toolkit/core'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
@@ -14,41 +16,58 @@ import type { SQSConsumerDependencies, SQSQueueLocatorType } from './AbstractSqs
 export type NewSQSConsumerOptionsMultiSchema<
   MessagePayloadSchemas extends object,
   ExecutionContext,
+  PrehandlerOutput,
   CreationConfigType extends SQSCreationConfig,
-> = NewQueueOptionsMultiSchema<MessagePayloadSchemas, CreationConfigType, ExecutionContext> & {
+> = NewQueueOptionsMultiSchema<
+  MessagePayloadSchemas,
+  CreationConfigType,
+  ExecutionContext,
+  PrehandlerOutput
+> & {
   consumerOverrides?: Partial<ConsumerOptions>
 }
 
 export type ExistingSQSConsumerOptionsMultiSchema<
   MessagePayloadSchemas extends object,
   ExecutionContext,
+  PrehandlerOutput,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
-> = ExistingQueueOptionsMultiSchema<MessagePayloadSchemas, QueueLocatorType, ExecutionContext> & {
+> = ExistingQueueOptionsMultiSchema<
+  MessagePayloadSchemas,
+  QueueLocatorType,
+  ExecutionContext,
+  PrehandlerOutput
+> & {
   consumerOverrides?: Partial<ConsumerOptions>
 }
 
 export abstract class AbstractSqsConsumerMultiSchema<
   MessagePayloadType extends object,
   ExecutionContext,
+  PrehandlerOutput,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
   CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
-  ConsumerOptionsType extends
-    | NewSQSConsumerOptionsMultiSchema<MessagePayloadType, ExecutionContext, CreationConfigType>
-    | ExistingSQSConsumerOptionsMultiSchema<
-        MessagePayloadType,
-        ExecutionContext,
-        QueueLocatorType
-      > =
-    | NewSQSConsumerOptionsMultiSchema<MessagePayloadType, ExecutionContext, CreationConfigType>
-    | ExistingSQSConsumerOptionsMultiSchema<MessagePayloadType, ExecutionContext, QueueLocatorType>,
+  ConsumerOptionsType extends NewSQSConsumerOptionsMultiSchema<
+    MessagePayloadType,
+    ExecutionContext,
+    PrehandlerOutput,
+    CreationConfigType
+  > = NewSQSConsumerOptionsMultiSchema<
+    MessagePayloadType,
+    ExecutionContext,
+    PrehandlerOutput,
+    CreationConfigType
+  >,
 > extends AbstractSqsConsumer<
   MessagePayloadType,
   QueueLocatorType,
   CreationConfigType,
-  ConsumerOptionsType
+  ConsumerOptionsType,
+  ExecutionContext,
+  PrehandlerOutput
 > {
   messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
-  handlerContainer: HandlerContainer<MessagePayloadType, ExecutionContext>
+  handlerContainer: HandlerContainer<MessagePayloadType, ExecutionContext, PrehandlerOutput>
   protected readonly executionContext: ExecutionContext
 
   constructor(
@@ -64,7 +83,11 @@ export abstract class AbstractSqsConsumerMultiSchema<
       messageSchemas,
       messageTypeField: options.messageTypeField,
     })
-    this.handlerContainer = new HandlerContainer<MessagePayloadType, ExecutionContext>({
+    this.handlerContainer = new HandlerContainer<
+      MessagePayloadType,
+      ExecutionContext,
+      PrehandlerOutput
+    >({
       messageTypeField: this.messageTypeField,
       messageHandlers: options.handlers,
     })
@@ -78,10 +101,37 @@ export abstract class AbstractSqsConsumerMultiSchema<
   public override async processMessage(
     message: MessagePayloadType,
     messageType: string,
-    barrierOutput: unknown,
+    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, unknown>,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler(messageType)
-    return handler.handler(message, this.executionContext, barrierOutput)
+
+    return handler.handler(message, this.executionContext, prehandlingOutputs)
+  }
+
+  protected override processPrehandlers(message: MessagePayloadType, messageType: string) {
+    const handlerConfig = this.handlerContainer.resolveHandler(messageType)
+
+    return this.processPrehandlersInternal(handlerConfig.prehandlers, message)
+  }
+
+  // eslint-disable-next-line max-params
+  protected override resolveNextFunction(
+    prehandlers: Prehandler<MessagePayloadType, ExecutionContext, unknown>[],
+    message: MessagePayloadType,
+    index: number,
+    prehandlerOutput: PrehandlerOutput,
+    resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
+    reject: (err: Error) => void,
+  ) {
+    return this.resolveNextPreHandlerFunctionInternal(
+      prehandlers,
+      this.executionContext,
+      message,
+      index,
+      prehandlerOutput,
+      resolve,
+      reject,
+    )
   }
 
   protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
@@ -92,11 +142,15 @@ export abstract class AbstractSqsConsumerMultiSchema<
   protected override async preHandlerBarrier<BarrierOutput>(
     message: MessagePayloadType,
     messageType: string,
+    prehandlerOutput: PrehandlerOutput,
   ): Promise<BarrierResult<BarrierOutput>> {
-    const handler = this.handlerContainer.resolveHandler<BarrierOutput>(messageType)
+    const handler = this.handlerContainer.resolveHandler<BarrierOutput, PrehandlerOutput>(
+      messageType,
+    )
     // @ts-ignore
     return handler.preHandlerBarrier
-      ? await handler.preHandlerBarrier(message, this.executionContext)
+      ? // @ts-ignore
+        await handler.preHandlerBarrier(message, this.executionContext, prehandlerOutput)
       : {
           isPassing: true,
           output: undefined,

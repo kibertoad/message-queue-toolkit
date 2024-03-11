@@ -5,7 +5,6 @@ import type {
   NewQueueOptions,
   ExistingQueueOptions,
   TransactionObservabilityManager,
-  BarrierResult,
 } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
@@ -54,6 +53,8 @@ export abstract class AbstractSqsConsumer<
       | ExistingSQSConsumerOptions<QueueLocatorType> =
       | NewSQSConsumerOptions<CreationConfigType>
       | ExistingSQSConsumerOptions<QueueLocatorType>,
+    ExecutionContext = unknown,
+    PrehandlerOutput = unknown,
     BarrierOutput = unknown,
   >
   extends AbstractSqsService<
@@ -61,7 +62,10 @@ export abstract class AbstractSqsConsumer<
     QueueLocatorType,
     CreationConfigType,
     ConsumerOptionsType,
-    SQSConsumerDependencies
+    SQSConsumerDependencies,
+    ExecutionContext,
+    PrehandlerOutput,
+    BarrierOutput
   >
   implements QueueConsumer
 {
@@ -83,24 +87,17 @@ export abstract class AbstractSqsConsumer<
     message: MessagePayloadType,
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
-    const barrierResult = await this.preHandlerBarrier(message, messageType)
+    const prehandlerOutput = await this.processPrehandlers(message, messageType)
+    const barrierResult = await this.preHandlerBarrier(message, messageType, prehandlerOutput)
 
     if (barrierResult.isPassing) {
-      return this.processMessage(message, messageType, barrierResult.output)
+      return this.processMessage(message, messageType, {
+        prehandlerOutput,
+        barrierOutput: barrierResult.output,
+      })
     }
     return { error: 'retryLater' }
   }
-
-  protected abstract preHandlerBarrier(
-    message: MessagePayloadType,
-    messageType: string,
-  ): Promise<BarrierResult<BarrierOutput>>
-
-  abstract processMessage(
-    message: MessagePayloadType,
-    messageType: string,
-    barrierOutput: BarrierOutput,
-  ): Promise<Either<'retryLater', 'success'>>
 
   private tryToExtractId(message: SQSMessage): Either<'abort', string> {
     if (message === null) {

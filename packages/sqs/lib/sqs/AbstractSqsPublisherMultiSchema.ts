@@ -6,6 +6,7 @@ import type {
   ExistingQueueOptions,
   NewQueueOptions,
   MultiSchemaPublisherOptions,
+  BarrierResult,
 } from '@message-queue-toolkit/core'
 import { MessageSchemaContainer } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
@@ -51,9 +52,25 @@ export abstract class AbstractSqsPublisherMultiSchema<MessagePayloadType extends
   }
 
   /* c8 ignore start */
+  protected override resolveNextFunction(): () => void {
+    throw new Error('Not implemented for publisher')
+  }
+
   protected resolveMessage(
     _message: SQSMessage,
   ): Either<MessageInvalidFormatError | MessageValidationError, unknown> {
+    throw new Error('Not implemented for publisher')
+  }
+
+  protected override processPrehandlers(): Promise<unknown> {
+    throw new Error('Not implemented for publisher')
+  }
+
+  protected override preHandlerBarrier(): Promise<BarrierResult<unknown>> {
+    throw new Error('Not implemented for publisher')
+  }
+
+  override processMessage(): Promise<Either<'retryLater', 'success'>> {
     throw new Error('Not implemented for publisher')
   }
   /* c8 ignore stop */

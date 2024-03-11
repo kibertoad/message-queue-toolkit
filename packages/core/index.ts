@@ -33,16 +33,25 @@ export {
 
 export { isShallowSubset, objectMatches } from './lib/utils/matchUtils'
 
+export { RetryMessageLaterError } from './lib/errors/RetryMessageLaterError'
+
+export { DoNotProcessMessageError } from './lib/errors/DoNotProcessError'
+
 export {
   HandlerContainer,
   MessageHandlerConfig,
   MessageHandlerConfigBuilder,
+} from './lib/queues/HandlerContainer'
+export type {
   BarrierCallbackMultiConsumers,
   BarrierResult,
   BarrierResultPositive,
   BarrierResultNegative,
+  HandlerContainerOptions,
+  Handler,
+  Prehandler,
+  PrehandlingOutputs,
 } from './lib/queues/HandlerContainer'
-export type { HandlerContainerOptions, Handler } from './lib/queues/HandlerContainer'
 export { HandlerSpy } from './lib/queues/HandlerSpy'
 export type { SpyResult, HandlerSpyParams, PublicHandlerSpy } from './lib/queues/HandlerSpy'
 
