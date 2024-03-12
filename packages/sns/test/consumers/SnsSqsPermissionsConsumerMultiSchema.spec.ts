@@ -210,7 +210,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
           updateAttributesIfExists: true,
         },
         deletionConfig: {
-          deleteIfExists: false,
+          deleteIfExists: true,
         },
         removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
           expect(prehandlerOutputs.prehandlerOutput.prehandlerCount).toBe(1)
@@ -255,7 +255,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
           updateAttributesIfExists: true,
         },
         deletionConfig: {
-          deleteIfExists: false,
+          deleteIfExists: true,
         },
         removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
           expect(prehandlerOutputs.prehandlerOutput.prehandlerCount).toBe(11)
