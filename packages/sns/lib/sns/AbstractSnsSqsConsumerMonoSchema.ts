@@ -34,7 +34,7 @@ export type NewSnsSqsConsumerOptions = NewSQSConsumerOptions<
 export type NewSnsSqsConsumerOptionsMono<
   MessagePayloadType extends object,
   ExecutionContext,
-  PrehandlerOutput,
+  PrehandlerOutput = undefined,
 > = NewSnsSqsConsumerOptions &
   MonoSchemaQueueOptions<MessagePayloadType> &
   CommonSQSConsumerOptionsMono<MessagePayloadType, ExecutionContext, PrehandlerOutput>
