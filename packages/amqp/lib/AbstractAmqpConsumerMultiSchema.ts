@@ -61,9 +61,10 @@ export abstract class AbstractAmqpConsumerMultiSchema<
   public override async processMessage(
     message: MessagePayloadType,
     messageType: string,
-    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, unknown>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, any>,
   ): Promise<Either<'retryLater', 'success'>> {
-    const handler = this.handlerContainer.resolveHandler(messageType)
+    const handler = this.handlerContainer.resolveHandler<PrehandlerOutput>(messageType)
     return handler.handler(message, this.executionContext, prehandlingOutputs)
   }
 
@@ -73,7 +74,7 @@ export abstract class AbstractAmqpConsumerMultiSchema<
   }
 
   protected override processPrehandlers(message: MessagePayloadType, messageType: string) {
-    const handlerConfig = this.handlerContainer.resolveHandler(messageType)
+    const handlerConfig = this.handlerContainer.resolveHandler<PrehandlerOutput>(messageType)
 
     return this.processPrehandlersInternal(handlerConfig.prehandlers, message)
   }
@@ -103,7 +104,7 @@ export abstract class AbstractAmqpConsumerMultiSchema<
     messageType: string,
     prehandlerOutput: PrehandlerOutput,
   ): Promise<BarrierResult<BarrierOutput>> {
-    const handler = this.handlerContainer.resolveHandler<BarrierOutput, PrehandlerOutput>(
+    const handler = this.handlerContainer.resolveHandler<PrehandlerOutput, BarrierOutput>(
       messageType,
     )
     // @ts-ignore

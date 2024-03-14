@@ -41,7 +41,7 @@ export type NewQueueOptionsMultiSchema<
   MessagePayloadSchemas extends object,
   CreationConfigType extends object,
   ExecutionContext,
-  PrehandlerOutput,
+  PrehandlerOutput = undefined,
 > = NewQueueOptions<CreationConfigType> &
   MultiSchemaConsumerOptions<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
 
@@ -49,7 +49,7 @@ export type ExistingQueueOptionsMultiSchema<
   MessagePayloadSchemas extends object,
   QueueLocatorType extends object,
   ExecutionContext,
-  PrehandlerOutput,
+  PrehandlerOutput = undefined,
 > = ExistingQueueOptions<QueueLocatorType> &
   MultiSchemaConsumerOptions<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
 
@@ -89,7 +89,7 @@ export type MultiSchemaPublisherOptions<MessagePayloadSchemas extends object> = 
 export type MultiSchemaConsumerOptions<
   MessagePayloadSchemas extends object,
   ExecutionContext,
-  PrehandlerOutput,
+  PrehandlerOutput = undefined,
 > = {
   handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
 }
