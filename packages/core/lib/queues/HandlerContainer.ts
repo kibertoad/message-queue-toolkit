@@ -111,13 +111,13 @@ export class MessageHandlerConfigBuilder<
   MessagePayloadSchemas extends object,
   ExecutionContext,
   PrehandlerOutput = undefined,
+  BarrierOutputs = undefined,
 > {
   private readonly configs: MessageHandlerConfig<
     MessagePayloadSchemas,
     ExecutionContext,
     PrehandlerOutput,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    any
+    BarrierOutputs
   >[]
 
   constructor() {
@@ -135,6 +135,7 @@ export class MessageHandlerConfigBuilder<
     >,
   ) {
     this.configs.push(
+      // @ts-ignore
       new MessageHandlerConfig<
         MessagePayloadSchemas,
         ExecutionContext,
@@ -185,11 +186,11 @@ export class HandlerContainer<
   MessagePayloadSchemas extends object,
   ExecutionContext,
   PrehandlerOutput = undefined,
+  BarrierOutputs = undefined,
 > {
   private readonly messageHandlers: Record<
     string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput, any>
+    MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput, BarrierOutputs>
   >
   private readonly messageTypeField: string
 
@@ -225,8 +226,7 @@ export class HandlerContainer<
     >[],
   ): Record<
     string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput, any>
+    MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput, BarrierOutputs>
   > {
     return supportedHandlers.reduce(
       (acc, entry) => {
@@ -238,7 +238,12 @@ export class HandlerContainer<
       },
       {} as Record<
         string,
-        MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput, unknown>
+        MessageHandlerConfig<
+          MessagePayloadSchemas,
+          ExecutionContext,
+          PrehandlerOutput,
+          BarrierOutputs
+        >
       >,
     )
   }
