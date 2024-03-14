@@ -111,13 +111,13 @@ export class MessageHandlerConfigBuilder<
   MessagePayloadSchemas extends object,
   ExecutionContext,
   PrehandlerOutput = undefined,
-  BarrierOutputs = undefined,
 > {
   private readonly configs: MessageHandlerConfig<
     MessagePayloadSchemas,
     ExecutionContext,
     PrehandlerOutput,
-    BarrierOutputs
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any
   >[]
 
   constructor() {
