@@ -32,7 +32,7 @@ export type NewSnsSqsConsumerOptionsMulti<
 export abstract class AbstractSnsSqsConsumerMultiSchema<
   MessagePayloadSchemas extends object,
   ExecutionContext,
-  PrehandlerOutput,
+  PrehandlerOutput = undefined,
 > extends AbstractSqsConsumerMultiSchema<
   MessagePayloadSchemas,
   ExecutionContext,

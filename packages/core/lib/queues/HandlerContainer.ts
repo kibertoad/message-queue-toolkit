@@ -225,6 +225,7 @@ export class HandlerContainer<
     >[],
   ): Record<
     string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput, any>
   > {
     return supportedHandlers.reduce(

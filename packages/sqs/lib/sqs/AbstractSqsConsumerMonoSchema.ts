@@ -7,7 +7,6 @@ import type {
   PrehandlingOutputs,
 } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
-import { undefined } from 'zod'
 
 import type {
   ExistingSQSConsumerOptions,
@@ -25,7 +24,7 @@ const DEFAULT_BARRIER_RESULT = {
 export type CommonSQSConsumerOptionsMono<
   MessagePayloadType extends object,
   ExecutionContext,
-  PrehandlerOutput,
+  PrehandlerOutput = undefined,
 > = {
   prehandlers?: Prehandler<MessagePayloadType, ExecutionContext, PrehandlerOutput>[]
 }
@@ -33,8 +32,8 @@ export type CommonSQSConsumerOptionsMono<
 export type NewSQSConsumerOptionsMono<
   MessagePayloadType extends object,
   ExecutionContext,
-  PrehandlerOutput,
-  CreationConfigType extends SQSCreationConfig,
+  PrehandlerOutput = undefined,
+  CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
 > = NewSQSConsumerOptions<CreationConfigType> &
   MonoSchemaQueueOptions<MessagePayloadType> &
   CommonSQSConsumerOptionsMono<MessagePayloadType, ExecutionContext, PrehandlerOutput>
@@ -42,7 +41,7 @@ export type NewSQSConsumerOptionsMono<
 export type ExistingSQSConsumerOptionsMono<
   MessagePayloadType extends object,
   ExecutionContext,
-  PrehandlerOutput,
+  PrehandlerOutput = undefined,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
 > = ExistingSQSConsumerOptions<QueueLocatorType> &
   MonoSchemaQueueOptions<MessagePayloadType> &
