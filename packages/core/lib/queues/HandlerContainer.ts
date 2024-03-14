@@ -50,8 +50,8 @@ export const defaultLogFormatter = <MessagePayloadSchema>(message: MessagePayloa
 export type HandlerConfigOptions<
   MessagePayloadSchema extends object,
   ExecutionContext,
-  PrehandlerOutput = undefined,
-  BarrierOutput = undefined,
+  PrehandlerOutput,
+  BarrierOutput,
 > = {
   messageLogFormatter?: LogFormatter<MessagePayloadSchema>
   preHandlerBarrier?: BarrierCallbackMultiConsumers<
@@ -67,7 +67,7 @@ export class MessageHandlerConfig<
   const MessagePayloadSchema extends object,
   const ExecutionContext,
   const PrehandlerOutput = undefined,
-  const BarrierOutput = undefined,
+  const BarrierOutput = unknown,
 > {
   public readonly schema: ZodSchema<MessagePayloadSchema>
   public readonly handler: Handler<
@@ -116,7 +116,6 @@ export class MessageHandlerConfigBuilder<
     MessagePayloadSchemas,
     ExecutionContext,
     PrehandlerOutput,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     any
   >[]
 
@@ -171,14 +170,8 @@ export type HandlerContainerOptions<
   MessagePayloadSchemas extends object,
   ExecutionContext,
   PrehandlerOutput = undefined,
-  BarrierOutput = undefined,
 > = {
-  messageHandlers: MessageHandlerConfig<
-    MessagePayloadSchemas,
-    ExecutionContext,
-    PrehandlerOutput,
-    BarrierOutput
-  >[]
+  messageHandlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
   messageTypeField: string
 }
 
@@ -186,11 +179,10 @@ export class HandlerContainer<
   MessagePayloadSchemas extends object,
   ExecutionContext,
   PrehandlerOutput = undefined,
-  BarrierOutputs = undefined,
 > {
   private readonly messageHandlers: Record<
     string,
-    MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput, BarrierOutputs>
+    MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
   >
   private readonly messageTypeField: string
 
@@ -226,7 +218,7 @@ export class HandlerContainer<
     >[],
   ): Record<
     string,
-    MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput, BarrierOutputs>
+    MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
   > {
     return supportedHandlers.reduce(
       (acc, entry) => {
@@ -238,12 +230,7 @@ export class HandlerContainer<
       },
       {} as Record<
         string,
-        MessageHandlerConfig<
-          MessagePayloadSchemas,
-          ExecutionContext,
-          PrehandlerOutput,
-          BarrierOutputs
-        >
+        MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
       >,
     )
   }
