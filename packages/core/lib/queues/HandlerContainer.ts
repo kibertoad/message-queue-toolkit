@@ -110,7 +110,7 @@ export class MessageHandlerConfig<
 export class MessageHandlerConfigBuilder<
   MessagePayloadSchemas extends object,
   ExecutionContext,
-  PrehandlerOutput,
+  PrehandlerOutput = undefined,
 > {
   private readonly configs: MessageHandlerConfig<
     MessagePayloadSchemas,
