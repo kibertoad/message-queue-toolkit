@@ -4,7 +4,7 @@ import type { ZodSchema } from 'zod'
 import type { DoNotProcessMessageError } from '../errors/DoNotProcessError'
 import type { RetryMessageLaterError } from '../errors/RetryMessageLaterError'
 
-export type PrehandlingOutputs<PrehandlerOutput, BarrierOutput> = {
+export type PrehandlingOutputs<PrehandlerOutput = undefined, BarrierOutput = undefined> = {
   prehandlerOutput: PrehandlerOutput
   barrierOutput: BarrierOutput
 }
@@ -50,8 +50,8 @@ export const defaultLogFormatter = <MessagePayloadSchema>(message: MessagePayloa
 export type HandlerConfigOptions<
   MessagePayloadSchema extends object,
   ExecutionContext,
-  PrehandlerOutput,
-  BarrierOutput,
+  PrehandlerOutput = undefined,
+  BarrierOutput = undefined,
 > = {
   messageLogFormatter?: LogFormatter<MessagePayloadSchema>
   preHandlerBarrier?: BarrierCallbackMultiConsumers<
@@ -66,8 +66,8 @@ export type HandlerConfigOptions<
 export class MessageHandlerConfig<
   const MessagePayloadSchema extends object,
   const ExecutionContext,
-  const PrehandlerOutput = unknown,
-  const BarrierOutput = unknown,
+  const PrehandlerOutput = undefined,
+  const BarrierOutput = undefined,
 > {
   public readonly schema: ZodSchema<MessagePayloadSchema>
   public readonly handler: Handler<
@@ -169,13 +169,14 @@ export type Handler<
 export type HandlerContainerOptions<
   MessagePayloadSchemas extends object,
   ExecutionContext,
-  PrehandlerOutput,
+  PrehandlerOutput = undefined,
+  BarrierOutput = undefined,
 > = {
   messageHandlers: MessageHandlerConfig<
     MessagePayloadSchemas,
     ExecutionContext,
     PrehandlerOutput,
-    unknown
+    BarrierOutput
   >[]
   messageTypeField: string
 }
@@ -183,11 +184,12 @@ export type HandlerContainerOptions<
 export class HandlerContainer<
   MessagePayloadSchemas extends object,
   ExecutionContext,
-  PrehandlerOutput,
+  PrehandlerOutput = undefined,
 > {
   private readonly messageHandlers: Record<
     string,
-    MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput, unknown>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput, any>
   >
   private readonly messageTypeField: string
 
@@ -198,19 +200,20 @@ export class HandlerContainer<
     this.messageHandlers = this.resolveHandlerMap(options.messageHandlers)
   }
 
-  public resolveHandler<BarrierResult, PrehandlerOutput>(
+  public resolveHandler<PrehandlerOutput = undefined, BarrierOutput = undefined>(
     messageType: string,
   ): MessageHandlerConfig<
     MessagePayloadSchemas,
     ExecutionContext,
     PrehandlerOutput,
-    BarrierResult
+    BarrierOutput
   > {
     const handler = this.messageHandlers[messageType]
     if (!handler) {
       throw new Error(`Unsupported message type: ${messageType}`)
     }
     // @ts-ignore
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return handler
   }
 
@@ -218,17 +221,17 @@ export class HandlerContainer<
     supportedHandlers: MessageHandlerConfig<
       MessagePayloadSchemas,
       ExecutionContext,
-      PrehandlerOutput,
-      unknown
+      PrehandlerOutput
     >[],
   ): Record<
     string,
-    MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput, unknown>
+    MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput, any>
   > {
     return supportedHandlers.reduce(
       (acc, entry) => {
         // @ts-ignore
         const messageType = entry.schema.shape[this.messageTypeField].value
+        // @ts-ignore
         acc[messageType] = entry
         return acc
       },

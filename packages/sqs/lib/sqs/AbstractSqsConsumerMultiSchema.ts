@@ -44,7 +44,7 @@ export type ExistingSQSConsumerOptionsMultiSchema<
 export abstract class AbstractSqsConsumerMultiSchema<
   MessagePayloadType extends object,
   ExecutionContext,
-  PrehandlerOutput,
+  PrehandlerOutput = undefined,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
   CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
   ConsumerOptionsType extends NewSQSConsumerOptionsMultiSchema<
@@ -101,15 +101,16 @@ export abstract class AbstractSqsConsumerMultiSchema<
   public override async processMessage(
     message: MessagePayloadType,
     messageType: string,
-    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, unknown>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, any>,
   ): Promise<Either<'retryLater', 'success'>> {
-    const handler = this.handlerContainer.resolveHandler(messageType)
+    const handler = this.handlerContainer.resolveHandler<PrehandlerOutput>(messageType)
 
     return handler.handler(message, this.executionContext, prehandlingOutputs)
   }
 
   protected override processPrehandlers(message: MessagePayloadType, messageType: string) {
-    const handlerConfig = this.handlerContainer.resolveHandler(messageType)
+    const handlerConfig = this.handlerContainer.resolveHandler<PrehandlerOutput>(messageType)
 
     return this.processPrehandlersInternal(handlerConfig.prehandlers, message)
   }
@@ -144,7 +145,7 @@ export abstract class AbstractSqsConsumerMultiSchema<
     messageType: string,
     prehandlerOutput: PrehandlerOutput,
   ): Promise<BarrierResult<BarrierOutput>> {
-    const handler = this.handlerContainer.resolveHandler<BarrierOutput, PrehandlerOutput>(
+    const handler = this.handlerContainer.resolveHandler<PrehandlerOutput, BarrierOutput>(
       messageType,
     )
     // @ts-ignore
