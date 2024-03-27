@@ -3,7 +3,7 @@ import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import type { BarrierResult } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it } from 'vitest'
+import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
@@ -16,15 +16,21 @@ import { SqsPermissionConsumerMultiSchema } from './SqsPermissionConsumerMultiSc
 
 describe('SqsPermissionsConsumerMultiSchema', () => {
   describe('init', () => {
+    const queueName = 'sqsTestQueue'
+
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
-    beforeEach(async () => {
+
+    beforeAll(async () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
-      await deleteQueue(sqsClient, 'existingQueue')
     })
 
-    afterEach(async () => {
+    beforeEach(async () => {
+      await deleteQueue(sqsClient, queueName)
+    })
+
+    afterAll(async () => {
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
@@ -32,7 +38,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     it('throws an error when invalid queue locator is passed', async () => {
       const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
         locatorConfig: {
-          queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+          queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/queueName',
         },
       })
 
@@ -41,24 +47,24 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
     it('does not create a new queue when queue locator is passed', async () => {
       await assertQueue(sqsClient, {
-        QueueName: 'existingQueue',
+        QueueName: queueName,
       })
 
       const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
         locatorConfig: {
-          queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+          queueUrl: `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
         },
       })
 
       await newConsumer.init()
       expect(newConsumer.queueUrl).toBe(
-        'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+        `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
       )
     })
 
     it('updates existing queue when one with different attributes exist', async () => {
       await assertQueue(sqsClient, {
-        QueueName: 'existingQueue',
+        QueueName: queueName,
         Attributes: {
           KmsMasterKeyId: 'somevalue',
         },
@@ -67,7 +73,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: 'existingQueue',
+            QueueName: queueName,
             Attributes: {
               KmsMasterKeyId: 'othervalue',
             },
@@ -84,7 +90,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
       await newConsumer.init()
       expect(newConsumer.queueUrl).toBe(
-        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
       )
 
       const updateCall = sqsSpy.mock.calls.find((entry) => {
@@ -101,7 +107,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
     it('does not update existing queue when attributes did not change', async () => {
       await assertQueue(sqsClient, {
-        QueueName: 'existingQueue',
+        QueueName: queueName,
         Attributes: {
           KmsMasterKeyId: 'somevalue',
         },
@@ -110,7 +116,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: 'existingQueue',
+            QueueName: queueName,
             Attributes: {
               KmsMasterKeyId: 'somevalue',
             },
@@ -127,7 +133,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
       await newConsumer.init()
       expect(newConsumer.queueUrl).toBe(
-        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
       )
 
       const updateCall = sqsSpy.mock.calls.find((entry) => {
@@ -427,28 +433,26 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       await diContainer.dispose()
     })
 
-    describe('happy path', () => {
-      it('Processes messages', async () => {
-        await publisher.publish({
-          id: '10',
-          messageType: 'add',
-        })
-        await publisher.publish({
-          id: '20',
-          messageType: 'remove',
-        })
-        await publisher.publish({
-          id: '30',
-          messageType: 'remove',
-        })
-
-        await consumer.handlerSpy.waitForMessageWithId('10', 'consumed')
-        await consumer.handlerSpy.waitForMessageWithId('20', 'consumed')
-        await consumer.handlerSpy.waitForMessageWithId('30', 'consumed')
-
-        expect(consumer.addCounter).toBe(1)
-        expect(consumer.removeCounter).toBe(2)
+    it('Processes messages', async () => {
+      await publisher.publish({
+        id: '10',
+        messageType: 'add',
       })
+      await publisher.publish({
+        id: '20',
+        messageType: 'remove',
+      })
+      await publisher.publish({
+        id: '30',
+        messageType: 'remove',
+      })
+
+      await consumer.handlerSpy.waitForMessageWithId('10', 'consumed')
+      await consumer.handlerSpy.waitForMessageWithId('20', 'consumed')
+      await consumer.handlerSpy.waitForMessageWithId('30', 'consumed')
+
+      expect(consumer.addCounter).toBe(1)
+      expect(consumer.removeCounter).toBe(2)
     })
   })
 })
