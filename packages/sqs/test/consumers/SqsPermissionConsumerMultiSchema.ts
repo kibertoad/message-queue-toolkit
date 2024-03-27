@@ -27,11 +27,11 @@ type SqsPermissionConsumerMultiSchemaOptions = (
         PrehandlerOutput,
         SQSCreationConfig
       >,
-      'creationConfig' | 'logMessages' | 'deletionConfig'
+      'creationConfig' | 'logMessages' | 'deletionConfig' | 'deadLetterQueue'
     >
   | Pick<
       ExistingSQSConsumerOptionsMultiSchema<SupportedMessages, ExecutionContext, PrehandlerOutput>,
-      'locatorConfig' | 'logMessages'
+      'locatorConfig' | 'logMessages' | 'deadLetterQueue'
     >
 ) & {
   addPreHandlerBarrier?: (
