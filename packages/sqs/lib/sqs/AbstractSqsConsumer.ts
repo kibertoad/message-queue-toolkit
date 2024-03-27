@@ -123,7 +123,9 @@ export abstract class AbstractSqsConsumer<
     this.deadLetterQueueConfig = options.deadLetterQueue
   }
 
+  // Note: this is in progress
   override async init(): Promise<void> {
+    // TODO: How to avoid double SetQueueAttributesCommand
     await super.init()
 
     if (!this.deadLetterQueueConfig) return
@@ -147,7 +149,7 @@ export abstract class AbstractSqsConsumer<
         },
       }
     }
-    // TODO: delete?
+    // TODO: should we delete DLQ?
 
     const initdlqResult = await initSqs(
       this.sqsClient,
@@ -156,6 +158,7 @@ export abstract class AbstractSqsConsumer<
     )
     console.log(initdlqResult)
 
+    // When should we update RedrivePolicy? always?
     const updateAttrCommand = new SetQueueAttributesCommand({
       QueueUrl: this.queueUrl,
       Attributes: {
