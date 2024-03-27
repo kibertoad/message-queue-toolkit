@@ -1,3 +1,4 @@
+import { SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import { isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import type {
@@ -10,6 +11,7 @@ import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import type { SQSMessage } from '../types/MessageTypes'
+import { initSqs } from '../utils/sqsInitter'
 import { readSqsMessage } from '../utils/sqsMessageReader'
 
 import type {
@@ -33,15 +35,47 @@ export type SQSCreationConfig = {
   updateAttributesIfExists?: boolean
 } & ExtraSQSCreationParams
 
+type DeadLetterQueueCommonConfig = {
+  redrivePolicy: {
+    maxReceiveCount: number
+  }
+}
+
+type DeadLetterQueueNameConfig =
+  | {
+      queueNameSuffix: string
+      QueueName?: never
+    }
+  | {
+      queueNameSuffix?: never
+      QueueName: string
+    }
+export type NewSQSConsumerDeadLetterQueueOptions<CreationConfigType extends SQSCreationConfig> =
+  DeadLetterQueueCommonConfig & {
+    creationConfig?: Omit<CreationConfigType, 'queue'> & {
+      queue: Omit<CreationConfigType['queue'], 'QueueName'> & DeadLetterQueueNameConfig
+    }
+    locatorConfig?: never
+  }
+
+export type ExistingSQSConsumerDeadLetterQueueOptions<
+  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+> = DeadLetterQueueCommonConfig & {
+  creationConfig?: never
+  locatorConfig?: QueueLocatorType
+}
+
 export type NewSQSConsumerOptions<CreationConfigType extends SQSCreationConfig> =
   NewQueueOptions<CreationConfigType> & {
     consumerOverrides?: Partial<ConsumerOptions>
+    deadLetterQueue?: NewSQSConsumerDeadLetterQueueOptions<CreationConfigType>
   }
 
 export type ExistingSQSConsumerOptions<
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
 > = ExistingQueueOptions<QueueLocatorType> & {
   consumerOverrides?: Partial<ConsumerOptions>
+  deadLetterQueue?: ExistingSQSConsumerDeadLetterQueueOptions<QueueLocatorType>
 }
 
 export abstract class AbstractSqsConsumer<
@@ -74,6 +108,11 @@ export abstract class AbstractSqsConsumer<
   // @ts-ignore
   protected consumer: Consumer
   private readonly consumerOptionsOverride: Partial<ConsumerOptions>
+  private readonly deadLetterQueueConfig?:
+    | NewSQSConsumerDeadLetterQueueOptions<CreationConfigType>
+    | ExistingSQSConsumerDeadLetterQueueOptions<QueueLocatorType>
+
+  public deadLetterQueueUrl?: string
 
   protected constructor(dependencies: SQSConsumerDependencies, options: ConsumerOptionsType) {
     super(dependencies, options)
@@ -81,6 +120,56 @@ export abstract class AbstractSqsConsumer<
     this.errorResolver = dependencies.consumerErrorResolver
 
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
+    this.deadLetterQueueConfig = options.deadLetterQueue
+  }
+
+  override async init(): Promise<void> {
+    await super.init()
+
+    if (!this.deadLetterQueueConfig) return
+
+    let dlqCreationConfig: SQSCreationConfig | undefined = undefined
+    if (!this.deadLetterQueueConfig.locatorConfig) {
+      let dlqName
+      if (this.deadLetterQueueConfig.creationConfig) {
+        dlqName = this.deadLetterQueueConfig.creationConfig.queue.queueNameSuffix
+          ? `${this.queueName}${this.deadLetterQueueConfig.creationConfig.queue.queueNameSuffix}`
+          : this.deadLetterQueueConfig.creationConfig.queue.QueueName
+      } else {
+        dlqName = `${this.queueName}-dlq`
+      }
+
+      dlqCreationConfig = {
+        ...this.deadLetterQueueConfig.creationConfig,
+        queue: {
+          ...this.deadLetterQueueConfig.creationConfig?.queue,
+          QueueName: dlqName,
+        },
+      }
+    }
+    // TODO: delete?
+
+    const initdlqResult = await initSqs(
+      this.sqsClient,
+      this.deadLetterQueueConfig.locatorConfig,
+      dlqCreationConfig,
+    )
+    console.log(initdlqResult)
+
+    const updateAttrCommand = new SetQueueAttributesCommand({
+      QueueUrl: this.queueUrl,
+      Attributes: {
+        RedrivePolicy: JSON.stringify({
+          deadLetterTargetArn: initdlqResult.queueArn,
+          maxReceiveCount: this.deadLetterQueueConfig?.redrivePolicy.maxReceiveCount,
+        }),
+      },
+    })
+
+    const result = await this.sqsClient.send(updateAttrCommand)
+    console.log(result)
+
+    this.deadLetterQueueUrl = initdlqResult.queueUrl
   }
 
   private async internalProcessMessage(

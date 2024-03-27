@@ -9,7 +9,11 @@ import type {
 } from '@message-queue-toolkit/core'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
-import type { SQSCreationConfig } from './AbstractSqsConsumer'
+import type {
+  ExistingSQSConsumerDeadLetterQueueOptions,
+  NewSQSConsumerDeadLetterQueueOptions,
+  SQSCreationConfig,
+} from './AbstractSqsConsumer'
 import { AbstractSqsConsumer } from './AbstractSqsConsumer'
 import type { SQSConsumerDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 
@@ -25,6 +29,7 @@ export type NewSQSConsumerOptionsMultiSchema<
   PrehandlerOutput
 > & {
   consumerOverrides?: Partial<ConsumerOptions>
+  deadLetterQueue?: NewSQSConsumerDeadLetterQueueOptions<CreationConfigType>
 }
 
 export type ExistingSQSConsumerOptionsMultiSchema<
@@ -39,6 +44,7 @@ export type ExistingSQSConsumerOptionsMultiSchema<
   PrehandlerOutput
 > & {
   consumerOverrides?: Partial<ConsumerOptions>
+  deadLetterQueue?: ExistingSQSConsumerDeadLetterQueueOptions<QueueLocatorType>
 }
 
 export abstract class AbstractSqsConsumerMultiSchema<
