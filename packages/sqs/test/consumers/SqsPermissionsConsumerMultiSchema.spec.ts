@@ -1,11 +1,14 @@
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
+import { waitAndRetry } from '@lokalise/node-core'
 import type { BarrierResult } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
+import { Consumer } from 'sqs-consumer'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
+import type { SQSMessage } from '../../lib/types/MessageTypes'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import { FakeLogger } from '../fakes/FakeLogger'
 import type { SqsPermissionPublisherMultiSchema } from '../publishers/SqsPermissionPublisherMultiSchema'
@@ -401,6 +404,168 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
       await newConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
 
       await newConsumer.close()
+    })
+  })
+
+  describe('dead letter queue', () => {
+    describe('init', () => {
+      const customDlqName = 'customDlq'
+      const customSuffix = '-customSuffix'
+      const queueName = 'sqsTestQueue'
+
+      let diContainer: AwilixContainer<Dependencies>
+      let sqsClient: SQSClient
+
+      beforeAll(async () => {
+        diContainer = await registerDependencies()
+        sqsClient = diContainer.cradle.sqsClient
+      })
+
+      beforeEach(async () => {
+        await deleteQueue(sqsClient, queueName)
+        await deleteQueue(sqsClient, customDlqName)
+        await deleteQueue(sqsClient, `${queueName}-dlq`)
+        await deleteQueue(sqsClient, `${queueName}${customSuffix}`)
+      })
+
+      afterAll(async () => {
+        await diContainer.cradle.awilixManager.executeDispose()
+        await diContainer.dispose()
+      })
+
+      it('creates dead letter queue using default name', async () => {
+        const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+          creationConfig: { queue: { QueueName: queueName } },
+          deadLetterQueue: { redrivePolicy: { maxReceiveCount: 5 } },
+        })
+
+        await newConsumer.init()
+
+        expect(newConsumer.queueUrl).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        )
+        expect(newConsumer.deadLetterQueueUrl).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}-dlq`,
+        )
+
+        const attributes = await getQueueAttributes(sqsClient, { queueUrl: newConsumer.queueUrl })
+        expect(attributes.result?.attributes).toMatchObject({
+          RedrivePolicy: JSON.stringify({
+            deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${queueName}-dlq`,
+            maxReceiveCount: 5,
+          }),
+        })
+      })
+
+      it('creates dead letter queue using custom suffix', async () => {
+        const suffix = '-test'
+        const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+          creationConfig: { queue: { QueueName: queueName } },
+          deadLetterQueue: {
+            redrivePolicy: { maxReceiveCount: 5 },
+            creationConfig: { queue: { queueNameSuffix: suffix } },
+          },
+        })
+
+        await newConsumer.init()
+
+        expect(newConsumer.queueUrl).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        )
+        expect(newConsumer.deadLetterQueueUrl).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}${suffix}`,
+        )
+
+        const attributes = await getQueueAttributes(sqsClient, { queueUrl: newConsumer.queueUrl })
+        expect(attributes.result?.attributes).toMatchObject({
+          RedrivePolicy: JSON.stringify({
+            deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${queueName}${suffix}`,
+            maxReceiveCount: 5,
+          }),
+        })
+      })
+
+      it('creates dead letter queue using custom name', async () => {
+        const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+          creationConfig: { queue: { QueueName: queueName } },
+          deadLetterQueue: {
+            redrivePolicy: { maxReceiveCount: 5 },
+            creationConfig: { queue: { QueueName: customDlqName } },
+          },
+        })
+
+        await newConsumer.init()
+
+        expect(newConsumer.queueUrl).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        )
+        expect(newConsumer.deadLetterQueueUrl).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${customDlqName}`,
+        )
+
+        const attributes = await getQueueAttributes(sqsClient, { queueUrl: newConsumer.queueUrl })
+        expect(attributes.result?.attributes).toMatchObject({
+          RedrivePolicy: JSON.stringify({
+            deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${customDlqName}`,
+            maxReceiveCount: 5,
+          }),
+        })
+      })
+
+      // TODO: add test cases for locator and update
+    })
+
+    describe('messages with errors on process should go to DLQ', () => {
+      let diContainer: AwilixContainer<Dependencies>
+      let publisher: SqsPermissionPublisherMultiSchema
+      let sqsClient: SQSClient
+
+      beforeAll(async () => {
+        diContainer = await registerDependencies()
+        sqsClient = diContainer.cradle.sqsClient
+        publisher = diContainer.cradle.permissionPublisherMultiSchema
+      })
+
+      afterEach(async () => {
+        await diContainer.cradle.awilixManager.executeDispose()
+        await diContainer.dispose()
+      })
+
+      beforeEach(async () => {
+        await deleteQueue(sqsClient, publisher.queueName)
+        await deleteQueue(sqsClient, `${publisher.queueName}-dlq`)
+      })
+
+      it('after errors, messages should go to DLQ', async () => {
+        let counter = 0
+        const consumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+          creationConfig: { queue: { QueueName: publisher.queueName } },
+          deadLetterQueue: { redrivePolicy: { maxReceiveCount: 2 } },
+
+          removeHandlerOverride: async () => {
+            counter++
+            throw new Error('Error')
+          },
+        })
+        await consumer.start()
+
+        let dlqMessage: any
+        const dlqConsumer = Consumer.create({
+          sqs: diContainer.cradle.sqsClient,
+          queueUrl: consumer.deadLetterQueueUrl!,
+          handleMessage: async (message: SQSMessage) => {
+            dlqMessage = message
+          },
+        })
+        dlqConsumer.start()
+
+        await publisher.publish({ id: '1', messageType: 'remove' })
+
+        await waitAndRetry(async () => dlqMessage, 20, 5)
+
+        expect(counter).toBe(2)
+        expect(dlqMessage.Body).toBe(JSON.stringify({ id: '1', messageType: 'remove' }))
+      })
     })
   })
 
