@@ -158,7 +158,6 @@ export abstract class AbstractSqsConsumer<
     )
     console.log(initdlqResult)
 
-    // When should we update RedrivePolicy? always?
     const updateAttrCommand = new SetQueueAttributesCommand({
       QueueUrl: this.queueUrl,
       Attributes: {
