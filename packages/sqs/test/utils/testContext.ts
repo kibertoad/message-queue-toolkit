@@ -6,9 +6,7 @@ import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
 import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver'
-import { SqsPermissionConsumerMonoSchema } from '../consumers/SqsPermissionConsumerMonoSchema'
 import { SqsPermissionConsumerMultiSchema } from '../consumers/SqsPermissionConsumerMultiSchema'
-import { SqsPermissionPublisherMonoSchema } from '../publishers/SqsPermissionPublisherMonoSchema'
 import { SqsPermissionPublisherMultiSchema } from '../publishers/SqsPermissionPublisherMultiSchema'
 
 import { TEST_SQS_CONFIG } from './testSqsConfig'
@@ -50,19 +48,6 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
     ),
     consumerErrorResolver: asFunction(() => {
       return new SqsConsumerErrorResolver()
-    }),
-
-    permissionConsumer: asClass(SqsPermissionConsumerMonoSchema, {
-      lifetime: Lifetime.SINGLETON,
-      asyncInit: 'start',
-      asyncDispose: 'close',
-      asyncDisposePriority: 10,
-    }),
-    permissionPublisher: asClass(SqsPermissionPublisherMonoSchema, {
-      lifetime: Lifetime.SINGLETON,
-      asyncInit: 'init',
-      asyncDispose: 'close',
-      asyncDisposePriority: 20,
     }),
 
     permissionConsumerMultiSchema: asClass(SqsPermissionConsumerMultiSchema, {
@@ -112,8 +97,6 @@ export interface Dependencies {
 
   errorReporter: ErrorReporter
   consumerErrorResolver: ErrorResolver
-  permissionConsumer: SqsPermissionConsumerMonoSchema
-  permissionPublisher: SqsPermissionPublisherMonoSchema
   permissionConsumerMultiSchema: SqsPermissionConsumerMultiSchema
   permissionPublisherMultiSchema: SqsPermissionPublisherMultiSchema
 }

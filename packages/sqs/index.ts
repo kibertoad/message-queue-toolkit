@@ -8,8 +8,6 @@ export type {
 export { AbstractSqsConsumer } from './lib/sqs/AbstractSqsConsumer'
 export type { SQSCreationConfig, ExtraSQSCreationParams } from './lib/sqs/AbstractSqsConsumer'
 export { AbstractSqsConsumerMultiSchema } from './lib/sqs/AbstractSqsConsumerMultiSchema'
-export { AbstractSqsConsumerMonoSchema } from './lib/sqs/AbstractSqsConsumerMonoSchema'
-export type { CommonSQSConsumerOptionsMono } from './lib/sqs/AbstractSqsConsumerMonoSchema'
 
 export type {
   NewSQSConsumerOptions,
@@ -17,7 +15,6 @@ export type {
 } from './lib/sqs/AbstractSqsConsumer'
 export { SqsConsumerErrorResolver } from './lib/errors/SqsConsumerErrorResolver'
 
-export { AbstractSqsPublisherMonoSchema } from './lib/sqs/AbstractSqsPublisherMonoSchema'
 export { AbstractSqsPublisherMultiSchema } from './lib/sqs/AbstractSqsPublisherMultiSchema'
 export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisherMultiSchema'
 
