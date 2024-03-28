@@ -1,5 +1,4 @@
-import type { SQSClient, CreateQueueRequest, SendMessageCommandInput } from '@aws-sdk/client-sqs'
-import { SendMessageCommand } from '@aws-sdk/client-sqs'
+import type { SQSClient, CreateQueueRequest } from '@aws-sdk/client-sqs'
 import type {
   QueueConsumerDependencies,
   QueueDependencies,

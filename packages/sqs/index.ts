@@ -5,18 +5,11 @@ export type {
   SQSDependencies,
 } from './lib/sqs/AbstractSqsService'
 
-export { AbstractSqsConsumer } from './lib/sqs/AbstractSqsConsumer'
-export type { SQSCreationConfig, ExtraSQSCreationParams } from './lib/sqs/AbstractSqsConsumer'
-export { AbstractSqsConsumerMultiSchema } from './lib/sqs/AbstractSqsConsumerMultiSchema'
-
-export type {
-  NewSQSConsumerOptions,
-  ExistingSQSConsumerOptions,
-} from './lib/sqs/AbstractSqsConsumer'
+export * from './lib/sqs/AbstractSqsConsumer'
 export { SqsConsumerErrorResolver } from './lib/errors/SqsConsumerErrorResolver'
 
-export { AbstractSqsPublisherMultiSchema } from './lib/sqs/AbstractSqsPublisherMultiSchema'
-export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisherMultiSchema'
+export { AbstractSqsPublisher } from './lib/sqs/AbstractSqsPublisher'
+export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisher'
 
 export { assertQueue, deleteQueue, getQueueAttributes, getQueueUrl } from './lib/utils/sqsUtils'
 export { deleteSqs, updateQueueAttributes } from './lib/utils/sqsInitter'
