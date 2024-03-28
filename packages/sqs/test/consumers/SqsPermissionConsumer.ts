@@ -41,7 +41,7 @@ type PrehandlerOutput = {
   messageId: string
 }
 
-export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumer<
+export class SqsPermissionConsumer extends AbstractSqsConsumer<
   SupportedMessages,
   ExecutionContext,
   PrehandlerOutput
@@ -55,7 +55,7 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumer<
     options: SqsPermissionConsumerOptions = {
       creationConfig: {
         queue: {
-          QueueName: SqsPermissionConsumerMultiSchema.QUEUE_NAME,
+          QueueName: SqsPermissionConsumer.QUEUE_NAME,
         },
       },
     },
@@ -78,7 +78,7 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumer<
           ? { locatorConfig: options.locatorConfig }
           : {
               creationConfig: options.creationConfig ?? {
-                queue: { QueueName: SqsPermissionConsumerMultiSchema.QUEUE_NAME },
+                queue: { QueueName: SqsPermissionConsumer.QUEUE_NAME },
               },
             }),
         logMessages: options.logMessages,

@@ -8,13 +8,13 @@ import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import { FakeLogger } from '../fakes/FakeLogger'
-import type { SqsPermissionPublisherMultiSchema } from '../publishers/SqsPermissionPublisherMultiSchema'
+import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SqsPermissionConsumerMultiSchema } from './SqsPermissionConsumerMultiSchema'
+import { SqsPermissionConsumer } from './SqsPermissionConsumer'
 
-describe('SqsPermissionsConsumerMultiSchema', () => {
+describe('SqsPermissionConsumer', () => {
   describe('init', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
@@ -30,7 +30,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     })
 
     it('throws an error when invalid queue locator is passed', async () => {
-      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
         },
@@ -44,7 +44,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
         QueueName: 'existingQueue',
       })
 
-      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
         },
@@ -64,7 +64,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
         },
       })
 
-      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
             QueueName: 'existingQueue',
@@ -107,7 +107,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
         },
       })
 
-      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
             QueueName: 'existingQueue',
@@ -146,15 +146,15 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
   describe('logging', () => {
     let logger: FakeLogger
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: SqsPermissionPublisherMultiSchema
+    let publisher: SqsPermissionPublisher
 
     beforeEach(async () => {
       logger = new FakeLogger()
       diContainer = await registerDependencies({
         logger: asFunction(() => logger),
       })
-      await diContainer.cradle.permissionConsumerMultiSchema.close()
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      await diContainer.cradle.permissionConsumer.close()
+      publisher = diContainer.cradle.permissionPublisher
     })
 
     afterEach(async () => {
@@ -163,7 +163,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     })
 
     it('logs a message when logging is enabled', async () => {
-      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
             QueueName: publisher.queueName,
@@ -199,11 +199,11 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
   describe('preHandlerBarrier', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: SqsPermissionPublisherMultiSchema
+    let publisher: SqsPermissionPublisher
     beforeEach(async () => {
       diContainer = await registerDependencies()
-      await diContainer.cradle.permissionConsumerMultiSchema.close()
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      await diContainer.cradle.permissionConsumer.close()
+      publisher = diContainer.cradle.permissionPublisher
     })
 
     afterEach(async () => {
@@ -213,7 +213,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
     it('blocks first try', async () => {
       let barrierCounter = 0
-      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
             QueueName: publisher.queueName,
@@ -246,7 +246,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
     it('can access prehandler output', async () => {
       expect.assertions(1)
-      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
             QueueName: publisher.queueName,
@@ -275,7 +275,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
     it('throws an error on first try', async () => {
       let barrierCounter = 0
-      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
             QueueName: publisher.queueName,
@@ -306,11 +306,11 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
   describe('prehandlers', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: SqsPermissionPublisherMultiSchema
+    let publisher: SqsPermissionPublisher
     beforeEach(async () => {
       diContainer = await registerDependencies()
-      await diContainer.cradle.permissionConsumerMultiSchema.close()
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      await diContainer.cradle.permissionConsumer.close()
+      publisher = diContainer.cradle.permissionPublisher
     })
 
     afterEach(async () => {
@@ -321,7 +321,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     it('processes one prehandler', async () => {
       expect.assertions(1)
 
-      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
             QueueName: publisher.queueName,
@@ -357,7 +357,7 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
     it('processes two prehandlers', async () => {
       expect.assertions(1)
 
-      const newConsumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
             QueueName: publisher.queueName,
@@ -400,16 +400,16 @@ describe('SqsPermissionsConsumerMultiSchema', () => {
 
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: SqsPermissionPublisherMultiSchema
-    let consumer: SqsPermissionConsumerMultiSchema
+    let publisher: SqsPermissionPublisher
+    let consumer: SqsPermissionConsumer
     let sqsClient: SQSClient
     beforeEach(async () => {
       diContainer = await registerDependencies({
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
       sqsClient = diContainer.cradle.sqsClient
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
-      consumer = diContainer.cradle.permissionConsumerMultiSchema
+      publisher = diContainer.cradle.permissionPublisher
+      consumer = diContainer.cradle.permissionConsumer
 
       const command = new ReceiveMessageCommand({
         QueueUrl: publisher.queueUrl,
