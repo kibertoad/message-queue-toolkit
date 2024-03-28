@@ -1,45 +1,55 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
-import type { MultiSchemaConsumerOptions } from '@message-queue-toolkit/core'
-import type { SQSCreationConfig, SQSMessage } from '@message-queue-toolkit/sqs'
-import { AbstractSqsConsumerMultiSchema, deleteSqs } from '@message-queue-toolkit/sqs'
+import type {
+  SQSConsumerDependencies,
+  SQSConsumerOptions,
+  SQSCreationConfig,
+  SQSMessage,
+  SQSQueueLocatorType,
+} from '@message-queue-toolkit/sqs'
+import { AbstractSqsConsumer, deleteSqs } from '@message-queue-toolkit/sqs'
 
 import { deleteSnsSqs, initSnsSqs } from '../utils/snsInitter'
 import { readSnsMessage } from '../utils/snsMessageReader'
 import type { SNSSubscriptionOptions } from '../utils/snsSubscriber'
 
-import type { SNSCreationConfig } from './AbstractSnsService'
-import type {
-  ExistingSnsSqsConsumerOptions,
-  NewSnsSqsConsumerOptions,
-  SNSSQSConsumerDependencies,
-  SNSSQSQueueLocatorType,
-} from './AbstractSnsSqsConsumerMonoSchema'
+import type { SNSCreationConfig, SNSOptions, SNSQueueLocatorType } from './AbstractSnsService'
 
-export type ExistingSnsSqsConsumerOptionsMulti<
+export type SNSSQSConsumerDependencies = SQSConsumerDependencies & {
+  snsClient: SNSClient
+}
+export type SNSSQSCreationConfig = SQSCreationConfig & SNSCreationConfig
+
+export type SNSSQSQueueLocatorType = SQSQueueLocatorType &
+  SNSQueueLocatorType & {
+    subscriptionArn?: string
+  }
+
+export type SNSSQSConsumerOptions<
   MessagePayloadType extends object,
   ExecutionContext,
   PrehandlerOutput,
-> = ExistingSnsSqsConsumerOptions &
-  MultiSchemaConsumerOptions<MessagePayloadType, ExecutionContext, PrehandlerOutput>
-
-export type NewSnsSqsConsumerOptionsMulti<
-  MessagePayloadType extends object,
+> = SQSConsumerOptions<
+  MessagePayloadType,
   ExecutionContext,
   PrehandlerOutput,
-> = NewSnsSqsConsumerOptions &
-  MultiSchemaConsumerOptions<MessagePayloadType, ExecutionContext, PrehandlerOutput>
+  SNSSQSCreationConfig,
+  SNSSQSQueueLocatorType
+> &
+  SNSOptions & {
+    subscriptionConfig?: SNSSubscriptionOptions
+  }
 
 export abstract class AbstractSnsSqsConsumerMultiSchema<
   MessagePayloadSchemas extends object,
   ExecutionContext,
   PrehandlerOutput = undefined,
-> extends AbstractSqsConsumerMultiSchema<
+> extends AbstractSqsConsumer<
   MessagePayloadSchemas,
   ExecutionContext,
   PrehandlerOutput,
+  SNSSQSCreationConfig,
   SNSSQSQueueLocatorType,
-  SNSCreationConfig & SQSCreationConfig,
-  NewSnsSqsConsumerOptionsMulti<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
+  SNSSQSConsumerOptions<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
 > {
   private readonly subscriptionConfig?: SNSSubscriptionOptions
   private readonly snsClient: SNSClient
@@ -50,11 +60,7 @@ export abstract class AbstractSnsSqsConsumerMultiSchema<
 
   protected constructor(
     dependencies: SNSSQSConsumerDependencies,
-    options: NewSnsSqsConsumerOptionsMulti<
-      MessagePayloadSchemas,
-      ExecutionContext,
-      PrehandlerOutput
-    >,
+    options: SNSSQSConsumerOptions<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>,
     executionContext: ExecutionContext,
   ) {
     super(
