@@ -4,9 +4,8 @@ import { isObject } from '@lokalise/node-core'
 import { Fifo } from 'toad-cache'
 
 import type { MessageProcessingResult } from '../types/MessageQueueTypes'
+import type { CommonQueueOptions } from '../types/queueOptionsTypes'
 import { objectMatches } from '../utils/matchUtils'
-
-import type { CommonQueueOptions } from './AbstractQueueService'
 
 export type HandlerSpyParams = {
   bufferSize?: number
