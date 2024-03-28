@@ -6,13 +6,11 @@ import type {
   QueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
-import type { ZodSchema } from 'zod'
 
 import type { SQSMessage } from '../types/MessageTypes'
 import { deleteSqs, initSqs } from '../utils/sqsInitter'
 
 import type { SQSCreationConfig } from './AbstractSqsConsumer'
-import type { SQSMessageOptions } from './AbstractSqsPublisherMultiSchema'
 
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient

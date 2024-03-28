@@ -40,19 +40,6 @@ export type SQSCreationConfig = {
   updateAttributesIfExists?: boolean
 } & ExtraSQSCreationParams
 
-/*
-export type NewSQSConsumerOptions<CreationConfigType extends SQSCreationConfig> =
-  NewQueueOptions<CreationConfigType> & {
-    consumerOverrides?: Partial<ConsumerOptions>
-  }
-
-export type ExistingSQSConsumerOptions<
-  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
-> = ExistingQueueOptions<QueueLocatorType> & {
-  consumerOverrides?: Partial<ConsumerOptions>
-}
-*/
-
 export type SQSConsumerOptions<
   MessagePayloadSchemas extends object,
   ExecutionContext,
