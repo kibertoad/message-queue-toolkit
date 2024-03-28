@@ -1,12 +1,12 @@
+import type { SendMessageCommandInput } from '@aws-sdk/client-sqs'
+import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
 import type {
   AsyncPublisher,
   MessageInvalidFormatError,
   MessageValidationError,
-  ExistingQueueOptions,
-  NewQueueOptions,
-  MultiSchemaPublisherOptions,
   BarrierResult,
+  QueuePublisherOptions,
 } from '@message-queue-toolkit/core'
 import { MessageSchemaContainer } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
@@ -22,16 +22,17 @@ export type SQSMessageOptions = {
   MessageDeduplicationId?: string
 }
 
-export abstract class AbstractSqsPublisherMultiSchema<MessagePayloadType extends object>
+export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
   extends AbstractSqsService<MessagePayloadType>
   implements AsyncPublisher<MessagePayloadType, SQSMessageOptions>
 {
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
+  private isInitted: boolean
+  private initPromise?: Promise<void>
 
   constructor(
     dependencies: SQSDependencies,
-    options: (NewQueueOptions<SQSCreationConfig> | ExistingQueueOptions<SQSQueueLocatorType>) &
-      MultiSchemaPublisherOptions<MessagePayloadType>,
+    options: QueuePublisherOptions<SQSCreationConfig, SQSQueueLocatorType, MessagePayloadType>,
   ) {
     super(dependencies, options)
 
@@ -40,6 +41,7 @@ export abstract class AbstractSqsPublisherMultiSchema<MessagePayloadType extends
       messageSchemas,
       messageTypeField: options.messageTypeField,
     })
+    this.isInitted = false
   }
 
   async publish(message: MessagePayloadType, options: SQSMessageOptions = {}): Promise<void> {
@@ -48,7 +50,37 @@ export abstract class AbstractSqsPublisherMultiSchema<MessagePayloadType extends
       throw messageSchemaResult.error
     }
 
-    return this.internalPublish(message, messageSchemaResult.result, options)
+    // If it's not initted yet, do the lazy init
+    if (!this.isInitted) {
+      // avoid multiple concurrent inits
+      if (!this.initPromise) {
+        this.initPromise = this.init()
+      }
+      await this.initPromise
+    }
+
+    try {
+      messageSchemaResult.result.parse(message)
+
+      if (this.logMessages) {
+        // @ts-ignore
+        const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
+        this.logMessage(resolvedLogMessage)
+      }
+
+      const input = {
+        // SendMessageRequest
+        QueueUrl: this.queueUrl,
+        MessageBody: JSON.stringify(message),
+        ...options,
+      } satisfies SendMessageCommandInput
+      const command = new SendMessageCommand(input)
+      await this.sqsClient.send(command)
+      this.handleMessageProcessed(message, 'published')
+    } catch (error) {
+      this.handleError(error)
+      throw error
+    }
   }
 
   /* c8 ignore start */
@@ -66,7 +98,7 @@ export abstract class AbstractSqsPublisherMultiSchema<MessagePayloadType extends
     throw new Error('Not implemented for publisher')
   }
 
-  protected override preHandlerBarrier(): Promise<BarrierResult<unknown>> {
+  protected override preHandlerBarrier<BarrierOutput>(): Promise<BarrierResult<BarrierOutput>> {
     throw new Error('Not implemented for publisher')
   }
 

@@ -1,4 +1,4 @@
-import { AbstractSqsPublisherMultiSchema } from '../../lib/sqs/AbstractSqsPublisherMultiSchema'
+import { AbstractSqsPublisher } from '../../lib/sqs/AbstractSqsPublisher'
 import type { SQSDependencies } from '../../lib/sqs/AbstractSqsService'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
@@ -11,14 +11,14 @@ import {
 
 type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 
-export class SqsPermissionPublisherMultiSchema extends AbstractSqsPublisherMultiSchema<SupportedMessages> {
-  public static QUEUE_NAME = 'user_permissions_multi'
+export class SqsPermissionPublisher extends AbstractSqsPublisher<SupportedMessages> {
+  public static readonly QUEUE_NAME = 'user_permissions_multi'
 
   constructor(dependencies: SQSDependencies) {
     super(dependencies, {
       creationConfig: {
         queue: {
-          QueueName: SqsPermissionPublisherMultiSchema.QUEUE_NAME,
+          QueueName: SqsPermissionPublisher.QUEUE_NAME,
         },
       },
       deletionConfig: {
