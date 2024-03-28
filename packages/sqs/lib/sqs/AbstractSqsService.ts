@@ -3,8 +3,7 @@ import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type {
   QueueConsumerDependencies,
   QueueDependencies,
-  NewQueueOptions,
-  ExistingQueueOptions,
+  QueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
@@ -31,15 +30,13 @@ export abstract class AbstractSqsService<
   MessagePayloadType extends object,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
   CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
-  SQSOptionsType extends
-    | NewQueueOptions<CreationConfigType>
-    | ExistingQueueOptions<QueueLocatorType> =
-    | NewQueueOptions<CreationConfigType>
-    | ExistingQueueOptions<QueueLocatorType>,
+  SQSOptionsType extends QueueOptions<CreationConfigType, QueueLocatorType> = QueueOptions<
+    CreationConfigType,
+    QueueLocatorType
+  >,
   DependenciesType extends SQSDependencies = SQSDependencies,
   PrehandlerOutput = unknown,
   ExecutionContext = unknown,
-  BarrierOutput = unknown,
 > extends AbstractQueueService<
   MessagePayloadType,
   SQSMessage,
@@ -48,10 +45,10 @@ export abstract class AbstractSqsService<
   QueueLocatorType,
   SQSOptionsType,
   PrehandlerOutput,
-  ExecutionContext,
-  BarrierOutput
+  ExecutionContext
 > {
   protected readonly sqsClient: SQSClient
+
   // @ts-ignore
   public queueUrl: string
   // @ts-ignore
@@ -59,13 +56,8 @@ export abstract class AbstractSqsService<
   // @ts-ignore
   public queueArn: string
 
-  private isInitted: boolean
-  private initPromise?: Promise<void>
-
   constructor(dependencies: DependenciesType, options: SQSOptionsType) {
     super(dependencies, options)
-
-    this.isInitted = false
     this.sqsClient = dependencies.sqsClient
   }
 
@@ -82,45 +74,6 @@ export abstract class AbstractSqsService<
     this.queueArn = queueArn
     this.queueUrl = queueUrl
     this.queueName = queueName
-    this.isInitted = true
-  }
-
-  protected async internalPublish(
-    message: MessagePayloadType,
-    messageSchema: ZodSchema<MessagePayloadType>,
-    options: SQSMessageOptions = {},
-  ): Promise<void> {
-    // If it's not initted yet, do the lazy init
-    if (!this.isInitted) {
-      // avoid multiple concurrent inits
-      if (!this.initPromise) {
-        this.initPromise = this.init()
-      }
-      await this.initPromise
-    }
-
-    try {
-      messageSchema.parse(message)
-
-      if (this.logMessages) {
-        // @ts-ignore
-        const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
-        this.logMessage(resolvedLogMessage)
-      }
-
-      const input = {
-        // SendMessageRequest
-        QueueUrl: this.queueUrl,
-        MessageBody: JSON.stringify(message),
-        ...options,
-      } satisfies SendMessageCommandInput
-      const command = new SendMessageCommand(input)
-      await this.sqsClient.send(command)
-      this.handleMessageProcessed(message, 'published')
-    } catch (error) {
-      this.handleError(error)
-      throw error
-    }
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

@@ -2,12 +2,8 @@ import type { Either } from '@lokalise/node-core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import type { BarrierResult, Prehandler, PrehandlingOutputs } from '@message-queue-toolkit/core'
 
-import type { SQSCreationConfig } from '../../lib/sqs/AbstractSqsConsumer'
-import type {
-  ExistingSQSConsumerOptionsMultiSchema,
-  NewSQSConsumerOptionsMultiSchema,
-} from '../../lib/sqs/AbstractSqsConsumerMultiSchema'
-import { AbstractSqsConsumerMultiSchema } from '../../lib/sqs/AbstractSqsConsumerMultiSchema'
+import type { SQSConsumerOptions } from '../../lib/sqs/AbstractSqsConsumer'
+import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer'
 import type { SQSConsumerDependencies } from '../../lib/sqs/AbstractSqsService'
 
 import type {
@@ -19,21 +15,12 @@ import {
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
 } from './userConsumerSchemas'
 
-type SqsPermissionConsumerMultiSchemaOptions = (
-  | Pick<
-      NewSQSConsumerOptionsMultiSchema<
-        SupportedMessages,
-        ExecutionContext,
-        PrehandlerOutput,
-        SQSCreationConfig
-      >,
-      'creationConfig' | 'logMessages' | 'deletionConfig'
-    >
-  | Pick<
-      ExistingSQSConsumerOptionsMultiSchema<SupportedMessages, ExecutionContext, PrehandlerOutput>,
-      'locatorConfig' | 'logMessages'
-    >
-) & {
+type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
+
+type SqsPermissionConsumerOptions = Pick<
+  SQSConsumerOptions<SupportedMessages, ExecutionContext, PrehandlerOutput>,
+  'creationConfig' | 'locatorConfig' | 'logMessages' | 'deletionConfig'
+> & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
     _executionContext: ExecutionContext,
@@ -47,7 +34,6 @@ type SqsPermissionConsumerMultiSchemaOptions = (
   removePreHandlers?: Prehandler<SupportedMessages, ExecutionContext, PrehandlerOutput>[]
 }
 
-type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 type ExecutionContext = {
   incrementAmount: number
 }
@@ -55,18 +41,18 @@ type PrehandlerOutput = {
   messageId: string
 }
 
-export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSchema<
+export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumer<
   SupportedMessages,
   ExecutionContext,
   PrehandlerOutput
 > {
   public addCounter = 0
   public removeCounter = 0
-  public static QUEUE_NAME = 'user_permissions_multi'
+  public static readonly QUEUE_NAME = 'user_permissions_multi'
 
   constructor(
     dependencies: SQSConsumerDependencies,
-    options: SqsPermissionConsumerMultiSchemaOptions = {
+    options: SqsPermissionConsumerOptions = {
       creationConfig: {
         queue: {
           QueueName: SqsPermissionConsumerMultiSchema.QUEUE_NAME,
@@ -88,24 +74,22 @@ export class SqsPermissionConsumerMultiSchema extends AbstractSqsConsumerMultiSc
     super(
       dependencies,
       {
-        messageTypeField: 'messageType',
-        handlerSpy: true,
-        deletionConfig: {
+        ...(options.locatorConfig
+          ? { locatorConfig: options.locatorConfig }
+          : {
+              creationConfig: options.creationConfig ?? {
+                queue: { QueueName: SqsPermissionConsumerMultiSchema.QUEUE_NAME },
+              },
+            }),
+        logMessages: options.logMessages,
+        deletionConfig: options.deletionConfig ?? {
           deleteIfExists: true,
         },
+        messageTypeField: 'messageType',
+        handlerSpy: true,
         consumerOverrides: {
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
         },
-        // FixMe this casting shouldn't be necessary
-        ...(options as Pick<
-          NewSQSConsumerOptionsMultiSchema<
-            SupportedMessages,
-            ExecutionContext,
-            PrehandlerOutput,
-            SQSCreationConfig
-          >,
-          'creationConfig' | 'logMessages'
-        >),
         handlers: new MessageHandlerConfigBuilder<
           SupportedMessages,
           ExecutionContext,
