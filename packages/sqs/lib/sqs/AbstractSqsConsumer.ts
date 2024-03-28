@@ -88,15 +88,16 @@ export abstract class AbstractSqsConsumer<
 {
   private consumer?: Consumer
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
-  private readonly errorResolver: ErrorResolver
 
   private readonly consumerOptionsOverride: Partial<ConsumerOptions>
-  private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   private readonly handlerContainer: HandlerContainer<
     MessagePayloadType,
     ExecutionContext,
     PrehandlerOutput
   >
+
+  protected readonly errorResolver: ErrorResolver
+  protected readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   protected readonly executionContext: ExecutionContext
 
   protected constructor(
