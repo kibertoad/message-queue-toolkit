@@ -5,35 +5,19 @@ export type {
   SNSQueueLocatorType,
   SNSCreationConfig,
   SNSDependencies,
-  NewSNSOptions,
-  ExistingSNSOptions,
-  ExistingSNSOptionsMultiSchema,
-  NewSNSOptionsMultiSchema,
 } from './lib/sns/AbstractSnsService'
 
 export { AbstractSnsService } from './lib/sns/AbstractSnsService'
 
 export { SnsConsumerErrorResolver } from './lib/errors/SnsConsumerErrorResolver'
 
-export { AbstractSnsPublisherMonoSchema } from './lib/sns/AbstractSnsPublisherMonoSchema'
-export { AbstractSnsPublisherMultiSchema } from './lib/sns/AbstractSnsPublisherMultiSchema'
+export { AbstractSnsPublisher } from './lib/sns/AbstractSnsPublisher'
 
-export { AbstractSnsSqsConsumerMonoSchema } from './lib/sns/AbstractSnsSqsConsumerMonoSchema'
-export { AbstractSnsSqsConsumerMultiSchema } from './lib/sns/AbstractSnsSqsConsumerMultiSchema'
 export type {
-  ExistingSnsSqsConsumerOptions,
-  NewSnsSqsConsumerOptions,
+  SNSSQSConsumerOptions,
   SNSSQSConsumerDependencies,
-  ExistingSnsSqsConsumerOptionsMono,
-  NewSnsSqsConsumerOptionsMono,
-  SNSSQSQueueLocatorType,
-} from './lib/sns/AbstractSnsSqsConsumerMonoSchema'
-export type {
-  NewSnsSqsConsumerOptionsMulti,
-  ExistingSnsSqsConsumerOptionsMulti,
-} from './lib/sns/AbstractSnsSqsConsumerMultiSchema'
-
-export type { SNSMessageOptions } from './lib/sns/AbstractSnsPublisherMonoSchema'
+} from './lib/sns/AbstractSnsSqsConsumer'
+export { AbstractSnsSqsConsumer } from './lib/sns/AbstractSnsSqsConsumer'
 
 export type { CommonMessage } from './lib/types/MessageTypes'
 

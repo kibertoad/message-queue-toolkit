@@ -24,7 +24,7 @@ export type SNSPublisherOptions<MessagePayloadType extends object> = QueuePublis
   MessagePayloadType
 >
 
-export abstract class AbstractSnsPublisherMultiSchema<MessagePayloadType extends object>
+export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
   extends AbstractSnsService<MessagePayloadType, MessagePayloadType>
   implements AsyncPublisher<MessagePayloadType, SNSMessageOptions>
 {

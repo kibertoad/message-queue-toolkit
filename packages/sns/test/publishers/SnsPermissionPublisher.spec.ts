@@ -16,13 +16,13 @@ import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SnsPermissionPublisherMonoSchema } from './SnsPermissionPublisherMonoSchema'
+import { SnsPermissionPublisher } from './SnsPermissionPublisher'
 
 const perms: [string, ...string[]] = ['perm1', 'perm2']
 const userIds = [100, 200, 300]
 const queueName = 'someQueue'
 
-describe('SNSPermissionPublisher', () => {
+describe('SnsPermissionPublisher', () => {
   describe('init', () => {
     let diContainer: AwilixContainer<Dependencies>
     let snsClient: SNSClient
@@ -32,7 +32,7 @@ describe('SNSPermissionPublisher', () => {
     })
 
     it('sets correct policy when policy fields are set', async () => {
-      const newPublisher = new SnsPermissionPublisherMonoSchema(diContainer.cradle, {
+      const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
         creationConfig: {
           topic: {
             Name: 'policy-topic',
@@ -52,7 +52,7 @@ describe('SNSPermissionPublisher', () => {
 
     // FixMe https://github.com/localstack/localstack/issues/9306
     it.skip('throws an error when invalid queue locator is passed', async () => {
-      const newPublisher = new SnsPermissionPublisherMonoSchema(diContainer.cradle, {
+      const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
         locatorConfig: {
           topicArn: 'dummy',
         },
@@ -66,7 +66,7 @@ describe('SNSPermissionPublisher', () => {
         Name: 'existingTopic',
       })
 
-      const newPublisher = new SnsPermissionPublisherMonoSchema(diContainer.cradle, {
+      const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
         locatorConfig: {
           topicArn: arn,
         },
@@ -91,7 +91,7 @@ describe('SNSPermissionPublisher', () => {
       await diContainer.cradle.permissionConsumer.close()
 
       await deleteQueue(sqsClient, queueName)
-      await deleteTopic(snsClient, SnsPermissionPublisherMonoSchema.TOPIC_NAME)
+      await deleteTopic(snsClient, SnsPermissionPublisher.TOPIC_NAME)
 
       delete userPermissionMap[100]
       delete userPermissionMap[200]
@@ -125,7 +125,7 @@ describe('SNSPermissionPublisher', () => {
           QueueName: queueName,
         },
         {
-          Name: SnsPermissionPublisherMonoSchema.TOPIC_NAME,
+          Name: SnsPermissionPublisher.TOPIC_NAME,
         },
         {
           updateAttributesIfExists: false,
@@ -169,7 +169,7 @@ describe('SNSPermissionPublisher', () => {
     })
 
     it('publish message with lazy loading', async () => {
-      const newPublisher = new SnsPermissionPublisherMonoSchema(diContainer.cradle)
+      const newPublisher = new SnsPermissionPublisher(diContainer.cradle)
 
       const message = {
         id: '1',

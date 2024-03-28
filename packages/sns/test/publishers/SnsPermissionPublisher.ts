@@ -1,9 +1,5 @@
-import { AbstractSnsPublisherMultiSchema } from '../../lib/sns/AbstractSnsPublisherMultiSchema'
-import type {
-  SNSDependencies,
-  NewSNSOptions,
-  ExistingSNSOptions,
-} from '../../lib/sns/AbstractSnsService'
+import { AbstractSnsPublisher } from '../../lib/sns/AbstractSnsPublisher'
+import type { SNSDependencies, SNSOptions } from '../../lib/sns/AbstractSnsService'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
@@ -15,27 +11,27 @@ import {
 
 type SupportedTypes = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 
-export class SnsPermissionPublisherMultiSchema extends AbstractSnsPublisherMultiSchema<SupportedTypes> {
-  public static TOPIC_NAME = 'user_permissions_multi'
+export class SnsPermissionPublisher extends AbstractSnsPublisher<SupportedTypes> {
+  public static readonly TOPIC_NAME = 'user_permissions_multi'
 
   constructor(
     dependencies: SNSDependencies,
-    options: Pick<NewSNSOptions, 'creationConfig'> | Pick<ExistingSNSOptions, 'locatorConfig'> = {
-      creationConfig: {
-        topic: {
-          Name: SnsPermissionPublisherMultiSchema.TOPIC_NAME,
-        },
-      },
-    },
+    options?: Pick<SNSOptions, 'creationConfig' | 'locatorConfig'>,
   ) {
     super(dependencies, {
+      ...(options?.locatorConfig
+        ? { locatorConfig: options?.locatorConfig }
+        : {
+            creationConfig: options?.creationConfig ?? {
+              topic: { Name: SnsPermissionPublisher.TOPIC_NAME },
+            },
+          }),
       deletionConfig: {
         deleteIfExists: false,
       },
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
       handlerSpy: true,
       messageTypeField: 'messageType',
-      ...options,
     })
   }
 }

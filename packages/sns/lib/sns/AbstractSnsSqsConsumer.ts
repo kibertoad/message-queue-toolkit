@@ -39,7 +39,7 @@ export type SNSSQSConsumerOptions<
     subscriptionConfig?: SNSSubscriptionOptions
   }
 
-export abstract class AbstractSnsSqsConsumerMultiSchema<
+export abstract class AbstractSnsSqsConsumer<
   MessagePayloadSchemas extends object,
   ExecutionContext,
   PrehandlerOutput = undefined,
