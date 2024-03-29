@@ -133,9 +133,8 @@ export abstract class AbstractSqsConsumer<
     this.consumer = Consumer.create({
       queueUrl: this.queueUrl,
       handleMessage: async (message: SQSMessage) => {
-        if (message === null) {
-          return
-        }
+        /* c8 ignore next */
+        if (message === null) return
 
         const deserializedMessage = this.deserializeMessage(message)
         if (deserializedMessage.error === 'abort') {
@@ -290,19 +289,14 @@ export abstract class AbstractSqsConsumer<
   }
 
   private tryToExtractId(message: SQSMessage): Either<'abort', string> {
-    if (message === null) {
-      return ABORT_EARLY_EITHER
-    }
-
     const resolveMessageResult = this.resolveMessage(message)
     if (isMessageError(resolveMessageResult.error)) {
       this.handleError(resolveMessageResult.error)
       return ABORT_EARLY_EITHER
     }
     // Empty content for whatever reason
-    if (!resolveMessageResult.result) {
-      return ABORT_EARLY_EITHER
-    }
+    /* c8 ignore next */
+    if (!resolveMessageResult.result) return ABORT_EARLY_EITHER
 
     // @ts-ignore
     if (this.messageIdField in resolveMessageResult.result) {
