@@ -43,4 +43,12 @@ export class SqsPermissionPublisher extends AbstractSqsPublisher<SupportedMessag
       messageTypeField: 'messageType',
     })
   }
+
+  public get queueProps() {
+    return {
+      name: this.queueName,
+      url: this.queueUrl,
+      arn: this.queueArn,
+    }
+  }
 }

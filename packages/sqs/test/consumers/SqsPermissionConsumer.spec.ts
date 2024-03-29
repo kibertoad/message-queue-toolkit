@@ -53,7 +53,7 @@ describe('SqsPermissionConsumer', () => {
       })
 
       await newConsumer.init()
-      expect(newConsumer.queue.url).toBe(
+      expect(newConsumer.queueProps.url).toBe(
         'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
       )
     })
@@ -85,7 +85,7 @@ describe('SqsPermissionConsumer', () => {
       const sqsSpy = vi.spyOn(sqsClient, 'send')
 
       await newConsumer.init()
-      expect(newConsumer.queue.url).toBe(
+      expect(newConsumer.queueProps.url).toBe(
         'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
       )
 
@@ -95,7 +95,7 @@ describe('SqsPermissionConsumer', () => {
       expect(updateCall).toBeDefined()
 
       const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.queue.url,
+        queueUrl: newConsumer.queueProps.url,
       })
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
@@ -128,7 +128,7 @@ describe('SqsPermissionConsumer', () => {
       const sqsSpy = vi.spyOn(sqsClient, 'send')
 
       await newConsumer.init()
-      expect(newConsumer.queue.url).toBe(
+      expect(newConsumer.queueProps.url).toBe(
         'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
       )
 
@@ -138,7 +138,7 @@ describe('SqsPermissionConsumer', () => {
       expect(updateCall).toBeUndefined()
 
       const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.queue.url,
+        queueUrl: newConsumer.queueProps.url,
       })
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('somevalue')
@@ -168,7 +168,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: publisher.queue.name,
+            QueueName: publisher.queueProps.name,
           },
         },
         logMessages: true,
@@ -218,7 +218,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: publisher.queue.name,
+            QueueName: publisher.queueProps.name,
           },
         },
         addPreHandlerBarrier: async (_msg): Promise<BarrierResult<number>> => {
@@ -251,7 +251,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: publisher.queue.name,
+            QueueName: publisher.queueProps.name,
           },
         },
         addPreHandlerBarrier: async (
@@ -280,7 +280,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: publisher.queue.name,
+            QueueName: publisher.queueProps.name,
           },
         },
         addPreHandlerBarrier: (_msg) => {
@@ -326,7 +326,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: publisher.queue.name,
+            QueueName: publisher.queueProps.name,
           },
         },
         removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
@@ -362,7 +362,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: publisher.queue.name,
+            QueueName: publisher.queueProps.name,
           },
         },
         removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
@@ -417,7 +417,7 @@ describe('SqsPermissionConsumer', () => {
       consumer = diContainer.cradle.permissionConsumer
 
       const command = new ReceiveMessageCommand({
-        QueueUrl: publisher.queue.url,
+        QueueUrl: publisher.queueProps.url,
       })
       const reply = await sqsClient.send(command)
       expect(reply.Messages).toBeUndefined()
@@ -438,7 +438,7 @@ describe('SqsPermissionConsumer', () => {
 
       // not using publisher to avoid publisher validation
       const input = {
-        QueueUrl: consumer.queue.url,
+        QueueUrl: consumer.queueProps.url,
         MessageBody: JSON.stringify(message),
       } satisfies SendMessageCommandInput
       const command = new SendMessageCommand(input)

@@ -131,7 +131,7 @@ export abstract class AbstractSqsConsumer<
       this.consumer.stop()
     }
     this.consumer = Consumer.create({
-      queueUrl: this.queue.url,
+      queueUrl: this.queueUrl,
       handleMessage: async (message: SQSMessage) => {
         if (message === null) {
           return
@@ -148,7 +148,7 @@ export abstract class AbstractSqsConsumer<
         // @ts-ignore
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         const messageType = deserializedMessage.result[this.messageTypeField]
-        const transactionSpanId = `queue_${this.queue.name}:${messageType}`
+        const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
         this.transactionObservabilityManager?.start(transactionSpanId)
         if (this.logMessages) {
@@ -191,7 +191,7 @@ export abstract class AbstractSqsConsumer<
 
     this.consumer.on('error', (err) => {
       this.handleError(err, {
-        queueName: this.queue.name,
+        queueName: this.queueName,
       })
     })
 

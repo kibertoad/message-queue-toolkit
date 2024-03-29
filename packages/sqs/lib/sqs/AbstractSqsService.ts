@@ -21,12 +21,6 @@ export type SQSQueueLocatorType = {
   queueUrl: string
 }
 
-export type QueueProperties = {
-  url: string
-  arn: string
-  name: string
-}
-
 export abstract class AbstractSqsService<
   MessagePayloadType extends object,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
@@ -51,7 +45,11 @@ export abstract class AbstractSqsService<
   protected readonly sqsClient: SQSClient
 
   // @ts-ignore
-  private _queue: QueueProperties
+  protected queueName: string
+  // @ts-ignore
+  protected queueUrl: string
+  // @ts-ignore
+  protected queueArn: string
 
   constructor(dependencies: DependenciesType, options: SQSOptionsType) {
     super(dependencies, options)
@@ -62,13 +60,16 @@ export abstract class AbstractSqsService<
     if (this.deletionConfig && this.creationConfig) {
       await deleteSqs(this.sqsClient, this.deletionConfig, this.creationConfig)
     }
-    this._queue = await initSqs(this.sqsClient, this.locatorConfig, this.creationConfig)
+    const { queueName, queueUrl, queueArn } = await initSqs(
+      this.sqsClient,
+      this.locatorConfig,
+      this.creationConfig,
+    )
+    this.queueName = queueName
+    this.queueUrl = queueUrl
+    this.queueArn = queueArn
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public override async close(): Promise<void> {}
-
-  public get queue(): QueueProperties {
-    return this._queue
-  }
 }

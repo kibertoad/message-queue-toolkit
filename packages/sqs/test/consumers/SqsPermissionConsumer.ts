@@ -132,4 +132,12 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
       },
     )
   }
+
+  public get queueProps() {
+    return {
+      name: this.queueName,
+      url: this.queueUrl,
+      arn: this.queueArn,
+    }
+  }
 }

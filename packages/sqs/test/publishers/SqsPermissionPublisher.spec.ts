@@ -48,7 +48,7 @@ describe('SqsPermissionPublisher', () => {
       })
 
       await newPublisher.init()
-      expect(newPublisher.queue.url).toBe(
+      expect(newPublisher.queueProps.url).toBe(
         `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
       )
     })
@@ -80,7 +80,7 @@ describe('SqsPermissionPublisher', () => {
       const sqsSpy = vi.spyOn(sqsClient, 'send')
 
       await newPublisher.init()
-      expect(newPublisher.queue.url).toBe(
+      expect(newPublisher.queueProps.url).toBe(
         `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
       )
 
@@ -90,7 +90,7 @@ describe('SqsPermissionPublisher', () => {
       expect(updateCall).toBeDefined()
 
       const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newPublisher.queue.url,
+        queueUrl: newPublisher.queueProps.url,
       })
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
@@ -123,7 +123,7 @@ describe('SqsPermissionPublisher', () => {
       const sqsSpy = vi.spyOn(sqsClient, 'send')
 
       await newPublisher.init()
-      expect(newPublisher.queue.url).toBe(
+      expect(newPublisher.queueProps.url).toBe(
         `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
       )
 
@@ -133,7 +133,7 @@ describe('SqsPermissionPublisher', () => {
       expect(updateCall).toBeUndefined()
 
       const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newPublisher.queue.url,
+        queueUrl: newPublisher.queueProps.url,
       })
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('somevalue')
