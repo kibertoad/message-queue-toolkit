@@ -2,8 +2,8 @@ import type { Either } from '@lokalise/node-core'
 import type { BarrierResult, Prehandler, PrehandlingOutputs } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 
-import type { NewAMQPConsumerOptions } from '../../lib/AbstractAmqpBaseConsumer'
-import { AbstractAmqpConsumerMultiSchema } from '../../lib/AbstractAmqpConsumerMultiSchema'
+import type { AMQPConsumerOptions } from '../../lib/AbstractAmqpConsumer'
+import { AbstractAmqpConsumer } from '../../lib/AbstractAmqpConsumer'
 import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService'
 
 import type {
@@ -23,30 +23,30 @@ type PrehandlerOutput = {
   prehandlerCount: number
 }
 
-export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMultiSchema<
+type AmqpPermissionConsumerOptions = Pick<
+  AMQPConsumerOptions<SupportedEvents, ExecutionContext, PrehandlerOutput>,
+  'creationConfig' | 'locatorConfig' | 'logMessages'
+> & {
+  addPreHandlerBarrier?: (message: SupportedEvents) => Promise<BarrierResult<number>>
+  removeHandlerOverride?: (
+    _message: SupportedEvents,
+    context: ExecutionContext,
+    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
+  ) => Promise<Either<'retryLater', 'success'>>
+  removePreHandlers?: Prehandler<SupportedEvents, ExecutionContext, PrehandlerOutput>[]
+}
+
+export class AmqpPermissionConsumer extends AbstractAmqpConsumer<
   SupportedEvents,
   ExecutionContext,
   PrehandlerOutput
 > {
-  public static QUEUE_NAME = 'user_permissions_multi'
+  public static readonly QUEUE_NAME = 'user_permissions_multi'
 
   public addCounter = 0
   public removeCounter = 0
 
-  constructor(
-    dependencies: AMQPConsumerDependencies,
-    options: Partial<
-      NewAMQPConsumerOptions<SupportedEvents, ExecutionContext, PrehandlerOutput>
-    > & {
-      addPreHandlerBarrier?: (message: SupportedEvents) => Promise<BarrierResult<number>>
-      removeHandlerOverride?: (
-        _message: SupportedEvents,
-        context: ExecutionContext,
-        prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
-      ) => Promise<Either<'retryLater', 'success'>>
-      removePreHandlers?: Prehandler<SupportedEvents, ExecutionContext, PrehandlerOutput>[]
-    },
-  ) {
+  constructor(dependencies: AMQPConsumerDependencies, options?: AmqpPermissionConsumerOptions) {
     const defaultRemoveHandler = async (
       _message: SupportedEvents,
       context: ExecutionContext,
@@ -61,14 +61,20 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
     super(
       dependencies,
       {
+        ...(options?.locatorConfig
+          ? { locatorConfig: options.locatorConfig }
+          : {
+              creationConfig: options?.creationConfig ?? {
+                queueName: AmqpPermissionConsumer.QUEUE_NAME,
+                queueOptions: {
+                  durable: true,
+                  autoDelete: false,
+                },
+              },
+            }),
+        logMessages: options?.logMessages,
         handlerSpy: true,
-        creationConfig: {
-          queueName: AmqpPermissionConsumerMultiSchema.QUEUE_NAME,
-          queueOptions: {
-            durable: true,
-            autoDelete: false,
-          },
-        },
+        messageTypeField: 'messageType',
         deletionConfig: {
           deleteIfExists: true,
         },
@@ -100,8 +106,6 @@ export class AmqpPermissionConsumerMultiSchema extends AbstractAmqpConsumerMulti
             },
           )
           .build(),
-        messageTypeField: 'messageType',
-        ...options,
       },
       {
         incrementAmount: 1,

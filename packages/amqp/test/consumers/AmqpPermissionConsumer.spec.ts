@@ -5,29 +5,29 @@ import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { FakeLogger } from '../fakes/FakeLogger'
-import type { AmqpPermissionPublisherMultiSchema } from '../publishers/AmqpPermissionPublisherMultiSchema'
+import type { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublisher'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 
-import { AmqpPermissionConsumerMultiSchema } from './AmqpPermissionConsumerMultiSchema'
+import { AmqpPermissionConsumer } from './AmqpPermissionConsumer'
 
-describe('PermissionsConsumerMultiSchema', () => {
+describe('AmqpPermissionConsumer', () => {
   describe('logging', () => {
     let logger: FakeLogger
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: AmqpPermissionPublisherMultiSchema
+    let publisher: AmqpPermissionPublisher
     beforeAll(async () => {
       logger = new FakeLogger()
       diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
         logger: asFunction(() => logger),
       })
-      await diContainer.cradle.permissionConsumerMultiSchema.close()
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      await diContainer.cradle.permissionConsumer.close()
+      publisher = diContainer.cradle.permissionPublisher
     })
 
     it('logs a message when logging is enabled', async () => {
-      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
         logMessages: true,
       })
       await newConsumer.start()
@@ -62,17 +62,17 @@ describe('PermissionsConsumerMultiSchema', () => {
 
   describe('preHandlerBarrier', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: AmqpPermissionPublisherMultiSchema
+    let publisher: AmqpPermissionPublisher
 
     beforeAll(async () => {
       diContainer = await registerDependencies(TEST_AMQP_CONFIG)
-      await diContainer.cradle.permissionConsumerMultiSchema.close()
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      await diContainer.cradle.permissionConsumer.close()
+      publisher = diContainer.cradle.permissionPublisher
     })
 
     it('blocks first try', async () => {
       let barrierCounter = 0
-      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
         addPreHandlerBarrier: (_msg) => {
           barrierCounter++
           if (barrierCounter < 2) {
@@ -103,7 +103,7 @@ describe('PermissionsConsumerMultiSchema', () => {
 
     it('throws an error on first try', async () => {
       let barrierCounter = 0
-      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
         addPreHandlerBarrier: (_msg) => {
           barrierCounter++
           if (barrierCounter === 1) {
@@ -132,10 +132,10 @@ describe('PermissionsConsumerMultiSchema', () => {
 
   describe('prehandlers', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: AmqpPermissionPublisherMultiSchema
+    let publisher: AmqpPermissionPublisher
     beforeEach(async () => {
       diContainer = await registerDependencies(TEST_AMQP_CONFIG, undefined, false)
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      publisher = diContainer.cradle.permissionPublisher
       await publisher.init()
     })
 
@@ -147,7 +147,7 @@ describe('PermissionsConsumerMultiSchema', () => {
     it('processes one prehandler', async () => {
       expect.assertions(1)
 
-      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
         removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
           expect(prehandlerOutputs.prehandlerOutput.prehandlerCount).toBe(1)
           return {
@@ -180,7 +180,7 @@ describe('PermissionsConsumerMultiSchema', () => {
     it('processes two prehandlers', async () => {
       expect.assertions(1)
 
-      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
         removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
           expect(prehandlerOutputs.prehandlerOutput.prehandlerCount).toBe(11)
           return {
@@ -222,16 +222,16 @@ describe('PermissionsConsumerMultiSchema', () => {
 
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: AmqpPermissionPublisherMultiSchema
-    let consumer: AmqpPermissionConsumerMultiSchema
+    let publisher: AmqpPermissionPublisher
+    let consumer: AmqpPermissionConsumer
 
     beforeEach(async () => {
       diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
 
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
-      consumer = diContainer.cradle.permissionConsumerMultiSchema
+      publisher = diContainer.cradle.permissionPublisher
+      consumer = diContainer.cradle.permissionConsumer
     })
 
     afterEach(async () => {

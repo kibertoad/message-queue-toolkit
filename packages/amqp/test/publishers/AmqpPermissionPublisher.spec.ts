@@ -1,72 +1,41 @@
+import { waitAndRetry } from '@lokalise/node-core'
 import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction, Lifetime } from 'awilix'
 import { describe, beforeAll, beforeEach, afterAll, afterEach, expect, it } from 'vitest'
 
-import { waitAndRetry } from '../../../core/lib/utils/waitUtils'
 import { deserializeAmqpMessage } from '../../lib/amqpMessageDeserializer'
 import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer'
-import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
-import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
+import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakeConsumer } from '../fakes/FakeConsumer'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { FakeLogger } from '../fakes/FakeLogger'
-import { userPermissionMap } from '../repositories/PermissionRepository'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 
 import { AmqpPermissionPublisher } from './AmqpPermissionPublisher'
-import type { AmqpPermissionPublisherMultiSchema } from './AmqpPermissionPublisherMultiSchema'
-
-const perms: [string, ...string[]] = ['perm1', 'perm2']
-const userIds = [100, 200, 300]
-
-function checkPermissions(userIds: number[]) {
-  const usersPerms = userIds.reduce((acc, userId) => {
-    if (userPermissionMap[userId]) {
-      acc.push(userPermissionMap[userId])
-    }
-    return acc
-  }, [] as string[][])
-
-  if (usersPerms.length > userIds.length) {
-    return usersPerms.slice(0, userIds.length - 1)
-  }
-
-  if (usersPerms && usersPerms.length !== userIds.length) {
-    return null
-  }
-
-  for (const userPerms of usersPerms)
-    if (userPerms.length !== perms.length) {
-      return null
-    }
-
-  return usersPerms
-}
 
 describe('PermissionPublisher', () => {
   describe('logging', () => {
     let logger: FakeLogger
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: AmqpPermissionPublisherMultiSchema
+    let publisher: AmqpPermissionPublisher
     beforeAll(async () => {
       logger = new FakeLogger()
       diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
         logger: asFunction(() => logger),
       })
-      await diContainer.cradle.permissionConsumerMultiSchema.close()
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      await diContainer.cradle.permissionConsumer.close()
+      publisher = diContainer.cradle.permissionPublisher
     })
 
     it('logs a message when logging is enabled', async () => {
       const message = {
         id: '1',
-        userIds,
         messageType: 'add',
-        permissions: perms,
-      } satisfies PERMISSIONS_MESSAGE_TYPE
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       publisher.publish(message)
 
@@ -77,8 +46,6 @@ describe('PermissionPublisher', () => {
       expect(logger.loggedMessages[1]).toEqual({
         id: '1',
         messageType: 'add',
-        permissions: ['perm1', 'perm2'],
-        userIds: [100, 200, 300],
       })
     })
   })
@@ -149,7 +116,7 @@ describe('PermissionPublisher', () => {
     afterEach(async () => {
       const connection = await diContainer.cradle.amqpConnectionManager.getConnection()
       channel = await connection.createChannel()
-      await channel.deleteQueue(AmqpPermissionConsumer.QUEUE_NAME)
+      await channel.deleteQueue(AmqpPermissionPublisher.QUEUE_NAME)
       await channel.close()
     })
 
@@ -160,23 +127,22 @@ describe('PermissionPublisher', () => {
     })
 
     it('publishes a message', async () => {
-      const { permissionPublisher } = diContainer.cradle
+      const { permissionPublisher, permissionConsumer } = diContainer.cradle
+      await permissionConsumer.close()
 
       const message = {
         id: '2',
-        userIds,
         messageType: 'add',
-        permissions: perms,
-      } satisfies PERMISSIONS_MESSAGE_TYPE
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
-      let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null
+      let receivedMessage: PERMISSIONS_ADD_MESSAGE_TYPE | null = null
       await channel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
         if (message === null) {
           return
         }
         const decodedMessage = deserializeAmqpMessage(
           message,
-          PERMISSIONS_MESSAGE_SCHEMA,
+          PERMISSIONS_ADD_MESSAGE_SCHEMA,
           new FakeConsumerErrorResolver(),
         )
         receivedMessage = decodedMessage.result!
@@ -191,28 +157,17 @@ describe('PermissionPublisher', () => {
       expect(receivedMessage).toEqual({
         id: '2',
         messageType: 'add',
-        permissions: ['perm1', 'perm2'],
-        userIds: [100, 200, 300],
       })
     })
 
     it('reconnects on lost connection', async () => {
-      const users = Object.values(userPermissionMap)
-      expect(users).toHaveLength(0)
-
-      userPermissionMap[100] = []
-      userPermissionMap[200] = []
-      userPermissionMap[300] = []
-
       const { permissionPublisher, permissionConsumer } = diContainer.cradle
       await permissionConsumer.start()
 
       const message = {
-        id: '3',
-        userIds,
+        id: '4',
         messageType: 'add',
-        permissions: perms,
-      } satisfies PERMISSIONS_MESSAGE_TYPE
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await diContainer.cradle.amqpConnectionManager.getConnectionSync()!.close()
 
@@ -220,7 +175,7 @@ describe('PermissionPublisher', () => {
         () => {
           permissionPublisher.publish(message)
 
-          return checkPermissions(userIds)
+          return permissionConsumer.addCounter > 0
         },
         100,
         20,
@@ -230,8 +185,7 @@ describe('PermissionPublisher', () => {
         throw new Error('Users permissions unexpectedly null')
       }
 
-      expect(updatedUsersPermissions).toBeDefined()
-      expect(updatedUsersPermissions[0]).toHaveLength(2)
+      expect(permissionConsumer.addCounter).toBeGreaterThan(0)
     })
   })
 })

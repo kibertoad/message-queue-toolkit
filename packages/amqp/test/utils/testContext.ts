@@ -8,9 +8,7 @@ import { AmqpConnectionManager } from '../../lib/AmqpConnectionManager'
 import type { AmqpConfig } from '../../lib/amqpConnectionResolver'
 import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver'
 import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer'
-import { AmqpPermissionConsumerMultiSchema } from '../consumers/AmqpPermissionConsumerMultiSchema'
 import { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublisher'
-import { AmqpPermissionPublisherMultiSchema } from '../publishers/AmqpPermissionPublisherMultiSchema'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -71,21 +69,6 @@ export async function registerDependencies(
       enabled: queuesEnabled,
     }),
 
-    permissionConsumerMultiSchema: asClass(AmqpPermissionConsumerMultiSchema, {
-      lifetime: Lifetime.SINGLETON,
-      asyncInit: 'start',
-      asyncDispose: 'close',
-      asyncDisposePriority: 10,
-      enabled: queuesEnabled,
-    }),
-    permissionPublisherMultiSchema: asClass(AmqpPermissionPublisherMultiSchema, {
-      lifetime: Lifetime.SINGLETON,
-      asyncInit: 'init',
-      asyncDispose: 'close',
-      asyncDisposePriority: 20,
-      enabled: queuesEnabled,
-    }),
-
     // vendor-specific dependencies
     transactionObservabilityManager: asFunction(() => {
       return undefined
@@ -122,6 +105,4 @@ export interface Dependencies {
   consumerErrorResolver: ErrorResolver
   permissionConsumer: AmqpPermissionConsumer
   permissionPublisher: AmqpPermissionPublisher
-  permissionConsumerMultiSchema: AmqpPermissionConsumerMultiSchema
-  permissionPublisherMultiSchema: AmqpPermissionPublisherMultiSchema
 }
