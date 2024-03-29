@@ -12,7 +12,6 @@ import { subscribeToTopic } from '../../lib/utils/snsSubscriber'
 import { assertTopic, deleteTopic, getTopicAttributes } from '../../lib/utils/snsUtils'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
-import { userPermissionMap } from '../repositories/PermissionRepository'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -92,10 +91,6 @@ describe('SnsPermissionPublisher', () => {
 
       await deleteQueue(sqsClient, queueName)
       await deleteTopic(snsClient, SnsPermissionPublisher.TOPIC_NAME)
-
-      delete userPermissionMap[100]
-      delete userPermissionMap[200]
-      delete userPermissionMap[300]
     })
 
     afterEach(async () => {
