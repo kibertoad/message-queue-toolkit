@@ -1,5 +1,4 @@
 export type {
-  SQSQueueConfig,
   SQSConsumerDependencies,
   SQSQueueLocatorType,
   SQSDependencies,

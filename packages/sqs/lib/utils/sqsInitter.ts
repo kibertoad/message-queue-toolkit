@@ -4,7 +4,7 @@ import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 
 import type { SQSCreationConfig } from '../sqs/AbstractSqsConsumer'
-import type { SQSQueueLocatorType } from '../sqs/AbstractSqsService'
+import type { QueueProperties, SQSQueueLocatorType } from '../sqs/AbstractSqsService'
 
 import { assertQueue, deleteQueue, getQueueAttributes } from './sqsUtils'
 
@@ -50,7 +50,7 @@ export async function initSqs(
   sqsClient: SQSClient,
   locatorConfig?: SQSQueueLocatorType,
   creationConfig?: SQSCreationConfig,
-) {
+): Promise<QueueProperties> {
   // reuse existing queue only
   if (locatorConfig) {
     const checkResult = await getQueueAttributes(sqsClient, locatorConfig, ['QueueArn'])
@@ -68,9 +68,9 @@ export async function initSqs(
     const splitUrl = queueUrl.split('/')
     const queueName = splitUrl[splitUrl.length - 1]
     return {
-      queueArn,
-      queueUrl,
-      queueName,
+      arn: queueArn,
+      url: queueUrl,
+      name: queueName,
     }
   }
 
@@ -87,8 +87,8 @@ export async function initSqs(
   const queueName = creationConfig.queue.QueueName
 
   return {
-    queueUrl,
-    queueArn,
-    queueName,
+    url: queueUrl,
+    arn: queueArn,
+    name: queueName,
   }
 }

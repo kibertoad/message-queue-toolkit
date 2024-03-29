@@ -51,7 +51,7 @@ describe('SqsPermissionConsumer', () => {
       })
 
       await newConsumer.init()
-      expect(newConsumer.queueUrl).toBe(
+      expect(newConsumer.queue.url).toBe(
         'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
       )
     })
@@ -83,7 +83,7 @@ describe('SqsPermissionConsumer', () => {
       const sqsSpy = vi.spyOn(sqsClient, 'send')
 
       await newConsumer.init()
-      expect(newConsumer.queueUrl).toBe(
+      expect(newConsumer.queue.url).toBe(
         'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
       )
 
@@ -93,7 +93,7 @@ describe('SqsPermissionConsumer', () => {
       expect(updateCall).toBeDefined()
 
       const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.queueUrl,
+        queueUrl: newConsumer.queue.url,
       })
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
@@ -126,7 +126,7 @@ describe('SqsPermissionConsumer', () => {
       const sqsSpy = vi.spyOn(sqsClient, 'send')
 
       await newConsumer.init()
-      expect(newConsumer.queueUrl).toBe(
+      expect(newConsumer.queue.url).toBe(
         'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
       )
 
@@ -136,7 +136,7 @@ describe('SqsPermissionConsumer', () => {
       expect(updateCall).toBeUndefined()
 
       const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.queueUrl,
+        queueUrl: newConsumer.queue.url,
       })
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('somevalue')
@@ -166,7 +166,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: publisher.queueName,
+            QueueName: publisher.queue.name,
           },
         },
         logMessages: true,
@@ -216,7 +216,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: publisher.queueName,
+            QueueName: publisher.queue.name,
           },
         },
         addPreHandlerBarrier: async (_msg): Promise<BarrierResult<number>> => {
@@ -249,7 +249,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: publisher.queueName,
+            QueueName: publisher.queue.name,
           },
         },
         addPreHandlerBarrier: async (
@@ -278,7 +278,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: publisher.queueName,
+            QueueName: publisher.queue.name,
           },
         },
         addPreHandlerBarrier: (_msg) => {
@@ -324,7 +324,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: publisher.queueName,
+            QueueName: publisher.queue.name,
           },
         },
         removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
@@ -360,7 +360,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: publisher.queueName,
+            QueueName: publisher.queue.name,
           },
         },
         removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
@@ -412,7 +412,7 @@ describe('SqsPermissionConsumer', () => {
       consumer = diContainer.cradle.permissionConsumer
 
       const command = new ReceiveMessageCommand({
-        QueueUrl: publisher.queueUrl,
+        QueueUrl: publisher.queue.url,
       })
       const reply = await sqsClient.send(command)
       expect(reply.Messages).toBeUndefined()

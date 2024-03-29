@@ -1,3 +1,4 @@
+import type { CreateQueueRequest } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   QueueConsumer as QueueConsumer,
@@ -19,11 +20,7 @@ import type { ConsumerOptions } from 'sqs-consumer/src/types'
 import type { SQSMessage } from '../types/MessageTypes'
 import { readSqsMessage } from '../utils/sqsMessageReader'
 
-import type {
-  SQSConsumerDependencies,
-  SQSQueueConfig,
-  SQSQueueLocatorType,
-} from './AbstractSqsService'
+import type { SQSConsumerDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
@@ -36,7 +33,7 @@ export type ExtraSQSCreationParams = {
 }
 
 export type SQSCreationConfig = {
-  queue: SQSQueueConfig
+  queue: CreateQueueRequest
   updateAttributesIfExists?: boolean
 } & ExtraSQSCreationParams
 
@@ -134,7 +131,7 @@ export abstract class AbstractSqsConsumer<
       this.consumer.stop()
     }
     this.consumer = Consumer.create({
-      queueUrl: this.queueUrl,
+      queueUrl: this.queue.url,
       handleMessage: async (message: SQSMessage) => {
         if (message === null) {
           return
@@ -151,7 +148,7 @@ export abstract class AbstractSqsConsumer<
         // @ts-ignore
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         const messageType = deserializedMessage.result[this.messageTypeField]
-        const transactionSpanId = `queue_${this.queueName}:${messageType}`
+        const transactionSpanId = `queue_${this.queue.name}:${messageType}`
 
         this.transactionObservabilityManager?.start(transactionSpanId)
         if (this.logMessages) {
@@ -194,7 +191,7 @@ export abstract class AbstractSqsConsumer<
 
     this.consumer.on('error', (err) => {
       this.handleError(err, {
-        queueName: this.queueName,
+        queueName: this.queue.name,
       })
     })
 

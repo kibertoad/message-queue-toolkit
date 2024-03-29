@@ -70,7 +70,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
 
       const input = {
         // SendMessageRequest
-        QueueUrl: this.queueUrl,
+        QueueUrl: this.queue.url,
         MessageBody: JSON.stringify(message),
         ...options,
       } satisfies SendMessageCommandInput

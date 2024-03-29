@@ -1,4 +1,4 @@
-import type { SQSClient, CreateQueueRequest } from '@aws-sdk/client-sqs'
+import type { SQSClient } from '@aws-sdk/client-sqs'
 import type {
   QueueConsumerDependencies,
   QueueDependencies,
@@ -17,10 +17,14 @@ export type SQSDependencies = QueueDependencies & {
 
 export type SQSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
 
-export type SQSQueueConfig = CreateQueueRequest
-
 export type SQSQueueLocatorType = {
   queueUrl: string
+}
+
+export type QueueProperties = {
+  url: string
+  arn: string
+  name: string
 }
 
 export abstract class AbstractSqsService<
@@ -47,11 +51,7 @@ export abstract class AbstractSqsService<
   protected readonly sqsClient: SQSClient
 
   // @ts-ignore
-  public queueUrl: string
-  // @ts-ignore
-  public queueName: string
-  // @ts-ignore
-  public queueArn: string
+  private _queue: QueueProperties
 
   constructor(dependencies: DependenciesType, options: SQSOptionsType) {
     super(dependencies, options)
@@ -62,17 +62,13 @@ export abstract class AbstractSqsService<
     if (this.deletionConfig && this.creationConfig) {
       await deleteSqs(this.sqsClient, this.deletionConfig, this.creationConfig)
     }
-    const { queueUrl, queueName, queueArn } = await initSqs(
-      this.sqsClient,
-      this.locatorConfig,
-      this.creationConfig,
-    )
-
-    this.queueArn = queueArn
-    this.queueUrl = queueUrl
-    this.queueName = queueName
+    this._queue = await initSqs(this.sqsClient, this.locatorConfig, this.creationConfig)
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public override async close(): Promise<void> {}
+
+  public get queue(): QueueProperties {
+    return this._queue
+  }
 }
