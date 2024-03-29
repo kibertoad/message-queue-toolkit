@@ -1,11 +1,7 @@
 import type { SQSClient } from '@aws-sdk/client-sqs'
-import { waitAndRetry } from '@lokalise/node-core'
 import type { AwilixContainer } from 'awilix'
-import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
-import type { SQSMessage } from '../../lib/types/MessageTypes'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { registerDependencies } from '../utils/testContext'
