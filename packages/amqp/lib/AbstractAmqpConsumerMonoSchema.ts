@@ -35,11 +35,7 @@ export abstract class AbstractAmqpConsumerMonoSchema<
 {
   private readonly messageSchema: ZodSchema<MessagePayloadType>
   private readonly schemaEither: Either<Error, ZodSchema<MessagePayloadType>>
-  private readonly prehandlers?: Prehandler<
-    MessagePayloadType,
-    ExecutionContext,
-    PrehandlerOutput
-  >[]
+  private readonly prehandlers: Prehandler<MessagePayloadType, ExecutionContext, PrehandlerOutput>[]
 
   constructor(
     dependencies: AMQPConsumerDependencies,
@@ -51,7 +47,7 @@ export abstract class AbstractAmqpConsumerMonoSchema<
   ) {
     super(dependencies, options)
 
-    this.prehandlers = options.prehandlers
+    this.prehandlers = options.prehandlers ?? []
     this.messageSchema = options.messageSchema
     this.schemaEither = {
       result: this.messageSchema,
