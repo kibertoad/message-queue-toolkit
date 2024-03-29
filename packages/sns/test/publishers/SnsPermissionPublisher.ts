@@ -34,4 +34,8 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<SupportedTypes>
       messageTypeField: 'messageType',
     })
   }
+
+  get topicArnProp(): string {
+    return this.topicArn
+  }
 }

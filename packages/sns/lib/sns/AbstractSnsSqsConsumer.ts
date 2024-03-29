@@ -53,10 +53,11 @@ export abstract class AbstractSnsSqsConsumer<
 > {
   private readonly subscriptionConfig?: SNSSubscriptionOptions
   private readonly snsClient: SNSClient
+
   // @ts-ignore
-  public topicArn: string
+  protected topicArn: string
   // @ts-ignore
-  public subscriptionArn: string
+  protected subscriptionArn: string
 
   protected constructor(
     dependencies: SNSSQSConsumerDependencies,

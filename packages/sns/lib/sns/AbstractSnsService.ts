@@ -62,7 +62,7 @@ export abstract class AbstractSnsService<
 > {
   protected readonly snsClient: SNSClient
   // @ts-ignore
-  private _topicArn: string
+  protected topicArn: string
 
   constructor(dependencies: DependenciesType, options: SNSOptionsType) {
     super(dependencies, options)
@@ -76,14 +76,10 @@ export abstract class AbstractSnsService<
     }
 
     const initResult = await initSns(this.snsClient, this.locatorConfig, this.creationConfig)
-    this._topicArn = initResult.topicArn
+    this.topicArn = initResult.topicArn
   }
 
   public override close(): Promise<void> {
     return Promise.resolve()
-  }
-
-  get topicArn(): string {
-    return this._topicArn
   }
 }

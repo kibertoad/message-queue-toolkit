@@ -164,4 +164,12 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
       },
     )
   }
+
+  get subscriptionProps() {
+    return {
+      topicArn: this.topicArn,
+      queueUrl: this.queueUrl,
+      subscriptionArn: this.subscriptionArn,
+    }
+  }
 }

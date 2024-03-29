@@ -42,7 +42,7 @@ describe('SnsPermissionPublisher', () => {
 
       await newPublisher.init()
 
-      const topic = await getTopicAttributes(snsClient, newPublisher.topicArn)
+      const topic = await getTopicAttributes(snsClient, newPublisher.topicArnProp)
 
       expect(topic.result?.attributes?.Policy).toBe(
         `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-west-1:000000000000:policy-topic","Condition":{"StringLike":{"sns:Endpoint":"dummy*"}}}]}`,
@@ -72,7 +72,7 @@ describe('SnsPermissionPublisher', () => {
       })
 
       await newPublisher.init()
-      expect(newPublisher.topicArn).toEqual(arn)
+      expect(newPublisher.topicArnProp).toEqual(arn)
       await deleteTopic(snsClient, 'existingTopic')
     })
   })
