@@ -1,13 +1,9 @@
-export type { CommonMessage } from './lib/types/MessageTypes'
-
 export type { AMQPQueueConfig } from './lib/AbstractAmqpService'
 
-export { AbstractAmqpConsumerMonoSchema } from './lib/AbstractAmqpConsumerMonoSchema'
-export { AbstractAmqpConsumerMultiSchema } from './lib/AbstractAmqpConsumerMultiSchema'
+export { AbstractAmqpConsumer, AMQPConsumerOptions } from './lib/AbstractAmqpConsumer'
 export { AmqpConsumerErrorResolver } from './lib/errors/AmqpConsumerErrorResolver'
 
-export { AbstractAmqpPublisherMonoSchema } from './lib/AbstractAmqpPublisherMonoSchema'
-export { AbstractAmqpPublisherMultiSchema } from './lib/AbstractAmqpPublisherMultiSchema'
+export { AbstractAmqpPublisher, AMQPPublisherOptions } from './lib/AbstractAmqpPublisher'
 
 export type { AmqpConfig } from './lib/amqpConnectionResolver'
 
