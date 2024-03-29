@@ -93,16 +93,12 @@ export abstract class AbstractSqsConsumerMonoSchema<
 {
   private readonly messageSchema: ZodSchema<MessagePayloadType>
   private readonly schemaEither: Either<Error, ZodSchema<MessagePayloadType>>
-  private readonly prehandlers?: Prehandler<
-    MessagePayloadType,
-    ExecutionContext,
-    PrehandlerOutput
-  >[]
+  private readonly prehandlers: Prehandler<MessagePayloadType, ExecutionContext, PrehandlerOutput>[]
 
   protected constructor(dependencies: SQSConsumerDependencies, options: ConsumerOptionsType) {
     super(dependencies, options)
 
-    this.prehandlers = options.prehandlers
+    this.prehandlers = options.prehandlers ?? []
     this.messageSchema = options.messageSchema
     this.schemaEither = {
       result: this.messageSchema,

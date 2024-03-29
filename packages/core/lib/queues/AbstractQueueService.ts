@@ -224,12 +224,10 @@ export abstract class AbstractQueueService<
   }
 
   protected processPrehandlersInternal(
-    prehandlers:
-      | Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
-      | undefined,
+    prehandlers: Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[],
     message: MessagePayloadSchemas,
   ) {
-    if (!prehandlers || prehandlers.length === 0) {
+    if (prehandlers.length === 0) {
       return Promise.resolve({} as PrehandlerOutput)
     }
 

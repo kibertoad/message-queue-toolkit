@@ -83,7 +83,7 @@ export class MessageHandlerConfig<
     PrehandlerOutput,
     BarrierOutput
   >
-  public readonly prehandlers?: Prehandler<
+  public readonly prehandlers: Prehandler<
     MessagePayloadSchema,
     ExecutionContext,
     PrehandlerOutput
@@ -103,7 +103,7 @@ export class MessageHandlerConfig<
     this.handler = handler
     this.messageLogFormatter = options?.messageLogFormatter ?? defaultLogFormatter
     this.preHandlerBarrier = options?.preHandlerBarrier
-    this.prehandlers = options?.prehandlers
+    this.prehandlers = options?.prehandlers ?? []
   }
 }
 
@@ -116,6 +116,7 @@ export class MessageHandlerConfigBuilder<
     MessagePayloadSchemas,
     ExecutionContext,
     PrehandlerOutput,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     any
   >[]
 
