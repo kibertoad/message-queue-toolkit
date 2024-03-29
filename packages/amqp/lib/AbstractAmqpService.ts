@@ -1,14 +1,12 @@
 import type {
   QueueConsumerDependencies,
   QueueDependencies,
-  NewQueueOptions,
-  ExistingQueueOptions,
+  QueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { Channel, Connection, Message } from 'amqplib'
 import type { Options } from 'amqplib/properties'
 
-import type { AMQPLocatorType } from './AbstractAmqpBaseConsumer'
 import type { AmqpConnectionManager, ConnectionReceiver } from './AmqpConnectionManager'
 import { deleteAmqp } from './utils/amqpInitter'
 
@@ -19,13 +17,13 @@ export type AMQPDependencies = QueueDependencies & {
 export type AMQPConsumerDependencies = AMQPDependencies & QueueConsumerDependencies
 export type AMQPQueueConfig = Options.AssertQueue
 
-export type CreateAMQPQueueOptions = {
+export type AMQPCreationConfig = {
   queueOptions: AMQPQueueConfig
   queueName: string
   updateAttributesIfExists?: boolean
 }
 
-export type AMQPQueueLocatorType = {
+export type AMQPLocator = {
   queueName: string
 }
 
@@ -34,18 +32,16 @@ export abstract class AbstractAmqpService<
     DependenciesType extends AMQPDependencies = AMQPDependencies,
     ExecutionContext = unknown,
     PrehandlerOutput = unknown,
-    BarrierOutput = unknown,
   >
   extends AbstractQueueService<
     MessagePayloadType,
     Message,
     DependenciesType,
-    CreateAMQPQueueOptions,
-    AMQPQueueLocatorType,
-    NewQueueOptions<CreateAMQPQueueOptions> | ExistingQueueOptions<AMQPLocatorType>,
+    AMQPCreationConfig,
+    AMQPLocator,
+    QueueOptions<AMQPCreationConfig, AMQPLocator>,
     ExecutionContext,
-    PrehandlerOutput,
-    BarrierOutput
+    PrehandlerOutput
   >
   implements ConnectionReceiver
 {
@@ -58,7 +54,7 @@ export abstract class AbstractAmqpService<
 
   constructor(
     dependencies: DependenciesType,
-    options: NewQueueOptions<CreateAMQPQueueOptions> | ExistingQueueOptions<AMQPLocatorType>,
+    options: QueueOptions<AMQPCreationConfig, AMQPLocator>,
   ) {
     super(dependencies, options)
 
