@@ -116,6 +116,7 @@ export class MessageHandlerConfigBuilder<
     MessagePayloadSchemas,
     ExecutionContext,
     PrehandlerOutput,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     any
   >[]
 
