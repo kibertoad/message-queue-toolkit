@@ -35,9 +35,7 @@ export type AMQPConsumerOptions<
   MessagePayloadType,
   ExecutionContext,
   PrehandlerOutput
-> & {
-  prehandlers?: Prehandler<MessagePayloadType, ExecutionContext, PrehandlerOutput>[] // TODO: check if possible to extract
-}
+>
 
 export abstract class AbstractAmqpConsumer<
     MessagePayloadType extends object,
