@@ -1,9 +1,11 @@
-import type { SQSClient } from '@aws-sdk/client-sqs'
-import { ReceiveMessageCommand } from '@aws-sdk/client-sqs'
+import type { SendMessageCommandInput, SQSClient } from '@aws-sdk/client-sqs'
+import { SendMessageCommand, ReceiveMessageCommand } from '@aws-sdk/client-sqs'
+import { waitAndRetry } from '@lokalise/node-core'
 import type { BarrierResult } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
+import { ZodError } from 'zod'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
@@ -400,9 +402,12 @@ describe('SqsPermissionConsumer', () => {
 
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
+    let sqsClient: SQSClient
+
     let publisher: SqsPermissionPublisher
     let consumer: SqsPermissionConsumer
-    let sqsClient: SQSClient
+    let errorResolver: FakeConsumerErrorResolver
+
     beforeEach(async () => {
       diContainer = await registerDependencies({
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
@@ -417,9 +422,8 @@ describe('SqsPermissionConsumer', () => {
       const reply = await sqsClient.send(command)
       expect(reply.Messages).toBeUndefined()
 
-      const fakeErrorResolver = diContainer.cradle
-        .consumerErrorResolver as FakeConsumerErrorResolver
-      fakeErrorResolver.clear()
+      errorResolver = diContainer.cradle.consumerErrorResolver as FakeConsumerErrorResolver
+      errorResolver.clear()
     })
 
     afterEach(async () => {
@@ -427,28 +431,48 @@ describe('SqsPermissionConsumer', () => {
       await diContainer.dispose()
     })
 
-    describe('happy path', () => {
-      it('Processes messages', async () => {
-        await publisher.publish({
-          id: '10',
-          messageType: 'add',
-        })
-        await publisher.publish({
-          id: '20',
-          messageType: 'remove',
-        })
-        await publisher.publish({
-          id: '30',
-          messageType: 'remove',
-        })
+    it('bad event', async () => {
+      const message = {
+        messageType: 'add',
+      }
 
-        await consumer.handlerSpy.waitForMessageWithId('10', 'consumed')
-        await consumer.handlerSpy.waitForMessageWithId('20', 'consumed')
-        await consumer.handlerSpy.waitForMessageWithId('30', 'consumed')
+      // not using publisher to avoid publisher validation
+      const input = {
+        QueueUrl: consumer.queue.url,
+        MessageBody: JSON.stringify(message),
+      } satisfies SendMessageCommandInput
+      const command = new SendMessageCommand(input)
+      await sqsClient.send(command)
 
-        expect(consumer.addCounter).toBe(1)
-        expect(consumer.removeCounter).toBe(2)
+      await waitAndRetry(() => errorResolver.errors.length > 0, 100, 5)
+
+      expect(errorResolver.errors).toHaveLength(1)
+      expect(errorResolver.errors[0] instanceof ZodError).toBe(true)
+
+      expect(consumer.addCounter).toBe(0)
+      expect(consumer.removeCounter).toBe(0)
+    })
+
+    it('Processes messages', async () => {
+      await publisher.publish({
+        id: '10',
+        messageType: 'add',
       })
+      await publisher.publish({
+        id: '20',
+        messageType: 'remove',
+      })
+      await publisher.publish({
+        id: '30',
+        messageType: 'remove',
+      })
+
+      await consumer.handlerSpy.waitForMessageWithId('10', 'consumed')
+      await consumer.handlerSpy.waitForMessageWithId('20', 'consumed')
+      await consumer.handlerSpy.waitForMessageWithId('30', 'consumed')
+
+      expect(consumer.addCounter).toBe(1)
+      expect(consumer.removeCounter).toBe(2)
     })
   })
 })

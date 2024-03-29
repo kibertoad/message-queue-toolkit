@@ -26,9 +26,11 @@ export class SqsConsumerErrorResolver implements ErrorResolver {
         errorCode: error.code,
       })
     }
+    /* c8 ignore start */
     return new InternalError({
       message: 'Error processing message',
       errorCode: 'INTERNAL_ERROR',
     })
+    /* c8 ignore stop */
   }
 }
