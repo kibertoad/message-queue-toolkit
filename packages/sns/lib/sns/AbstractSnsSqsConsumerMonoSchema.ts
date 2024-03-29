@@ -85,11 +85,7 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
   private readonly snsClient: SNSClient
   private readonly messageSchema: ZodSchema<MessagePayloadType>
   private readonly schemaEither: Either<Error, ZodSchema<MessagePayloadType>>
-  private readonly prehandlers?: Prehandler<
-    MessagePayloadType,
-    ExecutionContext,
-    PrehandlerOutput
-  >[]
+  private readonly prehandlers: Prehandler<MessagePayloadType, ExecutionContext, PrehandlerOutput>[]
 
   // @ts-ignore
   public topicArn: string
@@ -106,7 +102,7 @@ export abstract class AbstractSnsSqsConsumerMonoSchema<
 
     this.subscriptionConfig = options.subscriptionConfig
     this.snsClient = dependencies.snsClient
-    this.prehandlers = options.prehandlers
+    this.prehandlers = options.prehandlers ?? []
     this.messageSchema = options.messageSchema
     this.schemaEither = {
       result: this.messageSchema,
