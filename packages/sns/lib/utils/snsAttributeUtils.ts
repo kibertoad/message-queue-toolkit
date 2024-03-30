@@ -3,11 +3,23 @@ import type { ZodSchema } from 'zod'
 // See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_version.html
 const POLICY_VERSION = '2012-10-17'
 
-export function generateTopicSubscriptionPolicy(
-  topicArn: string,
-  supportedSqsQueueUrlPrefix: string,
-) {
-  return `{"Version":"${POLICY_VERSION}","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"${topicArn}","Condition":{"StringLike":{"sns:Endpoint":"${supportedSqsQueueUrlPrefix}"}}}]}`
+export type TopicSubscriptionPolicyParams = {
+  topicArn: string
+  supportedSqsQueueUrlPrefix?: string
+  sourceOwner?: string
+}
+
+export function generateTopicSubscriptionPolicy(params: TopicSubscriptionPolicyParams) {
+  const sourceOwnerFragment = params.sourceOwner
+    ? `"StringEquals":{"AWS:SourceOwner": "${params.sourceOwner}"}`
+    : ''
+  const supportedSqsQueueUrlPrefixFragment = params.supportedSqsQueueUrlPrefix
+    ? `"StringLike":{"sns:Endpoint":"${params.supportedSqsQueueUrlPrefix}"}`
+    : ''
+  const commaFragment =
+    sourceOwnerFragment.length > 0 && supportedSqsQueueUrlPrefixFragment.length > 0 ? ',' : ''
+
+  return `{"Version":"${POLICY_VERSION}","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"${params.topicArn}","Condition":{${sourceOwnerFragment}${commaFragment}${supportedSqsQueueUrlPrefixFragment}}}]}`
 }
 
 export function generateFilterAttributes(

@@ -25,6 +25,7 @@ export async function subscribeToTopic(
 ) {
   const topicArn = await assertTopic(snsClient, topicConfiguration, {
     queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
+    sourceOwner: extraParams?.sourceOwner,
   })
   const { queueUrl, queueArn } = await assertQueue(sqsClient, queueConfiguration, {
     topicArnsWithPublishPermissionsPrefix: extraParams?.topicArnsWithPublishPermissionsPrefix,
