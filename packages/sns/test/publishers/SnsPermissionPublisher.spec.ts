@@ -57,7 +57,7 @@ describe('SNSPermissionPublisher', () => {
             Name: 'policy-topic',
           },
           queueUrlsWithSubscribePermissionsPrefix: 'dummy*',
-          sourceOwner: '111111111111',
+          allowedSourceOwner: '111111111111',
         },
       })
 

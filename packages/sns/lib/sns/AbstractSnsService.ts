@@ -71,7 +71,7 @@ export type ExistingSNSOptionsMultiSchema<
 
 export type ExtraSNSCreationParams = {
   queueUrlsWithSubscribePermissionsPrefix?: string
-  sourceOwner?: string
+  allowedSourceOwner?: string
 }
 
 export type SNSCreationConfig = {

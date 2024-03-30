@@ -5,16 +5,16 @@ const POLICY_VERSION = '2012-10-17'
 
 export type TopicSubscriptionPolicyParams = {
   topicArn: string
-  supportedSqsQueueUrlPrefix?: string
-  sourceOwner?: string
+  allowedSqsQueueUrlPrefix?: string
+  allowedSourceOwner?: string
 }
 
 export function generateTopicSubscriptionPolicy(params: TopicSubscriptionPolicyParams) {
-  const sourceOwnerFragment = params.sourceOwner
-    ? `"StringEquals":{"AWS:SourceOwner": "${params.sourceOwner}"}`
+  const sourceOwnerFragment = params.allowedSourceOwner
+    ? `"StringEquals":{"AWS:SourceOwner": "${params.allowedSourceOwner}"}`
     : ''
-  const supportedSqsQueueUrlPrefixFragment = params.supportedSqsQueueUrlPrefix
-    ? `"StringLike":{"sns:Endpoint":"${params.supportedSqsQueueUrlPrefix}"}`
+  const supportedSqsQueueUrlPrefixFragment = params.allowedSqsQueueUrlPrefix
+    ? `"StringLike":{"sns:Endpoint":"${params.allowedSqsQueueUrlPrefix}"}`
     : ''
   const commaFragment =
     sourceOwnerFragment.length > 0 && supportedSqsQueueUrlPrefixFragment.length > 0 ? ',' : ''

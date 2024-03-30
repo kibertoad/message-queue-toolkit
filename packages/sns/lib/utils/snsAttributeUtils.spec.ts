@@ -12,8 +12,8 @@ describe('snsAttributeUtils', () => {
     it('resolves policy for both params', () => {
       const resolvedPolicy = generateTopicSubscriptionPolicy({
         topicArn: 'arn:aws:sns:eu-central-1:632374391739:test-sns-some-service',
-        supportedSqsQueueUrlPrefix: 'arn:aws:sqs:eu-central-1:632374391739:test-sqs-*',
-        sourceOwner: '111111111111',
+        allowedSqsQueueUrlPrefix: 'arn:aws:sqs:eu-central-1:632374391739:test-sqs-*',
+        allowedSourceOwner: '111111111111',
       })
 
       expect(resolvedPolicy).toBe(
@@ -24,7 +24,7 @@ describe('snsAttributeUtils', () => {
     it('resolves policy for one param', () => {
       const resolvedPolicy = generateTopicSubscriptionPolicy({
         topicArn: 'arn:aws:sns:eu-central-1:632374391739:test-sns-some-service',
-        sourceOwner: '111111111111',
+        allowedSourceOwner: '111111111111',
       })
 
       expect(resolvedPolicy).toBe(
