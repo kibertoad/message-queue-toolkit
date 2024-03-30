@@ -3,6 +3,7 @@ import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction, Lifetime } from 'awilix'
 import { describe, beforeAll, beforeEach, afterAll, afterEach, expect, it } from 'vitest'
+import { ZodError } from 'zod'
 
 import { deserializeAmqpMessage } from '../../lib/amqpMessageDeserializer'
 import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer'
@@ -102,15 +103,21 @@ describe('PermissionPublisher', () => {
   describe('publish', () => {
     let diContainer: AwilixContainer<Dependencies>
     let channel: Channel
+    let permissionPublisher: AmqpPermissionPublisher
+    let permissionConsumer: AmqpPermissionConsumer
+
     beforeAll(async () => {
       diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
+      permissionPublisher = diContainer.cradle.permissionPublisher
+      permissionConsumer = diContainer.cradle.permissionConsumer
     })
 
     beforeEach(async () => {
       const connection = await diContainer.cradle.amqpConnectionManager.getConnection()
       channel = await connection.createChannel()
+      await permissionConsumer.start()
     })
 
     afterEach(async () => {
@@ -126,8 +133,38 @@ describe('PermissionPublisher', () => {
       await diContainer.dispose()
     })
 
+    it('publish unexpected message', async () => {
+      let error: unknown
+      try {
+        permissionPublisher.publish({
+          hello: 'world',
+          messageType: 'add',
+        } as any)
+      } catch (e) {
+        error = e
+      }
+      expect(error).toBeDefined()
+      expect(error).toBeInstanceOf(Error)
+      expect(error).toBeInstanceOf(ZodError)
+    })
+
+    it('publish message with uns Unsupported message type', async () => {
+      let error: any
+      try {
+        permissionPublisher.publish({
+          id: '124',
+          messageType: 'bad' as any,
+        })
+      } catch (e) {
+        error = e
+      }
+      console.log(error)
+      expect(error).toBeDefined()
+      expect(error).toBeInstanceOf(Error)
+      expect(error.message).toBe('Unsupported message type: bad')
+    })
+
     it('publishes a message', async () => {
-      const { permissionPublisher, permissionConsumer } = diContainer.cradle
       await permissionConsumer.close()
 
       const message = {
@@ -161,9 +198,6 @@ describe('PermissionPublisher', () => {
     })
 
     it('reconnects on lost connection', async () => {
-      const { permissionPublisher, permissionConsumer } = diContainer.cradle
-      await permissionConsumer.start()
-
       const message = {
         id: '4',
         messageType: 'add',

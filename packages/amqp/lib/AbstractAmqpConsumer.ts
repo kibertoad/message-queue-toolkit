@@ -66,11 +66,8 @@ export abstract class AbstractAmqpConsumer<
     options: AMQPConsumerOptions<MessagePayloadType, ExecutionContext, PrehandlerOutput>,
     executionContext: ExecutionContext,
   ) {
-    if (!options.locatorConfig?.queueName && !options.creationConfig?.queueName) {
-      throw new Error('queueName must be set in either locatorConfig or creationConfig')
-    }
-
     super(dependencies, options)
+
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.errorResolver = dependencies.consumerErrorResolver
 
@@ -229,11 +226,7 @@ export abstract class AbstractAmqpConsumer<
     )
   }
 
-  private deserializeMessage(message: Message | null): Either<'abort', MessagePayloadType> {
-    if (message === null) {
-      return ABORT_EARLY_EITHER
-    }
-
+  private deserializeMessage(message: Message): Either<'abort', MessagePayloadType> {
     const resolveMessageResult = this.resolveMessage(message)
     if (isMessageError(resolveMessageResult.error)) {
       this.handleError(resolveMessageResult.error)
@@ -273,11 +266,7 @@ export abstract class AbstractAmqpConsumer<
     }
   }
 
-  private tryToExtractId(message: Message | null): Either<'abort', string> {
-    if (message === null) {
-      return ABORT_EARLY_EITHER
-    }
-
+  private tryToExtractId(message: Message): Either<'abort', string> {
     const resolveMessageResult = this.resolveMessage(message)
     if (isMessageError(resolveMessageResult.error)) {
       this.handleError(resolveMessageResult.error)

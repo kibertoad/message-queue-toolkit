@@ -264,6 +264,35 @@ describe('AmqpPermissionConsumer', () => {
       expect(consumerErrorResolver.errors[0] instanceof ZodError).toBe(true)
     })
 
+    it('message with invalid message type', async () => {
+      const errorReporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
+      channel.sendToQueue(
+        AmqpPermissionConsumer.QUEUE_NAME,
+        objectToBuffer({
+          id: '1',
+          messageType: 'bad',
+        }),
+      )
+
+      await waitAndRetry(() => errorReporterSpy.mock.calls.length > 0)
+
+      expect(errorReporterSpy.mock.calls).toHaveLength(1)
+      expect(errorReporterSpy.mock.calls[0][0].error).toMatchObject({
+        message: 'Unsupported message type: bad',
+      })
+    })
+
+    it('message in the queue is not JSON', async () => {
+      channel.sendToQueue(AmqpPermissionConsumer.QUEUE_NAME, Buffer.from('not a JSON'))
+
+      await waitAndRetry(() => consumerErrorResolver.errors.length > 0)
+
+      expect(consumerErrorResolver.errors.length).toBeGreaterThan(0)
+      expect(consumerErrorResolver.errors[0]).toMatchObject({
+        message: 'Unexpected token \'o\', "not a JSON" is not valid JSON',
+      })
+    })
+
     it('Processes messages', async () => {
       publisher.publish({
         id: '10',

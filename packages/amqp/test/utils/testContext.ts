@@ -77,7 +77,7 @@ export async function registerDependencies(
       return {
         report: () => {},
       } satisfies ErrorReporter
-    }),
+    }, SINGLETON_CONFIG),
   }
   diContainer.register(diConfig)
 
