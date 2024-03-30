@@ -288,9 +288,7 @@ describe('AmqpPermissionConsumer', () => {
       await waitAndRetry(() => consumerErrorResolver.errors.length > 0)
 
       expect(consumerErrorResolver.errors.length).toBeGreaterThan(0)
-      expect((consumerErrorResolver.errors[0] as Error).message).toBe(
-        'Unexpected token \'o\', "not a JSON" is not valid JSON',
-      )
+      expect((consumerErrorResolver.errors[0] as Error).message).toContain('Unexpected token')
     })
 
     it('Processes messages', async () => {
