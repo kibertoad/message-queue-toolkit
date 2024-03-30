@@ -87,7 +87,7 @@ export class AmqpPermissionConsumer extends AbstractAmqpConsumer<
             PERMISSIONS_ADD_MESSAGE_SCHEMA,
             async (_message, context, barrierOutput) => {
               if (options?.addPreHandlerBarrier && !barrierOutput) {
-                return { error: 'retryLater' }
+                throw new Error('barrier is not working')
               }
               this.addCounter += context.incrementAmount
               return {

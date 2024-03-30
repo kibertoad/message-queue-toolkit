@@ -1,7 +1,9 @@
-import { waitAndRetry } from '@message-queue-toolkit/core'
+import { objectToBuffer, waitAndRetry } from '@message-queue-toolkit/core'
+import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
+import { ZodError } from 'zod'
 
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { FakeLogger } from '../fakes/FakeLogger'
@@ -222,8 +224,10 @@ describe('AmqpPermissionConsumer', () => {
 
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: AmqpPermissionPublisher
     let consumer: AmqpPermissionConsumer
+    let publisher: AmqpPermissionPublisher
+    let channel: Channel
+    let consumerErrorResolver: FakeConsumerErrorResolver
 
     beforeEach(async () => {
       diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
@@ -232,12 +236,32 @@ describe('AmqpPermissionConsumer', () => {
 
       publisher = diContainer.cradle.permissionPublisher
       consumer = diContainer.cradle.permissionConsumer
+      consumerErrorResolver = diContainer.cradle.consumerErrorResolver as FakeConsumerErrorResolver
+      channel = await (
+        await diContainer.cradle.amqpConnectionManager.getConnection()
+      ).createChannel()
     })
 
     afterEach(async () => {
       const { awilixManager } = diContainer.cradle
+
       await awilixManager.executeDispose()
       await diContainer.dispose()
+    })
+
+    it('Invalid message in the queue', async () => {
+      channel.sendToQueue(
+        AmqpPermissionConsumer.QUEUE_NAME,
+        objectToBuffer({
+          id: 1, // invalid type
+          messageType: 'add',
+        }),
+      )
+
+      await waitAndRetry(() => consumerErrorResolver.errors.length > 0)
+
+      expect(consumerErrorResolver.errors).toHaveLength(1)
+      expect(consumerErrorResolver.errors[0] instanceof ZodError).toBe(true)
     })
 
     it('Processes messages', async () => {

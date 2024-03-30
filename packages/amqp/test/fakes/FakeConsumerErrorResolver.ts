@@ -1,19 +1,23 @@
 import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver'
 
 export class FakeConsumerErrorResolver extends AmqpConsumerErrorResolver {
-  public handleErrorCallsCount: number
+  private _errors: unknown[]
   constructor() {
     super()
 
-    this.handleErrorCallsCount = 0
+    this._errors = []
   }
 
   public override processError(error: unknown) {
-    this.handleErrorCallsCount++
+    this._errors.push(error)
     return super.processError(error)
   }
 
   public clear() {
-    this.handleErrorCallsCount = 0
+    this._errors = []
+  }
+
+  get errors() {
+    return this._errors
   }
 }
