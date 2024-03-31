@@ -6,9 +6,9 @@ from the previous version to the new one.
 ## Breaking Changes
 
 ### Description of Breaking Change
-Multiple consumers and publishers can accomplish the same tasks as single ones, but they add layer of complexity by 
+Multi consumers and publishers can accomplish the same tasks as mono ones, but they add extra layer of complexity by 
 requiring features to be implemented in both.
-As a result, we have decided to remove the single ones to enhance maintainability.
+As a result, we have decided to remove the mono ones to enhance maintainability.
 
 ### Migration Steps
 #### Multi consumers and publishers
@@ -18,7 +18,7 @@ work as before.
 - `AbstractSqsMultiPublisher` -> `AbstractSqsPublisher`
 
 #### Mono consumers and publishers
-If you are using the mono consumer or publisher, they no longer exists, so you will need to transform your code to use
+If you are using the mono consumer or publisher, they no longer exist, so you will need to adjust your code to use
 the old named multi consumer or publisher (now called just consumer or publisher). Please check the guide below.
 
 ##### Publisher
