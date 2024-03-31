@@ -191,7 +191,7 @@ export class TestConsumerMultiSchema extends AbstractSqsConsumer<
                 bufferSize: 100, // how many processed messages should be retained in memory for spy lookup. Default is 100
                 messageIdField: 'id', // which field within a message payload uniquely identifies it. Default is `id`
             },
-        }
+        })
     }
 }
 ```
