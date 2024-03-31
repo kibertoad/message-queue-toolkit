@@ -47,6 +47,7 @@ export async function initSnsSqs(
         updateAttributesIfExists: creationConfig.updateAttributesIfExists,
         queueUrlsWithSubscribePermissionsPrefix:
           creationConfig.queueUrlsWithSubscribePermissionsPrefix,
+        allowedSourceOwner: creationConfig.allowedSourceOwner,
         topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
         logger: extraParams?.logger,
       },
@@ -171,6 +172,7 @@ export async function initSns(
   }
   const topicArn = await assertTopic(snsClient, creationConfig.topic, {
     queueUrlsWithSubscribePermissionsPrefix: creationConfig.queueUrlsWithSubscribePermissionsPrefix,
+    allowedSourceOwner: creationConfig.allowedSourceOwner,
   })
   return {
     topicArn,
