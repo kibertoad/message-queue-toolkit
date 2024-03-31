@@ -1,7 +1,6 @@
 export type {
   SNSTopicAWSConfig,
   SNSTopicConfig,
-  SNSConsumerDependencies,
   SNSQueueLocatorType,
   SNSCreationConfig,
   SNSDependencies,

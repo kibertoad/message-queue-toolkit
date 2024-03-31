@@ -50,7 +50,7 @@ describe('SnsPermissionPublisher', () => {
     })
 
     it('sets correct policy when two policy fields are set', async () => {
-      const newPublisher = new SnsPermissionPublisherMonoSchema(diContainer.cradle, {
+      const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
         creationConfig: {
           topic: {
             Name: 'policy-topic',
@@ -62,7 +62,7 @@ describe('SnsPermissionPublisher', () => {
 
       await newPublisher.init()
 
-      const topic = await getTopicAttributes(snsClient, newPublisher.topicArn)
+      const topic = await getTopicAttributes(snsClient, newPublisher.topicArnProp)
 
       expect(topic.result?.attributes?.Policy).toBe(
         `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-west-1:000000000000:policy-topic","Condition":{"StringEquals":{"AWS:SourceOwner":"111111111111"},"StringLike":{"sns:Endpoint":"dummy*"}}}]}`,

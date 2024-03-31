@@ -1,9 +1,5 @@
 import type { SNSClient, CreateTopicCommandInput, Tag } from '@aws-sdk/client-sns'
-import type {
-  QueueConsumerDependencies,
-  QueueDependencies,
-  QueueOptions,
-} from '@message-queue-toolkit/core'
+import type { QueueDependencies, QueueOptions } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
 import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
@@ -12,9 +8,6 @@ import { deleteSns, initSns } from '../utils/snsInitter'
 export type SNSDependencies = QueueDependencies & {
   snsClient: SNSClient
 }
-
-// TODO
-export type SNSConsumerDependencies = SNSDependencies & QueueConsumerDependencies
 
 export type SNSTopicAWSConfig = CreateTopicCommandInput
 export type SNSTopicConfig = {

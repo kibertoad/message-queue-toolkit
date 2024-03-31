@@ -139,6 +139,7 @@ describe('PermissionPublisher', () => {
         permissionPublisher.publish({
           hello: 'world',
           messageType: 'add',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
       } catch (e) {
         error = e
@@ -149,10 +150,11 @@ describe('PermissionPublisher', () => {
     })
 
     it('publish message with uns Unsupported message type', async () => {
-      let error: any
+      let error: unknown
       try {
         permissionPublisher.publish({
           id: '124',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           messageType: 'bad' as any,
         })
       } catch (e) {
@@ -161,7 +163,7 @@ describe('PermissionPublisher', () => {
       console.log(error)
       expect(error).toBeDefined()
       expect(error).toBeInstanceOf(Error)
-      expect(error.message).toBe('Unsupported message type: bad')
+      expect((error as Error).message).toBe('Unsupported message type: bad')
     })
 
     it('publishes a message', async () => {
