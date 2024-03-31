@@ -85,14 +85,15 @@ export async function assertTopic(
   }
   const topicArn = response.TopicArn
 
-  if (extraParams?.queueUrlsWithSubscribePermissionsPrefix) {
+  if (extraParams?.queueUrlsWithSubscribePermissionsPrefix || extraParams?.allowedSourceOwner) {
     const setTopicAttributesCommand = new SetTopicAttributesCommand({
       TopicArn: topicArn,
       AttributeName: 'Policy',
-      AttributeValue: generateTopicSubscriptionPolicy(
+      AttributeValue: generateTopicSubscriptionPolicy({
         topicArn,
-        extraParams.queueUrlsWithSubscribePermissionsPrefix,
-      ),
+        allowedSqsQueueUrlPrefix: extraParams.queueUrlsWithSubscribePermissionsPrefix,
+        allowedSourceOwner: extraParams.allowedSourceOwner,
+      }),
     })
     await snsClient.send(setTopicAttributesCommand)
   }

@@ -34,6 +34,7 @@ export type SNSTopicConfig = {
 
 export type ExtraSNSCreationParams = {
   queueUrlsWithSubscribePermissionsPrefix?: string
+  allowedSourceOwner?: string
 }
 
 export type SNSCreationConfig = {
