@@ -72,7 +72,7 @@ You can define handlers for each of the supported messages in a type-safe way us
 
 Here is an example:
 
-```ts
+```typescript
 type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 type ExecutionContext = {
     userService: UserService
