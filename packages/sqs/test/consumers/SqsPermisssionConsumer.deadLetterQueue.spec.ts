@@ -1,14 +1,18 @@
 import type { SQSClient } from '@aws-sdk/client-sqs'
+import { SendMessageCommand } from '@aws-sdk/client-sqs'
+import { waitAndRetry } from '@lokalise/node-core'
 import type { AwilixContainer } from 'awilix'
+import { Consumer } from 'sqs-consumer'
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import type { SQSMessage } from '../../lib/types/MessageTypes'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies } from '../utils/testContext'
 
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
 
-describe('dead letter queue', () => {
+describe('SqsPermissionConsumer - deadletterQueue', () => {
   describe('init', () => {
     const customDlqName = 'customDlq'
     const customSuffix = '-customSuffix'
@@ -245,60 +249,86 @@ describe('dead letter queue', () => {
     })
   })
 
-  // eslint-disable-next-line vitest/no-commented-out-tests
-  /*
-    describe('messages with errors on process should go to DLQ', () => {
-      let diContainer: AwilixContainer<Dependencies>
-      let publisher: SqsPermissionPublisherMultiSchema
-      let sqsClient: SQSClient
+  describe('messages with errors on process should go to DLQ', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    let sqsClient: SQSClient
+    const queueName = SqsPermissionConsumer.QUEUE_NAME
 
-      beforeAll(async () => {
-        diContainer = await registerDependencies()
-        // eslint-disable-next-line max-lines
-        sqsClient = diContainer.cradle.sqsClient
-        publisher = diContainer.cradle.permissionPublisherMultiSchema
-      })
-
-      afterEach(async () => {
-        await diContainer.cradle.awilixManager.executeDispose()
-        await diContainer.dispose()
-      })
-
-      beforeEach(async () => {
-        await deleteQueue(sqsClient, publisher.queueName)
-        await deleteQueue(sqsClient, `${publisher.queueName}-dlq`)
-      })
-
-      it('after errors, messages should go to DLQ', async () => {
-        let counter = 0
-        const consumer = new SqsPermissionConsumerMultiSchema(diContainer.cradle, {
-          creationConfig: { queue: { QueueName: publisher.queueName } },
-          deadLetterQueue: { redrivePolicy: { maxReceiveCount: 2 } },
-
-          removeHandlerOverride: async () => {
-            counter++
-            throw new Error('Error')
-          },
-        })
-        await consumer.start()
-
-        let dlqMessage: any
-        const dlqConsumer = Consumer.create({
-          sqs: diContainer.cradle.sqsClient,
-          queueUrl: consumer.deadLetterQueueUrl!,
-          handleMessage: async (message: SQSMessage) => {
-            dlqMessage = message
-          },
-        })
-        dlqConsumer.start()
-
-        await publisher.publish({ id: '1', messageType: 'remove' })
-
-        await waitAndRetry(async () => dlqMessage, 20, 5)
-
-        expect(counter).toBe(2)
-        expect(dlqMessage.Body).toBe(JSON.stringify({ id: '1', messageType: 'remove' }))
-      })
+    beforeAll(async () => {
+      diContainer = await registerDependencies()
+      sqsClient = diContainer.cradle.sqsClient
     })
-     */
+
+    beforeEach(async () => {
+      await deleteQueue(sqsClient, queueName)
+      await deleteQueue(sqsClient, `${queueName}-dlq`)
+    })
+
+    afterAll(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('after errors, messages should go to DLQ', async () => {
+      const { permissionPublisher } = diContainer.cradle
+      let counter = 0
+      const consumer = new SqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: { queue: { QueueName: queueName } },
+        deadLetterQueue: { redrivePolicy: { maxReceiveCount: 2 } },
+
+        removeHandlerOverride: async () => {
+          counter++
+          throw new Error('Error')
+        },
+      })
+      await consumer.start()
+
+      let dlqMessage: any
+      const dlqConsumer = Consumer.create({
+        sqs: diContainer.cradle.sqsClient,
+        queueUrl: consumer.dlqUrl,
+        handleMessage: async (message: SQSMessage) => {
+          dlqMessage = message
+        },
+      })
+      dlqConsumer.start()
+
+      await permissionPublisher.publish({ id: '1', messageType: 'remove' })
+
+      await waitAndRetry(async () => dlqMessage, 20, 5)
+
+      expect(counter).toBe(2)
+      expect(dlqMessage.Body).toBe(JSON.stringify({ id: '1', messageType: 'remove' }))
+    })
+
+    it('messages with deserialization errors should go to DLQ', async () => {
+      const consumer = new SqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: { queue: { QueueName: queueName } },
+        deadLetterQueue: { redrivePolicy: { maxReceiveCount: 1 } },
+      })
+      await consumer.start()
+
+      let dlqMessage: any
+      const dlqConsumer = Consumer.create({
+        sqs: diContainer.cradle.sqsClient,
+        queueUrl: consumer.dlqUrl,
+        handleMessage: async (message: SQSMessage) => {
+          dlqMessage = message
+        },
+      })
+      dlqConsumer.start()
+
+      // not using publisher to avoid publisher validation
+      await sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: consumer.queueProps.url,
+          MessageBody: JSON.stringify({ id: '1', messageType: 'bad' }),
+        }),
+      )
+
+      await waitAndRetry(async () => dlqMessage, 20, 5)
+
+      expect(dlqMessage.Body).toBe(JSON.stringify({ id: '1', messageType: 'bad' }))
+    })
+  })
 })

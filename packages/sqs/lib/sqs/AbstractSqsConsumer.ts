@@ -1,4 +1,8 @@
-import { SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
+import {
+  SendMessageCommand,
+  type SendMessageCommandInput,
+  SetQueueAttributesCommand,
+} from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   QueueConsumer as QueueConsumer,
@@ -131,8 +135,7 @@ export abstract class AbstractSqsConsumer<
     QueueLocatorType
   >
 
-  // @ts-ignore
-  protected deadLetterQueueUrl: string
+  protected deadLetterQueueUrl?: string
 
   protected constructor(
     dependencies: SQSConsumerDependencies,
@@ -264,6 +267,7 @@ export abstract class AbstractSqsConsumer<
           return message
         }
 
+        // TODO: in case of retryLater, DLQ shouldn't be used
         // failure
         this.handleMessageProcessed(
           deserializedMessage.result,
@@ -439,7 +443,13 @@ export abstract class AbstractSqsConsumer<
     }
   }
 
-  private async failProcessing(_message: SQSMessage) {
-    // Not implemented yet - needs dead letter queue
+  private async failProcessing(message: SQSMessage) {
+    if (!this.deadLetterQueueUrl) return
+
+    const command = new SendMessageCommand({
+      QueueUrl: this.deadLetterQueueUrl,
+      MessageBody: message.Body,
+    })
+    await this.sqsClient.send(command)
   }
 }
