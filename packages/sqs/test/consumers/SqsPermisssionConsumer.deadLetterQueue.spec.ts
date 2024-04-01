@@ -12,11 +12,10 @@ import { registerDependencies } from '../utils/testContext'
 
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
 
-describe('SqsPermissionConsumer - deadletterQueue', () => {
+describe('SqsPermissionConsumer - deadLetterQueue', () => {
   describe('init', () => {
-    const customDlqName = 'customDlq'
-    const customSuffix = '-customSuffix'
     const queueName = 'sqsTestQueue'
+    const deadLetterQueueName = 'customDlq'
 
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
@@ -28,9 +27,7 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
 
     beforeEach(async () => {
       await deleteQueue(sqsClient, queueName)
-      await deleteQueue(sqsClient, customDlqName)
-      await deleteQueue(sqsClient, `${queueName}-dlq`)
-      await deleteQueue(sqsClient, `${queueName}${customSuffix}`)
+      await deleteQueue(sqsClient, deadLetterQueueName)
     })
 
     afterAll(async () => {
@@ -39,38 +36,12 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
     })
 
     describe('creating new dead letter queue', () => {
-      it('creates dead letter queue using default name', async () => {
-        const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
-          creationConfig: { queue: { QueueName: queueName } },
-          deadLetterQueue: { redrivePolicy: { maxReceiveCount: 5 } },
-        })
-
-        await newConsumer.init()
-
-        expect(newConsumer.queueProps.url).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
-        expect(newConsumer.dlqUrl).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}-dlq`,
-        )
-        const attributes = await getQueueAttributes(sqsClient, {
-          queueUrl: newConsumer.queueProps.url,
-        })
-        expect(attributes.result?.attributes).toMatchObject({
-          RedrivePolicy: JSON.stringify({
-            deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${queueName}-dlq`,
-            maxReceiveCount: 5,
-          }),
-        })
-      })
-
-      it('creates dead letter queue using custom suffix', async () => {
-        const suffix = '-test'
+      it('creates dead letter', async () => {
         const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
           creationConfig: { queue: { QueueName: queueName } },
           deadLetterQueue: {
             redrivePolicy: { maxReceiveCount: 5 },
-            creationConfig: { queue: { queueNameSuffix: suffix } },
+            creationConfig: { queue: { QueueName: deadLetterQueueName } },
           },
         })
 
@@ -80,7 +51,7 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
           `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
         )
         expect(newConsumer.dlqUrl).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}${suffix}`,
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${deadLetterQueueName}`,
         )
 
         const attributes = await getQueueAttributes(sqsClient, {
@@ -88,36 +59,7 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
         })
         expect(attributes.result?.attributes).toMatchObject({
           RedrivePolicy: JSON.stringify({
-            deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${queueName}${suffix}`,
-            maxReceiveCount: 5,
-          }),
-        })
-      })
-
-      it('creates dead letter queue using custom name', async () => {
-        const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
-          creationConfig: { queue: { QueueName: queueName } },
-          deadLetterQueue: {
-            redrivePolicy: { maxReceiveCount: 5 },
-            creationConfig: { queue: { QueueName: customDlqName } },
-          },
-        })
-
-        await newConsumer.init()
-
-        expect(newConsumer.queueProps.url).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
-        expect(newConsumer.dlqUrl).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${customDlqName}`,
-        )
-
-        const attributes = await getQueueAttributes(sqsClient, {
-          queueUrl: newConsumer.queueProps.url,
-        })
-        expect(attributes.result?.attributes).toMatchObject({
-          RedrivePolicy: JSON.stringify({
-            deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${customDlqName}`,
+            deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${deadLetterQueueName}`,
             maxReceiveCount: 5,
           }),
         })
@@ -128,14 +70,17 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
 
         const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
           locatorConfig: { queueUrl },
-          deadLetterQueue: { redrivePolicy: { maxReceiveCount: 5 } },
+          deadLetterQueue: {
+            creationConfig: { queue: { QueueName: deadLetterQueueName } },
+            redrivePolicy: { maxReceiveCount: 5 },
+          },
         })
 
         await newConsumer.init()
 
         expect(newConsumer.queueProps.url).toBe(queueUrl)
         expect(newConsumer.dlqUrl).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}-dlq`,
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${deadLetterQueueName}`,
         )
 
         const attributes = await getQueueAttributes(sqsClient, {
@@ -143,7 +88,7 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
         })
         expect(attributes.result?.attributes).toMatchObject({
           RedrivePolicy: JSON.stringify({
-            deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${queueName}-dlq`,
+            deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${deadLetterQueueName}`,
             maxReceiveCount: 5,
           }),
         })
@@ -154,7 +99,7 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
       let dlqUrl: string
       beforeEach(async () => {
         const result = await assertQueue(sqsClient, {
-          QueueName: customDlqName,
+          QueueName: deadLetterQueueName,
           Attributes: { KmsMasterKeyId: 'my first value' },
         })
         dlqUrl = result.queueUrl
@@ -200,7 +145,7 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
             creationConfig: {
               updateAttributesIfExists: true,
               queue: {
-                QueueName: customDlqName,
+                QueueName: deadLetterQueueName,
                 Attributes: { KmsMasterKeyId: 'new value' },
               },
             },
@@ -220,7 +165,7 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
         expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('new value')
       })
 
-      it('connection existing dlq to existing queue', async () => {
+      it('connect existing dlq to existing queue', async () => {
         const { queueUrl } = await assertQueue(sqsClient, { QueueName: queueName })
 
         const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
@@ -241,7 +186,7 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
 
         expect(attributes.result?.attributes).toMatchObject({
           RedrivePolicy: JSON.stringify({
-            deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${customDlqName}`,
+            deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${deadLetterQueueName}`,
             maxReceiveCount: 5,
           }),
         })
@@ -250,9 +195,11 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
   })
 
   describe('messages with errors on process should go to DLQ', () => {
+    const queueName = SqsPermissionConsumer.QUEUE_NAME
+    const deadLetterQueueName = `${queueName}-dlq`
+
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
-    const queueName = SqsPermissionConsumer.QUEUE_NAME
 
     beforeAll(async () => {
       diContainer = await registerDependencies()
@@ -261,7 +208,7 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
 
     beforeEach(async () => {
       await deleteQueue(sqsClient, queueName)
-      await deleteQueue(sqsClient, `${queueName}-dlq`)
+      await deleteQueue(sqsClient, deadLetterQueueName)
     })
 
     afterAll(async () => {
@@ -274,7 +221,10 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
       let counter = 0
       const consumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: { queue: { QueueName: queueName } },
-        deadLetterQueue: { redrivePolicy: { maxReceiveCount: 2 } },
+        deadLetterQueue: {
+          creationConfig: { queue: { QueueName: deadLetterQueueName } },
+          redrivePolicy: { maxReceiveCount: 2 },
+        },
         removeHandlerOverride: async () => {
           counter++
           throw new Error('Error')
@@ -306,7 +256,10 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
       let counter = 0
       const consumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: { queue: { QueueName: queueName } },
-        deadLetterQueue: { redrivePolicy: { maxReceiveCount: 3 } },
+        deadLetterQueue: {
+          creationConfig: { queue: { QueueName: deadLetterQueueName } },
+          redrivePolicy: { maxReceiveCount: 3 },
+        },
         removeHandlerOverride: async () => {
           counter++
           if (counter < 10) {
@@ -327,7 +280,10 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
     it('messages with deserialization errors should go to DLQ', async () => {
       const consumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: { queue: { QueueName: queueName } },
-        deadLetterQueue: { redrivePolicy: { maxReceiveCount: 1 } },
+        deadLetterQueue: {
+          creationConfig: { queue: { QueueName: deadLetterQueueName } },
+          redrivePolicy: { maxReceiveCount: 1 },
+        },
       })
       await consumer.start()
 

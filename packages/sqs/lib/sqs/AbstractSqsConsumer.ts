@@ -8,6 +8,7 @@ import type {
   Prehandler,
   BarrierResult,
   QueueConsumerDependencies,
+  DeletionConfig,
 } from '@message-queue-toolkit/core'
 import {
   isMessageError,
@@ -30,23 +31,6 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
 }
 
 // TODO: should we include DLQ types on core?
-type DeadLetterQueueCreationConfig<CreationConfigType extends SQSCreationConfig> = Omit<
-  CreationConfigType,
-  'queue'
-> & {
-  queue: Omit<CreationConfigType['queue'], 'QueueName'> &
-    (
-      | {
-          queueNameSuffix?: string
-          QueueName?: never
-        }
-      | {
-          queueNameSuffix?: never
-          QueueName?: string
-        }
-    )
-}
-
 type DeadLetterQueueOptions<
   CreationConfigType extends SQSCreationConfig,
   QueueLocatorType extends SQSQueueLocatorType,
@@ -54,12 +38,12 @@ type DeadLetterQueueOptions<
   redrivePolicy: { maxReceiveCount: number }
 } & (
   | {
-      creationConfig?: DeadLetterQueueCreationConfig<CreationConfigType>
+      creationConfig: CreationConfigType
       locatorConfig?: never
     }
   | {
       creationConfig?: never
-      locatorConfig?: QueueLocatorType
+      locatorConfig: QueueLocatorType
     }
 )
 
@@ -169,15 +153,18 @@ export abstract class AbstractSqsConsumer<
   private async initDeadLetterQueue() {
     if (!this.deadLetterQueueOptions) return
 
-    const dlqCreationConfig = this.resolvedDlqCreationConfig(this.deadLetterQueueOptions)
-    if (this.deletionConfig && dlqCreationConfig) {
-      await deleteSqs(this.sqsClient, this.deletionConfig, dlqCreationConfig)
+    if (this.deletionConfig && this.deadLetterQueueOptions.creationConfig) {
+      await deleteSqs(
+        this.sqsClient,
+        this.deletionConfig,
+        this.deadLetterQueueOptions.creationConfig,
+      )
     }
 
     const result = await initSqs(
       this.sqsClient,
       this.deadLetterQueueOptions.locatorConfig,
-      dlqCreationConfig,
+      this.deadLetterQueueOptions.creationConfig,
     )
     const updateAttrCommand = new SetQueueAttributesCommand({
       QueueUrl: this.queueUrl,
@@ -191,29 +178,6 @@ export abstract class AbstractSqsConsumer<
     await this.sqsClient.send(updateAttrCommand)
 
     this.deadLetterQueueUrl = result.queueUrl
-  }
-
-  private resolvedDlqCreationConfig(
-    deadLetterQueueOptions: DeadLetterQueueOptions<CreationConfigType, QueueLocatorType>,
-  ): SQSCreationConfig | undefined {
-    if (deadLetterQueueOptions.locatorConfig) return undefined
-
-    let dlqName
-    if (deadLetterQueueOptions.creationConfig?.queue.QueueName) {
-      dlqName = deadLetterQueueOptions.creationConfig.queue.QueueName
-    } else if (deadLetterQueueOptions.creationConfig?.queue.queueNameSuffix) {
-      dlqName = `${this.queueName}${deadLetterQueueOptions.creationConfig.queue.queueNameSuffix}`
-    } else {
-      dlqName = `${this.queueName}-dlq`
-    }
-
-    return {
-      ...deadLetterQueueOptions.creationConfig,
-      queue: {
-        ...deadLetterQueueOptions.creationConfig?.queue,
-        QueueName: dlqName,
-      },
-    }
   }
 
   public async start() {
