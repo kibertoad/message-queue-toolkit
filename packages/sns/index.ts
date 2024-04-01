@@ -10,6 +10,7 @@ export { AbstractSnsService } from './lib/sns/AbstractSnsService'
 
 export { SnsConsumerErrorResolver } from './lib/errors/SnsConsumerErrorResolver'
 
+export type { SNSMessageOptions, SNSPublisherOptions } from './lib/sns/AbstractSnsPublisher'
 export { AbstractSnsPublisher } from './lib/sns/AbstractSnsPublisher'
 
 export type {
