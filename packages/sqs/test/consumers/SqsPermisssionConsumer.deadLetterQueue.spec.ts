@@ -275,7 +275,6 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
       const consumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: { queue: { QueueName: queueName } },
         deadLetterQueue: { redrivePolicy: { maxReceiveCount: 2 } },
-
         removeHandlerOverride: async () => {
           counter++
           throw new Error('Error')
@@ -299,6 +298,30 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
 
       expect(counter).toBe(2)
       expect(dlqMessage.Body).toBe(JSON.stringify({ id: '1', messageType: 'remove' }))
+    })
+
+    // TODO: TDD -> in case of retryLater, DLQ shouldn't be used and message should be finally processed
+    it.skip('messages with retryLater should always be retried and not go to DLQ', async () => {
+      const { permissionPublisher } = diContainer.cradle
+      let counter = 0
+      const consumer = new SqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: { queue: { QueueName: queueName } },
+        deadLetterQueue: { redrivePolicy: { maxReceiveCount: 3 } },
+        removeHandlerOverride: async () => {
+          counter++
+          if (counter < 10) {
+            return { error: 'retryLater' }
+          }
+          return { result: 'success' }
+        },
+      })
+      await consumer.start()
+
+      await permissionPublisher.publish({ id: '1', messageType: 'remove' })
+
+      const handlerSpyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      expect(handlerSpyResult.processingResult).toBe('consumed')
+      expect(handlerSpyResult.message).toMatchObject({ id: '1', messageType: 'remove' })
     })
 
     it('messages with deserialization errors should go to DLQ', async () => {

@@ -266,7 +266,6 @@ export abstract class AbstractSqsConsumer<
           return message
         }
 
-        // TODO: in case of retryLater, DLQ shouldn't be used
         // failure
         this.handleMessageProcessed(
           deserializedMessage.result,
