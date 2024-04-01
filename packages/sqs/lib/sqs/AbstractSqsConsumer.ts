@@ -19,7 +19,7 @@ import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import type { SQSMessage } from '../types/MessageTypes'
-import { initSqs } from '../utils/sqsInitter'
+import { deleteSqs, initSqs } from '../utils/sqsInitter'
 import { readSqsMessage } from '../utils/sqsMessageReader'
 
 import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
@@ -187,7 +187,10 @@ export abstract class AbstractSqsConsumer<
         },
       }
     }
-    // TODO: should we delete DLQ?
+
+    if (this.deletionConfig && dlqCreationConfig) {
+      await deleteSqs(this.sqsClient, this.deletionConfig, dlqCreationConfig)
+    }
 
     const initdlqResult = await initSqs(
       this.sqsClient,
