@@ -1,3 +1,4 @@
+import { SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   QueueConsumer as QueueConsumer,
@@ -18,6 +19,7 @@ import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import type { SQSMessage } from '../types/MessageTypes'
+import { initSqs } from '../utils/sqsInitter'
 import { readSqsMessage } from '../utils/sqsMessageReader'
 
 import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
@@ -164,8 +166,46 @@ export abstract class AbstractSqsConsumer<
     await super.init()
     if (!this.deadLetterQueueOptions) return
 
-    // fake data
-    this.deadLetterQueueUrl = `http://sqs.eu-west-1.localstack:4566/000000000000/${this.queueName + '-dlq'}`
+    // TODO: Improve code
+
+    let dlqCreationConfig: SQSCreationConfig | undefined = undefined
+    if (!this.deadLetterQueueOptions.locatorConfig) {
+      let dlqName
+      if (this.deadLetterQueueOptions.creationConfig) {
+        dlqName = this.deadLetterQueueOptions.creationConfig.queue.queueNameSuffix
+          ? `${this.queueName}${this.deadLetterQueueOptions.creationConfig.queue.queueNameSuffix}`
+          : this.deadLetterQueueOptions.creationConfig.queue.QueueName
+      } else {
+        dlqName = `${this.queueName}-dlq`
+      }
+
+      dlqCreationConfig = {
+        ...this.deadLetterQueueOptions.creationConfig,
+        queue: {
+          ...this.deadLetterQueueOptions.creationConfig?.queue,
+          QueueName: dlqName,
+        },
+      }
+    }
+    // TODO: should we delete DLQ?
+
+    const initdlqResult = await initSqs(
+      this.sqsClient,
+      this.deadLetterQueueOptions.locatorConfig,
+      dlqCreationConfig,
+    )
+    const updateAttrCommand = new SetQueueAttributesCommand({
+      QueueUrl: this.queueUrl,
+      Attributes: {
+        RedrivePolicy: JSON.stringify({
+          deadLetterTargetArn: initdlqResult.queueArn,
+          maxReceiveCount: this.deadLetterQueueOptions?.redrivePolicy.maxReceiveCount,
+        }),
+      },
+    })
+    await this.sqsClient.send(updateAttrCommand)
+
+    this.deadLetterQueueUrl = initdlqResult.queueUrl
   }
 
   public async start() {
