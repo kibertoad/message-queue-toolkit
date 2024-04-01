@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/amqp",
-  "version": "12.0.0",
+  "version": "12.0.1",
   "private": false,
   "license": "MIT",
   "description": "AMQP adapter for message-queue-toolkit",
@@ -29,7 +29,7 @@
     "zod": "^3.22.4"
   },
   "peerDependencies": {
-    "@message-queue-toolkit/core": "^9.1.0",
+    "@message-queue-toolkit/core": "^10.0.0",
     "amqplib": "^0.10.3"
   },
   "devDependencies": {
