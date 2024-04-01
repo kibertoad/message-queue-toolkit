@@ -27,6 +27,40 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
+// TODO: should we include DLQ types on core?
+type DeadLetterQueueCreationConfig<CreationConfigType extends SQSCreationConfig> = Omit<
+  CreationConfigType,
+  'queue'
+> & {
+  queue: Omit<CreationConfigType['queue'], 'QueueName'> &
+    (
+      | {
+          queueNameSuffix: string
+          QueueName?: never
+        }
+      | {
+          queueNameSuffix?: never
+          QueueName: string
+        }
+    )
+}
+
+type DeadLetterQueueOptions<
+  CreationConfigType extends SQSCreationConfig,
+  QueueLocatorType extends SQSQueueLocatorType,
+> = {
+  redrivePolicy: { maxReceiveCount: number }
+} & (
+  | {
+      creationConfig?: DeadLetterQueueCreationConfig<CreationConfigType>
+      locatorConfig?: never
+    }
+  | {
+      creationConfig?: never
+      locatorConfig?: QueueLocatorType
+    }
+)
+
 export type SQSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
 
 export type SQSConsumerOptions<
@@ -43,6 +77,7 @@ export type SQSConsumerOptions<
   PrehandlerOutput
 > & {
   consumerOverrides?: Partial<ConsumerOptions>
+  deadLetterQueue?: DeadLetterQueueOptions<CreationConfigType, QueueLocatorType>
 }
 export abstract class AbstractSqsConsumer<
     MessagePayloadType extends object,
