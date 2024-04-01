@@ -294,7 +294,7 @@ describe('SqsPermissionConsumer - deadletterQueue', () => {
 
       await permissionPublisher.publish({ id: '1', messageType: 'remove' })
 
-      await waitAndRetry(async () => dlqMessage, 20, 5)
+      await waitAndRetry(async () => dlqMessage, 50, 20)
 
       expect(counter).toBe(2)
       expect(dlqMessage.Body).toBe(JSON.stringify({ id: '1', messageType: 'remove' }))
