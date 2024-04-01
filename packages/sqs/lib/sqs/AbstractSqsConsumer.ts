@@ -37,12 +37,12 @@ type DeadLetterQueueCreationConfig<CreationConfigType extends SQSCreationConfig>
   queue: Omit<CreationConfigType['queue'], 'QueueName'> &
     (
       | {
-          queueNameSuffix: string
+          queueNameSuffix?: string
           QueueName?: never
         }
       | {
           queueNameSuffix?: never
-          QueueName: string
+          QueueName?: string
         }
     )
 }
@@ -163,35 +163,18 @@ export abstract class AbstractSqsConsumer<
 
   override async init(): Promise<void> {
     await super.init()
+    await this.initDeadLetterQueue()
+  }
+
+  private async initDeadLetterQueue() {
     if (!this.deadLetterQueueOptions) return
 
-    // TODO: Improve code
-
-    let dlqCreationConfig: SQSCreationConfig | undefined = undefined
-    if (!this.deadLetterQueueOptions.locatorConfig) {
-      let dlqName
-      if (this.deadLetterQueueOptions.creationConfig) {
-        dlqName = this.deadLetterQueueOptions.creationConfig.queue.queueNameSuffix
-          ? `${this.queueName}${this.deadLetterQueueOptions.creationConfig.queue.queueNameSuffix}`
-          : this.deadLetterQueueOptions.creationConfig.queue.QueueName
-      } else {
-        dlqName = `${this.queueName}-dlq`
-      }
-
-      dlqCreationConfig = {
-        ...this.deadLetterQueueOptions.creationConfig,
-        queue: {
-          ...this.deadLetterQueueOptions.creationConfig?.queue,
-          QueueName: dlqName,
-        },
-      }
-    }
-
+    const dlqCreationConfig = this.resolvedDlqCreationConfig(this.deadLetterQueueOptions)
     if (this.deletionConfig && dlqCreationConfig) {
       await deleteSqs(this.sqsClient, this.deletionConfig, dlqCreationConfig)
     }
 
-    const initdlqResult = await initSqs(
+    const result = await initSqs(
       this.sqsClient,
       this.deadLetterQueueOptions.locatorConfig,
       dlqCreationConfig,
@@ -200,14 +183,37 @@ export abstract class AbstractSqsConsumer<
       QueueUrl: this.queueUrl,
       Attributes: {
         RedrivePolicy: JSON.stringify({
-          deadLetterTargetArn: initdlqResult.queueArn,
+          deadLetterTargetArn: result.queueArn,
           maxReceiveCount: this.deadLetterQueueOptions?.redrivePolicy.maxReceiveCount,
         }),
       },
     })
     await this.sqsClient.send(updateAttrCommand)
 
-    this.deadLetterQueueUrl = initdlqResult.queueUrl
+    this.deadLetterQueueUrl = result.queueUrl
+  }
+
+  private resolvedDlqCreationConfig(
+    deadLetterQueueOptions: DeadLetterQueueOptions<CreationConfigType, QueueLocatorType>,
+  ): SQSCreationConfig | undefined {
+    if (deadLetterQueueOptions.locatorConfig) return undefined
+
+    let dlqName
+    if (deadLetterQueueOptions.creationConfig?.queue.QueueName) {
+      dlqName = deadLetterQueueOptions.creationConfig.queue.QueueName
+    } else if (deadLetterQueueOptions.creationConfig?.queue.queueNameSuffix) {
+      dlqName = `${this.queueName}${deadLetterQueueOptions.creationConfig.queue.queueNameSuffix}`
+    } else {
+      dlqName = `${this.queueName}-dlq`
+    }
+
+    return {
+      ...deadLetterQueueOptions.creationConfig,
+      queue: {
+        ...deadLetterQueueOptions.creationConfig?.queue,
+        QueueName: dlqName,
+      },
+    }
   }
 
   public async start() {
