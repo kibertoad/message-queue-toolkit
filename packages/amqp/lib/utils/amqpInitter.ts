@@ -2,12 +2,12 @@ import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 import type { Channel } from 'amqplib'
 
-import type { CreateAMQPQueueOptions } from '../AbstractAmqpService'
+import type { AMQPCreationConfig } from '../AbstractAmqpService'
 
 export async function deleteAmqp(
   channel: Channel,
   deletionConfig: DeletionConfig,
-  creationConfig: CreateAMQPQueueOptions,
+  creationConfig: AMQPCreationConfig,
 ) {
   if (!deletionConfig.deleteIfExists) {
     return

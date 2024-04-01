@@ -5,31 +5,18 @@ import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
 import type { ZodSchema, ZodType } from 'zod'
 
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
-import type {
-  Logger,
-  TransactionObservabilityManager,
-  MessageProcessingResult,
-} from '../types/MessageQueueTypes'
+import type { Logger, MessageProcessingResult } from '../types/MessageQueueTypes'
+import type { DeletionConfig, QueueDependencies, QueueOptions } from '../types/queueOptionsTypes'
 
 import type {
+  BarrierCallback,
   BarrierResult,
-  MessageHandlerConfig,
   Prehandler,
   PrehandlerResult,
   PrehandlingOutputs,
 } from './HandlerContainer'
-import type { HandlerSpy, PublicHandlerSpy, HandlerSpyParams } from './HandlerSpy'
+import type { HandlerSpy, PublicHandlerSpy } from './HandlerSpy'
 import { resolveHandlerSpy } from './HandlerSpy'
-
-export type QueueDependencies = {
-  errorReporter: ErrorReporter
-  logger: Logger
-}
-
-export type QueueConsumerDependencies = {
-  consumerErrorResolver: ErrorResolver
-  transactionObservabilityManager: TransactionObservabilityManager
-}
 
 export type Deserializer<MessagePayloadType extends object> = (
   message: unknown,
@@ -37,68 +24,7 @@ export type Deserializer<MessagePayloadType extends object> = (
   errorProcessor: ErrorResolver,
 ) => Either<MessageInvalidFormatError | MessageValidationError, MessagePayloadType>
 
-export type NewQueueOptionsMultiSchema<
-  MessagePayloadSchemas extends object,
-  CreationConfigType extends object,
-  ExecutionContext,
-  PrehandlerOutput = undefined,
-> = NewQueueOptions<CreationConfigType> &
-  MultiSchemaConsumerOptions<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
-
-export type ExistingQueueOptionsMultiSchema<
-  MessagePayloadSchemas extends object,
-  QueueLocatorType extends object,
-  ExecutionContext,
-  PrehandlerOutput = undefined,
-> = ExistingQueueOptions<QueueLocatorType> &
-  MultiSchemaConsumerOptions<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
-
-export type DeletionConfig = {
-  deleteIfExists?: boolean
-  waitForConfirmation?: boolean
-  forceDeleteInProduction?: boolean
-}
-
-export type CommonQueueOptions = {
-  messageTypeField: string
-  messageIdField?: string
-  handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
-  logMessages?: boolean
-}
-
-export type CommonCreationConfigType = {
-  updateAttributesIfExists?: boolean
-}
-
-export type NewQueueOptions<CreationConfigType extends CommonCreationConfigType> = {
-  locatorConfig?: never
-  deletionConfig?: DeletionConfig
-  creationConfig: CreationConfigType
-} & CommonQueueOptions
-
-export type ExistingQueueOptions<QueueLocatorType extends object> = {
-  locatorConfig: QueueLocatorType
-  deletionConfig?: DeletionConfig
-  creationConfig?: never
-} & CommonQueueOptions
-
-export type MultiSchemaPublisherOptions<MessagePayloadSchemas extends object> = {
-  messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
-}
-
-export type MultiSchemaConsumerOptions<
-  MessagePayloadSchemas extends object,
-  ExecutionContext,
-  PrehandlerOutput = undefined,
-> = {
-  handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
-}
-
-export type MonoSchemaQueueOptions<MessagePayloadType extends object> = {
-  messageSchema: ZodSchema<MessagePayloadType>
-}
-
-export type CommonQueueLocator = {
+type CommonQueueLocator = {
   queueName: string
 }
 
@@ -108,14 +34,12 @@ export abstract class AbstractQueueService<
   DependenciesType extends QueueDependencies,
   QueueConfiguration extends object,
   QueueLocatorType extends object = CommonQueueLocator,
-  OptionsType extends
-    | NewQueueOptions<QueueConfiguration>
-    | ExistingQueueOptions<QueueLocatorType> =
-    | NewQueueOptions<QueueConfiguration>
-    | ExistingQueueOptions<QueueLocatorType>,
+  OptionsType extends QueueOptions<QueueConfiguration, QueueLocatorType> = QueueOptions<
+    QueueConfiguration,
+    QueueLocatorType
+  >,
   ExecutionContext = undefined,
   PrehandlerOutput = undefined,
-  BarrierOutput = undefined,
 > {
   protected readonly errorReporter: ErrorReporter
   public readonly logger: Logger
@@ -249,6 +173,26 @@ export abstract class AbstractQueueService<
     })
   }
 
+  protected async preHandlerBarrierInternal<BarrierOutput>(
+    barrier:
+      | BarrierCallback<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput, BarrierOutput>
+      | undefined,
+    message: MessagePayloadSchemas,
+    executionContext: ExecutionContext,
+    prehandlerOutput: PrehandlerOutput,
+  ): Promise<BarrierResult<BarrierOutput>> {
+    if (!barrier) {
+      // @ts-ignore
+      return {
+        isPassing: true,
+        output: undefined,
+      }
+    }
+
+    // @ts-ignore
+    return await barrier(message, executionContext, prehandlerOutput)
+  }
+
   protected abstract resolveNextFunction(
     prehandlers: Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[],
     message: MessagePayloadSchemas,
@@ -301,16 +245,17 @@ export abstract class AbstractQueueService<
     messageType: string,
   ): Promise<PrehandlerOutput>
 
-  protected abstract preHandlerBarrier(
+  protected abstract preHandlerBarrier<BarrierOutput>(
     message: MessagePayloadSchemas,
     messageType: string,
     prehandlerOutput: PrehandlerOutput,
   ): Promise<BarrierResult<BarrierOutput>>
 
-  abstract processMessage(
+  protected abstract processMessage(
     message: MessagePayloadSchemas,
     messageType: string,
-    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, BarrierOutput>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, any>,
   ): Promise<Either<'retryLater', 'success'>>
 
   public abstract close(): Promise<unknown>

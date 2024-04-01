@@ -27,7 +27,7 @@ export type BarrierResultNegative = {
 
 export type PrehandlerResult = Either<DoNotProcessMessageError | RetryMessageLaterError, 'success'>
 
-export type BarrierCallbackMultiConsumers<
+export type BarrierCallback<
   MessagePayloadSchema extends object,
   ExecutionContext,
   PrehandlerOutput,
@@ -54,7 +54,7 @@ export type HandlerConfigOptions<
   BarrierOutput,
 > = {
   messageLogFormatter?: LogFormatter<MessagePayloadSchema>
-  preHandlerBarrier?: BarrierCallbackMultiConsumers<
+  preHandlerBarrier?: BarrierCallback<
     MessagePayloadSchema,
     ExecutionContext,
     PrehandlerOutput,
@@ -77,7 +77,7 @@ export class MessageHandlerConfig<
     BarrierOutput
   >
   public readonly messageLogFormatter: LogFormatter<MessagePayloadSchema>
-  public readonly preHandlerBarrier?: BarrierCallbackMultiConsumers<
+  public readonly preHandlerBarrier?: BarrierCallback<
     MessagePayloadSchema,
     ExecutionContext,
     PrehandlerOutput,

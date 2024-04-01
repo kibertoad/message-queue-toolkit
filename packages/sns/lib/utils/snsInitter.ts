@@ -6,7 +6,7 @@ import type { SQSCreationConfig } from '@message-queue-toolkit/sqs'
 import { deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 
 import type { SNSCreationConfig, SNSQueueLocatorType } from '../sns/AbstractSnsService'
-import type { SNSSQSQueueLocatorType } from '../sns/AbstractSnsSqsConsumerMonoSchema'
+import type { SNSSQSQueueLocatorType } from '../sns/AbstractSnsSqsConsumer'
 
 import type { SNSSubscriptionOptions } from './snsSubscriber'
 import { subscribeToTopic } from './snsSubscriber'

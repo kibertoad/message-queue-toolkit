@@ -1,56 +1,115 @@
 import type { Either } from '@lokalise/node-core'
+import type { BarrierResult, Prehandler, PrehandlingOutputs } from '@message-queue-toolkit/core'
+import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 
-import { AbstractAmqpConsumerMonoSchema } from '../../lib/AbstractAmqpConsumerMonoSchema'
+import type { AMQPConsumerOptions } from '../../lib/AbstractAmqpConsumer'
+import { AbstractAmqpConsumer } from '../../lib/AbstractAmqpConsumer'
 import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService'
-import { userPermissionMap } from '../repositories/PermissionRepository'
 
-import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
-import { PERMISSIONS_MESSAGE_SCHEMA } from './userConsumerSchemas'
+import type {
+  PERMISSIONS_ADD_MESSAGE_TYPE,
+  PERMISSIONS_REMOVE_MESSAGE_TYPE,
+} from './userConsumerSchemas'
+import {
+  PERMISSIONS_ADD_MESSAGE_SCHEMA,
+  PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
+} from './userConsumerSchemas'
 
-export class AmqpPermissionConsumer extends AbstractAmqpConsumerMonoSchema<PERMISSIONS_MESSAGE_TYPE> {
-  public static QUEUE_NAME = 'user_permissions'
+type SupportedEvents = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
+type ExecutionContext = {
+  incrementAmount: number
+}
+type PrehandlerOutput = {
+  prehandlerCount: number
+}
 
-  constructor(dependencies: AMQPConsumerDependencies) {
-    super(dependencies, {
-      creationConfig: {
-        queueName: AmqpPermissionConsumer.QUEUE_NAME,
-        queueOptions: {
-          durable: true,
-          autoDelete: false,
-        },
-      },
-      deletionConfig: {
-        deleteIfExists: true,
-      },
-      messageSchema: PERMISSIONS_MESSAGE_SCHEMA,
-      messageTypeField: 'messageType',
-    })
-  }
+type AmqpPermissionConsumerOptions = Pick<
+  AMQPConsumerOptions<SupportedEvents, ExecutionContext, PrehandlerOutput>,
+  'creationConfig' | 'locatorConfig' | 'logMessages'
+> & {
+  addPreHandlerBarrier?: (message: SupportedEvents) => Promise<BarrierResult<number>>
+  removeHandlerOverride?: (
+    _message: SupportedEvents,
+    context: ExecutionContext,
+    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
+  ) => Promise<Either<'retryLater', 'success'>>
+  removePreHandlers?: Prehandler<SupportedEvents, ExecutionContext, PrehandlerOutput>[]
+}
 
-  override async processMessage(
-    message: PERMISSIONS_MESSAGE_TYPE,
-  ): Promise<Either<'retryLater', 'success'>> {
-    const matchedUserPermissions = message.userIds.reduce((acc, userId) => {
-      if (userPermissionMap[userId]) {
-        acc.push(userPermissionMap[userId])
-      }
-      return acc
-    }, [] as string[][])
+export class AmqpPermissionConsumer extends AbstractAmqpConsumer<
+  SupportedEvents,
+  ExecutionContext,
+  PrehandlerOutput
+> {
+  public static readonly QUEUE_NAME = 'user_permissions_multi'
 
-    if (!matchedUserPermissions || matchedUserPermissions.length < message.userIds.length) {
-      // not all users were already created, we need to wait to be able to set permissions
+  public addCounter = 0
+  public removeCounter = 0
+
+  constructor(dependencies: AMQPConsumerDependencies, options?: AmqpPermissionConsumerOptions) {
+    const defaultRemoveHandler = async (
+      _message: SupportedEvents,
+      context: ExecutionContext,
+      _prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
+    ): Promise<Either<'retryLater', 'success'>> => {
+      this.removeCounter += context.incrementAmount
       return {
-        error: 'retryLater',
+        result: 'success',
       }
     }
 
-    // Do not do this in production, some kind of bulk insertion is needed here
-    for (const userPermissions of matchedUserPermissions) {
-      userPermissions.push(...message.permissions)
-    }
-
-    return {
-      result: 'success',
-    }
+    super(
+      dependencies,
+      {
+        ...(options?.locatorConfig
+          ? { locatorConfig: options.locatorConfig }
+          : {
+              creationConfig: options?.creationConfig ?? {
+                queueName: AmqpPermissionConsumer.QUEUE_NAME,
+                queueOptions: {
+                  durable: true,
+                  autoDelete: false,
+                },
+              },
+            }),
+        logMessages: options?.logMessages,
+        handlerSpy: true,
+        messageTypeField: 'messageType',
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        handlers: new MessageHandlerConfigBuilder<
+          SupportedEvents,
+          ExecutionContext,
+          PrehandlerOutput
+        >()
+          .addConfig(
+            PERMISSIONS_ADD_MESSAGE_SCHEMA,
+            async (_message, context, barrierOutput) => {
+              if (options?.addPreHandlerBarrier && !barrierOutput) {
+                throw new Error('barrier is not working')
+              }
+              this.addCounter += context.incrementAmount
+              return {
+                result: 'success',
+              }
+            },
+            {
+              preHandlerBarrier: options?.addPreHandlerBarrier,
+            },
+          )
+          .addConfig(
+            PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
+            options?.removeHandlerOverride ?? defaultRemoveHandler,
+            {
+              prehandlers: options?.removePreHandlers,
+            },
+          )
+          .build(),
+      },
+      {
+        incrementAmount: 1,
+      },
+    )
   }
 }

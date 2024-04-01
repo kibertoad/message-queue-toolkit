@@ -67,11 +67,7 @@ export async function initSqs(
 
     const splitUrl = queueUrl.split('/')
     const queueName = splitUrl[splitUrl.length - 1]
-    return {
-      queueArn,
-      queueUrl,
-      queueName,
-    }
+    return { queueArn, queueUrl, queueName }
   }
 
   // create new queue if does not exist
@@ -86,9 +82,5 @@ export async function initSqs(
   })
   const queueName = creationConfig.queue.QueueName
 
-  return {
-    queueUrl,
-    queueArn,
-    queueName,
-  }
+  return { queueUrl, queueArn, queueName }
 }

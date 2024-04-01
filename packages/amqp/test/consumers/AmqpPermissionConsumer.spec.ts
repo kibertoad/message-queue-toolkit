@@ -1,33 +1,35 @@
-import { waitAndRetry } from '@message-queue-toolkit/core'
+import { objectToBuffer, waitAndRetry } from '@message-queue-toolkit/core'
+import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
+import { ZodError } from 'zod'
 
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { FakeLogger } from '../fakes/FakeLogger'
-import type { AmqpPermissionPublisherMultiSchema } from '../publishers/AmqpPermissionPublisherMultiSchema'
+import type { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublisher'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 
-import { AmqpPermissionConsumerMultiSchema } from './AmqpPermissionConsumerMultiSchema'
+import { AmqpPermissionConsumer } from './AmqpPermissionConsumer'
 
-describe('PermissionsConsumerMultiSchema', () => {
+describe('AmqpPermissionConsumer', () => {
   describe('logging', () => {
     let logger: FakeLogger
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: AmqpPermissionPublisherMultiSchema
+    let publisher: AmqpPermissionPublisher
     beforeAll(async () => {
       logger = new FakeLogger()
       diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
         logger: asFunction(() => logger),
       })
-      await diContainer.cradle.permissionConsumerMultiSchema.close()
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      await diContainer.cradle.permissionConsumer.close()
+      publisher = diContainer.cradle.permissionPublisher
     })
 
     it('logs a message when logging is enabled', async () => {
-      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
         logMessages: true,
       })
       await newConsumer.start()
@@ -62,17 +64,17 @@ describe('PermissionsConsumerMultiSchema', () => {
 
   describe('preHandlerBarrier', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: AmqpPermissionPublisherMultiSchema
+    let publisher: AmqpPermissionPublisher
 
     beforeAll(async () => {
       diContainer = await registerDependencies(TEST_AMQP_CONFIG)
-      await diContainer.cradle.permissionConsumerMultiSchema.close()
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      await diContainer.cradle.permissionConsumer.close()
+      publisher = diContainer.cradle.permissionPublisher
     })
 
     it('blocks first try', async () => {
       let barrierCounter = 0
-      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
         addPreHandlerBarrier: (_msg) => {
           barrierCounter++
           if (barrierCounter < 2) {
@@ -103,7 +105,7 @@ describe('PermissionsConsumerMultiSchema', () => {
 
     it('throws an error on first try', async () => {
       let barrierCounter = 0
-      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
         addPreHandlerBarrier: (_msg) => {
           barrierCounter++
           if (barrierCounter === 1) {
@@ -132,10 +134,10 @@ describe('PermissionsConsumerMultiSchema', () => {
 
   describe('prehandlers', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: AmqpPermissionPublisherMultiSchema
+    let publisher: AmqpPermissionPublisher
     beforeEach(async () => {
       diContainer = await registerDependencies(TEST_AMQP_CONFIG, undefined, false)
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      publisher = diContainer.cradle.permissionPublisher
       await publisher.init()
     })
 
@@ -147,7 +149,7 @@ describe('PermissionsConsumerMultiSchema', () => {
     it('processes one prehandler', async () => {
       expect.assertions(1)
 
-      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
         removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
           expect(prehandlerOutputs.prehandlerOutput.prehandlerCount).toBe(1)
           return {
@@ -180,7 +182,7 @@ describe('PermissionsConsumerMultiSchema', () => {
     it('processes two prehandlers', async () => {
       expect.assertions(1)
 
-      const newConsumer = new AmqpPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
         removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
           expect(prehandlerOutputs.prehandlerOutput.prehandlerCount).toBe(11)
           return {
@@ -222,22 +224,71 @@ describe('PermissionsConsumerMultiSchema', () => {
 
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: AmqpPermissionPublisherMultiSchema
-    let consumer: AmqpPermissionConsumerMultiSchema
+    let consumer: AmqpPermissionConsumer
+    let publisher: AmqpPermissionPublisher
+    let channel: Channel
+    let consumerErrorResolver: FakeConsumerErrorResolver
 
     beforeEach(async () => {
       diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
       })
 
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
-      consumer = diContainer.cradle.permissionConsumerMultiSchema
+      publisher = diContainer.cradle.permissionPublisher
+      consumer = diContainer.cradle.permissionConsumer
+      consumerErrorResolver = diContainer.cradle.consumerErrorResolver as FakeConsumerErrorResolver
+      channel = await (
+        await diContainer.cradle.amqpConnectionManager.getConnection()
+      ).createChannel()
     })
 
     afterEach(async () => {
       const { awilixManager } = diContainer.cradle
+
       await awilixManager.executeDispose()
       await diContainer.dispose()
+    })
+
+    it('Invalid message in the queue', async () => {
+      channel.sendToQueue(
+        AmqpPermissionConsumer.QUEUE_NAME,
+        objectToBuffer({
+          id: 1, // invalid type
+          messageType: 'add',
+        }),
+      )
+
+      await waitAndRetry(() => consumerErrorResolver.errors.length > 0)
+
+      expect(consumerErrorResolver.errors).toHaveLength(1)
+      expect(consumerErrorResolver.errors[0] instanceof ZodError).toBe(true)
+    })
+
+    it('message with invalid message type', async () => {
+      const errorReporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
+      channel.sendToQueue(
+        AmqpPermissionConsumer.QUEUE_NAME,
+        objectToBuffer({
+          id: '1',
+          messageType: 'bad',
+        }),
+      )
+
+      await waitAndRetry(() => errorReporterSpy.mock.calls.length > 0)
+
+      expect(errorReporterSpy.mock.calls).toHaveLength(1)
+      expect(errorReporterSpy.mock.calls[0][0].error).toMatchObject({
+        message: 'Unsupported message type: bad',
+      })
+    })
+
+    it('message in the queue is not JSON', async () => {
+      channel.sendToQueue(AmqpPermissionConsumer.QUEUE_NAME, Buffer.from('not a JSON'))
+
+      await waitAndRetry(() => consumerErrorResolver.errors.length > 0)
+
+      expect(consumerErrorResolver.errors.length).toBeGreaterThan(0)
+      expect((consumerErrorResolver.errors[0] as Error).message).toContain('Unexpected token')
     })
 
     it('Processes messages', async () => {

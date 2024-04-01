@@ -1,10 +1,18 @@
+import type { CreateQueueRequest } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
-import { isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import type {
   QueueConsumer as QueueConsumer,
-  NewQueueOptions,
-  ExistingQueueOptions,
   TransactionObservabilityManager,
+  QueueConsumerOptions,
+  PrehandlingOutputs,
+  Prehandler,
+  BarrierResult,
+} from '@message-queue-toolkit/core'
+import {
+  isMessageError,
+  parseMessage,
+  HandlerContainer,
+  MessageSchemaContainer,
 } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
@@ -12,11 +20,7 @@ import type { ConsumerOptions } from 'sqs-consumer/src/types'
 import type { SQSMessage } from '../types/MessageTypes'
 import { readSqsMessage } from '../utils/sqsMessageReader'
 
-import type {
-  SQSConsumerDependencies,
-  SQSQueueConfig,
-  SQSQueueLocatorType,
-} from './AbstractSqsService'
+import type { SQSConsumerDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
@@ -29,33 +33,44 @@ export type ExtraSQSCreationParams = {
 }
 
 export type SQSCreationConfig = {
-  queue: SQSQueueConfig
+  queue: CreateQueueRequest
   updateAttributesIfExists?: boolean
 } & ExtraSQSCreationParams
 
-export type NewSQSConsumerOptions<CreationConfigType extends SQSCreationConfig> =
-  NewQueueOptions<CreationConfigType> & {
-    consumerOverrides?: Partial<ConsumerOptions>
-  }
-
-export type ExistingSQSConsumerOptions<
+export type SQSConsumerOptions<
+  MessagePayloadSchemas extends object,
+  ExecutionContext,
+  PrehandlerOutput,
+  CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
-> = ExistingQueueOptions<QueueLocatorType> & {
+> = QueueConsumerOptions<
+  CreationConfigType,
+  QueueLocatorType,
+  MessagePayloadSchemas,
+  ExecutionContext,
+  PrehandlerOutput
+> & {
   consumerOverrides?: Partial<ConsumerOptions>
 }
-
 export abstract class AbstractSqsConsumer<
     MessagePayloadType extends object,
-    QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+    ExecutionContext,
+    PrehandlerOutput = undefined,
     CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
-    ConsumerOptionsType extends
-      | NewSQSConsumerOptions<CreationConfigType>
-      | ExistingSQSConsumerOptions<QueueLocatorType> =
-      | NewSQSConsumerOptions<CreationConfigType>
-      | ExistingSQSConsumerOptions<QueueLocatorType>,
-    ExecutionContext = unknown,
-    PrehandlerOutput = unknown,
-    BarrierOutput = unknown,
+    QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+    ConsumerOptionsType extends SQSConsumerOptions<
+      MessagePayloadType,
+      ExecutionContext,
+      PrehandlerOutput,
+      CreationConfigType,
+      QueueLocatorType
+    > = SQSConsumerOptions<
+      MessagePayloadType,
+      ExecutionContext,
+      PrehandlerOutput,
+      CreationConfigType,
+      QueueLocatorType
+    >,
   >
   extends AbstractSqsService<
     MessagePayloadType,
@@ -64,115 +79,52 @@ export abstract class AbstractSqsConsumer<
     ConsumerOptionsType,
     SQSConsumerDependencies,
     ExecutionContext,
-    PrehandlerOutput,
-    BarrierOutput
+    PrehandlerOutput
   >
   implements QueueConsumer
 {
+  private consumer?: Consumer
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
-  protected readonly errorResolver: ErrorResolver
-  // @ts-ignore
-  protected consumer: Consumer
-  private readonly consumerOptionsOverride: Partial<ConsumerOptions>
 
-  protected constructor(dependencies: SQSConsumerDependencies, options: ConsumerOptionsType) {
+  private readonly consumerOptionsOverride: Partial<ConsumerOptions>
+  private readonly handlerContainer: HandlerContainer<
+    MessagePayloadType,
+    ExecutionContext,
+    PrehandlerOutput
+  >
+
+  protected readonly errorResolver: ErrorResolver
+  protected readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
+  protected readonly executionContext: ExecutionContext
+
+  protected constructor(
+    dependencies: SQSConsumerDependencies,
+    options: ConsumerOptionsType,
+    executionContext: ExecutionContext,
+  ) {
     super(dependencies, options)
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.errorResolver = dependencies.consumerErrorResolver
 
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
+    const messageSchemas = options.handlers.map((entry) => entry.schema)
+
+    this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
+      messageSchemas,
+      messageTypeField: options.messageTypeField,
+    })
+    this.handlerContainer = new HandlerContainer<
+      MessagePayloadType,
+      ExecutionContext,
+      PrehandlerOutput
+    >({
+      messageTypeField: this.messageTypeField,
+      messageHandlers: options.handlers,
+    })
+    this.executionContext = executionContext
   }
 
-  private async internalProcessMessage(
-    message: MessagePayloadType,
-    messageType: string,
-  ): Promise<Either<'retryLater', 'success'>> {
-    const prehandlerOutput = await this.processPrehandlers(message, messageType)
-    const barrierResult = await this.preHandlerBarrier(message, messageType, prehandlerOutput)
-
-    if (barrierResult.isPassing) {
-      return this.processMessage(message, messageType, {
-        prehandlerOutput,
-        barrierOutput: barrierResult.output,
-      })
-    }
-    return { error: 'retryLater' }
-  }
-
-  private tryToExtractId(message: SQSMessage): Either<'abort', string> {
-    if (message === null) {
-      return ABORT_EARLY_EITHER
-    }
-
-    const resolveMessageResult = this.resolveMessage(message)
-    if (isMessageError(resolveMessageResult.error)) {
-      this.handleError(resolveMessageResult.error)
-      return ABORT_EARLY_EITHER
-    }
-    // Empty content for whatever reason
-    if (!resolveMessageResult.result) {
-      return ABORT_EARLY_EITHER
-    }
-
-    // @ts-ignore
-    if (this.messageIdField in resolveMessageResult.result) {
-      return {
-        // @ts-ignore
-        result: resolveMessageResult.result[this.messageIdField],
-      }
-    }
-
-    return ABORT_EARLY_EITHER
-  }
-
-  private deserializeMessage(message: SQSMessage): Either<'abort', MessagePayloadType> {
-    if (message === null) {
-      return ABORT_EARLY_EITHER
-    }
-
-    const resolveMessageResult = this.resolveMessage(message)
-    if (isMessageError(resolveMessageResult.error)) {
-      this.handleError(resolveMessageResult.error)
-      return ABORT_EARLY_EITHER
-    }
-    // Empty content for whatever reason
-    if (!resolveMessageResult.result) {
-      return ABORT_EARLY_EITHER
-    }
-
-    const resolveSchemaResult = this.resolveSchema(
-      resolveMessageResult.result as MessagePayloadType,
-    )
-    if (resolveSchemaResult.error) {
-      this.handleError(resolveSchemaResult.error)
-      return ABORT_EARLY_EITHER
-    }
-
-    const deserializationResult = parseMessage(
-      resolveMessageResult.result,
-      resolveSchemaResult.result,
-      this.errorResolver,
-    )
-    if (isMessageError(deserializationResult.error)) {
-      this.handleError(deserializationResult.error)
-      return ABORT_EARLY_EITHER
-    }
-
-    // Empty content for whatever reason
-    if (!deserializationResult.result) {
-      return ABORT_EARLY_EITHER
-    }
-
-    return {
-      result: deserializationResult.result,
-    }
-  }
-
-  private async failProcessing(_message: SQSMessage) {
-    // Not implemented yet - needs dead letter queue
-  }
-
-  async start() {
+  public async start() {
     await this.init()
 
     if (this.consumer) {
@@ -181,9 +133,8 @@ export abstract class AbstractSqsConsumer<
     this.consumer = Consumer.create({
       queueUrl: this.queueUrl,
       handleMessage: async (message: SQSMessage) => {
-        if (message === null) {
-          return
-        }
+        /* c8 ignore next */
+        if (message === null) return
 
         const deserializedMessage = this.deserializeMessage(message)
         if (deserializedMessage.error === 'abort') {
@@ -246,14 +197,162 @@ export abstract class AbstractSqsConsumer<
     this.consumer.start()
   }
 
-  protected override resolveMessage(message: SQSMessage) {
-    return readSqsMessage(message, this.errorResolver)
-  }
-
   public override async close(abort?: boolean): Promise<void> {
     await super.close()
     this.consumer?.stop({
       abort: abort ?? false,
     })
+  }
+
+  private async internalProcessMessage(
+    message: MessagePayloadType,
+    messageType: string,
+  ): Promise<Either<'retryLater', 'success'>> {
+    const prehandlerOutput = await this.processPrehandlers(message, messageType)
+    const barrierResult = await this.preHandlerBarrier(message, messageType, prehandlerOutput)
+
+    if (barrierResult.isPassing) {
+      return this.processMessage(message, messageType, {
+        prehandlerOutput,
+        barrierOutput: barrierResult.output,
+      })
+    }
+
+    return { error: 'retryLater' }
+  }
+
+  protected override async processMessage(
+    message: MessagePayloadType,
+    messageType: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, any>,
+  ): Promise<Either<'retryLater', 'success'>> {
+    const handler = this.handlerContainer.resolveHandler<PrehandlerOutput>(messageType)
+
+    return handler.handler(message, this.executionContext, prehandlingOutputs)
+  }
+
+  protected override processPrehandlers(message: MessagePayloadType, messageType: string) {
+    const handlerConfig = this.handlerContainer.resolveHandler<PrehandlerOutput>(messageType)
+
+    return this.processPrehandlersInternal(handlerConfig.prehandlers, message)
+  }
+
+  protected override async preHandlerBarrier<BarrierOutput>(
+    message: MessagePayloadType,
+    messageType: string,
+    prehandlerOutput: PrehandlerOutput,
+  ): Promise<BarrierResult<BarrierOutput>> {
+    const handler = this.handlerContainer.resolveHandler<PrehandlerOutput, BarrierOutput>(
+      messageType,
+    )
+
+    return this.preHandlerBarrierInternal(
+      handler.preHandlerBarrier,
+      message,
+      this.executionContext,
+      prehandlerOutput,
+    )
+  }
+
+  protected override resolveSchema(message: MessagePayloadType) {
+    return this.messageSchemaContainer.resolveSchema(message)
+  }
+
+  // eslint-disable-next-line max-params
+  protected override resolveNextFunction(
+    prehandlers: Prehandler<MessagePayloadType, ExecutionContext, unknown>[],
+    message: MessagePayloadType,
+    index: number,
+    prehandlerOutput: PrehandlerOutput,
+    resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
+    reject: (err: Error) => void,
+  ) {
+    return this.resolveNextPreHandlerFunctionInternal(
+      prehandlers,
+      this.executionContext,
+      message,
+      index,
+      prehandlerOutput,
+      resolve,
+      reject,
+    )
+  }
+
+  protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
+    const handler = this.handlerContainer.resolveHandler(messageType)
+    return handler.messageLogFormatter(message)
+  }
+
+  protected override resolveMessage(message: SQSMessage) {
+    return readSqsMessage(message, this.errorResolver)
+  }
+
+  private tryToExtractId(message: SQSMessage): Either<'abort', string> {
+    const resolveMessageResult = this.resolveMessage(message)
+    if (isMessageError(resolveMessageResult.error)) {
+      this.handleError(resolveMessageResult.error)
+      return ABORT_EARLY_EITHER
+    }
+    // Empty content for whatever reason
+    /* c8 ignore next */
+    if (!resolveMessageResult.result) return ABORT_EARLY_EITHER
+
+    // @ts-ignore
+    if (this.messageIdField in resolveMessageResult.result) {
+      return {
+        // @ts-ignore
+        result: resolveMessageResult.result[this.messageIdField],
+      }
+    }
+
+    return ABORT_EARLY_EITHER
+  }
+
+  private deserializeMessage(message: SQSMessage): Either<'abort', MessagePayloadType> {
+    if (message === null) {
+      return ABORT_EARLY_EITHER
+    }
+
+    const resolveMessageResult = this.resolveMessage(message)
+    if (isMessageError(resolveMessageResult.error)) {
+      this.handleError(resolveMessageResult.error)
+      return ABORT_EARLY_EITHER
+    }
+    // Empty content for whatever reason
+    if (!resolveMessageResult.result) {
+      return ABORT_EARLY_EITHER
+    }
+
+    const resolveSchemaResult = this.resolveSchema(
+      resolveMessageResult.result as MessagePayloadType,
+    )
+    if (resolveSchemaResult.error) {
+      this.handleError(resolveSchemaResult.error)
+      return ABORT_EARLY_EITHER
+    }
+
+    const deserializationResult = parseMessage(
+      resolveMessageResult.result,
+      resolveSchemaResult.result,
+      this.errorResolver,
+    )
+    if (isMessageError(deserializationResult.error)) {
+      this.handleError(deserializationResult.error)
+      return ABORT_EARLY_EITHER
+    }
+
+    // Empty content for whatever reason
+    if (!deserializationResult.result) {
+      return ABORT_EARLY_EITHER
+    }
+
+    return {
+      result: deserializationResult.result,
+    }
+  }
+
+  private async failProcessing(_message: SQSMessage) {
+    // Not implemented yet - needs dead letter queue
   }
 }

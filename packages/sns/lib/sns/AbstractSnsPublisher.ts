@@ -1,15 +1,16 @@
+import { PublishCommand } from '@aws-sdk/client-sns'
+import type { PublishCommandInput } from '@aws-sdk/client-sns/dist-types/commands/PublishCommand'
 import type { Either } from '@lokalise/node-core'
 import type {
   AsyncPublisher,
   BarrierResult,
   MessageInvalidFormatError,
   MessageValidationError,
-  NewQueueOptions,
+  QueuePublisherOptions,
 } from '@message-queue-toolkit/core'
 import { MessageSchemaContainer } from '@message-queue-toolkit/core'
-import type { ZodSchema } from 'zod'
 
-import type { ExistingSNSOptions, SNSCreationConfig, SNSDependencies } from './AbstractSnsService'
+import type { SNSCreationConfig, SNSDependencies, SNSQueueLocatorType } from './AbstractSnsService'
 import { AbstractSnsService } from './AbstractSnsService'
 
 export type SNSMessageOptions = {
@@ -17,18 +18,22 @@ export type SNSMessageOptions = {
   MessageDeduplicationId?: string
 }
 
-export abstract class AbstractSnsPublisherMultiSchema<MessagePayloadType extends object>
+export type SNSPublisherOptions<MessagePayloadType extends object> = QueuePublisherOptions<
+  SNSCreationConfig,
+  SNSQueueLocatorType,
+  MessagePayloadType
+>
+
+export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
   extends AbstractSnsService<MessagePayloadType, MessagePayloadType>
   implements AsyncPublisher<MessagePayloadType, SNSMessageOptions>
 {
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
 
-  constructor(
-    dependencies: SNSDependencies,
-    options: (ExistingSNSOptions | NewQueueOptions<SNSCreationConfig>) & {
-      messageSchemas: readonly ZodSchema<MessagePayloadType>[]
-    },
-  ) {
+  private isInitted: boolean
+  private initPromise?: Promise<void>
+
+  constructor(dependencies: SNSDependencies, options: SNSPublisherOptions<MessagePayloadType>) {
     super(dependencies, options)
 
     const messageSchemas = options.messageSchemas
@@ -36,6 +41,7 @@ export abstract class AbstractSnsPublisherMultiSchema<MessagePayloadType extends
       messageSchemas,
       messageTypeField: options.messageTypeField,
     })
+    this.isInitted = false
   }
 
   async publish(message: MessagePayloadType, options: SNSMessageOptions = {}): Promise<void> {
@@ -44,7 +50,36 @@ export abstract class AbstractSnsPublisherMultiSchema<MessagePayloadType extends
       throw messageSchemaResult.error
     }
 
-    return this.internalPublish(message, messageSchemaResult.result, options)
+    // If it's not initted yet, do the lazy init
+    if (!this.isInitted) {
+      // avoid multiple concurrent inits
+      if (!this.initPromise) {
+        this.initPromise = this.init()
+      }
+      await this.initPromise
+    }
+
+    try {
+      messageSchemaResult.result.parse(message)
+
+      if (this.logMessages) {
+        // @ts-ignore
+        const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
+        this.logMessage(resolvedLogMessage)
+      }
+
+      const input = {
+        Message: JSON.stringify(message),
+        TopicArn: this.topicArn,
+        ...options,
+      } satisfies PublishCommandInput
+      const command = new PublishCommand(input)
+      await this.snsClient.send(command)
+      this.handleMessageProcessed(message, 'published')
+    } catch (error) {
+      this.handleError(error)
+      throw error
+    }
   }
 
   protected override resolveMessage(): Either<
@@ -67,7 +102,7 @@ export abstract class AbstractSnsPublisherMultiSchema<MessagePayloadType extends
     throw new Error('Not implemented for publisher')
   }
 
-  protected override preHandlerBarrier(): Promise<BarrierResult<undefined>> {
+  protected override preHandlerBarrier<BarrierOutput>(): Promise<BarrierResult<BarrierOutput>> {
     throw new Error('Not implemented for publisher')
   }
 

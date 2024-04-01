@@ -9,21 +9,8 @@ export type {
   ExtraParams,
 } from './lib/types/MessageQueueTypes'
 
-export { AbstractQueueService } from './lib/queues/AbstractQueueService'
-export type {
-  NewQueueOptions,
-  ExistingQueueOptions,
-  NewQueueOptionsMultiSchema,
-  ExistingQueueOptionsMultiSchema,
-  MonoSchemaQueueOptions,
-  MultiSchemaConsumerOptions,
-  QueueDependencies,
-  QueueConsumerDependencies,
-  Deserializer,
-  CommonQueueLocator,
-  DeletionConfig,
-  MultiSchemaPublisherOptions,
-} from './lib/queues/AbstractQueueService'
+export { AbstractQueueService, Deserializer } from './lib/queues/AbstractQueueService'
+export * from './lib/types/queueOptionsTypes'
 
 export {
   isMessageError,
@@ -43,7 +30,7 @@ export {
   MessageHandlerConfigBuilder,
 } from './lib/queues/HandlerContainer'
 export type {
-  BarrierCallbackMultiConsumers,
+  BarrierCallback,
   BarrierResult,
   BarrierResultPositive,
   BarrierResultNegative,

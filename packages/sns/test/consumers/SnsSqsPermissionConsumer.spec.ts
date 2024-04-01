@@ -5,13 +5,13 @@ import type { AwilixContainer } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
 import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
-import type { SnsPermissionPublisherMultiSchema } from '../publishers/SnsPermissionPublisherMultiSchema'
+import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SnsSqsPermissionConsumerMultiSchema } from './SnsSqsPermissionConsumerMultiSchema'
+import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
 
-describe('SNS PermissionsConsumerMultiSchema', () => {
+describe('SnsSqsPermissionConsumer', () => {
   describe('init', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
@@ -31,7 +31,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
         QueueName: 'existingQueue',
       })
 
-      const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
           subscriptionArn: 'dummy',
@@ -51,7 +51,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
         Name: 'existingTopic',
       })
 
-      const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
           topicArn: arn,
           queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
@@ -61,11 +61,11 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
       })
 
       await newConsumer.init()
-      expect(newConsumer.queueUrl).toBe(
+      expect(newConsumer.subscriptionProps.queueUrl).toBe(
         'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
       )
-      expect(newConsumer.topicArn).toEqual(arn)
-      expect(newConsumer.subscriptionArn).toBe(
+      expect(newConsumer.subscriptionProps.topicArn).toEqual(arn)
+      expect(newConsumer.subscriptionProps.subscriptionArn).toBe(
         'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
       )
       await deleteTopic(snsClient, 'existingTopic')
@@ -79,7 +79,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
         },
       })
 
-      const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           topic: {
             Name: 'sometopic',
@@ -98,12 +98,12 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
       })
 
       await newConsumer.init()
-      expect(newConsumer.queueUrl).toBe(
+      expect(newConsumer.subscriptionProps.queueUrl).toBe(
         'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
       )
 
       const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.queueUrl,
+        queueUrl: newConsumer.subscriptionProps.queueUrl,
       })
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
@@ -117,7 +117,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
         },
       })
 
-      const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           topic: {
             Name: 'sometopic',
@@ -137,12 +137,12 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
       })
 
       await newConsumer.init()
-      expect(newConsumer.queueUrl).toBe(
+      expect(newConsumer.subscriptionProps.queueUrl).toBe(
         'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
       )
 
       const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.queueUrl,
+        queueUrl: newConsumer.subscriptionProps.queueUrl,
       })
 
       expect(attributes.result?.attributes!.Policy).toBe(
@@ -151,7 +151,7 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     })
 
     it('does not attempt to update non-existing queue when passing update param', async () => {
-      const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           topic: {
             Name: 'sometopic',
@@ -170,12 +170,12 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
       })
 
       await newConsumer.init()
-      expect(newConsumer.queueUrl).toBe(
+      expect(newConsumer.subscriptionProps.queueUrl).toBe(
         'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
       )
 
       const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.queueUrl,
+        queueUrl: newConsumer.subscriptionProps.queueUrl,
       })
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
@@ -184,10 +184,10 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
 
   describe('prehandlers', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: SnsPermissionPublisherMultiSchema
+    let publisher: SnsPermissionPublisher
     beforeEach(async () => {
       diContainer = await registerDependencies({}, false)
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
+      publisher = diContainer.cradle.permissionPublisher
       await publisher.init()
     })
 
@@ -199,13 +199,13 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     it('processes one prehandler', async () => {
       expect.assertions(1)
 
-      const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           topic: {
-            Name: SnsSqsPermissionConsumerMultiSchema.SUBSCRIBED_TOPIC_NAME,
+            Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME,
           },
           queue: {
-            QueueName: SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME,
+            QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
           },
           updateAttributesIfExists: true,
         },
@@ -244,13 +244,13 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
     it('processes two prehandlers', async () => {
       expect.assertions(1)
 
-      const newConsumer = new SnsSqsPermissionConsumerMultiSchema(diContainer.cradle, {
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           topic: {
-            Name: SnsSqsPermissionConsumerMultiSchema.SUBSCRIBED_TOPIC_NAME,
+            Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME,
           },
           queue: {
-            QueueName: SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME,
+            QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
           },
           updateAttributesIfExists: true,
         },
@@ -298,12 +298,12 @@ describe('SNS PermissionsConsumerMultiSchema', () => {
 
   describe('consume', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let publisher: SnsPermissionPublisherMultiSchema
-    let consumer: SnsSqsPermissionConsumerMultiSchema
+    let publisher: SnsPermissionPublisher
+    let consumer: SnsSqsPermissionConsumer
     beforeEach(async () => {
       diContainer = await registerDependencies()
-      publisher = diContainer.cradle.permissionPublisherMultiSchema
-      consumer = diContainer.cradle.permissionConsumerMultiSchema
+      publisher = diContainer.cradle.permissionPublisher
+      consumer = diContainer.cradle.permissionConsumer
     })
 
     afterEach(async () => {

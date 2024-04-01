@@ -7,10 +7,8 @@ import type { Resolver } from 'awilix'
 import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
-import { SnsSqsPermissionConsumerMonoSchema } from '../consumers/SnsSqsPermissionConsumerMonoSchema'
-import { SnsSqsPermissionConsumerMultiSchema } from '../consumers/SnsSqsPermissionConsumerMultiSchema'
-import { SnsPermissionPublisherMonoSchema } from '../publishers/SnsPermissionPublisherMonoSchema'
-import { SnsPermissionPublisherMultiSchema } from '../publishers/SnsPermissionPublisherMultiSchema'
+import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
+import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 
 import { TEST_AWS_CONFIG } from './testSnsConfig'
 
@@ -63,7 +61,7 @@ export async function registerDependencies(
 
     consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
 
-    permissionConsumer: asClass(SnsSqsPermissionConsumerMonoSchema, {
+    permissionConsumer: asClass(SnsSqsPermissionConsumer, {
       lifetime: Lifetime.SINGLETON,
       asyncInit: 'start',
       asyncDispose: 'close',
@@ -71,23 +69,7 @@ export async function registerDependencies(
       asyncDisposePriority: 30,
       enabled: queuesEnabled,
     }),
-    permissionConsumerMultiSchema: asClass(SnsSqsPermissionConsumerMultiSchema, {
-      lifetime: Lifetime.SINGLETON,
-      asyncInit: 'start',
-      asyncDispose: 'close',
-      asyncInitPriority: 30,
-      asyncDisposePriority: 30,
-      enabled: queuesEnabled,
-    }),
-    permissionPublisher: asClass(SnsPermissionPublisherMonoSchema, {
-      lifetime: Lifetime.SINGLETON,
-      asyncInit: 'init',
-      asyncDispose: 'close',
-      asyncInitPriority: 40,
-      asyncDisposePriority: 40,
-      enabled: queuesEnabled,
-    }),
-    permissionPublisherMultiSchema: asClass(SnsPermissionPublisherMultiSchema, {
+    permissionPublisher: asClass(SnsPermissionPublisher, {
       lifetime: Lifetime.SINGLETON,
       asyncInit: 'init',
       asyncDispose: 'close',
@@ -131,8 +113,6 @@ export interface Dependencies {
 
   errorReporter: ErrorReporter
   consumerErrorResolver: ErrorResolver
-  permissionConsumer: SnsSqsPermissionConsumerMonoSchema
-  permissionConsumerMultiSchema: SnsSqsPermissionConsumerMultiSchema
-  permissionPublisher: SnsPermissionPublisherMonoSchema
-  permissionPublisherMultiSchema: SnsPermissionPublisherMultiSchema
+  permissionConsumer: SnsSqsPermissionConsumer
+  permissionPublisher: SnsPermissionPublisher
 }

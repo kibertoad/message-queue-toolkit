@@ -9,11 +9,9 @@ import type { PrehandlerResult } from '@message-queue-toolkit/core/dist/lib/queu
 
 import type {
   SNSSQSConsumerDependencies,
-  NewSnsSqsConsumerOptions,
-  ExistingSnsSqsConsumerOptions,
-} from '../../lib/sns/AbstractSnsSqsConsumerMonoSchema'
-import type { NewSnsSqsConsumerOptionsMulti } from '../../lib/sns/AbstractSnsSqsConsumerMultiSchema'
-import { AbstractSnsSqsConsumerMultiSchema } from '../../lib/sns/AbstractSnsSqsConsumerMultiSchema'
+  SNSSQSConsumerOptions,
+} from '../../lib/sns/AbstractSnsSqsConsumer'
+import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer'
 
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
@@ -24,10 +22,18 @@ import {
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
 } from './userConsumerSchemas'
 
-type SnsSqsPermissionConsumerMultiSchemaOptions = (
-  | Pick<NewSnsSqsConsumerOptions, 'creationConfig' | 'deletionConfig'>
-  | Pick<ExistingSnsSqsConsumerOptions, 'locatorConfig'>
-) & {
+type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
+type ExecutionContext = {
+  incrementAmount: number
+}
+type PrehandlerOutput = {
+  prehandlerCount: number
+}
+
+type SnsSqsPermissionConsumerOptions = Pick<
+  SNSSQSConsumerOptions<SupportedMessages, ExecutionContext, PrehandlerOutput>,
+  'creationConfig' | 'locatorConfig' | 'deletionConfig'
+> & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
     _executionContext: ExecutionContext,
@@ -41,21 +47,13 @@ type SnsSqsPermissionConsumerMultiSchemaOptions = (
   removePreHandlers?: Prehandler<SupportedMessages, ExecutionContext, PrehandlerOutput>[]
 }
 
-type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
-type ExecutionContext = {
-  incrementAmount: number
-}
-type PrehandlerOutput = {
-  prehandlerCount: number
-}
-
-export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerMultiSchema<
+export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
   SupportedMessages,
   ExecutionContext,
   PrehandlerOutput
 > {
-  public static CONSUMED_QUEUE_NAME = 'user_permissions_multi'
-  public static SUBSCRIBED_TOPIC_NAME = 'user_permissions_multi'
+  public static readonly CONSUMED_QUEUE_NAME = 'user_permissions_multi'
+  public static readonly SUBSCRIBED_TOPIC_NAME = 'user_permissions_multi'
 
   public addCounter = 0
   public addBarrierCounter = 0
@@ -64,13 +62,13 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
 
   constructor(
     dependencies: SNSSQSConsumerDependencies,
-    options: SnsSqsPermissionConsumerMultiSchemaOptions = {
+    options: SnsSqsPermissionConsumerOptions = {
       creationConfig: {
         queue: {
-          QueueName: SnsSqsPermissionConsumerMultiSchema.CONSUMED_QUEUE_NAME,
+          QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
         },
         topic: {
-          Name: SnsSqsPermissionConsumerMultiSchema.SUBSCRIBED_TOPIC_NAME,
+          Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME,
         },
       },
     },
@@ -142,25 +140,36 @@ export class SnsSqsPermissionConsumerMultiSchema extends AbstractSnsSqsConsumerM
             },
           )
           .build(),
-        messageTypeField: 'messageType',
-        deletionConfig: {
+        deletionConfig: options.deletionConfig ?? {
           deleteIfExists: true,
         },
+        ...(options.locatorConfig
+          ? { locatorConfig: options.locatorConfig }
+          : {
+              creationConfig: options.creationConfig ?? {
+                queue: { QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME },
+                topic: { Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME },
+              },
+            }),
+        messageTypeField: 'messageType',
         consumerOverrides: {
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
         },
         subscriptionConfig: {
           updateAttributesIfExists: false,
         },
-        // FixMe this casting shouldn't be necessary
-        ...(options as Pick<
-          NewSnsSqsConsumerOptionsMulti<SupportedMessages, ExecutionContext, PrehandlerOutput>,
-          'creationConfig' | 'logMessages'
-        >),
       },
       {
         incrementAmount: 1,
       },
     )
+  }
+
+  get subscriptionProps() {
+    return {
+      topicArn: this.topicArn,
+      queueUrl: this.queueUrl,
+      subscriptionArn: this.subscriptionArn,
+    }
   }
 }
