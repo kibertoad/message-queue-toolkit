@@ -18,7 +18,7 @@ type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSA
 
 type SqsPermissionConsumerOptions = Pick<
   SQSConsumerOptions<SupportedMessages, ExecutionContext, PrehandlerOutput>,
-  'creationConfig' | 'locatorConfig' | 'logMessages' | 'deletionConfig'
+  'creationConfig' | 'locatorConfig' | 'logMessages' | 'deletionConfig' | 'deadLetterQueue'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -84,6 +84,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
         deletionConfig: options.deletionConfig ?? {
           deleteIfExists: true,
         },
+        deadLetterQueue: options.deadLetterQueue,
         messageTypeField: 'messageType',
         handlerSpy: true,
         consumerOverrides: {
@@ -138,5 +139,9 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
       url: this.queueUrl,
       arn: this.queueArn,
     }
+  }
+
+  public get dlqUrl() {
+    return this.deadLetterQueueUrl
   }
 }

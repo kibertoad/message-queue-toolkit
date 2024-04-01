@@ -124,6 +124,14 @@ export abstract class AbstractSqsConsumer<
   protected readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   protected readonly executionContext: ExecutionContext
 
+  private readonly deadLetterQueueOptions?: DeadLetterQueueOptions<
+    CreationConfigType,
+    QueueLocatorType
+  >
+
+  // @ts-ignore
+  protected deadLetterQueueUrl: string
+
   protected constructor(
     dependencies: SQSConsumerDependencies,
     options: ConsumerOptionsType,
@@ -134,8 +142,9 @@ export abstract class AbstractSqsConsumer<
     this.errorResolver = dependencies.consumerErrorResolver
 
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
-    const messageSchemas = options.handlers.map((entry) => entry.schema)
+    this.deadLetterQueueOptions = options.deadLetterQueue
 
+    const messageSchemas = options.handlers.map((entry) => entry.schema)
     this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
       messageSchemas,
       messageTypeField: options.messageTypeField,
@@ -149,6 +158,14 @@ export abstract class AbstractSqsConsumer<
       messageHandlers: options.handlers,
     })
     this.executionContext = executionContext
+  }
+
+  override async init(): Promise<void> {
+    await super.init()
+    if (!this.deadLetterQueueOptions) return
+
+    // fake data
+    this.deadLetterQueueUrl = `http://sqs.eu-west-1.localstack:4566/000000000000/${this.queueName + '-dlq'}`
   }
 
   public async start() {
