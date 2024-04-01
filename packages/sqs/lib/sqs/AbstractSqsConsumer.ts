@@ -223,7 +223,6 @@ export abstract class AbstractSqsConsumer<
     this.consumer = Consumer.create({
       queueUrl: this.queueUrl,
       handleMessage: async (message: SQSMessage) => {
-        /* c8 ignore next */
         if (message === null) return
 
         const deserializedMessage = this.deserializeMessage(message)
@@ -386,7 +385,6 @@ export abstract class AbstractSqsConsumer<
       return ABORT_EARLY_EITHER
     }
     // Empty content for whatever reason
-    /* c8 ignore next */
     if (!resolveMessageResult.result) return ABORT_EARLY_EITHER
 
     // @ts-ignore
