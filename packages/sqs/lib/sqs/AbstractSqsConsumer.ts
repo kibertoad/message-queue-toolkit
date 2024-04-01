@@ -36,6 +36,7 @@ type DeadLetterQueueOptions<
   QueueLocatorType extends SQSQueueLocatorType,
 > = {
   redrivePolicy: { maxReceiveCount: number }
+  deletionConfig?: DeletionConfig // TODO: should deletion config be never?
 } & (
   | {
       creationConfig: CreationConfigType
@@ -153,29 +154,25 @@ export abstract class AbstractSqsConsumer<
   private async initDeadLetterQueue() {
     if (!this.deadLetterQueueOptions) return
 
-    if (this.deletionConfig && this.deadLetterQueueOptions.creationConfig) {
-      await deleteSqs(
-        this.sqsClient,
-        this.deletionConfig,
-        this.deadLetterQueueOptions.creationConfig,
-      )
+    const { deletionConfig, locatorConfig, creationConfig, redrivePolicy } =
+      this.deadLetterQueueOptions
+
+    if (deletionConfig && creationConfig) {
+      await deleteSqs(this.sqsClient, deletionConfig, creationConfig)
     }
 
-    const result = await initSqs(
-      this.sqsClient,
-      this.deadLetterQueueOptions.locatorConfig,
-      this.deadLetterQueueOptions.creationConfig,
+    const result = await initSqs(this.sqsClient, locatorConfig, creationConfig)
+    await this.sqsClient.send(
+      new SetQueueAttributesCommand({
+        QueueUrl: this.queueUrl,
+        Attributes: {
+          RedrivePolicy: JSON.stringify({
+            deadLetterTargetArn: result.queueArn,
+            maxReceiveCount: redrivePolicy.maxReceiveCount,
+          }),
+        },
+      }),
     )
-    const updateAttrCommand = new SetQueueAttributesCommand({
-      QueueUrl: this.queueUrl,
-      Attributes: {
-        RedrivePolicy: JSON.stringify({
-          deadLetterTargetArn: result.queueArn,
-          maxReceiveCount: this.deadLetterQueueOptions?.redrivePolicy.maxReceiveCount,
-        }),
-      },
-    })
-    await this.sqsClient.send(updateAttrCommand)
 
     this.deadLetterQueueUrl = result.queueUrl
   }

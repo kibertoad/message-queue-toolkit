@@ -37,13 +37,13 @@ type NewQueueOptions<CreationConfigType extends CommonCreationConfigType> = {
   locatorConfig?: never
   deletionConfig?: DeletionConfig
   creationConfig: CreationConfigType
-} & CommonQueueOptions
+}
 
 type ExistingQueueOptions<QueueLocatorType extends object> = {
   locatorConfig: QueueLocatorType
-  deletionConfig?: DeletionConfig
+  deletionConfig?: DeletionConfig // TODO: should deletion config be never?
   creationConfig?: never
-} & CommonQueueOptions
+}
 
 export type QueueOptions<
   CreationConfigType extends CommonCreationConfigType,
