@@ -1,4 +1,5 @@
 export type {
+  ExtraSQSCreationParams,
   SQSDependencies,
   SQSCreationConfig,
   SQSQueueLocatorType,

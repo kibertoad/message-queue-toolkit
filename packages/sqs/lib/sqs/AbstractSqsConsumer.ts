@@ -1,8 +1,4 @@
-import {
-  SendMessageCommand,
-  type SendMessageCommandInput,
-  SetQueueAttributesCommand,
-} from '@aws-sdk/client-sqs'
+import { SendMessageCommand, SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   QueueConsumer as QueueConsumer,
