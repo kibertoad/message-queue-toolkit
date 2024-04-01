@@ -10,8 +10,7 @@ import type { CreateQueueCommandInput, SQSClient, QueueAttributeName } from '@aw
 import type { Either } from '@lokalise/node-core'
 import { isShallowSubset, waitAndRetry } from '@message-queue-toolkit/core'
 
-import type { ExtraSQSCreationParams } from '../sqs/AbstractSqsConsumer'
-import type { SQSQueueLocatorType } from '../sqs/AbstractSqsService'
+import type { ExtraSQSCreationParams, SQSQueueLocatorType } from '../sqs/AbstractSqsService'
 
 import { generateQueuePublishForTopicPolicy } from './sqsAttributeUtils'
 import { updateQueueAttributes } from './sqsInitter'

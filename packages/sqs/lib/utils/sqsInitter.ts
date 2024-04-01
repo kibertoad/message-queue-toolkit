@@ -3,8 +3,7 @@ import type { SQSClient, QueueAttributeName } from '@aws-sdk/client-sqs'
 import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 
-import type { SQSCreationConfig } from '../sqs/AbstractSqsConsumer'
-import type { SQSQueueLocatorType } from '../sqs/AbstractSqsService'
+import type { SQSCreationConfig, SQSQueueLocatorType } from '../sqs/AbstractSqsService'
 
 import { assertQueue, deleteQueue, getQueueAttributes } from './sqsUtils'
 

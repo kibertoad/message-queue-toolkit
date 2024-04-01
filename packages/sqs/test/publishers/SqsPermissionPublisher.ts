@@ -1,8 +1,11 @@
 import type { QueuePublisherOptions } from '@message-queue-toolkit/core'
 
-import type { SQSCreationConfig } from '../../lib/sqs/AbstractSqsConsumer'
 import { AbstractSqsPublisher } from '../../lib/sqs/AbstractSqsPublisher'
-import type { SQSDependencies, SQSQueueLocatorType } from '../../lib/sqs/AbstractSqsService'
+import type {
+  SQSCreationConfig,
+  SQSDependencies,
+  SQSQueueLocatorType,
+} from '../../lib/sqs/AbstractSqsService'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,

@@ -2,9 +2,8 @@ import type { Either } from '@lokalise/node-core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import type { BarrierResult, Prehandler, PrehandlingOutputs } from '@message-queue-toolkit/core'
 
-import type { SQSConsumerOptions } from '../../lib/sqs/AbstractSqsConsumer'
+import type { SQSConsumerDependencies, SQSConsumerOptions } from '../../lib/sqs/AbstractSqsConsumer'
 import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer'
-import type { SQSConsumerDependencies } from '../../lib/sqs/AbstractSqsService'
 
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
