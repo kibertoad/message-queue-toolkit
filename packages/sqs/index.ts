@@ -6,7 +6,7 @@ export type {
 
 export { SqsConsumerErrorResolver } from './lib/errors/SqsConsumerErrorResolver'
 
-export type { SQSConsumerDependencies } from './lib/sqs/AbstractSqsConsumer'
+export type { SQSConsumerDependencies, SQSConsumerOptions } from './lib/sqs/AbstractSqsConsumer'
 export { AbstractSqsConsumer } from './lib/sqs/AbstractSqsConsumer'
 
 export { AbstractSqsPublisher } from './lib/sqs/AbstractSqsPublisher'
