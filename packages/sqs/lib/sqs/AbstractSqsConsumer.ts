@@ -1,4 +1,3 @@
-import type { CreateQueueRequest } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   QueueConsumer as QueueConsumer,
@@ -7,6 +6,7 @@ import type {
   PrehandlingOutputs,
   Prehandler,
   BarrierResult,
+  QueueConsumerDependencies,
 } from '@message-queue-toolkit/core'
 import {
   isMessageError,
@@ -20,22 +20,14 @@ import type { ConsumerOptions } from 'sqs-consumer/src/types'
 import type { SQSMessage } from '../types/MessageTypes'
 import { readSqsMessage } from '../utils/sqsMessageReader'
 
-import type { SQSConsumerDependencies, SQSQueueLocatorType } from './AbstractSqsService'
+import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
-export type ExtraSQSCreationParams = {
-  topicArnsWithPublishPermissionsPrefix?: string
-  updateAttributesIfExists?: boolean
-}
-
-export type SQSCreationConfig = {
-  queue: CreateQueueRequest
-  updateAttributesIfExists?: boolean
-} & ExtraSQSCreationParams
+export type SQSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
 
 export type SQSConsumerOptions<
   MessagePayloadSchemas extends object,

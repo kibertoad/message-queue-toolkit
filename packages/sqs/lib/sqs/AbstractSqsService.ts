@@ -1,21 +1,23 @@
-import type { SQSClient } from '@aws-sdk/client-sqs'
-import type {
-  QueueConsumerDependencies,
-  QueueDependencies,
-  QueueOptions,
-} from '@message-queue-toolkit/core'
+import type { CreateQueueRequest, SQSClient } from '@aws-sdk/client-sqs'
+import type { QueueDependencies, QueueOptions } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
 import type { SQSMessage } from '../types/MessageTypes'
 import { deleteSqs, initSqs } from '../utils/sqsInitter'
 
-import type { SQSCreationConfig } from './AbstractSqsConsumer'
-
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient
 }
 
-export type SQSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
+export type ExtraSQSCreationParams = {
+  topicArnsWithPublishPermissionsPrefix?: string
+  updateAttributesIfExists?: boolean
+}
+
+export type SQSCreationConfig = {
+  queue: CreateQueueRequest
+  updateAttributesIfExists?: boolean
+} & ExtraSQSCreationParams
 
 export type SQSQueueLocatorType = {
   queueUrl: string

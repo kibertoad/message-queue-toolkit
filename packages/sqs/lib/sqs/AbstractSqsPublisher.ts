@@ -13,9 +13,8 @@ import type { ZodSchema } from 'zod'
 
 import type { SQSMessage } from '../types/MessageTypes'
 
-import type { SQSCreationConfig } from './AbstractSqsConsumer'
 import { AbstractSqsService } from './AbstractSqsService'
-import type { SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
+import type { SQSDependencies, SQSQueueLocatorType, SQSCreationConfig } from './AbstractSqsService'
 
 export type SQSMessageOptions = {
   MessageGroupId?: string
