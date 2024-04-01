@@ -18,12 +18,15 @@ import { SqsPermissionConsumer } from './SqsPermissionConsumer'
 
 describe('SqsPermissionConsumer', () => {
   describe('init', () => {
+    const queueName = 'myTestQueue'
+
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
+
     beforeEach(async () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
-      await deleteQueue(sqsClient, 'existingQueue')
+      await deleteQueue(sqsClient, queueName)
     })
 
     afterEach(async () => {
@@ -34,7 +37,7 @@ describe('SqsPermissionConsumer', () => {
     it('throws an error when invalid queue locator is passed', async () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
-          queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+          queueUrl: `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
         },
       })
 
@@ -43,24 +46,24 @@ describe('SqsPermissionConsumer', () => {
 
     it('does not create a new queue when queue locator is passed', async () => {
       await assertQueue(sqsClient, {
-        QueueName: 'existingQueue',
+        QueueName: queueName,
       })
 
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
-          queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+          queueUrl: `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
         },
       })
 
       await newConsumer.init()
       expect(newConsumer.queueProps.url).toBe(
-        'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+        `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
       )
     })
 
     it('updates existing queue when one with different attributes exist', async () => {
       await assertQueue(sqsClient, {
-        QueueName: 'existingQueue',
+        QueueName: queueName,
         Attributes: {
           KmsMasterKeyId: 'somevalue',
         },
@@ -69,7 +72,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: 'existingQueue',
+            QueueName: queueName,
             Attributes: {
               KmsMasterKeyId: 'othervalue',
             },
@@ -86,7 +89,7 @@ describe('SqsPermissionConsumer', () => {
 
       await newConsumer.init()
       expect(newConsumer.queueProps.url).toBe(
-        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
       )
 
       const updateCall = sqsSpy.mock.calls.find((entry) => {
@@ -103,7 +106,7 @@ describe('SqsPermissionConsumer', () => {
 
     it('does not update existing queue when attributes did not change', async () => {
       await assertQueue(sqsClient, {
-        QueueName: 'existingQueue',
+        QueueName: queueName,
         Attributes: {
           KmsMasterKeyId: 'somevalue',
         },
@@ -112,7 +115,7 @@ describe('SqsPermissionConsumer', () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           queue: {
-            QueueName: 'existingQueue',
+            QueueName: queueName,
             Attributes: {
               KmsMasterKeyId: 'somevalue',
             },
@@ -129,7 +132,7 @@ describe('SqsPermissionConsumer', () => {
 
       await newConsumer.init()
       expect(newConsumer.queueProps.url).toBe(
-        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
       )
 
       const updateCall = sqsSpy.mock.calls.find((entry) => {
