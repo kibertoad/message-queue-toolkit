@@ -1,4 +1,9 @@
-import { SendMessageCommand, SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
+import {
+  ChangeMessageVisibilityCommand,
+  SendMessageCommand,
+  type SendMessageCommandInput,
+  SetQueueAttributesCommand,
+} from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   QueueConsumer as QueueConsumer,
@@ -211,13 +216,9 @@ export abstract class AbstractSqsConsumer<
           messageType,
         )
           .catch((err) => {
-            // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
-            // If we fail due to unknown reason, let's retry
             this.handleError(err)
-            return {
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-              error: err,
-            }
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            return { error: err }
           })
           .finally(() => {
             this.transactionObservabilityManager?.stop(transactionSpanId)
@@ -234,6 +235,18 @@ export abstract class AbstractSqsConsumer<
           deserializedMessage.result,
           result.error === 'retryLater' ? 'retryLater' : 'error',
         )
+
+        // in case of retryLater, if DLQ is set, we will send the message back to the queue
+        if (result.error === 'retryLater' && this.deadLetterQueueUrl) {
+          await this.sqsClient.send(
+            new SendMessageCommand({
+              QueueUrl: this.queueUrl,
+              MessageBody: message.Body,
+            }),
+          )
+          return message
+        }
+
         return Promise.reject(result.error)
       },
       sqs: this.sqsClient,

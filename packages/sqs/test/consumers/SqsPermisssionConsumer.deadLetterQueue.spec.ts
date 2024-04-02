@@ -11,6 +11,7 @@ import type { Dependencies } from '../utils/testContext'
 import { registerDependencies } from '../utils/testContext'
 
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
+import type { PERMISSIONS_REMOVE_MESSAGE_TYPE } from './userConsumerSchemas'
 
 describe('SqsPermissionConsumer - deadLetterQueue', () => {
   describe('init', () => {
@@ -250,9 +251,10 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       expect(dlqMessage.Body).toBe(JSON.stringify({ id: '1', messageType: 'remove' }))
     })
 
-    // TODO: TDD -> in case of retryLater, DLQ shouldn't be used and message should be finally processed
-    it.skip('messages with retryLater should always be retried and not go to DLQ', async () => {
+    it('messages with retryLater should always be retried and not go to DLQ', async () => {
       const { permissionPublisher } = diContainer.cradle
+      const sqsMessage: PERMISSIONS_REMOVE_MESSAGE_TYPE = { id: '1', messageType: 'remove' }
+
       let counter = 0
       const consumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: { queue: { QueueName: queueName } },
@@ -260,17 +262,17 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           creationConfig: { queue: { QueueName: deadLetterQueueName } },
           redrivePolicy: { maxReceiveCount: 3 },
         },
-        removeHandlerOverride: async () => {
-          counter++
-          if (counter < 10) {
-            return { error: 'retryLater' }
+        removeHandlerOverride: async (message) => {
+          if (message.id !== sqsMessage.id) {
+            throw new Error('not expected message')
           }
-          return { result: 'success' }
+          counter++
+          return counter < 10 ? { error: 'retryLater' } : { result: 'success' }
         },
       })
       await consumer.start()
 
-      await permissionPublisher.publish({ id: '1', messageType: 'remove' })
+      await permissionPublisher.publish(sqsMessage)
 
       const handlerSpyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
       expect(handlerSpyResult.processingResult).toBe('consumed')
