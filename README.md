@@ -158,7 +158,8 @@ If the barrier method returns `false`, message will be returned into the queue f
 > **_NOTE:_**  See [SqsPermissionConsumer.ts](./packages/sns/test/consumers/SnsSqsPermissionConsumer.ts) for a practical example.
 
 ### Dead Letter Queue
-> **_NOTE:_**  DLQ is not available for AMQP consumers at this point.
+> **_NOTE:_**  DLQ is only available on SQS and SNS consumers, so the following is only relevant there.
+    If you try to use it on AMQP at this point you will receive an error, AMQP support will come in a future version.
 
 A dead letter queue is a queue where messages that cannot be processed successfully are stored. It serves as a holding area for messages that have encountered errors or exceptions during processing, allowing developers to review and handle them later.
 To create a dead letter queue, you need to specify the `deadLetterQueue` parameter within options on the consumer configuration. The parameter should contain the following fields:
