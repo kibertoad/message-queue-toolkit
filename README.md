@@ -163,13 +163,13 @@ If the barrier method returns `false`, message will be returned into the queue f
 
 A dead letter queue is a queue where messages that cannot be processed successfully are stored. It serves as a holding area for messages that have encountered errors or exceptions during processing, allowing developers to review and handle them later.
 To create a dead letter queue, you need to specify the `deadLetterQueue` parameter within options on the consumer configuration. The parameter should contain the following fields:
-- `creationConfig`: configuration for queue to create, if one does not exist. Should not be specified together with the `locatorConfig`
+- `creationConfig`: configuration for the queue to create, if one does not exist. Should not be specified together with the `locatorConfig`
 - `locatorConfig`: configuration for resolving existing queue. Should not be specified together with the `creationConfig`
 - `redrivePolicy`: an object that contains the following fields:
   - `maxReceiveCount`: the number of times a message can be received before being moved to the DLQ.
 
-If you use the barrier pattern together with a dead letter queue, you should be aware that the library do not simply return message to the queue, but create a new one instead, in order to avoid exhausting DLQ limits early.
-Due to this fact, in those case you could have duplicated messages if a service crashes after receiving `retryLater` result from the barrier and creating a new message for the retry, but before the original one is consumed (those are not being done as an atomic operation).
+If you use the barrier pattern together with a dead letter queue, you should be aware that the library does not simply return the message to the queue, but creates a new one instead to avoid exhausting DLQ limits early.
+Due to this fact, in those cases, you could have duplicated messages if a service crashes after receiving `retryLater` result from the barrier and creating a new message for the retry, but before the original one is consumed (those are not being done as an atomic operation).
 In a future release, we will implement deduplication to remove this risk but in the meantime, please keep this in mind.
 
 ## Fan-out to Multiple Consumers
