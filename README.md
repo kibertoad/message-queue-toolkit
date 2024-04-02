@@ -58,6 +58,7 @@ Multi-schema consumers support multiple message types via handler configs. They 
         * `creationConfig` - configuration for queue and/or topic to create, if one does not exist. Should not be specified together with the `locatorConfig`.
         * `subscriptionConfig` - SNS SQS consumer only - configuration for SNS -> SQS subscription to create, if one doesn't exist.
         * `consumerOverrides` – available only for SQS consumers;
+        * `deadLetterQueue` - available only for SQS and SNS consumers; please read the section below to understand how to use it.
         * `subscribedToTopic` – parameters for a topic to use during creation if it does not exist. Ignored if `queueLocator.subscriptionArn` is set. Available only for SNS consumers;
 * `init()`, prepare consumer for use (e. g. establish all necessary connections);
 * `close()`, stop listening for messages and disconnect;
@@ -155,6 +156,18 @@ If the barrier method returns `false`, message will be returned into the queue f
 
 > **_NOTE:_**  See [SqsPermissionConsumer.ts](./packages/sns/test/consumers/SnsSqsPermissionConsumer.ts) for a practical example.
 
+### Dead Letter Queue
+A dead letter queue is a queue where messages that cannot be processed successfully are stored. It serves as a holding area for messages that have encountered errors or exceptions during processing, allowing developers to review and handle them later.
+To create a dead letter queue, you need to specify the `deadLetterQueue` parameter within options on the consumer configuration. The parameter should contain the following fields:
+- `creationConfig`: configuration for queue to create, if one does not exist. Should not be specified together with the `locatorConfig`
+- `locatorConfig`: configuration for resolving existing queue. Should not be specified together with the `creationConfig`
+- `redrivePolicy`: an object that contains the following fields:
+  - `maxReceiveCount`: the number of times a message can be received before being moved to the DLQ.
+
+> **_NOTE:_**  DLQ is not available for AMQP consumers.
+> **_NOTE:_**  DLQ could produce message duplication if used together with the barrier pattern (due to the 
+    retry mechanism), although this is unlikely to happen in practice. 
+    In a future release, we will implement deduplication to remove this risk but in the meantime, please be aware of this.
 
 ## Fan-out to Multiple Consumers
 
