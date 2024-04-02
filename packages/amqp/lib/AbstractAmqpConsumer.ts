@@ -33,6 +33,7 @@ export type AMQPConsumerOptions<
 > = QueueConsumerOptions<
   AMQPCreationConfig,
   AMQPLocator,
+  NonNullable<unknown>, // DeadLetterQueueIntegrationOptions -> empty object for now
   MessagePayloadType,
   ExecutionContext,
   PrehandlerOutput
@@ -54,7 +55,11 @@ export abstract class AbstractAmqpConsumer<
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
   private readonly errorResolver: ErrorResolver
   private readonly executionContext: ExecutionContext
-  private readonly deadLetterQueueOptions?: DeadLetterQueueOptions<AMQPCreationConfig, AMQPLocator>
+  private readonly deadLetterQueueOptions?: DeadLetterQueueOptions<
+    AMQPCreationConfig,
+    AMQPLocator,
+    NonNullable<unknown>
+  >
 
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   private readonly handlerContainer: HandlerContainer<

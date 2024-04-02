@@ -1,7 +1,7 @@
 import { SendMessageCommand, SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
-  QueueConsumer as QueueConsumer,
+  QueueConsumer,
   TransactionObservabilityManager,
   QueueConsumerOptions,
   PrehandlingOutputs,
@@ -30,6 +30,12 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
+type SQSDeadLetterQueueOptions = {
+  redrivePolicy: {
+    maxReceiveCount: number
+  }
+}
+
 export type SQSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
 
 export type SQSConsumerOptions<
@@ -41,6 +47,7 @@ export type SQSConsumerOptions<
 > = QueueConsumerOptions<
   CreationConfigType,
   QueueLocatorType,
+  SQSDeadLetterQueueOptions,
   MessagePayloadSchemas,
   ExecutionContext,
   PrehandlerOutput
@@ -94,7 +101,8 @@ export abstract class AbstractSqsConsumer<
 
   private readonly deadLetterQueueOptions?: DeadLetterQueueOptions<
     CreationConfigType,
-    QueueLocatorType
+    QueueLocatorType,
+    SQSDeadLetterQueueOptions
   >
 
   protected deadLetterQueueUrl?: string

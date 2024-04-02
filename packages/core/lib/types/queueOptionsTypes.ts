@@ -61,18 +61,25 @@ export type QueuePublisherOptions<
 export type DeadLetterQueueOptions<
   CreationConfigType extends object,
   QueueLocatorType extends object,
+  DeadLetterQueueIntegrationOptions extends object,
 > = {
-  redrivePolicy: { maxReceiveCount: number }
+  //redrivePolicy: { maxReceiveCount: number }
   deletionConfig?: DeletionConfig
-} & (NewQueueOptions<CreationConfigType> | ExistingQueueOptions<QueueLocatorType>)
+} & DeadLetterQueueIntegrationOptions &
+  (NewQueueOptions<CreationConfigType> | ExistingQueueOptions<QueueLocatorType>)
 
 export type QueueConsumerOptions<
   CreationConfigType extends object,
   QueueLocatorType extends object,
+  DeadLetterQueueIntegrationOptions extends object,
   MessagePayloadSchemas extends object,
   ExecutionContext,
   PrehandlerOutput = undefined,
 > = QueueOptions<CreationConfigType, QueueLocatorType> & {
   handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
-  deadLetterQueue?: DeadLetterQueueOptions<CreationConfigType, QueueLocatorType>
+  deadLetterQueue?: DeadLetterQueueOptions<
+    CreationConfigType,
+    QueueLocatorType,
+    DeadLetterQueueIntegrationOptions
+  >
 }
