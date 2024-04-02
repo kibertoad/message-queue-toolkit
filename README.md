@@ -158,6 +158,8 @@ If the barrier method returns `false`, message will be returned into the queue f
 > **_NOTE:_**  See [SqsPermissionConsumer.ts](./packages/sns/test/consumers/SnsSqsPermissionConsumer.ts) for a practical example.
 
 ### Dead Letter Queue
+> **_NOTE:_**  DLQ is not available for AMQP consumers at this point.
+
 A dead letter queue is a queue where messages that cannot be processed successfully are stored. It serves as a holding area for messages that have encountered errors or exceptions during processing, allowing developers to review and handle them later.
 To create a dead letter queue, you need to specify the `deadLetterQueue` parameter within options on the consumer configuration. The parameter should contain the following fields:
 - `creationConfig`: configuration for queue to create, if one does not exist. Should not be specified together with the `locatorConfig`
@@ -165,11 +167,9 @@ To create a dead letter queue, you need to specify the `deadLetterQueue` paramet
 - `redrivePolicy`: an object that contains the following fields:
   - `maxReceiveCount`: the number of times a message can be received before being moved to the DLQ.
 
-> **_NOTE:_**  DLQ is not available for AMQP consumers.
-
-> **_NOTE:_**  DLQ could produce message duplication if used together with the barrier pattern (due to the 
-    retry mechanism), although this is unlikely to happen in practice. 
-    In a future release, we will implement deduplication to remove this risk but in the meantime, please be aware of this.
+If you use the barrier pattern together with a dead letter queue, you should be aware that the library do not simply return message to the queue, but create a new one instead, in order to avoid exhausting DLQ limits early.
+Due to this fact, in those case you could have duplicated messages if a service crashes after receiving `retryLater` result from the barrier and creating a new message for the retry, but before the original one is consumed (those are not being done as an atomic operation).
+In a future release, we will implement deduplication to remove this risk but in the meantime, please keep this in mind.
 
 ## Fan-out to Multiple Consumers
 
