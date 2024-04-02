@@ -25,7 +25,7 @@ type PrehandlerOutput = {
 
 type AmqpPermissionConsumerOptions = Pick<
   AMQPConsumerOptions<SupportedEvents, ExecutionContext, PrehandlerOutput>,
-  'creationConfig' | 'locatorConfig' | 'logMessages'
+  'creationConfig' | 'locatorConfig' | 'logMessages' | 'deadLetterQueue'
 > & {
   addPreHandlerBarrier?: (message: SupportedEvents) => Promise<BarrierResult<number>>
   removeHandlerOverride?: (
@@ -72,6 +72,7 @@ export class AmqpPermissionConsumer extends AbstractAmqpConsumer<
                 },
               },
             }),
+        deadLetterQueue: options?.deadLetterQueue,
         logMessages: options?.logMessages,
         handlerSpy: true,
         messageTypeField: 'messageType',

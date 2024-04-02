@@ -15,6 +15,52 @@ import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import { AmqpPermissionConsumer } from './AmqpPermissionConsumer'
 
 describe('AmqpPermissionConsumer', () => {
+  describe('init', () => {
+    let diContainer: AwilixContainer<Dependencies>
+
+    beforeEach(async () => {
+      diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
+        consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
+      })
+    })
+
+    afterEach(async () => {
+      const { awilixManager } = diContainer.cradle
+      await awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('updateAttributesIfExists is not supported', async () => {
+      const consumer = new AmqpPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          updateAttributesIfExists: true,
+          queueName: 'dummy',
+          queueOptions: { durable: true, autoDelete: false },
+        },
+      })
+
+      await expect(consumer.init()).rejects.toThrow(
+        'updateAttributesIfExists parameter is not currently supported by the Amqp adapter',
+      )
+    })
+
+    it('deadLetterQueue is not supported', async () => {
+      const consumer = new AmqpPermissionConsumer(diContainer.cradle, {
+        deadLetterQueue: {
+          redrivePolicy: { maxReceiveCount: 5 },
+          creationConfig: {
+            queueName: 'dummy-dlq',
+            queueOptions: { durable: true, autoDelete: false },
+          },
+        },
+      })
+
+      await expect(consumer.init()).rejects.toThrow(
+        'deadLetterQueue parameter is not currently supported by the Amqp adapter',
+      )
+    })
+  })
+
   describe('logging', () => {
     let logger: FakeLogger
     let diContainer: AwilixContainer<Dependencies>
