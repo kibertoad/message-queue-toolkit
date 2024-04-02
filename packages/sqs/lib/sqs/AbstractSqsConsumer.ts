@@ -1,9 +1,4 @@
-import {
-  ChangeMessageVisibilityCommand,
-  SendMessageCommand,
-  type SendMessageCommandInput,
-  SetQueueAttributesCommand,
-} from '@aws-sdk/client-sqs'
+import { SendMessageCommand, SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   QueueConsumer as QueueConsumer,
@@ -13,7 +8,7 @@ import type {
   Prehandler,
   BarrierResult,
   QueueConsumerDependencies,
-  DeletionConfig,
+  DeadLetterQueueOptions,
 } from '@message-queue-toolkit/core'
 import {
   isMessageError,
@@ -35,24 +30,6 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
-// TODO: should we include DLQ types on core?
-type DeadLetterQueueOptions<
-  CreationConfigType extends SQSCreationConfig,
-  QueueLocatorType extends SQSQueueLocatorType,
-> = {
-  redrivePolicy: { maxReceiveCount: number }
-  deletionConfig?: DeletionConfig // TODO: should deletion config be never?
-} & (
-  | {
-      creationConfig: CreationConfigType
-      locatorConfig?: never
-    }
-  | {
-      creationConfig?: never
-      locatorConfig: QueueLocatorType
-    }
-)
-
 export type SQSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
 
 export type SQSConsumerOptions<
@@ -69,7 +46,6 @@ export type SQSConsumerOptions<
   PrehandlerOutput
 > & {
   consumerOverrides?: Partial<ConsumerOptions>
-  deadLetterQueue?: DeadLetterQueueOptions<CreationConfigType, QueueLocatorType>
 }
 export abstract class AbstractSqsConsumer<
     MessagePayloadType extends object,

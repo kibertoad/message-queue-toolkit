@@ -21,6 +21,7 @@ export type CommonQueueOptions = {
   messageIdField?: string
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
+  deletionConfig?: DeletionConfig
 }
 
 type CommonCreationConfigType = {
@@ -35,13 +36,11 @@ export type DeletionConfig = {
 
 type NewQueueOptions<CreationConfigType extends CommonCreationConfigType> = {
   locatorConfig?: never
-  deletionConfig?: DeletionConfig
   creationConfig: CreationConfigType
 }
 
 type ExistingQueueOptions<QueueLocatorType extends object> = {
   locatorConfig: QueueLocatorType
-  deletionConfig?: DeletionConfig // TODO: should deletion config be never?
   creationConfig?: never
 }
 
@@ -59,6 +58,14 @@ export type QueuePublisherOptions<
   messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
 }
 
+export type DeadLetterQueueOptions<
+  CreationConfigType extends object,
+  QueueLocatorType extends object,
+> = {
+  redrivePolicy: { maxReceiveCount: number }
+  deletionConfig?: DeletionConfig
+} & (NewQueueOptions<CreationConfigType> | ExistingQueueOptions<QueueLocatorType>)
+
 export type QueueConsumerOptions<
   CreationConfigType extends object,
   QueueLocatorType extends object,
@@ -67,4 +74,5 @@ export type QueueConsumerOptions<
   PrehandlerOutput = undefined,
 > = QueueOptions<CreationConfigType, QueueLocatorType> & {
   handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
+  deadLetterQueue?: DeadLetterQueueOptions<CreationConfigType, QueueLocatorType>
 }
