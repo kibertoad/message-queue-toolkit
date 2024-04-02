@@ -38,6 +38,7 @@ They implement the following public methods:
     * `options` – a protocol-dependent set of message parameters. For more information please check documentation for options for each protocol: [AMQP](https://amqp-node.github.io/amqplib/channel_api.html#channel_sendToQueue), [SQS](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/interfaces/sendmessagecommandinput.html) and [SNS](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sns/interfaces/publishcommandinput.html).
 
 > **_NOTE:_**  See [SqsPermissionPublisher.ts](./packages/sqs/test/publishers/SqsPermissionPublisher.ts) for a practical example.
+
 > **_NOTE:_**  Lazy loading is not supported for AMQP publishers.
 
 
@@ -165,6 +166,7 @@ To create a dead letter queue, you need to specify the `deadLetterQueue` paramet
   - `maxReceiveCount`: the number of times a message can be received before being moved to the DLQ.
 
 > **_NOTE:_**  DLQ is not available for AMQP consumers.
+
 > **_NOTE:_**  DLQ could produce message duplication if used together with the barrier pattern (due to the 
     retry mechanism), although this is unlikely to happen in practice. 
     In a future release, we will implement deduplication to remove this risk but in the meantime, please be aware of this.
