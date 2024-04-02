@@ -47,7 +47,6 @@ describe('AmqpPermissionConsumer', () => {
     it('deadLetterQueue is not supported', async () => {
       const consumer = new AmqpPermissionConsumer(diContainer.cradle, {
         deadLetterQueue: {
-          redrivePolicy: { maxReceiveCount: 5 },
           creationConfig: {
             queueName: 'dummy-dlq',
             queueOptions: { durable: true, autoDelete: false },
