@@ -98,6 +98,7 @@ export abstract class AbstractAmqpConsumer<
 
   async init(): Promise<void> {
     if (this.deadLetterQueueOptions) {
+      // TODO: https://www.cloudamqp.com/blog/when-and-how-to-use-the-rabbitmq-dead-letter-exchange.html
       throw new Error('deadLetterQueue parameter is not currently supported by the Amqp adapter')
     }
 
