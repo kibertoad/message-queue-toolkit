@@ -259,12 +259,12 @@ export abstract class AbstractSqsConsumer<
     message: MessagePayloadType,
     messageType: string,
   ): Promise<Either<'retryLater', 'success'>> {
-    const prehandlerOutput = await this.processPrehandlers(message, messageType)
-    const barrierResult = await this.preHandlerBarrier(message, messageType, prehandlerOutput)
+    const preHandlerOutput = await this.processPrehandlers(message, messageType)
+    const barrierResult = await this.preHandlerBarrier(message, messageType, preHandlerOutput)
 
     if (barrierResult.isPassing) {
       return this.processMessage(message, messageType, {
-        prehandlerOutput,
+        preHandlerOutput,
         barrierOutput: barrierResult.output,
       })
     }
@@ -286,13 +286,13 @@ export abstract class AbstractSqsConsumer<
   protected override processPrehandlers(message: MessagePayloadType, messageType: string) {
     const handlerConfig = this.handlerContainer.resolveHandler<PrehandlerOutput>(messageType)
 
-    return this.processPrehandlersInternal(handlerConfig.prehandlers, message)
+    return this.processPrehandlersInternal(handlerConfig.preHandlers, message)
   }
 
   protected override async preHandlerBarrier<BarrierOutput>(
     message: MessagePayloadType,
     messageType: string,
-    prehandlerOutput: PrehandlerOutput,
+    preHandlerOutput: PrehandlerOutput,
   ): Promise<BarrierResult<BarrierOutput>> {
     const handler = this.handlerContainer.resolveHandler<PrehandlerOutput, BarrierOutput>(
       messageType,
@@ -302,7 +302,7 @@ export abstract class AbstractSqsConsumer<
       handler.preHandlerBarrier,
       message,
       this.executionContext,
-      prehandlerOutput,
+      preHandlerOutput,
     )
   }
 
@@ -312,19 +312,19 @@ export abstract class AbstractSqsConsumer<
 
   // eslint-disable-next-line max-params
   protected override resolveNextFunction(
-    prehandlers: Prehandler<MessagePayloadType, ExecutionContext, unknown>[],
+    preHandlers: Prehandler<MessagePayloadType, ExecutionContext, unknown>[],
     message: MessagePayloadType,
     index: number,
-    prehandlerOutput: PrehandlerOutput,
+    preHandlerOutput: PrehandlerOutput,
     resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
     reject: (err: Error) => void,
   ) {
     return this.resolveNextPreHandlerFunctionInternal(
-      prehandlers,
+      preHandlers,
       this.executionContext,
       message,
       index,
-      prehandlerOutput,
+      preHandlerOutput,
       resolve,
       reject,
     )

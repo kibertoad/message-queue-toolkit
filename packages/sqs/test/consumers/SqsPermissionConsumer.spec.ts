@@ -249,7 +249,7 @@ describe('SqsPermissionConsumer', () => {
       await newConsumer.close()
     })
 
-    it('can access prehandler output', async () => {
+    it('can access preHandler output', async () => {
       expect.assertions(1)
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
@@ -260,9 +260,9 @@ describe('SqsPermissionConsumer', () => {
         addPreHandlerBarrier: async (
           message,
           executionContext,
-          prehandlerOutput,
+          preHandlerOutput,
         ): Promise<BarrierResult<number>> => {
-          expect(prehandlerOutput.messageId).toBe(message.id)
+          expect(preHandlerOutput.messageId).toBe(message.id)
 
           return { isPassing: true, output: 1 }
         },
@@ -309,7 +309,7 @@ describe('SqsPermissionConsumer', () => {
     })
   })
 
-  describe('prehandlers', () => {
+  describe('preHandlers', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisher
     beforeEach(async () => {
@@ -323,7 +323,7 @@ describe('SqsPermissionConsumer', () => {
       await diContainer.dispose()
     })
 
-    it('processes one prehandler', async () => {
+    it('processes one preHandler', async () => {
       expect.assertions(1)
 
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
@@ -332,15 +332,15 @@ describe('SqsPermissionConsumer', () => {
             QueueName: publisher.queueProps.name,
           },
         },
-        removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
-          expect(prehandlerOutputs.prehandlerOutput.messageId).toEqual(message.id)
+        removeHandlerOverride: async (message, _context, preHandlerOutputs) => {
+          expect(preHandlerOutputs.preHandlerOutput.messageId).toEqual(message.id)
           return {
             result: 'success',
           }
         },
         removePreHandlers: [
-          (message, context, prehandlerOutput, next) => {
-            prehandlerOutput.messageId = message.id
+          (message, context, preHandlerOutput, next) => {
+            preHandlerOutput.messageId = message.id
             next({
               result: 'success',
             })
@@ -359,7 +359,7 @@ describe('SqsPermissionConsumer', () => {
       await newConsumer.close()
     })
 
-    it('processes two prehandlers', async () => {
+    it('processes two preHandlers', async () => {
       expect.assertions(1)
 
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
@@ -368,22 +368,22 @@ describe('SqsPermissionConsumer', () => {
             QueueName: publisher.queueProps.name,
           },
         },
-        removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
-          expect(prehandlerOutputs.prehandlerOutput.messageId).toEqual(message.id + ' adjusted')
+        removeHandlerOverride: async (message, _context, preHandlerOutputs) => {
+          expect(preHandlerOutputs.preHandlerOutput.messageId).toEqual(message.id + ' adjusted')
           return {
             result: 'success',
           }
         },
         removePreHandlers: [
-          (message, context, prehandlerOutput, next) => {
-            prehandlerOutput.messageId = message.id
+          (message, context, preHandlerOutput, next) => {
+            preHandlerOutput.messageId = message.id
             next({
               result: 'success',
             })
           },
 
-          (message, context, prehandlerOutput, next) => {
-            prehandlerOutput.messageId += ' adjusted'
+          (message, context, preHandlerOutput, next) => {
+            preHandlerOutput.messageId += ' adjusted'
             next({
               result: 'success',
             })

@@ -20,7 +20,7 @@ type ExecutionContext = {
   incrementAmount: number
 }
 type PrehandlerOutput = {
-  prehandlerCount: number
+  preHandlerCount: number
 }
 
 type AmqpPermissionConsumerOptions = Pick<
@@ -103,7 +103,7 @@ export class AmqpPermissionConsumer extends AbstractAmqpConsumer<
             PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
             options?.removeHandlerOverride ?? defaultRemoveHandler,
             {
-              prehandlers: options?.removePreHandlers,
+              preHandlers: options?.removePreHandlers,
             },
           )
           .build(),

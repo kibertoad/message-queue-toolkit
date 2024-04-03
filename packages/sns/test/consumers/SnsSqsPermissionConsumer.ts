@@ -102,15 +102,15 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
               }
             },
             {
-              prehandlers: [
+              preHandlers: [
                 (
                   message: SupportedMessages,
                   context: ExecutionContext,
-                  prehandlerOutput: Partial<PreHandlerOutput>,
+                  preHandlerOutput: Partial<PreHandlerOutput>,
                   next: (result: PrehandlerResult) => void,
                 ) => {
-                  if (message.prehandlerIncrement) {
-                    this.preHandlerCounter += message.prehandlerIncrement
+                  if (message.preHandlerIncrement) {
+                    this.preHandlerCounter += message.preHandlerIncrement
                   }
                   next({
                     result: 'success',
@@ -136,7 +136,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
             PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
             options.removeHandlerOverride ?? defaultRemoveHandler,
             {
-              prehandlers: options.removePreHandlers,
+              preHandlers: options.removePreHandlers,
             },
           )
           .build(),

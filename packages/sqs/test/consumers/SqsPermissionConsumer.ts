@@ -23,7 +23,7 @@ type SqsPermissionConsumerOptions = Pick<
   addPreHandlerBarrier?: (
     message: SupportedMessages,
     _executionContext: ExecutionContext,
-    prehandlerOutput: PrehandlerOutput,
+    preHandlerOutput: PrehandlerOutput,
   ) => Promise<BarrierResult<number>>
   removeHandlerOverride?: (
     _message: SupportedMessages,
@@ -108,9 +108,9 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
             },
             {
               preHandlerBarrier: options.addPreHandlerBarrier,
-              prehandlers: [
-                (message, _context, prehandlerOutput, next) => {
-                  prehandlerOutput.messageId = message.id
+              preHandlers: [
+                (message, _context, preHandlerOutput, next) => {
+                  preHandlerOutput.messageId = message.id
                   next({
                     result: 'success',
                   })
@@ -122,7 +122,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
             PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
             options.removeHandlerOverride ?? defaultRemoveHandler,
             {
-              prehandlers: options.removePreHandlers,
+              preHandlers: options.removePreHandlers,
             },
           )
           .build(),

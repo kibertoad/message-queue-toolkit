@@ -9,13 +9,13 @@ export const PERMISSIONS_MESSAGE_SCHEMA = z.object({
 
 export const PERMISSIONS_ADD_MESSAGE_SCHEMA = z.object({
   id: z.string(),
-  prehandlerIncrement: z.optional(z.number()),
+  preHandlerIncrement: z.optional(z.number()),
   messageType: z.literal('add'),
 })
 
 export const PERMISSIONS_REMOVE_MESSAGE_SCHEMA = z.object({
   id: z.string(),
-  prehandlerIncrement: z.optional(z.number()),
+  preHandlerIncrement: z.optional(z.number()),
   messageType: z.literal('remove'),
 })
 
