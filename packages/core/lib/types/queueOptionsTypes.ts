@@ -63,7 +63,6 @@ export type DeadLetterQueueOptions<
   QueueLocatorType extends object,
   DeadLetterQueueIntegrationOptions extends object,
 > = {
-  //redrivePolicy: { maxReceiveCount: number }
   deletionConfig?: DeletionConfig
 } & DeadLetterQueueIntegrationOptions &
   (NewQueueOptions<CreationConfigType> | ExistingQueueOptions<QueueLocatorType>)
