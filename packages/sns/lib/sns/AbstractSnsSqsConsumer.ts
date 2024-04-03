@@ -96,13 +96,13 @@ export abstract class AbstractSnsSqsConsumer<
       this.locatorConfig,
       this.creationConfig,
       this.subscriptionConfig,
-      {
-        logger: this.logger,
-      },
+      { logger: this.logger },
     )
     this.queueUrl = initSnsSqsResult.queueUrl
     this.topicArn = initSnsSqsResult.topicArn
     this.subscriptionArn = initSnsSqsResult.subscriptionArn
+
+    await this.initDeadLetterQueue()
   }
 
   protected override resolveMessage(message: SQSMessage) {

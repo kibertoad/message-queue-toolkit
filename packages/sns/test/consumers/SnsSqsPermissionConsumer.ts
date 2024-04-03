@@ -32,7 +32,7 @@ type PrehandlerOutput = {
 
 type SnsSqsPermissionConsumerOptions = Pick<
   SNSSQSConsumerOptions<SupportedMessages, ExecutionContext, PrehandlerOutput>,
-  'creationConfig' | 'locatorConfig' | 'deletionConfig'
+  'creationConfig' | 'locatorConfig' | 'deletionConfig' | 'deadLetterQueue'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -143,6 +143,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
         deletionConfig: options.deletionConfig ?? {
           deleteIfExists: true,
         },
+        deadLetterQueue: options.deadLetterQueue,
         ...(options.locatorConfig
           ? { locatorConfig: options.locatorConfig }
           : {
@@ -170,6 +171,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
       topicArn: this.topicArn,
       queueUrl: this.queueUrl,
       subscriptionArn: this.subscriptionArn,
+      deadLetterQueueUrl: this.deadLetterQueueUrl,
     }
   }
 }

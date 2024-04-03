@@ -140,7 +140,7 @@ export abstract class AbstractSqsConsumer<
     await this.initDeadLetterQueue()
   }
 
-  private async initDeadLetterQueue() {
+  protected async initDeadLetterQueue() {
     if (!this.deadLetterQueueOptions) return
 
     const { deletionConfig, locatorConfig, creationConfig, redrivePolicy } =
