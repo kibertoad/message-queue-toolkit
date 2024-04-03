@@ -1,6 +1,7 @@
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   BarrierResult,
+  DeadLetterQueueOptions,
   Prehandler,
   PrehandlingOutputs,
   QueueConsumer,
@@ -32,6 +33,7 @@ export type AMQPConsumerOptions<
 > = QueueConsumerOptions<
   AMQPCreationConfig,
   AMQPLocator,
+  NonNullable<unknown>, // DeadLetterQueueIntegrationOptions -> empty object for now
   MessagePayloadType,
   ExecutionContext,
   PrehandlerOutput
@@ -52,6 +54,12 @@ export abstract class AbstractAmqpConsumer<
 {
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
   private readonly errorResolver: ErrorResolver
+  private readonly executionContext: ExecutionContext
+  private readonly deadLetterQueueOptions?: DeadLetterQueueOptions<
+    AMQPCreationConfig,
+    AMQPLocator,
+    NonNullable<unknown>
+  >
 
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   private readonly handlerContainer: HandlerContainer<
@@ -59,7 +67,6 @@ export abstract class AbstractAmqpConsumer<
     ExecutionContext,
     PrehandlerOutput
   >
-  private readonly executionContext: ExecutionContext
 
   constructor(
     dependencies: AMQPConsumerDependencies,
@@ -70,6 +77,7 @@ export abstract class AbstractAmqpConsumer<
 
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.errorResolver = dependencies.consumerErrorResolver
+    this.deadLetterQueueOptions = options.deadLetterQueue
 
     const messageSchemas = options.handlers.map((entry) => entry.schema)
     this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
@@ -91,6 +99,15 @@ export abstract class AbstractAmqpConsumer<
     await this.init()
     if (!this.channel) throw new Error('Channel is not set')
     await this.consume()
+  }
+
+  async init(): Promise<void> {
+    if (this.deadLetterQueueOptions) {
+      // TODO: https://www.cloudamqp.com/blog/when-and-how-to-use-the-rabbitmq-dead-letter-exchange.html
+      throw new Error('deadLetterQueue parameter is not currently supported by the Amqp adapter')
+    }
+
+    await super.init()
   }
 
   async receiveNewConnection(connection: Connection): Promise<void> {

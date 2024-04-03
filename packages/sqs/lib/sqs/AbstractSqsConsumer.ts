@@ -1,12 +1,14 @@
-import type { CreateQueueRequest } from '@aws-sdk/client-sqs'
+import { SendMessageCommand, SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
-  QueueConsumer as QueueConsumer,
+  QueueConsumer,
   TransactionObservabilityManager,
   QueueConsumerOptions,
   PrehandlingOutputs,
   Prehandler,
   BarrierResult,
+  QueueConsumerDependencies,
+  DeadLetterQueueOptions,
 } from '@message-queue-toolkit/core'
 import {
   isMessageError,
@@ -18,24 +20,23 @@ import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import type { SQSMessage } from '../types/MessageTypes'
+import { deleteSqs, initSqs } from '../utils/sqsInitter'
 import { readSqsMessage } from '../utils/sqsMessageReader'
 
-import type { SQSConsumerDependencies, SQSQueueLocatorType } from './AbstractSqsService'
+import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 
-export type ExtraSQSCreationParams = {
-  topicArnsWithPublishPermissionsPrefix?: string
-  updateAttributesIfExists?: boolean
+type SQSDeadLetterQueueOptions = {
+  redrivePolicy: {
+    maxReceiveCount: number
+  }
 }
 
-export type SQSCreationConfig = {
-  queue: CreateQueueRequest
-  updateAttributesIfExists?: boolean
-} & ExtraSQSCreationParams
+export type SQSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
 
 export type SQSConsumerOptions<
   MessagePayloadSchemas extends object,
@@ -46,6 +47,7 @@ export type SQSConsumerOptions<
 > = QueueConsumerOptions<
   CreationConfigType,
   QueueLocatorType,
+  SQSDeadLetterQueueOptions,
   MessagePayloadSchemas,
   ExecutionContext,
   PrehandlerOutput
@@ -97,6 +99,14 @@ export abstract class AbstractSqsConsumer<
   protected readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   protected readonly executionContext: ExecutionContext
 
+  private readonly deadLetterQueueOptions?: DeadLetterQueueOptions<
+    CreationConfigType,
+    QueueLocatorType,
+    SQSDeadLetterQueueOptions
+  >
+
+  protected deadLetterQueueUrl?: string
+
   protected constructor(
     dependencies: SQSConsumerDependencies,
     options: ConsumerOptionsType,
@@ -107,8 +117,9 @@ export abstract class AbstractSqsConsumer<
     this.errorResolver = dependencies.consumerErrorResolver
 
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
-    const messageSchemas = options.handlers.map((entry) => entry.schema)
+    this.deadLetterQueueOptions = options.deadLetterQueue
 
+    const messageSchemas = options.handlers.map((entry) => entry.schema)
     this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
       messageSchemas,
       messageTypeField: options.messageTypeField,
@@ -124,6 +135,37 @@ export abstract class AbstractSqsConsumer<
     this.executionContext = executionContext
   }
 
+  override async init(): Promise<void> {
+    await super.init()
+    await this.initDeadLetterQueue()
+  }
+
+  private async initDeadLetterQueue() {
+    if (!this.deadLetterQueueOptions) return
+
+    const { deletionConfig, locatorConfig, creationConfig, redrivePolicy } =
+      this.deadLetterQueueOptions
+
+    if (deletionConfig && creationConfig) {
+      await deleteSqs(this.sqsClient, deletionConfig, creationConfig)
+    }
+
+    const result = await initSqs(this.sqsClient, locatorConfig, creationConfig)
+    await this.sqsClient.send(
+      new SetQueueAttributesCommand({
+        QueueUrl: this.queueUrl,
+        Attributes: {
+          RedrivePolicy: JSON.stringify({
+            deadLetterTargetArn: result.queueArn,
+            maxReceiveCount: redrivePolicy.maxReceiveCount,
+          }),
+        },
+      }),
+    )
+
+    this.deadLetterQueueUrl = result.queueUrl
+  }
+
   public async start() {
     await this.init()
 
@@ -133,7 +175,6 @@ export abstract class AbstractSqsConsumer<
     this.consumer = Consumer.create({
       queueUrl: this.queueUrl,
       handleMessage: async (message: SQSMessage) => {
-        /* c8 ignore next */
         if (message === null) return
 
         const deserializedMessage = this.deserializeMessage(message)
@@ -159,13 +200,9 @@ export abstract class AbstractSqsConsumer<
           messageType,
         )
           .catch((err) => {
-            // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
-            // If we fail due to unknown reason, let's retry
             this.handleError(err)
-            return {
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-              error: err,
-            }
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            return { error: err }
           })
           .finally(() => {
             this.transactionObservabilityManager?.stop(transactionSpanId)
@@ -182,6 +219,18 @@ export abstract class AbstractSqsConsumer<
           deserializedMessage.result,
           result.error === 'retryLater' ? 'retryLater' : 'error',
         )
+
+        // in case of retryLater, if DLQ is set, we will send the message back to the queue
+        if (result.error === 'retryLater' && this.deadLetterQueueUrl) {
+          await this.sqsClient.send(
+            new SendMessageCommand({
+              QueueUrl: this.queueUrl,
+              MessageBody: message.Body,
+            }),
+          )
+          return message
+        }
+
         return Promise.reject(result.error)
       },
       sqs: this.sqsClient,
@@ -295,7 +344,6 @@ export abstract class AbstractSqsConsumer<
       return ABORT_EARLY_EITHER
     }
     // Empty content for whatever reason
-    /* c8 ignore next */
     if (!resolveMessageResult.result) return ABORT_EARLY_EITHER
 
     // @ts-ignore
@@ -352,7 +400,13 @@ export abstract class AbstractSqsConsumer<
     }
   }
 
-  private async failProcessing(_message: SQSMessage) {
-    // Not implemented yet - needs dead letter queue
+  private async failProcessing(message: SQSMessage) {
+    if (!this.deadLetterQueueUrl) return
+
+    const command = new SendMessageCommand({
+      QueueUrl: this.deadLetterQueueUrl,
+      MessageBody: message.Body,
+    })
+    await this.sqsClient.send(command)
   }
 }

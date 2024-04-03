@@ -1,11 +1,14 @@
 export type {
-  SQSConsumerDependencies,
-  SQSQueueLocatorType,
+  ExtraSQSCreationParams,
   SQSDependencies,
+  SQSCreationConfig,
+  SQSQueueLocatorType,
 } from './lib/sqs/AbstractSqsService'
 
-export * from './lib/sqs/AbstractSqsConsumer'
 export { SqsConsumerErrorResolver } from './lib/errors/SqsConsumerErrorResolver'
+
+export type { SQSConsumerDependencies, SQSConsumerOptions } from './lib/sqs/AbstractSqsConsumer'
+export { AbstractSqsConsumer } from './lib/sqs/AbstractSqsConsumer'
 
 export { AbstractSqsPublisher } from './lib/sqs/AbstractSqsPublisher'
 export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisher'
