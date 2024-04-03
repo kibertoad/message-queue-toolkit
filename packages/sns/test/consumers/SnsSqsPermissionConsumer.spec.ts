@@ -180,6 +180,80 @@ describe('SnsSqsPermissionConsumer', () => {
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
     })
+
+    it('creates a new dead letter queue', async () => {
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          topic: { Name: 'sometopic' },
+          queue: { QueueName: 'existingQueue' },
+          updateAttributesIfExists: true,
+        },
+        deadLetterQueue: {
+          redrivePolicy: { maxReceiveCount: 3 },
+          creationConfig: {
+            queue: { QueueName: 'deadLetterQueue' },
+          },
+        },
+      })
+
+      await newConsumer.init()
+      expect(newConsumer.subscriptionProps.queueUrl).toBe(
+        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+      )
+      expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
+        'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
+      )
+
+      const attributes = await getQueueAttributes(sqsClient, {
+        queueUrl: newConsumer.subscriptionProps.queueUrl,
+      })
+
+      expect(attributes.result?.attributes).toMatchObject({
+        RedrivePolicy: JSON.stringify({
+          deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:deadLetterQueue`,
+          maxReceiveCount: 3,
+        }),
+      })
+    })
+
+    it('using existing dead letter queue', async () => {
+      await assertQueue(sqsClient, {
+        QueueName: 'deadLetterQueue',
+      })
+
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          topic: { Name: 'sometopic' },
+          queue: { QueueName: 'existingQueue' },
+          updateAttributesIfExists: true,
+        },
+        deadLetterQueue: {
+          redrivePolicy: { maxReceiveCount: 3 },
+          locatorConfig: {
+            queueUrl: 'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
+          },
+        },
+      })
+
+      await newConsumer.init()
+      expect(newConsumer.subscriptionProps.queueUrl).toBe(
+        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+      )
+      expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
+        'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
+      )
+
+      const attributes = await getQueueAttributes(sqsClient, {
+        queueUrl: newConsumer.subscriptionProps.queueUrl,
+      })
+
+      expect(attributes.result?.attributes).toMatchObject({
+        RedrivePolicy: JSON.stringify({
+          deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:deadLetterQueue`,
+          maxReceiveCount: 3,
+        }),
+      })
+    })
   })
 
   describe('prehandlers', () => {

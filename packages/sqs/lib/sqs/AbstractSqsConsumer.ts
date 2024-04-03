@@ -50,7 +50,9 @@ export type SQSConsumerOptions<
   SQSDeadLetterQueueOptions,
   MessagePayloadSchemas,
   ExecutionContext,
-  PrehandlerOutput
+  PrehandlerOutput,
+  SQSCreationConfig,
+  SQSQueueLocatorType
 > & {
   consumerOverrides?: Partial<ConsumerOptions>
 }
@@ -100,8 +102,8 @@ export abstract class AbstractSqsConsumer<
   protected readonly executionContext: ExecutionContext
 
   private readonly deadLetterQueueOptions?: DeadLetterQueueOptions<
-    CreationConfigType,
-    QueueLocatorType,
+    SQSCreationConfig,
+    SQSQueueLocatorType,
     SQSDeadLetterQueueOptions
   >
 
@@ -140,7 +142,7 @@ export abstract class AbstractSqsConsumer<
     await this.initDeadLetterQueue()
   }
 
-  private async initDeadLetterQueue() {
+  protected async initDeadLetterQueue() {
     if (!this.deadLetterQueueOptions) return
 
     const { deletionConfig, locatorConfig, creationConfig, redrivePolicy } =
