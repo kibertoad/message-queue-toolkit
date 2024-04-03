@@ -287,15 +287,15 @@ describe('SnsSqsPermissionConsumer', () => {
           deleteIfExists: true,
         },
         removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
-          expect(prehandlerOutputs.prehandlerOutput.prehandlerCount).toBe(1)
+          expect(prehandlerOutputs.prehandlerOutput.preHandlerCount).toBe(1)
           return {
             result: 'success',
           }
         },
         removePreHandlers: [
           (message, context, prehandlerOutput, next) => {
-            prehandlerOutput.prehandlerCount = prehandlerOutput.prehandlerCount
-              ? prehandlerOutput.prehandlerCount + 1
+            prehandlerOutput.preHandlerCount = prehandlerOutput.preHandlerCount
+              ? prehandlerOutput.preHandlerCount + 1
               : 1
             next({
               result: 'success',
@@ -332,15 +332,15 @@ describe('SnsSqsPermissionConsumer', () => {
           deleteIfExists: true,
         },
         removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
-          expect(prehandlerOutputs.prehandlerOutput.prehandlerCount).toBe(11)
+          expect(prehandlerOutputs.prehandlerOutput.preHandlerCount).toBe(11)
           return {
             result: 'success',
           }
         },
         removePreHandlers: [
           (message, context, prehandlerOutput, next) => {
-            prehandlerOutput.prehandlerCount = prehandlerOutput.prehandlerCount
-              ? prehandlerOutput.prehandlerCount + 10
+            prehandlerOutput.preHandlerCount = prehandlerOutput.preHandlerCount
+              ? prehandlerOutput.preHandlerCount + 10
               : 10
             next({
               result: 'success',
@@ -348,8 +348,8 @@ describe('SnsSqsPermissionConsumer', () => {
           },
 
           (message, context, prehandlerOutput, next) => {
-            prehandlerOutput.prehandlerCount = prehandlerOutput.prehandlerCount
-              ? prehandlerOutput.prehandlerCount + 1
+            prehandlerOutput.preHandlerCount = prehandlerOutput.preHandlerCount
+              ? prehandlerOutput.preHandlerCount + 1
               : 1
             next({
               result: 'success',

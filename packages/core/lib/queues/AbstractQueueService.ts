@@ -13,7 +13,7 @@ import type {
   BarrierResult,
   Prehandler,
   PrehandlerResult,
-  PrehandlingOutputs,
+  PreHandlingOutputs,
 } from './HandlerContainer'
 import type { HandlerSpy, PublicHandlerSpy } from './HandlerSpy'
 import { resolveHandlerSpy } from './HandlerSpy'
@@ -255,7 +255,7 @@ export abstract class AbstractQueueService<
     message: MessagePayloadSchemas,
     messageType: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, any>,
+    preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, any>,
   ): Promise<Either<'retryLater', 'success'>>
 
   public abstract close(): Promise<unknown>

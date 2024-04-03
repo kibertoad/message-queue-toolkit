@@ -46,14 +46,14 @@ export type PublicHandlerSpy<MessagePayloadSchemas extends object> = Omit<
 type DeepPartial<T> = T extends Function
   ? T
   : T extends object
-    ? {
-        [P in keyof T]?: T[P] extends Array<infer U>
-          ? Array<DeepPartial<U>>
-          : T[P] extends ReadonlyArray<infer U>
-            ? ReadonlyArray<DeepPartial<U>>
-            : DeepPartial<T[P]>
-      }
-    : T
+  ? {
+      [P in keyof T]?: T[P] extends Array<infer U>
+        ? Array<DeepPartial<U>>
+        : T[P] extends ReadonlyArray<infer U>
+        ? ReadonlyArray<DeepPartial<U>>
+        : DeepPartial<T[P]>
+    }
+  : T
 
 export class HandlerSpy<MessagePayloadSchemas extends object> {
   public name = 'HandlerSpy'

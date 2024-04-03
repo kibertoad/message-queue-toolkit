@@ -183,7 +183,7 @@ describe('SqsPermissionPublisher', () => {
 
       const spy = await permissionPublisher.handlerSpy.waitForMessageWithId('1', 'published')
       expect(spy.message).toEqual(message)
-      expect(spy.processingResult).toEqual('published')
+      expect(spy.processingResult).toBe('published')
     })
 
     it('publish message with lazy loading', async () => {
@@ -200,7 +200,7 @@ describe('SqsPermissionPublisher', () => {
 
       const spy = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
       expect(spy.message).toEqual(message)
-      expect(spy.processingResult).toEqual('published')
+      expect(spy.processingResult).toBe('published')
     })
   })
 })

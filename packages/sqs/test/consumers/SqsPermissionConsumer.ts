@@ -1,6 +1,6 @@
 import type { Either } from '@lokalise/node-core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
-import type { BarrierResult, Prehandler, PrehandlingOutputs } from '@message-queue-toolkit/core'
+import type { BarrierResult, Prehandler, PreHandlingOutputs } from '@message-queue-toolkit/core'
 
 import type { SQSConsumerDependencies, SQSConsumerOptions } from '../../lib/sqs/AbstractSqsConsumer'
 import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer'
@@ -28,7 +28,7 @@ type SqsPermissionConsumerOptions = Pick<
   removeHandlerOverride?: (
     _message: SupportedMessages,
     context: ExecutionContext,
-    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
+    preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, number>,
   ) => Promise<Either<'retryLater', 'success'>>
   removePreHandlers?: Prehandler<SupportedMessages, ExecutionContext, PrehandlerOutput>[]
 }
@@ -62,7 +62,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
     const defaultRemoveHandler = async (
       _message: SupportedMessages,
       context: ExecutionContext,
-      _prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
+      _preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, number>,
     ): Promise<Either<'retryLater', 'success'>> => {
       this.removeCounter += context.incrementAmount
       return {

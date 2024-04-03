@@ -1,5 +1,5 @@
 import type { Either } from '@lokalise/node-core'
-import type { BarrierResult, Prehandler, PrehandlingOutputs } from '@message-queue-toolkit/core'
+import type { BarrierResult, Prehandler, PreHandlingOutputs } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 
 import type { AMQPConsumerOptions } from '../../lib/AbstractAmqpConsumer'
@@ -31,7 +31,7 @@ type AmqpPermissionConsumerOptions = Pick<
   removeHandlerOverride?: (
     _message: SupportedEvents,
     context: ExecutionContext,
-    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
+    preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, number>,
   ) => Promise<Either<'retryLater', 'success'>>
   removePreHandlers?: Prehandler<SupportedEvents, ExecutionContext, PrehandlerOutput>[]
 }
@@ -50,7 +50,7 @@ export class AmqpPermissionConsumer extends AbstractAmqpConsumer<
     const defaultRemoveHandler = async (
       _message: SupportedEvents,
       context: ExecutionContext,
-      _prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
+      _preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, number>,
     ): Promise<Either<'retryLater', 'success'>> => {
       this.removeCounter += context.incrementAmount
       return {

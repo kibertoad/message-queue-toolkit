@@ -4,7 +4,7 @@ import type {
   QueueConsumer,
   TransactionObservabilityManager,
   QueueConsumerOptions,
-  PrehandlingOutputs,
+  PreHandlingOutputs,
   Prehandler,
   BarrierResult,
   QueueConsumerDependencies,
@@ -276,11 +276,11 @@ export abstract class AbstractSqsConsumer<
     message: MessagePayloadType,
     messageType: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, any>,
+    preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, any>,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler<PrehandlerOutput>(messageType)
 
-    return handler.handler(message, this.executionContext, prehandlingOutputs)
+    return handler.handler(message, this.executionContext, preHandlingOutputs)
   }
 
   protected override processPrehandlers(message: MessagePayloadType, messageType: string) {

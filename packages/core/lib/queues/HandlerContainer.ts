@@ -4,7 +4,7 @@ import type { ZodSchema } from 'zod'
 import type { DoNotProcessMessageError } from '../errors/DoNotProcessError'
 import type { RetryMessageLaterError } from '../errors/RetryMessageLaterError'
 
-export type PrehandlingOutputs<PrehandlerOutput = undefined, BarrierOutput = undefined> = {
+export type PreHandlingOutputs<PrehandlerOutput = undefined, BarrierOutput = undefined> = {
   prehandlerOutput: PrehandlerOutput
   barrierOutput: BarrierOutput
 }
@@ -164,7 +164,7 @@ export type Handler<
 > = (
   message: MessagePayloadSchemas,
   context: ExecutionContext,
-  prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, BarrierOutput>,
+  preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, BarrierOutput>,
 ) => Promise<Either<'retryLater', 'success'>>
 
 export type HandlerContainerOptions<
