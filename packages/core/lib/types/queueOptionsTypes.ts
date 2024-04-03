@@ -74,11 +74,13 @@ export type QueueConsumerOptions<
   MessagePayloadSchemas extends object,
   ExecutionContext,
   PrehandlerOutput = undefined,
+  DeadLetterQueueCreationConfigType extends object = CreationConfigType,
+  DeadLetterQueueQueueLocatorType extends object = QueueLocatorType,
 > = QueueOptions<CreationConfigType, QueueLocatorType> & {
   handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
   deadLetterQueue?: DeadLetterQueueOptions<
-    CreationConfigType,
-    QueueLocatorType,
+    DeadLetterQueueCreationConfigType,
+    DeadLetterQueueQueueLocatorType,
     DeadLetterQueueIntegrationOptions
   >
 }

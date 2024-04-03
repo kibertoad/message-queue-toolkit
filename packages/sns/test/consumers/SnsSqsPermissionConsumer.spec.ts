@@ -192,7 +192,6 @@ describe('SnsSqsPermissionConsumer', () => {
           redrivePolicy: { maxReceiveCount: 3 },
           creationConfig: {
             queue: { QueueName: 'deadLetterQueue' },
-            topic: { Name: 'xxxx' }, // TODO: remove topic creation
           },
         },
       })
@@ -232,7 +231,6 @@ describe('SnsSqsPermissionConsumer', () => {
           redrivePolicy: { maxReceiveCount: 3 },
           locatorConfig: {
             queueUrl: 'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
-            topicArn: 'xxxx', // TODO: remove topic creation
           },
         },
       })
