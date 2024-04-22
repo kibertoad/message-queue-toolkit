@@ -10,7 +10,7 @@ import { ZodError } from 'zod'
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import { FakeLogger } from '../fakes/FakeLogger'
-import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
+import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -75,6 +75,7 @@ describe('SqsPermissionConsumer', () => {
             QueueName: queueName,
             Attributes: {
               KmsMasterKeyId: 'othervalue',
+              VisibilityTimeout: '10',
             },
           },
           updateAttributesIfExists: true,
@@ -101,7 +102,10 @@ describe('SqsPermissionConsumer', () => {
         queueUrl: newConsumer.queueProps.url,
       })
 
-      expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
+      expect(attributes.result?.attributes).toMatchObject({
+        KmsMasterKeyId: 'othervalue',
+        VisibilityTimeout: '10',
+      })
     })
 
     it('does not update existing queue when attributes did not change', async () => {
@@ -476,6 +480,66 @@ describe('SqsPermissionConsumer', () => {
 
       expect(consumer.addCounter).toBe(1)
       expect(consumer.removeCounter).toBe(2)
+    })
+  })
+
+  // TDD -> a message can be consumed twice by different consumers
+  describe('visibility timeout', () => {
+    const queueName = 'myTestQueue'
+    let diContainer: AwilixContainer<Dependencies>
+
+    beforeEach(async () => {
+      diContainer = await registerDependencies()
+      await diContainer.cradle.permissionConsumer.close()
+      await diContainer.cradle.permissionPublisher.close()
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('heartbeat using 2 SqsPermissionConsumer', async () => {
+      let consumer1IsProcessing = false
+      let consumer1Counter = 0
+      const consumer1 = new SqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          queue: { QueueName: queueName, Attributes: { VisibilityTimeout: '1' } },
+        },
+        removeHandlerOverride: async () => {
+          consumer1IsProcessing = true
+          await new Promise((resolve) => setTimeout(resolve, 2000))
+          consumer1Counter++
+          consumer1IsProcessing = false
+          return { result: 'success' }
+        },
+      })
+      await consumer1.start()
+
+      const publisher = new SqsPermissionPublisher(diContainer.cradle, {
+        locatorConfig: { queueUrl: consumer1.queueProps.url },
+      })
+      await publisher.publish({
+        id: '10',
+        messageType: 'remove',
+      })
+
+      let consumer2Counter = 0
+      const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
+        locatorConfig: { queueUrl: consumer1.queueProps.url },
+        removeHandlerOverride: async () => {
+          consumer2Counter++
+          return { result: 'success' }
+        },
+      })
+      await waitAndRetry(() => consumer1IsProcessing, 5, 5)
+      await consumer2.start()
+
+      await waitAndRetry(() => consumer1Counter > 0 && consumer2Counter > 0, 100, 30)
+      //await new Promise((resolve) => setTimeout(resolve, 3000))
+
+      expect(consumer1Counter).toBe(1)
+      expect(consumer2Counter).toBe(1)
     })
   })
 })
