@@ -488,9 +488,10 @@ describe('SqsPermissionConsumer', () => {
     let diContainer: AwilixContainer<Dependencies>
 
     beforeEach(async () => {
-      diContainer = await registerDependencies()
-      await diContainer.cradle.permissionConsumer.close()
-      await diContainer.cradle.permissionPublisher.close()
+      diContainer = await registerDependencies({
+        permissionPublisher: asFunction(() => undefined),
+        permissionConsumer: asFunction(() => undefined),
+      })
     })
 
     afterEach(async () => {
