@@ -499,7 +499,7 @@ describe('SqsPermissionConsumer', () => {
       await diContainer.dispose()
     })
 
-    it('heartbeat using 2 SqsPermissionConsumer', async () => {
+    it.each([false, true])('using 2 consumers with heartbeat -> %s', async (heartbeatEnabled) => {
       let consumer1IsProcessing = false
       let consumer1Counter = 0
       let consumer2Counter = 0
@@ -511,8 +511,10 @@ describe('SqsPermissionConsumer', () => {
             Attributes: { VisibilityTimeout: '2' },
           },
         },
+        consumerOverrides: { heartbeatInterval: heartbeatEnabled ? 1 : undefined },
         removeHandlerOverride: async () => {
           consumer1IsProcessing = true
+          // wait for consumer2 to process message while this is still processing
           await waitAndRetry(() => consumer2Counter > 0, 100, 30)
           consumer1Counter++
           consumer1IsProcessing = false
@@ -521,14 +523,6 @@ describe('SqsPermissionConsumer', () => {
       })
       await consumer1.start()
 
-      const publisher = new SqsPermissionPublisher(diContainer.cradle, {
-        locatorConfig: { queueUrl: consumer1.queueProps.url },
-      })
-      await publisher.publish({
-        id: '10',
-        messageType: 'remove',
-      })
-
       const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: { queueUrl: consumer1.queueProps.url },
         removeHandlerOverride: async () => {
@@ -536,13 +530,20 @@ describe('SqsPermissionConsumer', () => {
           return { result: 'success' }
         },
       })
+      const publisher = new SqsPermissionPublisher(diContainer.cradle, {
+        locatorConfig: { queueUrl: consumer1.queueProps.url },
+      })
+
+      await publisher.publish({ id: '10', messageType: 'remove' })
+      // wait for consumer1 to start processing to start second consumer
       await waitAndRetry(() => consumer1IsProcessing, 5, 5)
       await consumer2.start()
 
+      // wait for both consumers to process message
       await waitAndRetry(() => consumer1Counter > 0 && consumer2Counter > 0, 100, 40)
 
       expect(consumer1Counter).toBe(1)
-      expect(consumer2Counter).toBe(1)
+      expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)
     })
   })
 })
