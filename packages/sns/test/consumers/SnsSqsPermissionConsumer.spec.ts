@@ -1,3 +1,5 @@
+import { setTimeout } from 'node:timers/promises'
+
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
@@ -472,7 +474,7 @@ describe('SnsSqsPermissionConsumer', () => {
         consumerOverrides: { heartbeatInterval: heartbeatEnabled ? 1 : undefined },
         removeHandlerOverride: async () => {
           consumer1IsProcessing = true
-          await new Promise((done) => setTimeout(done, 2800)) // Wait to the visibility timeout to expire
+          await setTimeout(2800) // Wait to the visibility timeout to expire
           consumer1Counter++
           consumer1IsProcessing = false
           return { result: 'success' }
