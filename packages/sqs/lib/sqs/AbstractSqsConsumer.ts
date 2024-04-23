@@ -55,7 +55,14 @@ export type SQSConsumerOptions<
   SQSCreationConfig,
   SQSQueueLocatorType
 > & {
-  consumerOverrides?: Pick<ConsumerOptions, 'terminateVisibilityTimeout' | 'heartbeatInterval'>
+  /**
+   * Omitting properties which will be set internally ins this class
+   * `visibilityTimeout` is also omitted to avoid conflicts with queue config
+   */
+  consumerOverrides?: Omit<
+    ConsumerOptions,
+    'sqs' | 'queueUrl' | 'handler' | 'handleMessageBatch' | 'visibilityTimeout'
+  >
 }
 
 export abstract class AbstractSqsConsumer<
