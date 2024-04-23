@@ -174,18 +174,17 @@ export abstract class AbstractSqsConsumer<
     await this.init()
     if (this.consumer) this.consumer.stop()
 
-    const visibilityTimeout = await getQueueAttributes(
-      this.sqsClient,
-      { queueUrl: this.queueUrl },
-      ['VisibilityTimeout'],
-    )
+    const queueAttributes = await getQueueAttributes(this.sqsClient, { queueUrl: this.queueUrl }, [
+      'VisibilityTimeout',
+    ])
+    const visibilityTimeout = queueAttributes.result?.attributes?.VisibilityTimeout
+      ? parseInt(queueAttributes.result.attributes.VisibilityTimeout)
+      : undefined
 
     this.consumer = Consumer.create({
       sqs: this.sqsClient,
       queueUrl: this.queueUrl,
-      visibilityTimeout: visibilityTimeout.result?.attributes?.VisibilityTimeout
-        ? parseInt(visibilityTimeout.result.attributes.VisibilityTimeout)
-        : undefined,
+      visibilityTimeout,
       ...this.consumerOptionsOverride,
       handleMessage: async (message: SQSMessage) => {
         if (message === null) return
