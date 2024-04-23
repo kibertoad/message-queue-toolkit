@@ -502,13 +502,18 @@ describe('SqsPermissionConsumer', () => {
     it('heartbeat using 2 SqsPermissionConsumer', async () => {
       let consumer1IsProcessing = false
       let consumer1Counter = 0
+      let consumer2Counter = 0
+
       const consumer1 = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
-          queue: { QueueName: queueName, Attributes: { VisibilityTimeout: '1' } },
+          queue: {
+            QueueName: queueName,
+            Attributes: { VisibilityTimeout: '2' },
+          },
         },
         removeHandlerOverride: async () => {
           consumer1IsProcessing = true
-          await new Promise((resolve) => setTimeout(resolve, 2000))
+          await waitAndRetry(() => consumer2Counter > 0, 100, 30)
           consumer1Counter++
           consumer1IsProcessing = false
           return { result: 'success' }
@@ -524,7 +529,6 @@ describe('SqsPermissionConsumer', () => {
         messageType: 'remove',
       })
 
-      let consumer2Counter = 0
       const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: { queueUrl: consumer1.queueProps.url },
         removeHandlerOverride: async () => {
@@ -535,8 +539,7 @@ describe('SqsPermissionConsumer', () => {
       await waitAndRetry(() => consumer1IsProcessing, 5, 5)
       await consumer2.start()
 
-      await waitAndRetry(() => consumer1Counter > 0 && consumer2Counter > 0, 100, 30)
-      //await new Promise((resolve) => setTimeout(resolve, 3000))
+      await waitAndRetry(() => consumer1Counter > 0 && consumer2Counter > 0, 100, 40)
 
       expect(consumer1Counter).toBe(1)
       expect(consumer2Counter).toBe(1)
