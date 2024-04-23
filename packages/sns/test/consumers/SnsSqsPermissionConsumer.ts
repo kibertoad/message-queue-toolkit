@@ -32,7 +32,7 @@ type PrehandlerOutput = {
 
 type SnsSqsPermissionConsumerOptions = Pick<
   SNSSQSConsumerOptions<SupportedMessages, ExecutionContext, PrehandlerOutput>,
-  'creationConfig' | 'locatorConfig' | 'deletionConfig' | 'deadLetterQueue'
+  'creationConfig' | 'locatorConfig' | 'deletionConfig' | 'deadLetterQueue' | 'consumerOverrides'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -143,6 +143,9 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
         deletionConfig: options.deletionConfig ?? {
           deleteIfExists: true,
         },
+        consumerOverrides: options.consumerOverrides ?? {
+          terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
+        },
         deadLetterQueue: options.deadLetterQueue,
         ...(options.locatorConfig
           ? { locatorConfig: options.locatorConfig }
@@ -153,9 +156,6 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
               },
             }),
         messageTypeField: 'messageType',
-        consumerOverrides: {
-          terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
-        },
         subscriptionConfig: {
           updateAttributesIfExists: false,
         },
