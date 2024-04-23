@@ -519,8 +519,7 @@ describe('SqsPermissionConsumer', () => {
         consumerOverrides: { heartbeatInterval: heartbeatEnabled ? 1 : undefined },
         removeHandlerOverride: async () => {
           consumer1IsProcessing = true
-          // wait for consumer2 to process message while this is still processing
-          await waitAndRetry(() => consumer2Counter > 0, 100, 30)
+          await new Promise((done) => setTimeout(done, 2800)) // Wait to the visibility timeout to expire
           consumer1Counter++
           consumer1IsProcessing = false
           return { result: 'success' }
