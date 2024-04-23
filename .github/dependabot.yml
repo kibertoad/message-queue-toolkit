@@ -11,11 +11,12 @@ updates:
     schedule:
       interval: 'weekly'
     open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: "eslint"
     groups:
       lint:
         patterns:
           - "@typescript-eslint/*"
-          - "eslint"
           - "eslint-*"
           - "prettier"
       vitest:
