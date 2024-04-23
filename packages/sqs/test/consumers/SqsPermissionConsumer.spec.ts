@@ -483,7 +483,6 @@ describe('SqsPermissionConsumer', () => {
     })
   })
 
-  // TDD -> a message can be consumed twice by different consumers
   describe('visibility timeout', () => {
     const queueName = 'myTestQueue'
     let diContainer: AwilixContainer<Dependencies>
