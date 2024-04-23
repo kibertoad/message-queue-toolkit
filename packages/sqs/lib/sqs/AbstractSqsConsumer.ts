@@ -253,8 +253,6 @@ export abstract class AbstractSqsConsumer<
 
         return Promise.reject(result.error)
       },
-      sqs: this.sqsClient,
-      ...this.consumerOptionsOverride,
     })
 
     this.consumer.on('error', (err) => {
