@@ -13,7 +13,7 @@ import type {
   BarrierResult,
   Prehandler,
   PrehandlerResult,
-  PrehandlingOutputs,
+  PreHandlingOutputs,
 } from './HandlerContainer'
 import type { HandlerSpy, PublicHandlerSpy } from './HandlerSpy'
 import { resolveHandlerSpy } from './HandlerSpy'
@@ -148,21 +148,21 @@ export abstract class AbstractQueueService<
   }
 
   protected processPrehandlersInternal(
-    prehandlers: Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[],
+    preHandlers: Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[],
     message: MessagePayloadSchemas,
   ) {
-    if (prehandlers.length === 0) {
+    if (preHandlers.length === 0) {
       return Promise.resolve({} as PrehandlerOutput)
     }
 
     return new Promise<PrehandlerOutput>((resolve, reject) => {
       try {
-        const prehandlerOutput = {} as PrehandlerOutput
+        const preHandlerOutput = {} as PrehandlerOutput
         const next = this.resolveNextFunction(
-          prehandlers,
+          preHandlers,
           message,
           0,
-          prehandlerOutput,
+          preHandlerOutput,
           resolve,
           reject,
         )
@@ -179,7 +179,7 @@ export abstract class AbstractQueueService<
       | undefined,
     message: MessagePayloadSchemas,
     executionContext: ExecutionContext,
-    prehandlerOutput: PrehandlerOutput,
+    preHandlerOutput: PrehandlerOutput,
   ): Promise<BarrierResult<BarrierOutput>> {
     if (!barrier) {
       // @ts-ignore
@@ -190,48 +190,48 @@ export abstract class AbstractQueueService<
     }
 
     // @ts-ignore
-    return await barrier(message, executionContext, prehandlerOutput)
+    return await barrier(message, executionContext, preHandlerOutput)
   }
 
   protected abstract resolveNextFunction(
-    prehandlers: Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[],
+    preHandlers: Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[],
     message: MessagePayloadSchemas,
     index: number,
-    prehandlerOutput: PrehandlerOutput,
+    preHandlerOutput: PrehandlerOutput,
     resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
     reject: (err: Error) => void,
-  ): (prehandlerResult: PrehandlerResult) => void
+  ): (preHandlerResult: PrehandlerResult) => void
 
   // eslint-disable-next-line max-params
   protected resolveNextPreHandlerFunctionInternal(
-    prehandlers: Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[],
+    preHandlers: Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[],
     executionContext: ExecutionContext,
     message: MessagePayloadSchemas,
     index: number,
-    prehandlerOutput: PrehandlerOutput,
+    preHandlerOutput: PrehandlerOutput,
     resolve: (value: PrehandlerOutput | PromiseLike<PrehandlerOutput>) => void,
     reject: (err: Error) => void,
-  ): (prehandlerResult: PrehandlerResult) => void {
-    return (prehandlerResult: PrehandlerResult) => {
-      if (prehandlerResult.error) {
-        reject(prehandlerResult.error)
+  ): (preHandlerResult: PrehandlerResult) => void {
+    return (preHandlerResult: PrehandlerResult) => {
+      if (preHandlerResult.error) {
+        reject(preHandlerResult.error)
       }
 
-      if (prehandlers.length < index + 1) {
-        resolve(prehandlerOutput)
+      if (preHandlers.length < index + 1) {
+        resolve(preHandlerOutput)
       } else {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        prehandlers[index](
+        preHandlers[index](
           message,
           executionContext,
           // @ts-ignore
-          prehandlerOutput,
+          preHandlerOutput,
           this.resolveNextPreHandlerFunctionInternal(
-            prehandlers,
+            preHandlers,
             executionContext,
             message,
             index + 1,
-            prehandlerOutput,
+            preHandlerOutput,
             resolve,
             reject,
           ),
@@ -248,14 +248,14 @@ export abstract class AbstractQueueService<
   protected abstract preHandlerBarrier<BarrierOutput>(
     message: MessagePayloadSchemas,
     messageType: string,
-    prehandlerOutput: PrehandlerOutput,
+    preHandlerOutput: PrehandlerOutput,
   ): Promise<BarrierResult<BarrierOutput>>
 
   protected abstract processMessage(
     message: MessagePayloadSchemas,
     messageType: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, any>,
+    preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, any>,
   ): Promise<Either<'retryLater', 'success'>>
 
   public abstract close(): Promise<unknown>

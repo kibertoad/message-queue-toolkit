@@ -4,8 +4,8 @@ import type { ZodSchema } from 'zod'
 import type { DoNotProcessMessageError } from '../errors/DoNotProcessError'
 import type { RetryMessageLaterError } from '../errors/RetryMessageLaterError'
 
-export type PrehandlingOutputs<PrehandlerOutput = undefined, BarrierOutput = undefined> = {
-  prehandlerOutput: PrehandlerOutput
+export type PreHandlingOutputs<PrehandlerOutput = undefined, BarrierOutput = undefined> = {
+  preHandlerOutput: PrehandlerOutput
   barrierOutput: BarrierOutput
 }
 
@@ -35,13 +35,13 @@ export type BarrierCallback<
 > = (
   message: MessagePayloadSchema,
   context: ExecutionContext,
-  prehandlerOutput: PrehandlerOutput,
+  preHandlerOutput: PrehandlerOutput,
 ) => Promise<BarrierResult<BarrierOutput>>
 
 export type Prehandler<MessagePayloadSchema extends object, ExecutionContext, PrehandlerOutput> = (
   message: MessagePayloadSchema,
   context: ExecutionContext,
-  prehandlerOutput: Partial<PrehandlerOutput>,
+  preHandlerOutput: Partial<PrehandlerOutput>,
   next: (result: PrehandlerResult) => void,
 ) => void
 
@@ -60,7 +60,7 @@ export type HandlerConfigOptions<
     PrehandlerOutput,
     BarrierOutput
   >
-  prehandlers?: Prehandler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput>[]
+  preHandlers?: Prehandler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput>[]
 }
 
 export class MessageHandlerConfig<
@@ -83,7 +83,7 @@ export class MessageHandlerConfig<
     PrehandlerOutput,
     BarrierOutput
   >
-  public readonly prehandlers: Prehandler<
+  public readonly preHandlers: Prehandler<
     MessagePayloadSchema,
     ExecutionContext,
     PrehandlerOutput
@@ -103,7 +103,7 @@ export class MessageHandlerConfig<
     this.handler = handler
     this.messageLogFormatter = options?.messageLogFormatter ?? defaultLogFormatter
     this.preHandlerBarrier = options?.preHandlerBarrier
-    this.prehandlers = options?.prehandlers ?? []
+    this.preHandlers = options?.preHandlers ?? []
   }
 }
 
@@ -164,7 +164,7 @@ export type Handler<
 > = (
   message: MessagePayloadSchemas,
   context: ExecutionContext,
-  prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, BarrierOutput>,
+  preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, BarrierOutput>,
 ) => Promise<Either<'retryLater', 'success'>>
 
 export type HandlerContainerOptions<

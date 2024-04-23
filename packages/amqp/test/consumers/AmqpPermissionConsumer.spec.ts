@@ -177,7 +177,7 @@ describe('AmqpPermissionConsumer', () => {
     })
   })
 
-  describe('prehandlers', () => {
+  describe('preHandlers', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: AmqpPermissionPublisher
     beforeEach(async () => {
@@ -191,20 +191,20 @@ describe('AmqpPermissionConsumer', () => {
       await diContainer.dispose()
     })
 
-    it('processes one prehandler', async () => {
+    it('processes one preHandler', async () => {
       expect.assertions(1)
 
       const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
-        removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
-          expect(prehandlerOutputs.prehandlerOutput.prehandlerCount).toBe(1)
+        removeHandlerOverride: async (message, _context, preHandlerOutputs) => {
+          expect(preHandlerOutputs.preHandlerOutput.preHandlerCount).toBe(1)
           return {
             result: 'success',
           }
         },
         removePreHandlers: [
-          (message, context, prehandlerOutput, next) => {
-            prehandlerOutput.prehandlerCount = prehandlerOutput.prehandlerCount
-              ? prehandlerOutput.prehandlerCount + 1
+          (message, context, preHandlerOutput, next) => {
+            preHandlerOutput.preHandlerCount = preHandlerOutput.preHandlerCount
+              ? preHandlerOutput.preHandlerCount + 1
               : 1
             next({
               result: 'success',
@@ -224,29 +224,29 @@ describe('AmqpPermissionConsumer', () => {
       await newConsumer.close()
     })
 
-    it('processes two prehandlers', async () => {
+    it('processes two preHandlers', async () => {
       expect.assertions(1)
 
       const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
-        removeHandlerOverride: async (message, _context, prehandlerOutputs) => {
-          expect(prehandlerOutputs.prehandlerOutput.prehandlerCount).toBe(11)
+        removeHandlerOverride: async (message, _context, preHandlerOutputs) => {
+          expect(preHandlerOutputs.preHandlerOutput.preHandlerCount).toBe(11)
           return {
             result: 'success',
           }
         },
         removePreHandlers: [
-          (message, context, prehandlerOutput, next) => {
-            prehandlerOutput.prehandlerCount = prehandlerOutput.prehandlerCount
-              ? prehandlerOutput.prehandlerCount + 10
+          (message, context, preHandlerOutput, next) => {
+            preHandlerOutput.preHandlerCount = preHandlerOutput.preHandlerCount
+              ? preHandlerOutput.preHandlerCount + 10
               : 10
             next({
               result: 'success',
             })
           },
 
-          (message, context, prehandlerOutput, next) => {
-            prehandlerOutput.prehandlerCount = prehandlerOutput.prehandlerCount
-              ? prehandlerOutput.prehandlerCount + 1
+          (message, context, preHandlerOutput, next) => {
+            preHandlerOutput.preHandlerCount = preHandlerOutput.preHandlerCount
+              ? preHandlerOutput.preHandlerCount + 1
               : 1
             next({
               result: 'success',

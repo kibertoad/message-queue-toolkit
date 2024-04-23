@@ -3,7 +3,7 @@ import {
   type BarrierResult,
   MessageHandlerConfigBuilder,
   type Prehandler,
-  type PrehandlingOutputs,
+  type PreHandlingOutputs,
 } from '@message-queue-toolkit/core'
 import type { PrehandlerResult } from '@message-queue-toolkit/core/dist/lib/queues/HandlerContainer'
 
@@ -26,31 +26,31 @@ type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSA
 type ExecutionContext = {
   incrementAmount: number
 }
-type PrehandlerOutput = {
-  prehandlerCount: number
+type PreHandlerOutput = {
+  preHandlerCount: number
 }
 
 type SnsSqsPermissionConsumerOptions = Pick<
-  SNSSQSConsumerOptions<SupportedMessages, ExecutionContext, PrehandlerOutput>,
+  SNSSQSConsumerOptions<SupportedMessages, ExecutionContext, PreHandlerOutput>,
   'creationConfig' | 'locatorConfig' | 'deletionConfig' | 'deadLetterQueue' | 'consumerOverrides'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
     _executionContext: ExecutionContext,
-    prehandlerOutput: PrehandlerOutput,
+    preHandlerOutput: PreHandlerOutput,
   ) => Promise<BarrierResult<number>>
   removeHandlerOverride?: (
     _message: SupportedMessages,
     context: ExecutionContext,
-    prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
+    preHandlingOutputs: PreHandlingOutputs<PreHandlerOutput, number>,
   ) => Promise<Either<'retryLater', 'success'>>
-  removePreHandlers?: Prehandler<SupportedMessages, ExecutionContext, PrehandlerOutput>[]
+  removePreHandlers?: Prehandler<SupportedMessages, ExecutionContext, PreHandlerOutput>[]
 }
 
 export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
   SupportedMessages,
   ExecutionContext,
-  PrehandlerOutput
+  PreHandlerOutput
 > {
   public static readonly CONSUMED_QUEUE_NAME = 'user_permissions_multi'
   public static readonly SUBSCRIBED_TOPIC_NAME = 'user_permissions_multi'
@@ -58,7 +58,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
   public addCounter = 0
   public addBarrierCounter = 0
   public removeCounter = 0
-  public prehandlerCounter = 0
+  public preHandlerCounter = 0
 
   constructor(
     dependencies: SNSSQSConsumerDependencies,
@@ -76,7 +76,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
     const defaultRemoveHandler = async (
       _message: SupportedMessages,
       context: ExecutionContext,
-      _prehandlingOutputs: PrehandlingOutputs<PrehandlerOutput, number>,
+      _preHandlingOutputs: PreHandlingOutputs<PreHandlerOutput, number>,
     ): Promise<Either<'retryLater', 'success'>> => {
       this.removeCounter += context.incrementAmount
       return {
@@ -91,26 +91,26 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
         handlers: new MessageHandlerConfigBuilder<
           SupportedMessages,
           ExecutionContext,
-          PrehandlerOutput
+          PreHandlerOutput
         >()
           .addConfig(
             PERMISSIONS_ADD_MESSAGE_SCHEMA,
-            async (_message, context, _prehandlingOutputs) => {
+            async (_message, context, _preHandlingOutputs) => {
               this.addCounter += context.incrementAmount
               return {
                 result: 'success',
               }
             },
             {
-              prehandlers: [
+              preHandlers: [
                 (
                   message: SupportedMessages,
                   context: ExecutionContext,
-                  prehandlerOutput: Partial<PrehandlerOutput>,
+                  preHandlerOutput: Partial<PreHandlerOutput>,
                   next: (result: PrehandlerResult) => void,
                 ) => {
-                  if (message.prehandlerIncrement) {
-                    this.prehandlerCounter += message.prehandlerIncrement
+                  if (message.preHandlerIncrement) {
+                    this.preHandlerCounter += message.preHandlerIncrement
                   }
                   next({
                     result: 'success',
@@ -136,7 +136,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
             PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
             options.removeHandlerOverride ?? defaultRemoveHandler,
             {
-              prehandlers: options.removePreHandlers,
+              preHandlers: options.removePreHandlers,
             },
           )
           .build(),
