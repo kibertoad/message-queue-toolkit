@@ -3,7 +3,7 @@ import type { SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
-import { asFunction } from 'awilix'
+import { asValue, asFunction } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
 import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
@@ -449,8 +449,8 @@ describe('SnsSqsPermissionConsumer', () => {
 
     beforeEach(async () => {
       diContainer = await registerDependencies({
-        permissionConsumer: asFunction(() => undefined),
-        permissionPublisher: asFunction(() => undefined),
+        permissionConsumer: asValue(() => undefined),
+        permissionPublisher: asValue(() => undefined),
       })
     })
 

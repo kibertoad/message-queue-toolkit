@@ -3,7 +3,7 @@ import { SendMessageCommand, ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { BarrierResult } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
-import { asClass, asFunction } from 'awilix'
+import { asValue, asClass, asFunction } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 import { ZodError } from 'zod'
 
@@ -489,8 +489,8 @@ describe('SqsPermissionConsumer', () => {
 
     beforeEach(async () => {
       diContainer = await registerDependencies({
-        permissionPublisher: asFunction(() => undefined),
-        permissionConsumer: asFunction(() => undefined),
+        permissionPublisher: asValue(() => undefined),
+        permissionConsumer: asValue(() => undefined),
       })
     })
 
