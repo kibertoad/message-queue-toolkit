@@ -1,11 +1,13 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
+import { waitAndRetry } from '@lokalise/node-core'
 import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
+import { asFunction } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
 import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
-import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
+import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -88,6 +90,7 @@ describe('SnsSqsPermissionConsumer', () => {
             QueueName: 'existingQueue',
             Attributes: {
               KmsMasterKeyId: 'othervalue',
+              VisibilityTimeout: '10',
             },
           },
           updateAttributesIfExists: true,
@@ -106,7 +109,10 @@ describe('SnsSqsPermissionConsumer', () => {
         queueUrl: newConsumer.subscriptionProps.queueUrl,
       })
 
-      expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
+      expect(attributes.result?.attributes).toMatchObject({
+        KmsMasterKeyId: 'othervalue',
+        VisibilityTimeout: '10',
+      })
     })
 
     it('updates existing queue when one with different attributes exist and sets the policy', async () => {
@@ -433,6 +439,73 @@ describe('SnsSqsPermissionConsumer', () => {
         expect(consumer.addCounter).toBe(1)
         expect(consumer.removeCounter).toBe(2)
       })
+    })
+  })
+
+  describe('visibility timeout', () => {
+    const topicName = 'myTestTopic'
+    const queueName = 'myTestQueue'
+    let diContainer: AwilixContainer<Dependencies>
+
+    beforeEach(async () => {
+      diContainer = await registerDependencies({
+        permissionConsumer: asFunction(() => undefined),
+        permissionPublisher: asFunction(() => undefined),
+      })
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it.each([false, true])('using 2 consumers with heartbeat -> %s', async (heartbeatEnabled) => {
+      let consumer1IsProcessing = false
+      let consumer1Counter = 0
+      let consumer2Counter = 0
+
+      const consumer1 = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          topic: { Name: topicName },
+          queue: { QueueName: queueName, Attributes: { VisibilityTimeout: '2' } },
+        },
+        consumerOverrides: { heartbeatInterval: heartbeatEnabled ? 1 : undefined },
+        removeHandlerOverride: async () => {
+          consumer1IsProcessing = true
+          // wait for consumer2 to process message while this is still processing
+          await waitAndRetry(() => consumer2Counter > 0, 100, 30)
+          consumer1Counter++
+          consumer1IsProcessing = false
+          return { result: 'success' }
+        },
+      })
+      await consumer1.start()
+
+      const consumer2 = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        locatorConfig: {
+          queueUrl: consumer1.subscriptionProps.queueUrl,
+          topicArn: consumer1.subscriptionProps.topicArn,
+          subscriptionArn: consumer1.subscriptionProps.subscriptionArn,
+        },
+        removeHandlerOverride: async () => {
+          consumer2Counter++
+          return { result: 'success' }
+        },
+      })
+      const publisher = new SnsPermissionPublisher(diContainer.cradle, {
+        locatorConfig: { topicArn: consumer1.subscriptionProps.topicArn },
+      })
+
+      await publisher.publish({ id: '10', messageType: 'remove' })
+      // wait for consumer1 to start processing to start second consumer
+      await waitAndRetry(() => consumer1IsProcessing, 5, 5)
+      await consumer2.start()
+
+      // wait for both consumers to process message
+      await waitAndRetry(() => consumer1Counter > 0 && consumer2Counter > 0, 100, 40)
+
+      expect(consumer1Counter).toBe(1)
+      expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)
     })
   })
 })
