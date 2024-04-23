@@ -1,16 +1,18 @@
+import { setTimeout } from 'node:timers/promises'
+
 import type { SendMessageCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import { SendMessageCommand, ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { BarrierResult } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
-import { asClass, asFunction } from 'awilix'
+import { asValue, asClass, asFunction } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 import { ZodError } from 'zod'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import { FakeLogger } from '../fakes/FakeLogger'
-import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
+import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -75,6 +77,7 @@ describe('SqsPermissionConsumer', () => {
             QueueName: queueName,
             Attributes: {
               KmsMasterKeyId: 'othervalue',
+              VisibilityTimeout: '10',
             },
           },
           updateAttributesIfExists: true,
@@ -101,7 +104,10 @@ describe('SqsPermissionConsumer', () => {
         queueUrl: newConsumer.queueProps.url,
       })
 
-      expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
+      expect(attributes.result?.attributes).toMatchObject({
+        KmsMasterKeyId: 'othervalue',
+        VisibilityTimeout: '10',
+      })
     })
 
     it('does not update existing queue when attributes did not change', async () => {
@@ -476,6 +482,74 @@ describe('SqsPermissionConsumer', () => {
 
       expect(consumer.addCounter).toBe(1)
       expect(consumer.removeCounter).toBe(2)
+    })
+  })
+
+  describe('visibility timeout', () => {
+    const queueName = 'myTestQueue'
+    let diContainer: AwilixContainer<Dependencies>
+
+    beforeEach(async () => {
+      diContainer = await registerDependencies({
+        permissionPublisher: asValue(() => undefined),
+        permissionConsumer: asValue(() => undefined),
+      })
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('heartbeatInterval should be less than visibilityTimeout', async () => {
+      const consumer = new SqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: { queue: { QueueName: queueName, Attributes: { VisibilityTimeout: '1' } } },
+        consumerOverrides: { heartbeatInterval: 2 },
+      })
+      await expect(() => consumer.start()).rejects.toThrow(
+        /heartbeatInterval must be less than visibilityTimeout/,
+      )
+    })
+
+    it.each([false, true])('using 2 consumers with heartbeat -> %s', async (heartbeatEnabled) => {
+      let consumer1IsProcessing = false
+      let consumer1Counter = 0
+      let consumer2Counter = 0
+
+      const consumer1 = new SqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: { queue: { QueueName: queueName, Attributes: { VisibilityTimeout: '2' } } },
+        consumerOverrides: { heartbeatInterval: heartbeatEnabled ? 1 : undefined },
+        removeHandlerOverride: async () => {
+          consumer1IsProcessing = true
+          await setTimeout(2800) // Wait to the visibility timeout to expire
+          consumer1Counter++
+          consumer1IsProcessing = false
+          return { result: 'success' }
+        },
+      })
+      await consumer1.start()
+
+      const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
+        locatorConfig: { queueUrl: consumer1.queueProps.url },
+        removeHandlerOverride: async () => {
+          consumer2Counter++
+          return { result: 'success' }
+        },
+      })
+      const publisher = new SqsPermissionPublisher(diContainer.cradle, {
+        locatorConfig: { queueUrl: consumer1.queueProps.url },
+      })
+
+      await publisher.publish({ id: '10', messageType: 'remove' })
+      // wait for consumer1 to start processing to start second consumer
+      await waitAndRetry(() => consumer1IsProcessing, 5, 5)
+      await consumer2.start()
+
+      // wait for both consumers to process message
+      await waitAndRetry(() => consumer1Counter > 0 && consumer2Counter > 0, 100, 40)
+
+      expect(consumer1Counter).toBe(1)
+      expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)
     })
   })
 })

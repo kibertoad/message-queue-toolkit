@@ -22,6 +22,7 @@ import type { ConsumerOptions } from 'sqs-consumer/src/types'
 import type { SQSMessage } from '../types/MessageTypes'
 import { deleteSqs, initSqs } from '../utils/sqsInitter'
 import { readSqsMessage } from '../utils/sqsMessageReader'
+import { getQueueAttributes } from '../utils/sqsUtils'
 
 import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
@@ -54,8 +55,16 @@ export type SQSConsumerOptions<
   SQSCreationConfig,
   SQSQueueLocatorType
 > & {
-  consumerOverrides?: Partial<ConsumerOptions>
+  /**
+   * Omitting properties which will be set internally ins this class
+   * `visibilityTimeout` is also omitted to avoid conflicts with queue config
+   */
+  consumerOverrides?: Omit<
+    ConsumerOptions,
+    'sqs' | 'queueUrl' | 'handler' | 'handleMessageBatch' | 'visibilityTimeout'
+  >
 }
+
 export abstract class AbstractSqsConsumer<
     MessagePayloadType extends object,
     ExecutionContext,
@@ -170,12 +179,15 @@ export abstract class AbstractSqsConsumer<
 
   public async start() {
     await this.init()
+    if (this.consumer) this.consumer.stop()
 
-    if (this.consumer) {
-      this.consumer.stop()
-    }
+    const visibilityTimeout = await this.getQueueVisibilityTimeout()
+
     this.consumer = Consumer.create({
+      sqs: this.sqsClient,
       queueUrl: this.queueUrl,
+      visibilityTimeout,
+      ...this.consumerOptionsOverride,
       handleMessage: async (message: SQSMessage) => {
         if (message === null) return
 
@@ -235,8 +247,6 @@ export abstract class AbstractSqsConsumer<
 
         return Promise.reject(result.error)
       },
-      sqs: this.sqsClient,
-      ...this.consumerOptionsOverride,
     })
 
     this.consumer.on('error', (err) => {
@@ -410,5 +420,23 @@ export abstract class AbstractSqsConsumer<
       MessageBody: message.Body,
     })
     await this.sqsClient.send(command)
+  }
+
+  private async getQueueVisibilityTimeout(): Promise<number | undefined> {
+    let visibilityTimeoutString
+    if (this.creationConfig) {
+      visibilityTimeoutString = this.creationConfig.queue.Attributes?.VisibilityTimeout
+    } else {
+      // if user is using locatorConfig, we should look into queue config
+      const queueAttributes = await getQueueAttributes(
+        this.sqsClient,
+        { queueUrl: this.queueUrl },
+        ['VisibilityTimeout'],
+      )
+      visibilityTimeoutString = queueAttributes.result?.attributes?.VisibilityTimeout
+    }
+
+    // parseInt is safe because if the value is not a number process should have failed on init
+    return visibilityTimeoutString ? parseInt(visibilityTimeoutString) : undefined
   }
 }

@@ -18,7 +18,12 @@ type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSA
 
 type SqsPermissionConsumerOptions = Pick<
   SQSConsumerOptions<SupportedMessages, ExecutionContext, PrehandlerOutput>,
-  'creationConfig' | 'locatorConfig' | 'logMessages' | 'deletionConfig' | 'deadLetterQueue'
+  | 'creationConfig'
+  | 'locatorConfig'
+  | 'logMessages'
+  | 'deletionConfig'
+  | 'deadLetterQueue'
+  | 'consumerOverrides'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -87,7 +92,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
         deadLetterQueue: options.deadLetterQueue,
         messageTypeField: 'messageType',
         handlerSpy: true,
-        consumerOverrides: {
+        consumerOverrides: options.consumerOverrides ?? {
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
         },
         handlers: new MessageHandlerConfigBuilder<
