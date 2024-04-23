@@ -22,6 +22,7 @@ import type { ConsumerOptions } from 'sqs-consumer/src/types'
 import type { SQSMessage } from '../types/MessageTypes'
 import { deleteSqs, initSqs } from '../utils/sqsInitter'
 import { readSqsMessage } from '../utils/sqsMessageReader'
+import { getQueueAttributes } from '../utils/sqsUtils'
 
 import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
@@ -54,8 +55,16 @@ export type SQSConsumerOptions<
   SQSCreationConfig,
   SQSQueueLocatorType
 > & {
-  consumerOverrides?: Partial<ConsumerOptions>
+  /**
+   * Omitting properties which will be set internally ins this class
+   * `visibilityTimeout` is also omitted to avoid conflicts with queue config
+   */
+  consumerOverrides?: Omit<
+    Partial<ConsumerOptions>,
+    'visibilityTimeout' | 'queueUrl' | 'sqs' | 'handleMessage' | 'handleMessageBatch'
+  >
 }
+
 export abstract class AbstractSqsConsumer<
     MessagePayloadType extends object,
     ExecutionContext,
