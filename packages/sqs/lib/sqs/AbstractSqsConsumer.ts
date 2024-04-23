@@ -181,12 +181,7 @@ export abstract class AbstractSqsConsumer<
     await this.init()
     if (this.consumer) this.consumer.stop()
 
-    const queueAttributes = await getQueueAttributes(this.sqsClient, { queueUrl: this.queueUrl }, [
-      'VisibilityTimeout',
-    ])
-    const visibilityTimeout = queueAttributes.result?.attributes?.VisibilityTimeout
-      ? parseInt(queueAttributes.result.attributes.VisibilityTimeout)
-      : undefined
+    const visibilityTimeout = await this.getQueueVisibilityTimeout()
 
     this.consumer = Consumer.create({
       sqs: this.sqsClient,
@@ -425,5 +420,23 @@ export abstract class AbstractSqsConsumer<
       MessageBody: message.Body,
     })
     await this.sqsClient.send(command)
+  }
+
+  private async getQueueVisibilityTimeout(): Promise<number | undefined> {
+    let visibilityTimeoutString
+    if (this.creationConfig) {
+      visibilityTimeoutString = this.creationConfig.queue.Attributes?.VisibilityTimeout
+    } else {
+      // if user is using locatorConfig, we should look into queue config
+      const queueAttributes = await getQueueAttributes(
+        this.sqsClient,
+        { queueUrl: this.queueUrl },
+        ['VisibilityTimeout'],
+      )
+      visibilityTimeoutString = queueAttributes.result?.attributes?.VisibilityTimeout
+    }
+
+    // parseInt is safe because if the value is not a number process should have failed on init
+    return visibilityTimeoutString ? parseInt(visibilityTimeoutString) : undefined
   }
 }
