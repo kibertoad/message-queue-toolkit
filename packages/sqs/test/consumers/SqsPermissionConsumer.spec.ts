@@ -498,18 +498,23 @@ describe('SqsPermissionConsumer', () => {
       await diContainer.dispose()
     })
 
+    it('heartbeatInterval should be less than visibilityTimeout', async () => {
+      const consumer = new SqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: { queue: { QueueName: queueName, Attributes: { VisibilityTimeout: '1' } } },
+        consumerOverrides: { heartbeatInterval: 2 },
+      })
+      await expect(() => consumer.start()).rejects.toThrow(
+        /heartbeatInterval must be less than visibilityTimeout/,
+      )
+    })
+
     it.each([false, true])('using 2 consumers with heartbeat -> %s', async (heartbeatEnabled) => {
       let consumer1IsProcessing = false
       let consumer1Counter = 0
       let consumer2Counter = 0
 
       const consumer1 = new SqsPermissionConsumer(diContainer.cradle, {
-        creationConfig: {
-          queue: {
-            QueueName: queueName,
-            Attributes: { VisibilityTimeout: '2' },
-          },
-        },
+        creationConfig: { queue: { QueueName: queueName, Attributes: { VisibilityTimeout: '2' } } },
         consumerOverrides: { heartbeatInterval: heartbeatEnabled ? 1 : undefined },
         removeHandlerOverride: async () => {
           consumer1IsProcessing = true
