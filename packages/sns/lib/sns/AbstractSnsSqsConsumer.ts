@@ -98,6 +98,7 @@ export abstract class AbstractSnsSqsConsumer<
       this.subscriptionConfig,
       { logger: this.logger },
     )
+    this.queueName = initSnsSqsResult.queueName
     this.queueUrl = initSnsSqsResult.queueUrl
     this.topicArn = initSnsSqsResult.topicArn
     this.subscriptionArn = initSnsSqsResult.subscriptionArn

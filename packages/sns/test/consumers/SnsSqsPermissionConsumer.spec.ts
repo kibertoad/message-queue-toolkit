@@ -68,6 +68,7 @@ describe('SnsSqsPermissionConsumer', () => {
       expect(newConsumer.subscriptionProps.queueUrl).toBe(
         'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
       )
+      expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
       expect(newConsumer.subscriptionProps.topicArn).toEqual(arn)
       expect(newConsumer.subscriptionProps.subscriptionArn).toBe(
         'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
@@ -106,6 +107,7 @@ describe('SnsSqsPermissionConsumer', () => {
       expect(newConsumer.subscriptionProps.queueUrl).toBe(
         'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
       )
+      expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
 
       const attributes = await getQueueAttributes(sqsClient, {
         queueUrl: newConsumer.subscriptionProps.queueUrl,
@@ -152,6 +154,7 @@ describe('SnsSqsPermissionConsumer', () => {
       const attributes = await getQueueAttributes(sqsClient, {
         queueUrl: newConsumer.subscriptionProps.queueUrl,
       })
+      expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
 
       expect(attributes.result?.attributes!.Policy).toBe(
         '{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-west-1:000000000000:existingQueue","Condition":{"ArnLike":{"aws:SourceArn":"someservice-"}}}]}',
@@ -181,6 +184,7 @@ describe('SnsSqsPermissionConsumer', () => {
       expect(newConsumer.subscriptionProps.queueUrl).toBe(
         'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
       )
+      expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
 
       const attributes = await getQueueAttributes(sqsClient, {
         queueUrl: newConsumer.subscriptionProps.queueUrl,

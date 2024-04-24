@@ -170,6 +170,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
     return {
       topicArn: this.topicArn,
       queueUrl: this.queueUrl,
+      queueName: this.queueName,
       subscriptionArn: this.subscriptionArn,
       deadLetterQueueUrl: this.deadLetterQueueUrl,
     }
