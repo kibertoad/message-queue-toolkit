@@ -1,9 +1,60 @@
 # Upgrading Guide
 
-We have introduced the following breaking changes on version `12.0.0`, please follow the steps below to update your code
-from the previous version to the new one.
+## Upgrading from `12.0.0` to `13.0.0`
 
-## Breaking Changes
+### Description of Breaking Change
+- The property `prehandlers` has been updated to `preHandler` for consumers.
+- In the SQS and SNS consumer, `consumerOverrides` no longer permits the alteration of critical properties such as
+ `sqs`, `queueUrl`, `handler`, and `handleMessageBatch` to prevent confusion and maintain proper functionality of 
+ the consumer.
+- The `consumerOverrides` in the SQS and SNS consumer no longer includes the option to define the `visibilityTimeout` 
+ property, as it is now automatically determined by the consumer from the `creationConfig` or queue configuration in the
+ case of `locatorConfig`.
+
+### Migration Steps
+#### preHandlers
+If you currently utilize the `prehandlers` property in your consumer, it will be necessary to update it to `preHandler`.
+
+#### ConsumerOverrides
+If you are implementing the `consumerOverrides` property in your consumer, it is essential to eliminate the properties 
+`sqs`, `queueUrl`, `handler`, `handleMessageBatch`, and `visibilityTimeout`.
+- `sqs` should be included in the constructor dependencies
+- `queueUrl` is managed automatically by the library and does not require manual specification
+- `handleMessageBatch` is not supported by the library
+- `visibilityTimeout` is automatically managed by the library and does not need explicit declaration
+- For the `handler`, use the `handler` property in the constructor as demonstrated below
+```typescript
+export class MyConsumer extends AbstractAmqpConsumer<MyType, undefined> {
+    public static QUEUE_NAME = 'my-queue-name'
+
+    constructor(dependencies: AMQPConsumerDependencies) {
+        super(
+            dependencies,
+            {
+                creationConfig: {
+                    queueName: AmqpPermissionConsumer.QUEUE_NAME,
+                    queueOptions: { durable: true, autoDelete: false },
+                },
+                messageTypeField: 'messageType',
+                handlers: new MessageHandlerConfigBuilder<SupportedEvents, ExecutionContext>()
+                    .addConfig(
+                        MY_MESSAGE_SCHEMA,
+                        async (message) => {
+                            // Your handling code
+                            return {
+                                result: 'success',
+                            }
+                        },
+                    )
+                    .build(),
+            },
+            undefined
+        )
+    }
+}
+```
+
+## Upgrading from `11.0.0 `to `12.0.0`
 
 ### Description of Breaking Change
 Multi consumers and publishers can accomplish the same tasks as mono ones, but they add extra layer of complexity by 
