@@ -31,6 +31,9 @@ export async function initSnsSqs(
         'If locatorConfig.subscriptionArn is not specified, creationConfig.queue parameter is mandatory, as there will be an attempt to create the missing queue',
       )
     }
+    if (!creationConfig.queue.QueueName) {
+      throw new Error('If locatorConfig.subscriptionArn is not specified, creationConfig.queue.QueueName parameter is mandatory, as there will be an attempt to create the missing queue')
+    }
     if (!subscriptionConfig) {
       throw new Error(
         'If locatorConfig.subscriptionArn is not specified, subscriptionConfig parameter is mandatory, as there will be an attempt to create the missing subscription',
@@ -58,12 +61,12 @@ export async function initSnsSqs(
     return {
       subscriptionArn,
       topicArn,
+      queueName: creationConfig.queue.QueueName,
       queueUrl,
     }
   }
 
-  // Check for existing resources, using the locators
-
+  // Check for existing rsources, using the locators
   const queuePromise = getQueueAttributes(sqsClient, locatorConfig)
   const topicPromise = getTopicAttributes(snsClient, locatorConfig.topicArn)
 
@@ -76,10 +79,14 @@ export async function initSnsSqs(
     throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
   }
 
+  const splitUrl = locatorConfig.queueUrl.split('/')
+  const queueName = splitUrl[splitUrl.length - 1]
+
   return {
     subscriptionArn: locatorConfig.subscriptionArn,
     topicArn: locatorConfig.topicArn,
     queueUrl: locatorConfig.queueUrl,
+    queueName,
   }
 }
 
