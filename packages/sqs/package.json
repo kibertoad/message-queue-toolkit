@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/sqs",
-  "version": "13.0.0",
+  "version": "13.0.1",
   "private": false,
   "license": "MIT",
   "description": "SQS adapter for message-queue-toolkit",
@@ -30,11 +30,11 @@
     "zod": "^3.22.4"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.476.0",
+    "@aws-sdk/client-sqs": "^3.556.0",
     "@message-queue-toolkit/core": "^11.0.0"
   },
   "devDependencies": {
-    "@aws-sdk/client-sqs": "^3.529.1",
+    "@aws-sdk/client-sqs": "^3.556.0",
     "@message-queue-toolkit/core": "*",
     "@types/node": "^20.11.25",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
