@@ -33,6 +33,7 @@ const updatedEventPayload: CommonEventDefinitionSchemaType<typeof TestEvents.upd
 const expectedCreatedPayload = {
   id: expect.any(String),
   metadata: {
+    timestamp: expect.any(String),
     correlationId: expect.any(String),
     originApp: 'de',
     producerApp: 'dede',
@@ -41,7 +42,6 @@ const expectedCreatedPayload = {
   payload: {
     message: 'msg',
   },
-  timestamp: expect.any(String),
   type: 'entity.created',
 }
 
