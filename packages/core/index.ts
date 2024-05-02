@@ -50,3 +50,8 @@ export { waitAndRetry } from './lib/utils/waitUtils'
 export { parseMessage } from './lib/utils/parseUtils'
 
 export { reloadConfig, isProduction } from './lib/utils/envUtils'
+
+export { DomainEventEmitter } from './lib/events/DomainEventEmitter'
+export { EventRegistry } from './lib/events/EventRegistry'
+export { FakeListener } from './lib/events/fakes/FakeListener'
+export * from './lib/events/eventTypes'
