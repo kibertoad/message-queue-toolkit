@@ -2,8 +2,8 @@ import z from 'zod'
 
 import { BASE_EVENT_SCHEMA } from '../events/baseEventSchemas'
 
-// External message metadata that describe the context in which the message originated
-export const EXTERNAL_MESSAGE_METADATA_SCHEMA = z
+// External message metadata that describe the context in which the message was created, primarily used for debugging purposes
+export const MESSAGE_METADATA_SCHEMA = z
   .object({
     schemaVersion: z.string().min(1).describe('message schema version'),
     // this is always set to a service that created the message
@@ -20,9 +20,9 @@ export const EXTERNAL_MESSAGE_METADATA_SCHEMA = z
 
 export const BASE_MESSAGE_SCHEMA = BASE_EVENT_SCHEMA.extend({
   // For internal domain events that did not originate within a message chain metadata field can be omitted, producer should then assume it is initiating a new chain
-  metadata: EXTERNAL_MESSAGE_METADATA_SCHEMA.optional(),
+  metadata: MESSAGE_METADATA_SCHEMA.optional(),
 })
 
 export type BaseMessageType = z.infer<typeof BASE_MESSAGE_SCHEMA>
 
-export type MessageMetadataType = z.infer<typeof EXTERNAL_MESSAGE_METADATA_SCHEMA>
+export type MessageMetadataType = z.infer<typeof MESSAGE_METADATA_SCHEMA>
