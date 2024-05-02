@@ -21,5 +21,3 @@ export const EXTENDED_MESSAGE_SCHEMA = BASE_MESSAGE_SCHEMA.extend({
 })
 
 export type BaseMessageType = z.infer<typeof BASE_MESSAGE_SCHEMA>
-
-export type MessageMetadata = 'id' | 'type' | 'metadata'
