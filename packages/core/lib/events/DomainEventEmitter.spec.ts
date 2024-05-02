@@ -17,12 +17,12 @@ const createdEventPayload: CommonEventDefinitionSchemaType<typeof TestEvents.cre
   type: 'entity.created',
   id: randomUUID(),
   metadata: {
-    timestamp: new Date().toISOString(),
     originApp: 'de',
     producerApp: 'dede',
     schemaVersion: '1',
     correlationId: randomUUID(),
   },
+  timestamp: new Date().toISOString(),
 }
 
 const updatedEventPayload: CommonEventDefinitionSchemaType<typeof TestEvents.updated> = {

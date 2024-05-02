@@ -8,7 +8,7 @@ import { z } from 'zod'
 
 import { DomainEventEmitter } from '../lib/events/DomainEventEmitter'
 import { EventRegistry } from '../lib/events/EventRegistry'
-import { EXTENDED_MESSAGE_SCHEMA } from '../lib/messages/baseMessageSchemas'
+import { BASE_MESSAGE_SCHEMA } from '../lib/messages/baseMessageSchemas'
 import type { TransactionObservabilityManager } from '../lib/types/MessageQueueTypes'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
@@ -19,7 +19,7 @@ const TestLogger: Logger = pino()
 
 export const TestEvents = {
   created: {
-    schema: EXTENDED_MESSAGE_SCHEMA.extend({
+    schema: BASE_MESSAGE_SCHEMA.extend({
       type: z.literal('entity.created'),
       payload: z.object({
         message: z.string(),
@@ -28,7 +28,7 @@ export const TestEvents = {
   },
 
   updated: {
-    schema: EXTENDED_MESSAGE_SCHEMA.extend({
+    schema: BASE_MESSAGE_SCHEMA.extend({
       type: z.literal('entity.updated'),
       payload: z.object({
         message: z.string(),
