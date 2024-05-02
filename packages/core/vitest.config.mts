@@ -3,11 +3,6 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     globals: true,
-    poolOptions: {
-      threads: {
-        singleThread: true,
-      },
-    },
     watch: false,
     environment: 'node',
     reporters: ['default'],
@@ -17,10 +12,10 @@ export default defineConfig({
       reporter: ['text'],
       all: true,
       thresholds: {
-        lines: 20,
-        functions: 42,
-        branches: 65,
-        statements: 20,
+        lines: 35,
+        functions: 65,
+        branches: 80,
+        statements: 35,
       },
     },
   },
