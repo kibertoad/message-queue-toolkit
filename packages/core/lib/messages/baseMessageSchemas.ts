@@ -9,7 +9,7 @@ export const BASE_MESSAGE_SCHEMA = z.object({
 })
 
 // Extra fields that are optional for the event processing
-// For internal domain events that did not originate within a message chain these fields can be omitted, producer should assume it is initiating a new chain then
+// For internal domain events that did not originate within a message chain these fields can be omitted, producer should then assume it is initiating a new chain
 export const EXTENDED_MESSAGE_SCHEMA = BASE_MESSAGE_SCHEMA.extend({
   metadata: z
     .object({
