@@ -16,7 +16,7 @@ const createdEventPayload: CommonEventDefinitionSchemaType<typeof TestEvents.cre
   },
   type: 'entity.created',
   id: randomUUID(),
-  timestamp: new Date('2020-01-01'),
+  timestamp: new Date().toISOString(),
   metadata: {
     originatedFrom: 'service',
     producedBy: 'producer',
@@ -32,7 +32,7 @@ const updatedEventPayload: CommonEventDefinitionSchemaType<typeof TestEvents.upd
 
 const expectedCreatedPayload = {
   id: expect.any(String),
-  timestamp: new Date('2020-01-01'),
+  timestamp: expect.any(String),
   payload: {
     message: 'msg',
   },
