@@ -48,6 +48,7 @@ export type { MessageSchemaContainerOptions } from './lib/queues/MessageSchemaCo
 export { objectToBuffer } from './lib/utils/queueUtils'
 export { waitAndRetry } from './lib/utils/waitUtils'
 export { parseMessage } from './lib/utils/parseUtils'
+export { toDatePreprocessor } from './lib/utils/toDateProcessor'
 
 export { reloadConfig, isProduction } from './lib/utils/envUtils'
 
@@ -55,4 +56,5 @@ export { DomainEventEmitter } from './lib/events/DomainEventEmitter'
 export { EventRegistry } from './lib/events/EventRegistry'
 export { FakeListener } from './lib/events/fakes/FakeListener'
 export * from './lib/events/eventTypes'
+export * from './lib/events/baseEventSchemas'
 export * from './lib/messages/baseMessageSchemas'
