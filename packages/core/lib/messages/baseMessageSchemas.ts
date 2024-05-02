@@ -24,3 +24,5 @@ export const BASE_MESSAGE_SCHEMA = BASE_EVENT_SCHEMA.extend({
 })
 
 export type BaseMessageType = z.infer<typeof BASE_MESSAGE_SCHEMA>
+
+export type MessageMetadataType = z.infer<typeof EXTERNAL_MESSAGE_METADATA_SCHEMA>
