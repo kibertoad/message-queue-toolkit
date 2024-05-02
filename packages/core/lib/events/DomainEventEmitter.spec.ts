@@ -16,10 +16,10 @@ const createdEventPayload: CommonEventDefinitionSchemaType<typeof TestEvents.cre
   },
   type: 'entity.created',
   id: randomUUID(),
+  timestamp: new Date().toISOString(),
   metadata: {
-    timestamp: new Date().toISOString(),
-    originApp: 'de',
-    producerApp: 'dede',
+    originatedFrom: 'service',
+    producedBy: 'producer',
     schemaVersion: '1',
     correlationId: randomUUID(),
   },
@@ -32,17 +32,17 @@ const updatedEventPayload: CommonEventDefinitionSchemaType<typeof TestEvents.upd
 
 const expectedCreatedPayload = {
   id: expect.any(String),
-  metadata: {
-    timestamp: expect.any(String),
-    correlationId: expect.any(String),
-    originApp: 'de',
-    producerApp: 'dede',
-    schemaVersion: '1',
-  },
+  timestamp: expect.any(String),
   payload: {
     message: 'msg',
   },
   type: 'entity.created',
+  metadata: {
+    correlationId: expect.any(String),
+    originatedFrom: 'service',
+    producedBy: 'producer',
+    schemaVersion: '1',
+  },
 }
 
 const expectedUpdatedPayload = {
