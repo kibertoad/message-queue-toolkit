@@ -6,7 +6,7 @@ import type { BASE_MESSAGE_SCHEMA } from '../messages/baseMessageSchemas'
 export type EventTypeNames<EventDefinition extends CommonEventDefinition> =
   CommonEventDefinitionSchemaType<EventDefinition>['type']
 
-// To be extended with transport-specific fields, e. g. "snsTopic" in specific libraries
+// To be extended with transport-specific fields, e.g. "snsTopic" in specific libraries
 export type CommonEventDefinition = {
   schema: ZodObject<
     Omit<(typeof BASE_MESSAGE_SCHEMA)['shape'], 'payload'> & { payload: ZodTypeAny }
