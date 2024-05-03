@@ -8,6 +8,7 @@ export type EventTypeNames<EventDefinition extends CommonEventDefinition> =
 
 export type CommonEventDefinition = {
   schema: ZodObject<Omit<(typeof BASE_EVENT_SCHEMA)['shape'], 'payload'> & { payload: ZodTypeAny }>
+  schemaVersion?: string
 }
 
 export type CommonEventDefinitionSchemaType<T extends CommonEventDefinition> = z.infer<T['schema']>

@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 
+import { BASE_MESSAGE_SCHEMA } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
+import z from 'zod'
 
 import { FakeConsumer } from '../../test/fakes/FakeConsumer'
 import type {
@@ -59,6 +61,22 @@ describe('AutopilotPublisherManager', () => {
 
       expect(consumerResult.processingResult).toBe('consumed')
       expect(publishedMessageResult.processingResult).toBe('published')
+
+      expect(consumerResult.message).toMatchObject({
+        id: publishedMessage.id,
+        metadata: {
+          correlationId: expect.any(String),
+          originatedFrom: 'service',
+          producedBy: 'service',
+          schemaVersion: '1.0.1',
+        },
+        payload: {
+          message: 'msg',
+        },
+        timestamp: expect.any(String),
+        type: 'entity.created',
+      })
+
       await fakeConsumer.close()
     })
 
@@ -104,7 +122,16 @@ describe('AutopilotPublisherManager', () => {
 
       // When
       const messageId = randomUUID()
+      // @ts-ignore
       publisherManager.injectPublisher(topic, newPublisher)
+      publisherManager.injectEventDefinition({
+        schema: BASE_MESSAGE_SCHEMA.extend({
+          type: z.literal('entity.created'),
+        }),
+        snsTopic: topic,
+        schemaVersion: '2.0.0',
+      })
+
       await publisherManager.publish(topic, {
         id: messageId,
         type: 'entity.created',

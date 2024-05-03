@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import type { BaseEventType } from '../events/baseEventSchemas'
+import type { CommonEventDefinition } from '../events/eventTypes'
 
 import type { MessageMetadataType } from './baseMessageSchemas'
 
@@ -12,23 +13,28 @@ export type MetadataFillerOptions = {
   schemaVersion: string
   idGenerator?: IdGenerator
   timestampGenerator?: TimestampGenerator
+  defaultVersion?: string
 }
 
-export type MetadataFiller<T extends BaseEventType = BaseEventType, M = MessageMetadataType> = {
-  produceMetadata(currentMessage: T, precedingMessageMetadata?: M): M
+export type MetadataFiller<
+  T extends BaseEventType = BaseEventType,
+  D = CommonEventDefinition,
+  M = MessageMetadataType,
+> = {
+  produceMetadata(currentMessage: T, eventDefinition: D, precedingMessageMetadata?: M): M
   produceId(): string
   produceTimestamp(): string
 }
 
-export class CommonMetadataFiller implements MetadataFiller<BaseEventType, MessageMetadataType> {
+export class CommonMetadataFiller implements MetadataFiller {
   private readonly serviceId: string
-  private readonly schemaVersion: string
   public readonly produceId: IdGenerator
   public readonly produceTimestamp: TimestampGenerator
+  private readonly defaultVersion: string
 
   constructor(options: MetadataFillerOptions) {
     this.serviceId = options.serviceId
-    this.schemaVersion = options.schemaVersion
+    this.defaultVersion = options.defaultVersion ?? '1.0.0'
     this.produceId =
       options.idGenerator ??
       (() => {
@@ -43,12 +49,13 @@ export class CommonMetadataFiller implements MetadataFiller<BaseEventType, Messa
 
   produceMetadata(
     _currentMessage: BaseEventType,
+    eventDefinition: CommonEventDefinition,
     precedingMessageMetadata?: MessageMetadataType,
   ): MessageMetadataType {
     return {
       producedBy: this.serviceId,
       originatedFrom: precedingMessageMetadata?.originatedFrom ?? this.serviceId,
-      schemaVersion: this.schemaVersion,
+      schemaVersion: eventDefinition.schemaVersion ?? this.defaultVersion,
       correlationId: precedingMessageMetadata?.correlationId ?? this.produceId(),
     }
   }

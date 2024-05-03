@@ -37,6 +37,7 @@ export const TestEvents = {
         message: z.string(),
       }),
     }),
+    schemaVersion: '1.0.1',
     snsTopic: 'dummy',
   },
 
@@ -135,9 +136,6 @@ export async function registerDependencies(
       },
       {
         lifetime: Lifetime.SINGLETON,
-        asyncDispose: 'close',
-        asyncInitPriority: 40,
-        asyncDisposePriority: 40,
         enabled: queuesEnabled,
       },
     ),

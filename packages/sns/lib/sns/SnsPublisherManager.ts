@@ -17,6 +17,7 @@ import type { SnsPublisherFactory } from './CommonSnsPublisherFactory'
 import { CommonSnsPublisherFactory } from './CommonSnsPublisherFactory'
 
 export type SnsAwareEventDefinition = {
+  schemaVersion?: string
   snsTopic?: string
 } & CommonEventDefinition
 
@@ -139,23 +140,39 @@ export class SnsPublisherManager<
     this.topicToPublisherMap[snsTopic] = publisher
   }
 
+  public injectEventDefinition(eventDefinition: SnsAwareEventDefinition) {
+    if (!eventDefinition.snsTopic) {
+      throw new Error('snsTopic is mandatory')
+    }
+
+    if (!this.topicToEventMap[eventDefinition.snsTopic]) {
+      this.topicToEventMap[eventDefinition.snsTopic] = []
+    }
+
+    this.topicToEventMap[eventDefinition.snsTopic].push(eventDefinition)
+  }
+
   public async publish(
     snsTopic: string,
     message: SnsMessagePublishType<SupportedEventDefinitions[number]>,
     precedingEventMetadata?: MetadataType,
   ): Promise<SnsMessageSchemaType<SupportedEventDefinitions[number]>> {
     const publisher = this.topicToPublisherMap[snsTopic]
-
     if (!publisher) {
       throw new Error(`No publisher for topic ${snsTopic}`)
     }
+
+    // ToDo optimize the lookup
+    const messageDefinition = this.topicToEventMap[snsTopic].find(
+      (entry) => entry.schema.shape.type.value === message.type,
+    )
 
     // @ts-ignore
     const resolvedMetadata = message[this.metadataField]
       ? // @ts-ignore
         message[this.metadataField]
       : // @ts-ignore
-        this.metadataFiller.produceMetadata(message, precedingEventMetadata)
+        this.metadataFiller.produceMetadata(message, messageDefinition, precedingEventMetadata)
 
     const resolvedMessage: SnsMessageSchemaType<SupportedEventDefinitions[number]> = {
       id: message.id ? message.id : this.metadataFiller.produceId(),
