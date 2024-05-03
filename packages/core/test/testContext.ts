@@ -8,6 +8,7 @@ import { z } from 'zod'
 
 import { DomainEventEmitter } from '../lib/events/DomainEventEmitter'
 import { EventRegistry } from '../lib/events/EventRegistry'
+import type { CommonEventDefinition } from '../lib/events/eventTypes'
 import { BASE_MESSAGE_SCHEMA } from '../lib/messages/baseMessageSchemas'
 import type { TransactionObservabilityManager } from '../lib/types/MessageQueueTypes'
 
@@ -35,7 +36,7 @@ export const TestEvents = {
       }),
     }),
   },
-} as const
+} as const satisfies Record<string, CommonEventDefinition>
 
 export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
 

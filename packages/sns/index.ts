@@ -39,3 +39,6 @@ export {
   generateFilterAttributes,
   generateTopicSubscriptionPolicy,
 } from './lib/utils/snsAttributeUtils'
+
+export * from './lib/sns/CommonSnsPublisherFactory'
+export * from './lib/sns/SnsPublisherManager'
