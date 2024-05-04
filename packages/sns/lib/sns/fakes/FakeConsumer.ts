@@ -1,10 +1,9 @@
-import type { Either } from '@lokalise/node-core'
 import type { BaseMessageType } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
-import type { SNSSQSConsumerDependencies } from '@message-queue-toolkit/sns'
+import type { SNSSQSConsumerDependencies } from 'dist'
 import type { ZodSchema } from 'zod'
 
-import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer'
+import { AbstractSnsSqsConsumer } from '../AbstractSnsSqsConsumer'
 
 export class FakeConsumer<T extends BaseMessageType> extends AbstractSnsSqsConsumer<T, unknown> {
   constructor(
@@ -17,7 +16,11 @@ export class FakeConsumer<T extends BaseMessageType> extends AbstractSnsSqsConsu
       dependencies,
       {
         handlers: new MessageHandlerConfigBuilder<T, unknown>()
-          .addConfig(messageSchema, (message) => this._processMessage(message))
+          .addConfig(messageSchema, () =>
+            Promise.resolve({
+              result: 'success',
+            }),
+          )
           .build(),
         creationConfig: {
           topic: {
@@ -35,11 +38,5 @@ export class FakeConsumer<T extends BaseMessageType> extends AbstractSnsSqsConsu
       },
       dependencies,
     )
-  }
-
-  private _processMessage(_message: T): Promise<Either<'retryLater', 'success'>> {
-    return Promise.resolve({
-      result: 'success',
-    })
   }
 }

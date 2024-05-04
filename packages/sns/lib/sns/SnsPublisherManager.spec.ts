@@ -4,7 +4,6 @@ import { BASE_MESSAGE_SCHEMA } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import z from 'zod'
 
-import { FakeConsumer } from '../../test/fakes/FakeConsumer'
 import type {
   Dependencies,
   TestEventPayloadsType,
@@ -14,6 +13,7 @@ import { registerDependencies, TestEvents } from '../../test/utils/testContext'
 
 import { CommonSnsPublisher } from './CommonSnsPublisherFactory'
 import type { SnsMessagePublishType, SnsPublisherManager } from './SnsPublisherManager'
+import { FakeConsumer } from './fakes/FakeConsumer'
 
 describe('AutopilotPublisherManager', () => {
   let diContainer: AwilixContainer<Dependencies>
