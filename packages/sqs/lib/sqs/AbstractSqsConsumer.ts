@@ -204,7 +204,11 @@ export abstract class AbstractSqsConsumer<
         const messageType = deserializedMessage.result[this.messageTypeField]
         const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
-        this.transactionObservabilityManager?.start(transactionSpanId)
+        this.transactionObservabilityManager?.start(
+          transactionSpanId,
+          // @ts-ignore
+          deserializedMessage.result[this.messageIdField],
+        )
         if (this.logMessages) {
           const resolvedLogMessage = this.resolveMessageLog(deserializedMessage.result, messageType)
           this.logMessage(resolvedLogMessage)
