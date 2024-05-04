@@ -21,7 +21,7 @@ export interface AsyncPublisher<MessagePayloadType, MessageOptions> {
 }
 
 export type TransactionObservabilityManager = {
-  start: (transactionSpanId: string) => unknown
+  start: (transactionSpanId: string, uniqueTransactionKey: string) => unknown
   stop: (transactionSpanId: string) => unknown
 }
 
