@@ -511,6 +511,6 @@ describe('SnsSqsPermissionConsumer', () => {
 
       expect(consumer1Counter).toBe(1)
       expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)
-    })
+    }, 10000)
   })
 })

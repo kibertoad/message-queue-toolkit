@@ -2,11 +2,21 @@ import { SNSClient } from '@aws-sdk/client-sns'
 import { SQSClient } from '@aws-sdk/client-sqs'
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
+import {
+  BASE_MESSAGE_SCHEMA,
+  CommonMetadataFiller,
+  EventRegistry,
+} from '@message-queue-toolkit/core'
 import { FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
 import type { Resolver } from 'awilix'
 import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
+import { z } from 'zod'
 
+import type { CommonSnsPublisher } from '../../lib/sns/CommonSnsPublisherFactory'
+import { CommonSnsPublisherFactory } from '../../lib/sns/CommonSnsPublisherFactory'
+import type { SnsAwareEventDefinition } from '../../lib/sns/SnsPublisherManager'
+import { SnsPublisherManager } from '../../lib/sns/SnsPublisherManager'
 import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 
@@ -18,6 +28,32 @@ export type DependencyOverrides = Partial<DiConfig>
 
 // @ts-ignore
 const TestLogger: Logger = console
+
+export const TestEvents = {
+  created: {
+    schema: BASE_MESSAGE_SCHEMA.extend({
+      type: z.literal('entity.created'),
+      payload: z.object({
+        message: z.string(),
+      }),
+    }),
+    schemaVersion: '1.0.1',
+    snsTopic: 'dummy',
+  },
+
+  updated: {
+    schema: BASE_MESSAGE_SCHEMA.extend({
+      type: z.literal('entity.updated'),
+      payload: z.object({
+        message: z.string(),
+      }),
+    }),
+    snsTopic: 'dummy',
+  },
+} as const satisfies Record<string, SnsAwareEventDefinition>
+
+export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
+export type TestEventPayloadsType = z.infer<TestEventsType[number]['schema']>
 
 export async function registerDependencies(
   dependencyOverrides: DependencyOverrides = {},
@@ -77,6 +113,32 @@ export async function registerDependencies(
       asyncDisposePriority: 40,
       enabled: queuesEnabled,
     }),
+    eventRegistry: asFunction(() => {
+      return new EventRegistry(Object.values(TestEvents))
+    }, SINGLETON_CONFIG),
+    publisherManager: asFunction(
+      (dependencies) => {
+        return new SnsPublisherManager(dependencies, {
+          metadataFiller: new CommonMetadataFiller({
+            serviceId: 'service',
+            schemaVersion: '1.0.0',
+          }),
+          publisherFactory: new CommonSnsPublisherFactory(),
+          newPublisherOptions: {
+            handlerSpy: true,
+            messageIdField: 'id',
+            messageTypeField: 'type',
+            creationConfig: {
+              updateAttributesIfExists: true,
+            },
+          },
+        })
+      },
+      {
+        lifetime: Lifetime.SINGLETON,
+        enabled: queuesEnabled,
+      },
+    ),
 
     // vendor-specific dependencies
     transactionObservabilityManager: asFunction(() => {
@@ -115,4 +177,6 @@ export interface Dependencies {
   consumerErrorResolver: ErrorResolver
   permissionConsumer: SnsSqsPermissionConsumer
   permissionPublisher: SnsPermissionPublisher
+  eventRegistry: EventRegistry<TestEventsType>
+  publisherManager: SnsPublisherManager<CommonSnsPublisher<TestEventPayloadsType>, TestEventsType>
 }

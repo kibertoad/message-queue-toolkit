@@ -32,7 +32,9 @@ export async function initSnsSqs(
       )
     }
     if (!creationConfig.queue.QueueName) {
-      throw new Error('If locatorConfig.subscriptionArn is not specified, creationConfig.queue.QueueName parameter is mandatory, as there will be an attempt to create the missing queue')
+      throw new Error(
+        'If locatorConfig.subscriptionArn is not specified, creationConfig.queue.QueueName parameter is mandatory, as there will be an attempt to create the missing queue',
+      )
     }
     if (!subscriptionConfig) {
       throw new Error(

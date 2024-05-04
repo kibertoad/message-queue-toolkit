@@ -13,7 +13,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "del-cli dist && tsc",
     "build:release": "del-cli dist && del-cli coverage && npm run lint && tsc --project tsconfig.release.json",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
