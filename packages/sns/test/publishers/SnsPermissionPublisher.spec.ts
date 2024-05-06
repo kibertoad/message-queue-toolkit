@@ -1,5 +1,6 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
+import type { InternalError} from '@lokalise/node-core';
 import { waitAndRetry } from '@lokalise/node-core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
 import { assertQueue, deleteQueue, FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
@@ -181,6 +182,48 @@ describe('SnsPermissionPublisher', () => {
       })
 
       consumer.stop()
+    })
+
+    it('preserves message metadata in a publish error message', async () => {
+      expect.assertions(1)
+      const { permissionPublisher } = diContainer.cradle
+      const permissions: [string, ...string[]] = ['perm']
+      for (let i = 0; i < 5000; i++) {
+        permissions.push('really-long-permissions-for-testing-excessively-large-payloads')
+      }
+
+      const message = {
+        id: '1',
+        userIds,
+        messageType: 'add',
+        permissions,
+      } satisfies PERMISSIONS_MESSAGE_TYPE
+
+      await subscribeToTopic(
+        sqsClient,
+        snsClient,
+        {
+          QueueName: queueName,
+        },
+        {
+          Name: SnsPermissionPublisher.TOPIC_NAME,
+        },
+        {
+          updateAttributesIfExists: false,
+        },
+      )
+
+      try {
+        await permissionPublisher.publish(message)
+      } catch (err) {
+        expect((err as InternalError).details).toMatchInlineSnapshot(`
+          {
+            "messageType": "add",
+            "publisher": "SnsPermissionPublisher",
+            "topic": "arn:aws:sns:eu-west-1:000000000000:user_permissions_multi",
+          }
+        `)
+      }
     })
 
     it('publish message with lazy loading', async () => {
