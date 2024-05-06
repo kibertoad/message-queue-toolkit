@@ -1,3 +1,4 @@
+import type { InternalError } from '@lokalise/node-core'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
@@ -134,22 +135,45 @@ describe('PermissionPublisher', () => {
     })
 
     it('publish unexpected message', async () => {
-      let error: unknown
+      expect.assertions(3)
       try {
         permissionPublisher.publish({
           hello: 'world',
           messageType: 'add',
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
-      } catch (e) {
-        error = e
+      } catch (error) {
+        expect(error).toBeDefined()
+        expect(error).toBeInstanceOf(Error)
+        expect(error).toBeInstanceOf(ZodError)
       }
-      expect(error).toBeDefined()
-      expect(error).toBeInstanceOf(Error)
-      expect(error).toBeInstanceOf(ZodError)
     })
 
-    it('publish message with uns Unsupported message type', async () => {
+    it('return details if publish failed', async () => {
+      expect.assertions(3)
+      try {
+        await permissionPublisher.close()
+        permissionPublisher.publish({
+          id: '11',
+          messageType: 'add',
+        })
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error)
+        expect((error as InternalError).message).toMatchInlineSnapshot(
+          `"Error while publishing to AMQP Cannot read properties of undefined (reading 'sendToQueue')"`,
+        )
+        expect((error as InternalError).details).toMatchInlineSnapshot(`
+          {
+            "messageType": "add",
+            "publisher": "AmqpPermissionPublisher",
+            "queueName": "user_permissions_multi",
+          }
+        `)
+      }
+      await diContainer.cradle.amqpConnectionManager.reconnect()
+    })
+
+    it('publish message with unsupported message type', async () => {
       let error: unknown
       try {
         permissionPublisher.publish({

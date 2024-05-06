@@ -1,4 +1,5 @@
 import type { Either } from '@lokalise/node-core'
+import { InternalError } from '@lokalise/node-core'
 import type {
   BarrierResult,
   MessageInvalidFormatError,
@@ -58,7 +59,17 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
         this.logger.error(`AMQP channel closed`)
         void this.reconnect()
       } else {
-        throw err
+        throw new InternalError({
+          message: `Error while publishing to AMQP ${(err as Error).message}`,
+          errorCode: 'AMQP_PUBLISH_ERROR',
+          details: {
+            publisher: this.constructor.name,
+            queueName: this.queueName,
+            // @ts-ignore
+            messageType: message[this.messageTypeField] ?? 'unknown',
+          },
+          cause: err as Error,
+        })
       }
     }
   }
