@@ -25,7 +25,7 @@
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@lokalise/node-core": "^9.16.1",
+    "@lokalise/node-core": "^9.17.0",
     "sqs-consumer": "^10.2.0",
     "zod": "^3.23.6"
   },

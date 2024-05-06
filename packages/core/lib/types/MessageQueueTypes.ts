@@ -1,3 +1,4 @@
+import type { TransactionObservabilityManager } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
 export interface QueueConsumer {
@@ -20,10 +21,7 @@ export interface AsyncPublisher<MessagePayloadType, MessageOptions> {
   publish(message: MessagePayloadType, options: MessageOptions): Promise<unknown>
 }
 
-export type TransactionObservabilityManager = {
-  start: (transactionSpanId: string, uniqueTransactionKey: string) => unknown
-  stop: (transactionSpanId: string) => unknown
-}
+export { TransactionObservabilityManager }
 
 export type LogFn = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -136,11 +136,9 @@ export abstract class AbstractAmqpConsumer<
         deserializedMessage.result[this.messageTypeField]
       }`
 
-      this.transactionObservabilityManager?.start(
-        transactionSpanId,
-        // @ts-ignore
-        deserializedMessage.result[this.messageIdField],
-      )
+      // @ts-ignore
+      const uniqueTransactionKey = deserializedMessage.result[this.messageIdField]
+      this.transactionObservabilityManager?.start(transactionSpanId, uniqueTransactionKey)
       if (this.logMessages) {
         const resolvedLogMessage = this.resolveMessageLog(deserializedMessage.result, messageType)
         this.logMessage(resolvedLogMessage)
@@ -164,7 +162,7 @@ export abstract class AbstractAmqpConsumer<
           this.handleError(err)
         })
         .finally(() => {
-          this.transactionObservabilityManager?.stop(transactionSpanId)
+          this.transactionObservabilityManager?.stop(uniqueTransactionKey)
         })
     })
   }
