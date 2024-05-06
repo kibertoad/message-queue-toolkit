@@ -1,6 +1,7 @@
 import { PublishCommand } from '@aws-sdk/client-sns'
 import type { PublishCommandInput } from '@aws-sdk/client-sns/dist-types/commands/PublishCommand'
-import type { Either } from '@lokalise/node-core'
+import type { Either} from '@lokalise/node-core';
+import { InternalError } from '@lokalise/node-core'
 import type {
   AsyncPublisher,
   BarrierResult,
@@ -77,8 +78,19 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
       await this.snsClient.send(command)
       this.handleMessageProcessed(message, 'published')
     } catch (error) {
-      this.handleError(error)
-      throw error
+      const err = error as Error
+      this.handleError(err)
+      throw new InternalError({
+        message: `Error while publishing to SNS: ${err.message}`,
+        errorCode: 'SNS_PUBLISH_ERROR',
+        details: {
+          publisher: this.constructor.name,
+          topic: this.topicArn,
+          // @ts-ignore
+          messageType: message[this.messageTypeField] ?? 'unknown',
+        },
+        cause: err,
+      })
     }
   }
 
