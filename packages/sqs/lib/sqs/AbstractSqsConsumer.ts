@@ -9,6 +9,7 @@ import type {
   BarrierResult,
   QueueConsumerDependencies,
   DeadLetterQueueOptions,
+  ParseMessageResult,
 } from '@message-queue-toolkit/core'
 import {
   isMessageError,
@@ -201,34 +202,46 @@ export abstract class AbstractSqsConsumer<
         }
         // @ts-ignore
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        const messageType = deserializedMessage.result[this.messageTypeField]
+        const messageType = deserializedMessage.result.parsedMessage[this.messageTypeField]
         const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
         // @ts-ignore
         const uniqueTransactionKey = deserializedMessage.result[this.messageIdField]
         this.transactionObservabilityManager?.start(transactionSpanId, uniqueTransactionKey)
         if (this.logMessages) {
-          const resolvedLogMessage = this.resolveMessageLog(deserializedMessage.result, messageType)
+          const resolvedLogMessage = this.resolveMessageLog(
+            deserializedMessage.result.parsedMessage,
+            messageType,
+          )
           this.logMessage(resolvedLogMessage)
         }
-        const result: Either<'retryLater' | 'barrierNotPassing' | Error, 'success'> =
-          await this.internalProcessMessage(deserializedMessage.result, messageType)
-            .catch((err) => {
-              this.handleError(err)
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-              return { error: err }
-            })
-            .finally(() => {
-              this.transactionObservabilityManager?.stop(uniqueTransactionKey)
-            })
+        const result: Either<'retryLater' | Error, 'success'> = await this.internalProcessMessage(
+          deserializedMessage.result.parsedMessage,
+          messageType,
+        )
+          .catch((err) => {
+            this.handleError(err)
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            return { error: err }
+          })
+          .finally(() => {
+            this.transactionObservabilityManager?.stop(uniqueTransactionKey)
+          })
 
+        // success
         if (result.result) {
-          this.handleMessageProcessed(deserializedMessage.result, 'consumed')
+          this.handleMessageProcessed(deserializedMessage.result.originalMessage, 'consumed')
           return message
         }
 
-        if (result.error === 'barrierNotPassing') {
-          // TODO: only requeue if the message is not oldest than the configured max time (to be implemented)
+        // failure
+        this.handleMessageProcessed(
+          deserializedMessage.result.originalMessage,
+          result.error === 'retryLater' ? 'retryLater' : 'error',
+        )
+
+        // in case of retryLater, if DLQ is set, we will send the message back to the queue
+        if (result.error === 'retryLater' && this.deadLetterQueueUrl) {
           await this.sqsClient.send(
             new SendMessageCommand({
               QueueUrl: this.queueUrl,
@@ -237,11 +250,6 @@ export abstract class AbstractSqsConsumer<
           )
           return message
         }
-
-        this.handleMessageProcessed(
-          deserializedMessage.result,
-          result.error === 'retryLater' ? 'retryLater' : 'error',
-        )
 
         return Promise.reject(result.error)
       },
@@ -266,18 +274,18 @@ export abstract class AbstractSqsConsumer<
   private async internalProcessMessage(
     message: MessagePayloadType,
     messageType: string,
-  ): Promise<Either<'retryLater' | 'barrierNotPassing', 'success'>> {
+  ): Promise<Either<'retryLater', 'success'>> {
     const preHandlerOutput = await this.processPrehandlers(message, messageType)
     const barrierResult = await this.preHandlerBarrier(message, messageType, preHandlerOutput)
 
-    if (!barrierResult.isPassing) {
-      return { error: 'barrierNotPassing' }
+    if (barrierResult.isPassing) {
+      return this.processMessage(message, messageType, {
+        preHandlerOutput,
+        barrierOutput: barrierResult.output,
+      })
     }
 
-    return this.processMessage(message, messageType, {
-      preHandlerOutput,
-      barrierOutput: barrierResult.output,
-    })
+    return { error: 'retryLater' }
   }
 
   protected override async processMessage(
@@ -367,7 +375,9 @@ export abstract class AbstractSqsConsumer<
     return ABORT_EARLY_EITHER
   }
 
-  private deserializeMessage(message: SQSMessage): Either<'abort', MessagePayloadType> {
+  private deserializeMessage(
+    message: SQSMessage,
+  ): Either<'abort', ParseMessageResult<MessagePayloadType>> {
     if (message === null) {
       return ABORT_EARLY_EITHER
     }
