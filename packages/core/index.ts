@@ -47,7 +47,7 @@ export type { MessageSchemaContainerOptions } from './lib/queues/MessageSchemaCo
 
 export { objectToBuffer } from './lib/utils/queueUtils'
 export { waitAndRetry } from './lib/utils/waitUtils'
-export { parseMessage } from './lib/utils/parseUtils'
+export { type ParseMessageResult, parseMessage } from './lib/utils/parseUtils'
 export { toDatePreprocessor } from './lib/utils/toDateProcessor'
 
 export { reloadConfig, isProduction } from './lib/utils/envUtils'
