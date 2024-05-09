@@ -155,7 +155,7 @@ describe('SnsPermissionPublisher', () => {
         },
       )
 
-      let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null
+      let receivedMessage: unknown = null
       consumer = Consumer.create({
         queueUrl: queueUrl,
         handleMessage: async (message: SQSMessage) => {
@@ -177,16 +177,11 @@ describe('SnsPermissionPublisher', () => {
 
       await permissionPublisher.publish(message)
 
-      await waitAndRetry(() => {
-        return receivedMessage !== null
-      })
+      await waitAndRetry(() => !!receivedMessage)
 
       expect(receivedMessage).toEqual({
-        id: '1',
-        messageType: 'add',
-        permissions: ['perm1', 'perm2'],
-        userIds: [100, 200, 300],
-        timestamp: message.timestamp,
+        originalMessage: message,
+        parsedMessage: message,
       })
 
       consumer.stop()
@@ -218,7 +213,7 @@ describe('SnsPermissionPublisher', () => {
         },
       )
 
-      let receivedMessage: PERMISSIONS_ADD_MESSAGE_TYPE | null = null
+      let receivedMessage: unknown
       consumer = Consumer.create({
         queueUrl: queueUrl,
         handleMessage: async (message: SQSMessage) => {
@@ -240,15 +235,14 @@ describe('SnsPermissionPublisher', () => {
 
       await permissionPublisher.publish(message)
 
-      await waitAndRetry(() => {
-        return receivedMessage !== null
-      })
+      await waitAndRetry(() => !!receivedMessage)
 
       expect(receivedMessage).toEqual({
-        id: '1',
-        messageType: 'add',
-
-        timestamp: expect.any(String),
+        originalMessage: message,
+        parsedMessage: {
+          id: '1',
+          messageType: 'add',
+        },
       })
 
       consumer.stop()
