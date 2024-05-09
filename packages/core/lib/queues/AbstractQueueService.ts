@@ -43,8 +43,9 @@ export abstract class AbstractQueueService<
 > {
   protected readonly errorReporter: ErrorReporter
   public readonly logger: Logger
-  protected readonly messageTypeField: string
   protected readonly messageIdField: string
+  protected readonly messageTypeField: string
+  protected readonly messageTimestampField: string
   protected readonly logMessages: boolean
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
@@ -64,8 +65,9 @@ export abstract class AbstractQueueService<
     this.errorReporter = errorReporter
     this.logger = logger
 
-    this.messageTypeField = options.messageTypeField
     this.messageIdField = options.messageIdField ?? 'id'
+    this.messageTypeField = options.messageTypeField
+    this.messageTimestampField = options.messageTimestampField ?? 'timestamp'
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig

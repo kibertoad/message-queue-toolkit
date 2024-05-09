@@ -19,6 +19,7 @@ export type QueueConsumerDependencies = {
 export type CommonQueueOptions = {
   messageTypeField: string
   messageIdField?: string
+  messageTimestampField?: string
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
   deletionConfig?: DeletionConfig
