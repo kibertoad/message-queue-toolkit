@@ -10,9 +10,10 @@ export const deserializeSQSMessage = <T extends object>(
   errorProcessor: ErrorResolver,
 ): Either<MessageInvalidFormatError | MessageValidationError, T> => {
   try {
-    return {
-      result: type.parse(JSON.parse(message.Body)),
-    }
+    const result = JSON.parse(message.Body)
+    type.parse(result)
+
+    return { result }
   } catch (exception) {
     return {
       error: errorProcessor.processError(exception),

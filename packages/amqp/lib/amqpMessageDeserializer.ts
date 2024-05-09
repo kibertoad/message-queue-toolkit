@@ -11,9 +11,10 @@ export const deserializeAmqpMessage = <T extends object>(
   errorProcessor: AmqpConsumerErrorResolver,
 ): Either<MessageInvalidFormatError | MessageValidationError, T> => {
   try {
-    return {
-      result: type.parse(JSON.parse(message.content.toString())),
-    }
+    const result = JSON.parse(message.content.toString())
+    type.parse(result)
+
+    return { result }
   } catch (exception) {
     return {
       error: errorProcessor.processError(exception),

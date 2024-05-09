@@ -10,11 +10,12 @@ import { deserializeSNSMessage } from './snsMessageDeserializer'
 
 describe('messageDeserializer', () => {
   it('deserializes valid JSON', () => {
-    const messagePayload: PERMISSIONS_MESSAGE_TYPE = {
+    const messagePayload = {
       id: '1',
       messageType: 'add',
       userIds: [1],
       permissions: ['perm'],
+      nonSchemaField: 'nonSchemaField',
     }
 
     const snsMessage: SNS_MESSAGE_BODY_TYPE = {

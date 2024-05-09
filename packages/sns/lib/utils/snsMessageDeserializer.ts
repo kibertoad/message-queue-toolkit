@@ -12,9 +12,10 @@ export const deserializeSNSMessage = <T extends object>(
 ): Either<MessageInvalidFormatError | MessageValidationError, T> => {
   try {
     const snsMessage = SNS_MESSAGE_BODY_SCHEMA.parse(JSON.parse(message.Body))
-    return {
-      result: type.parse(JSON.parse(snsMessage.Message)),
-    }
+    const result = JSON.parse(snsMessage.Message)
+    type.parse(result)
+
+    return { result }
   } catch (exception) {
     return {
       error: errorProcessor.processError(exception),
