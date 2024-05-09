@@ -8,8 +8,14 @@ import { ZodError } from 'zod'
 
 import { deserializeAmqpMessage } from '../../lib/amqpMessageDeserializer'
 import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer'
-import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
-import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
+import type {
+  PERMISSIONS_ADD_MESSAGE_TYPE,
+  PERMISSIONS_MESSAGE_TYPE,
+} from '../consumers/userConsumerSchemas'
+import {
+  PERMISSIONS_MESSAGE_SCHEMA,
+  PERMISSIONS_ADD_MESSAGE_SCHEMA,
+} from '../consumers/userConsumerSchemas'
 import { FakeConsumer } from '../fakes/FakeConsumer'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { FakeLogger } from '../fakes/FakeLogger'
@@ -194,6 +200,45 @@ describe('PermissionPublisher', () => {
       await permissionConsumer.close()
 
       const message = {
+        id: '1',
+        messageType: 'add',
+        userIds: [1],
+        permissions: ['100'],
+        timestamp: new Date().toISOString(),
+      } satisfies PERMISSIONS_MESSAGE_TYPE
+
+      let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null
+      await channel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
+        if (message === null) {
+          return
+        }
+        const decodedMessage = deserializeAmqpMessage(
+          message,
+          PERMISSIONS_MESSAGE_SCHEMA,
+          new FakeConsumerErrorResolver(),
+        )
+        receivedMessage = decodedMessage.result!
+      })
+
+      permissionPublisher.publish(message)
+
+      await waitAndRetry(() => {
+        return receivedMessage !== null
+      })
+
+      expect(receivedMessage).toEqual({
+        id: '1',
+        messageType: 'add',
+        userIds: [1],
+        permissions: ['100'],
+        timestamp: message.timestamp,
+      })
+    })
+
+    it('publishes a message auto-filling timestamp', async () => {
+      await permissionConsumer.close()
+
+      const message = {
         id: '2',
         messageType: 'add',
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
@@ -220,6 +265,7 @@ describe('PermissionPublisher', () => {
       expect(receivedMessage).toEqual({
         id: '2',
         messageType: 'add',
+        timestamp: expect.any(String),
       })
     })
 

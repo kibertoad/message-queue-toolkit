@@ -42,6 +42,13 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
     }
     resolveSchemaResult.result.parse(message)
 
+    // if the message doesn't have a timestamp field -> add it
+    // @ts-ignore
+    if (!message[this.messageTimestampField]) {
+      // @ts-ignore
+      message[this.messageTimestampField] = new Date().toISOString()
+    }
+
     if (this.logMessages) {
       // @ts-ignore
       const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
