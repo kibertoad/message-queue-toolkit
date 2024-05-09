@@ -211,33 +211,24 @@ export abstract class AbstractSqsConsumer<
           const resolvedLogMessage = this.resolveMessageLog(deserializedMessage.result, messageType)
           this.logMessage(resolvedLogMessage)
         }
-        const result: Either<'retryLater' | Error, 'success'> = await this.internalProcessMessage(
-          deserializedMessage.result,
-          messageType,
-        )
-          .catch((err) => {
-            this.handleError(err)
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            return { error: err }
-          })
-          .finally(() => {
-            this.transactionObservabilityManager?.stop(uniqueTransactionKey)
-          })
+        const result: Either<'retryLater' | 'barrierNotPassing' | Error, 'success'> =
+          await this.internalProcessMessage(deserializedMessage.result, messageType)
+            .catch((err) => {
+              this.handleError(err)
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+              return { error: err }
+            })
+            .finally(() => {
+              this.transactionObservabilityManager?.stop(uniqueTransactionKey)
+            })
 
-        // success
         if (result.result) {
           this.handleMessageProcessed(deserializedMessage.result, 'consumed')
           return message
         }
 
-        // failure
-        this.handleMessageProcessed(
-          deserializedMessage.result,
-          result.error === 'retryLater' ? 'retryLater' : 'error',
-        )
-
-        // in case of retryLater, if DLQ is set, we will send the message back to the queue
-        if (result.error === 'retryLater' && this.deadLetterQueueUrl) {
+        if (result.error === 'barrierNotPassing') {
+          // TODO: only requeue if the message is not oldest than the configured max time (to be implemented)
           await this.sqsClient.send(
             new SendMessageCommand({
               QueueUrl: this.queueUrl,
@@ -246,6 +237,11 @@ export abstract class AbstractSqsConsumer<
           )
           return message
         }
+
+        this.handleMessageProcessed(
+          deserializedMessage.result,
+          result.error === 'retryLater' ? 'retryLater' : 'error',
+        )
 
         return Promise.reject(result.error)
       },
@@ -270,18 +266,18 @@ export abstract class AbstractSqsConsumer<
   private async internalProcessMessage(
     message: MessagePayloadType,
     messageType: string,
-  ): Promise<Either<'retryLater', 'success'>> {
+  ): Promise<Either<'retryLater' | 'barrierNotPassing', 'success'>> {
     const preHandlerOutput = await this.processPrehandlers(message, messageType)
     const barrierResult = await this.preHandlerBarrier(message, messageType, preHandlerOutput)
 
-    if (barrierResult.isPassing) {
-      return this.processMessage(message, messageType, {
-        preHandlerOutput,
-        barrierOutput: barrierResult.output,
-      })
+    if (!barrierResult.isPassing) {
+      return { error: 'barrierNotPassing' }
     }
 
-    return { error: 'retryLater' }
+    return this.processMessage(message, messageType, {
+      preHandlerOutput,
+      barrierOutput: barrierResult.output,
+    })
   }
 
   protected override async processMessage(

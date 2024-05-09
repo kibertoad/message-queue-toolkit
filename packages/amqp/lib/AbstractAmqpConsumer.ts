@@ -145,6 +145,10 @@ export abstract class AbstractAmqpConsumer<
       }
       this.internalProcessMessage(deserializedMessage.result, messageType)
         .then((result) => {
+          if (result.error === 'barrierNotPassing') {
+            // TODO: only retry if the message is not oldest than the configured max time (to be implemented)
+            this.channel.nack(message, false, false)
+          }
           if (result.error === 'retryLater') {
             this.channel.nack(message, false, true)
             this.handleMessageProcessed(deserializedMessage.result, 'retryLater')
@@ -170,17 +174,18 @@ export abstract class AbstractAmqpConsumer<
   private async internalProcessMessage(
     message: MessagePayloadType,
     messageType: string,
-  ): Promise<Either<'retryLater', 'success'>> {
+  ): Promise<Either<'retryLater' | 'barrierNotPassing', 'success'>> {
     const preHandlerOutput = await this.processPrehandlers(message, messageType)
     const barrierResult = await this.preHandlerBarrier(message, messageType, preHandlerOutput)
 
-    if (barrierResult.isPassing) {
-      return this.processMessage(message, messageType, {
-        preHandlerOutput,
-        barrierOutput: barrierResult.output,
-      })
+    if (!barrierResult.isPassing) {
+      return { error: 'barrierNotPassing' }
     }
-    return { error: 'retryLater' }
+
+    return this.processMessage(message, messageType, {
+      preHandlerOutput,
+      barrierOutput: barrierResult.output,
+    })
   }
 
   protected override async processMessage(
