@@ -66,6 +66,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       if (!message[this.messageTimestampField]) {
         // @ts-ignore
         message[this.messageTimestampField] = new Date().toISOString()
+        this.logger.warn(`${this.messageTimestampField} not defined, adding it automatically`)
       }
 
       if (this.logMessages) {
