@@ -27,7 +27,15 @@ describe('messageDeserializer', () => {
       errorProcessor,
     )
 
-    expect(deserializedPayload.result).toMatchObject(messagePayload)
+    expect(deserializedPayload.result).toMatchObject({
+      originalMessage: messagePayload,
+      parsedMessage: {
+        id: '1',
+        messageType: 'add',
+        userIds: [1],
+        permissions: ['perm'],
+      },
+    })
   })
 
   it('throws an error on invalid JSON', () => {
