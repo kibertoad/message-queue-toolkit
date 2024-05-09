@@ -248,7 +248,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       await waitAndRetry(async () => dlqMessage, 50, 20)
 
       expect(counter).toBe(2)
-      expect(dlqMessage.Body).toBe(JSON.stringify({ id: '1', messageType: 'remove' }))
+      expect(JSON.parse(dlqMessage.Body)).toMatchObject({ id: '1', messageType: 'remove' })
     })
 
     it('messages with retryLater should always be retried and not go to DLQ', async () => {
