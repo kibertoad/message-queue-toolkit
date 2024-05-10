@@ -107,7 +107,13 @@ export abstract class AbstractSnsSqsConsumer<
   }
 
   protected override resolveMessage(message: SQSMessage) {
-    return readSnsMessage(message, this.errorResolver)
+    const result = readSnsMessage(message, this.errorResolver)
+    if (result.result) {
+      return result
+    }
+
+    // if it not an SNS message, then it is a SQS message
+    return super.resolveMessage(message)
   }
 
   protected override resolveSchema(messagePayload: MessagePayloadSchemas) {
