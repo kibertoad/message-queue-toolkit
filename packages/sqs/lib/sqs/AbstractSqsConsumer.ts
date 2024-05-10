@@ -232,16 +232,10 @@ export abstract class AbstractSqsConsumer<
           return message
         }
 
-        // failure
-        this.handleMessageProcessed(
-          originalMessage,
-          result.error === 'retryLater' ? 'retryLater' : 'error',
-        )
-
         // in case of retryLater, requeue the message if maxRetryDuration is not exceeded
         if (result.error === 'retryLater') {
           // if timestamp is not present, defining it for the next try
-          const timestamp = this.tryToExtractTimestamp(parsedMessage) ?? new Date()
+          const timestamp = this.tryToExtractTimestamp(originalMessage) ?? new Date()
           const lastRetryDate = new Date(timestamp.getTime() + this.maxRetryDuration * 1000)
           if (lastRetryDate > new Date()) {
             await this.sqsClient.send(
@@ -253,13 +247,16 @@ export abstract class AbstractSqsConsumer<
                 }),
               }),
             )
+            this.handleMessageProcessed(originalMessage, 'retryLater')
           } else {
             await this.failProcessing(message)
+            this.handleMessageProcessed(originalMessage, 'error')
           }
 
           return message
         }
 
+        this.handleMessageProcessed(originalMessage, 'error')
         return Promise.reject(result.error)
       },
     })
