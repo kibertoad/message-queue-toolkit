@@ -195,6 +195,17 @@ export abstract class AbstractQueueService<
     return await barrier(message, executionContext, preHandlerOutput)
   }
 
+  protected tryToExtractTimestamp(message: MessagePayloadSchemas): Date | undefined {
+    // @ts-ignore
+    if (this.messageTimestampField in message) {
+      // @ts-ignore
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      return new Date(message[this.messageTimestampField])
+    }
+
+    return undefined
+  }
+
   protected abstract resolveNextFunction(
     preHandlers: Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[],
     message: MessagePayloadSchemas,

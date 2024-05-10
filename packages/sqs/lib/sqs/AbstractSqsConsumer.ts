@@ -381,16 +381,6 @@ export abstract class AbstractSqsConsumer<
     return ABORT_EARLY_EITHER
   }
 
-  private tryToExtractTimestamp(message: MessagePayloadType): Date | undefined {
-    // @ts-ignore
-    if (this.messageTimestampField in message) {
-      // @ts-ignore
-      return new Date(message[this.messageTimestampField])
-    }
-
-    return undefined
-  }
-
   private deserializeMessage(
     message: SQSMessage,
   ): Either<'abort', ParseMessageResult<MessagePayloadType>> {
