@@ -63,7 +63,10 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     try {
       messageSchemaResult.result.parse(message)
 
-      // if the message doesn't have a timestamp -> add it
+      /**
+       * If the message doesn't have a timestamp field -> add it
+       * will be used on the consumer to prevent infinite retries on the same message
+       */
       // @ts-ignore
       if (!message[this.messageTimestampField]) {
         // @ts-ignore

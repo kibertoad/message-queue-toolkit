@@ -42,7 +42,10 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
     }
     resolveSchemaResult.result.parse(message)
 
-    // if the message doesn't have a timestamp field -> add it
+    /**
+     * If the message doesn't have a timestamp field -> add it
+     * will be used on the consumer to prevent infinite retries on the same message
+     */
     // @ts-ignore
     if (!message[this.messageTimestampField]) {
       // @ts-ignore
