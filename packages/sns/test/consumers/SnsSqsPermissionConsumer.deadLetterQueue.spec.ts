@@ -7,7 +7,6 @@ import {
   getQueueAttributes,
   type SQSMessage,
 } from '@message-queue-toolkit/sqs'
-import type { PERMISSIONS_MESSAGE_TYPE } from '@message-queue-toolkit/sqs/dist/test/consumers/userConsumerSchemas'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
@@ -18,6 +17,7 @@ import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
+import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 
 // Note that dead letter queue are fully tested by sqs library - only including a few tests here to make sure the integration works
 describe('SnsSqsPermissionConsumer - dead letter queue', () => {
