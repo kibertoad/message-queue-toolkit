@@ -51,9 +51,10 @@ describe('PermissionPublisher', () => {
         return logger.loggedMessages.length === 2
       })
 
-      expect(logger.loggedMessages[1]).toEqual({
+      expect(logger.loggedMessages[2]).toEqual({
         id: '1',
         messageType: 'add',
+        timestamp: expect.any(String),
       })
     })
   })

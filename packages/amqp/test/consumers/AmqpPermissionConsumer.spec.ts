@@ -87,25 +87,23 @@ describe('AmqpPermissionConsumer', () => {
       await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
       expect(logger.loggedMessages.length).toBe(5)
-      expect(logger.loggedMessages).toMatchInlineSnapshot(`
-        [
-          "Propagating new connection across 0 receivers",
-          "timestamp not defined, adding it automatically",
-          {
-            "id": "1",
-            "messageType": "add",
-            "timestamp": "2024-05-10T09:45:50.719Z",
-          },
-          {
-            "id": "1",
-            "messageType": "add",
-          },
-          {
-            "messageId": "1",
-            "processingResult": "consumed",
-          },
-        ]
-      `)
+      expect(logger.loggedMessages).toEqual([
+        'Propagating new connection across 0 receivers',
+        'timestamp not defined, adding it automatically',
+        {
+          id: '1',
+          messageType: 'add',
+          timestamp: expect.any(String),
+        },
+        {
+          id: '1',
+          messageType: 'add',
+        },
+        {
+          messageId: '1',
+          processingResult: 'consumed',
+        },
+      ])
     })
   })
 
