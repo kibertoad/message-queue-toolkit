@@ -5,7 +5,7 @@ export const PERMISSIONS_MESSAGE_SCHEMA = z.object({
   messageType: z.enum(['add', 'remove']),
   userIds: z.array(z.number()).describe('User IDs'),
   permissions: z.array(z.string()).nonempty().describe('List of user permissions'),
-  timestamp: z.string().optional(),
+  timestamp: z.string().or(z.date()).optional(),
 })
 
 export const PERMISSIONS_ADD_MESSAGE_SCHEMA = z.object({

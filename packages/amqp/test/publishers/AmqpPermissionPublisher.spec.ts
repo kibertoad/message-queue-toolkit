@@ -205,7 +205,7 @@ describe('PermissionPublisher', () => {
         messageType: 'add',
         userIds: [1],
         permissions: ['100'],
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
       } satisfies PERMISSIONS_MESSAGE_TYPE
 
       let receivedMessage: unknown
@@ -226,8 +226,20 @@ describe('PermissionPublisher', () => {
       await waitAndRetry(() => !!receivedMessage)
 
       expect(receivedMessage).toEqual({
-        parsedMessage: message,
-        originalMessage: message,
+        parsedMessage: {
+          id: '1',
+          messageType: 'add',
+          userIds: [1],
+          permissions: ['100'],
+          timestamp: message.timestamp.toISOString(),
+        },
+        originalMessage: {
+          id: '1',
+          messageType: 'add',
+          userIds: [1],
+          permissions: ['100'],
+          timestamp: message.timestamp.toISOString(),
+        },
       })
     })
 
