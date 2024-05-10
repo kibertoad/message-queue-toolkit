@@ -7,6 +7,7 @@ import type { ZodSchema, ZodType } from 'zod'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
 import type { Logger, MessageProcessingResult } from '../types/MessageQueueTypes'
 import type { DeletionConfig, QueueDependencies, QueueOptions } from '../types/queueOptionsTypes'
+import { toDatePreprocessor } from '../utils/toDateProcessor'
 
 import type {
   BarrierCallback,
@@ -199,8 +200,11 @@ export abstract class AbstractQueueService<
     // @ts-ignore
     if (this.messageTimestampField in message) {
       // @ts-ignore
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      return new Date(message[this.messageTimestampField])
+      const res = toDatePreprocessor(message[this.messageTimestampField])
+
+      if (!(res instanceof Date)) {
+        throw new Error(`${this.messageTimestampField} invalid type`)
+      }
     }
 
     return undefined

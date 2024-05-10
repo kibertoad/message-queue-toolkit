@@ -12,6 +12,7 @@ import type {
   ParseMessageResult,
 } from '@message-queue-toolkit/core'
 import {
+  isRetryDateExceeded,
   isMessageError,
   parseMessage,
   HandlerContainer,
@@ -232,12 +233,10 @@ export abstract class AbstractSqsConsumer<
           return message
         }
 
-        // in case of retryLater, requeue the message if maxRetryDuration is not exceeded
         if (result.error === 'retryLater') {
           const timestamp = this.tryToExtractTimestamp(originalMessage) ?? new Date()
-          const lastRetryDate = new Date(timestamp.getTime() + this.maxRetryDuration * 1000)
           // requeue the message if maxRetryDuration is not exceeded, else ack it to avoid infinite loop
-          if (lastRetryDate > new Date()) {
+          if (!isRetryDateExceeded(timestamp, this.maxRetryDuration)) {
             await this.sqsClient.send(
               new SendMessageCommand({
                 QueueUrl: this.queueUrl,

@@ -10,6 +10,7 @@ import type {
   TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
 import {
+  isRetryDateExceeded,
   isMessageError,
   parseMessage,
   HandlerContainer,
@@ -159,9 +160,8 @@ export abstract class AbstractAmqpConsumer<
 
           // retryLater
           const timestamp = this.tryToExtractTimestamp(originalMessage) ?? new Date()
-          const lastRetryDate = new Date(timestamp.getTime() + this.maxRetryDuration * 1000)
           // requeue the message if maxRetryDuration is not exceeded, else ack it to avoid infinite loop
-          if (lastRetryDate > new Date()) {
+          if (!isRetryDateExceeded(timestamp, this.maxRetryDuration)) {
             this.channel.nack(message, false, true)
             this.handleMessageProcessed(originalMessage, 'retryLater')
           } else {
