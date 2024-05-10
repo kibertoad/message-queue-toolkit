@@ -201,10 +201,11 @@ export abstract class AbstractQueueService<
     if (this.messageTimestampField in message) {
       // @ts-ignore
       const res = toDatePreprocessor(message[this.messageTimestampField])
-
       if (!(res instanceof Date)) {
         throw new Error(`${this.messageTimestampField} invalid type`)
       }
+
+      return res
     }
 
     return undefined
