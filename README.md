@@ -171,9 +171,7 @@ To create a dead letter queue, you need to specify the `deadLetterQueue` paramet
 - `redrivePolicy`: an object that contains the following fields:
   - `maxReceiveCount`: the number of times a message can be received before being moved to the DLQ.
 
-If you use the barrier pattern together with a dead letter queue, you should be aware that the library does not simply return the message to the queue, but creates a new one instead to avoid exhausting DLQ limits early.
-Due to this fact, in those cases, you could have duplicated messages if a service crashes after receiving `retryLater` result from the barrier and creating a new message for the retry, but before the original one is consumed (those are not being done as an atomic operation).
-In a future release, we will implement deduplication to remove this risk but in the meantime, please keep this in mind.
+> **_NOTE:_**  if a message is stuck returning retryLater, it will be moved to the DLQ after the `maxRetryDuration` is reached.
 
 ## Fan-out to Multiple Consumers
 
