@@ -65,8 +65,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
        * If the message doesn't have a timestamp field -> add it
        * will be used on the consumer to prevent infinite retries on the same message
        */
-      // @ts-ignore
-      if (!message[this.messageTimestampField]) {
+      if (!this.tryToExtractTimestamp(message)) {
         // @ts-ignore
         message[this.messageTimestampField] = new Date().toISOString()
         this.logger.warn(`${this.messageTimestampField} not defined, adding it automatically`)
