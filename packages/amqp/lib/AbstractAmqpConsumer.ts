@@ -26,6 +26,7 @@ import { AbstractAmqpService } from './AbstractAmqpService'
 import { readAmqpMessage } from './amqpMessageReader'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = { error: 'abort' }
+const DEFAULT_MAX_RETRY_DURATION = 4 * 24 * 60 * 60
 
 export type AMQPConsumerOptions<
   MessagePayloadType extends object,
@@ -61,6 +62,7 @@ export abstract class AbstractAmqpConsumer<
     AMQPLocator,
     NonNullable<unknown>
   >
+  private readonly maxRetryDuration: number
 
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   private readonly handlerContainer: HandlerContainer<
@@ -79,6 +81,7 @@ export abstract class AbstractAmqpConsumer<
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.errorResolver = dependencies.consumerErrorResolver
     this.deadLetterQueueOptions = options.deadLetterQueue
+    this.maxRetryDuration = options.maxRetryDuration ?? DEFAULT_MAX_RETRY_DURATION
 
     const messageSchemas = options.handlers.map((entry) => entry.schema)
     this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
@@ -129,40 +132,48 @@ export abstract class AbstractAmqpConsumer<
         this.handleMessageProcessed(null, 'invalid_message', messageId.result)
         return
       }
+      const { originalMessage, parsedMessage } = deserializedMessage.result
+
       // @ts-ignore
-      const messageType = deserializedMessage.result.parsedMessage[this.messageTypeField]
+      const messageType = parsedMessage[this.messageTypeField]
       const transactionSpanId = `queue_${this.queueName}:${
         // @ts-ignore
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        deserializedMessage.result[this.messageTypeField]
+        parsedMessage[this.messageTypeField]
       }`
 
       // @ts-ignore
-      const uniqueTransactionKey = deserializedMessage.result.parsedMessage[this.messageIdField]
+      const uniqueTransactionKey = parsedMessage[this.messageIdField]
       this.transactionObservabilityManager?.start(transactionSpanId, uniqueTransactionKey)
       if (this.logMessages) {
-        const resolvedLogMessage = this.resolveMessageLog(
-          deserializedMessage.result.parsedMessage,
-          messageType,
-        )
+        const resolvedLogMessage = this.resolveMessageLog(parsedMessage, messageType)
         this.logMessage(resolvedLogMessage)
       }
-      this.internalProcessMessage(deserializedMessage.result.parsedMessage, messageType)
+      this.internalProcessMessage(parsedMessage, messageType)
         .then((result) => {
-          if (result.error === 'retryLater') {
-            this.channel.nack(message, false, true)
-            this.handleMessageProcessed(deserializedMessage.result.originalMessage, 'retryLater')
-          }
           if (result.result === 'success') {
             this.channel.ack(message)
-            this.handleMessageProcessed(deserializedMessage.result.originalMessage, 'consumed')
+            this.handleMessageProcessed(originalMessage, 'consumed')
+            return
+          }
+
+          // retryLater
+          const timestamp = this.tryToExtractTimestamp(originalMessage) ?? new Date()
+          const lastRetryDate = new Date(timestamp.getTime() + this.maxRetryDuration * 1000)
+          // requeue the message if maxRetryDuration is not exceeded, else ack it to avoid infinite loop
+          if (lastRetryDate > new Date()) {
+            this.channel.nack(message, false, true)
+            this.handleMessageProcessed(originalMessage, 'retryLater')
+          } else {
+            this.channel.ack(message)
+            this.handleMessageProcessed(originalMessage, 'error')
           }
         })
         .catch((err) => {
           // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
           // If we fail due to unknown reason, let's retry
           this.channel.nack(message, false, true)
-          this.handleMessageProcessed(deserializedMessage.result.originalMessage, 'retryLater')
+          this.handleMessageProcessed(originalMessage, 'retryLater')
           this.handleError(err)
         })
         .finally(() => {

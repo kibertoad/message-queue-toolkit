@@ -13,6 +13,7 @@ import type { Dependencies } from '../utils/testContext'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 
 import { AmqpPermissionConsumer } from './AmqpPermissionConsumer'
+import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
 
 describe('AmqpPermissionConsumer', () => {
   describe('init', () => {
@@ -378,6 +379,71 @@ describe('AmqpPermissionConsumer', () => {
 
       expect(consumer.addCounter > 0).toBe(true)
       await consumer.close()
+    })
+  })
+
+  describe('messages stuck on retryLater', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    let publisher: AmqpPermissionPublisher
+    beforeEach(async () => {
+      diContainer = await registerDependencies(TEST_AMQP_CONFIG, undefined, false)
+      publisher = diContainer.cradle.permissionPublisher
+      await publisher.init()
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('stuck on barrier', async () => {
+      let counter = 0
+      const consumer = new AmqpPermissionConsumer(diContainer.cradle, {
+        addPreHandlerBarrier: async () => {
+          counter++
+          return { isPassing: false }
+        },
+        maxRetryDuration: 3,
+      })
+      await consumer.start()
+
+      const message: PERMISSIONS_MESSAGE_TYPE = {
+        id: '1',
+        messageType: 'add',
+        userIds: [1],
+        permissions: ['100'],
+        timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
+      }
+      publisher.publish(message)
+
+      const jobSpy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
+      expect(jobSpy.message).toEqual(message)
+      expect(counter).toBeGreaterThan(2)
+    })
+
+    it('stuck on handler', async () => {
+      let counter = 0
+      const consumer = new AmqpPermissionConsumer(diContainer.cradle, {
+        removeHandlerOverride: async () => {
+          counter++
+          return { error: 'retryLater' }
+        },
+        maxRetryDuration: 3,
+      })
+      await consumer.start()
+
+      const message: PERMISSIONS_MESSAGE_TYPE = {
+        id: '1',
+        messageType: 'remove',
+        userIds: [1],
+        permissions: ['100'],
+        timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
+      }
+      publisher.publish(message)
+
+      const jobSpy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
+      expect(jobSpy.message).toEqual(message)
+      expect(counter).toBeGreaterThan(2)
     })
   })
 })

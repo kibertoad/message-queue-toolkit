@@ -234,9 +234,9 @@ export abstract class AbstractSqsConsumer<
 
         // in case of retryLater, requeue the message if maxRetryDuration is not exceeded
         if (result.error === 'retryLater') {
-          // if timestamp is not present, defining it for the next try
           const timestamp = this.tryToExtractTimestamp(originalMessage) ?? new Date()
           const lastRetryDate = new Date(timestamp.getTime() + this.maxRetryDuration * 1000)
+          // requeue the message if maxRetryDuration is not exceeded, else ack it to avoid infinite loop
           if (lastRetryDate > new Date()) {
             await this.sqsClient.send(
               new SendMessageCommand({
