@@ -9,8 +9,10 @@ import type {
   BarrierResult,
   QueueConsumerDependencies,
   DeadLetterQueueOptions,
+  ParseMessageResult,
 } from '@message-queue-toolkit/core'
 import {
+  isRetryDateExceeded,
   isMessageError,
   parseMessage,
   HandlerContainer,
@@ -30,6 +32,7 @@ import { AbstractSqsService } from './AbstractSqsService'
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
+const DEFAULT_MAX_RETRY_DURATION = 4 * 24 * 60 * 60 // 4 days in seconds
 
 type SQSDeadLetterQueueOptions = {
   redrivePolicy: {
@@ -98,25 +101,23 @@ export abstract class AbstractSqsConsumer<
 {
   private consumer?: Consumer
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
-
   private readonly consumerOptionsOverride: Partial<ConsumerOptions>
   private readonly handlerContainer: HandlerContainer<
     MessagePayloadType,
     ExecutionContext,
     PrehandlerOutput
   >
-
-  protected readonly errorResolver: ErrorResolver
-  protected readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
-  protected readonly executionContext: ExecutionContext
-
   private readonly deadLetterQueueOptions?: DeadLetterQueueOptions<
     SQSCreationConfig,
     SQSQueueLocatorType,
     SQSDeadLetterQueueOptions
   >
+  private maxRetryDuration: number
 
   protected deadLetterQueueUrl?: string
+  protected readonly errorResolver: ErrorResolver
+  protected readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
+  protected readonly executionContext: ExecutionContext
 
   protected constructor(
     dependencies: SQSConsumerDependencies,
@@ -126,9 +127,10 @@ export abstract class AbstractSqsConsumer<
     super(dependencies, options)
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.errorResolver = dependencies.consumerErrorResolver
-
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
     this.deadLetterQueueOptions = options.deadLetterQueue
+    this.maxRetryDuration = options.maxRetryDuration ?? DEFAULT_MAX_RETRY_DURATION
+    this.executionContext = executionContext
 
     const messageSchemas = options.handlers.map((entry) => entry.schema)
     this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
@@ -143,7 +145,6 @@ export abstract class AbstractSqsConsumer<
       messageTypeField: this.messageTypeField,
       messageHandlers: options.handlers,
     })
-    this.executionContext = executionContext
   }
 
   override async init(): Promise<void> {
@@ -199,20 +200,22 @@ export abstract class AbstractSqsConsumer<
           this.handleMessageProcessed(null, 'invalid_message', messageId.result)
           return
         }
+        const { parsedMessage, originalMessage } = deserializedMessage.result
+
         // @ts-ignore
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        const messageType = deserializedMessage.result[this.messageTypeField]
+        const messageType = parsedMessage[this.messageTypeField]
         const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
         // @ts-ignore
-        const uniqueTransactionKey = deserializedMessage.result[this.messageIdField]
+        const uniqueTransactionKey = parsedMessage[this.messageIdField]
         this.transactionObservabilityManager?.start(transactionSpanId, uniqueTransactionKey)
         if (this.logMessages) {
-          const resolvedLogMessage = this.resolveMessageLog(deserializedMessage.result, messageType)
+          const resolvedLogMessage = this.resolveMessageLog(parsedMessage, messageType)
           this.logMessage(resolvedLogMessage)
         }
         const result: Either<'retryLater' | Error, 'success'> = await this.internalProcessMessage(
-          deserializedMessage.result,
+          parsedMessage,
           messageType,
         )
           .catch((err) => {
@@ -226,27 +229,33 @@ export abstract class AbstractSqsConsumer<
 
         // success
         if (result.result) {
-          this.handleMessageProcessed(deserializedMessage.result, 'consumed')
+          this.handleMessageProcessed(originalMessage, 'consumed')
           return message
         }
 
-        // failure
-        this.handleMessageProcessed(
-          deserializedMessage.result,
-          result.error === 'retryLater' ? 'retryLater' : 'error',
-        )
+        if (result.error === 'retryLater') {
+          const timestamp = this.tryToExtractTimestamp(originalMessage) ?? new Date()
+          // requeue the message if maxRetryDuration is not exceeded, else ack it to avoid infinite loop
+          if (!isRetryDateExceeded(timestamp, this.maxRetryDuration)) {
+            await this.sqsClient.send(
+              new SendMessageCommand({
+                QueueUrl: this.queueUrl,
+                MessageBody: JSON.stringify({
+                  ...originalMessage,
+                  [this.messageTimestampField]: timestamp.toISOString(),
+                }),
+              }),
+            )
+            this.handleMessageProcessed(originalMessage, 'retryLater')
+          } else {
+            await this.failProcessing(message)
+            this.handleMessageProcessed(originalMessage, 'error')
+          }
 
-        // in case of retryLater, if DLQ is set, we will send the message back to the queue
-        if (result.error === 'retryLater' && this.deadLetterQueueUrl) {
-          await this.sqsClient.send(
-            new SendMessageCommand({
-              QueueUrl: this.queueUrl,
-              MessageBody: message.Body,
-            }),
-          )
           return message
         }
 
+        this.handleMessageProcessed(originalMessage, 'error')
         return Promise.reject(result.error)
       },
     })
@@ -371,7 +380,9 @@ export abstract class AbstractSqsConsumer<
     return ABORT_EARLY_EITHER
   }
 
-  private deserializeMessage(message: SQSMessage): Either<'abort', MessagePayloadType> {
+  private deserializeMessage(
+    message: SQSMessage,
+  ): Either<'abort', ParseMessageResult<MessagePayloadType>> {
     if (message === null) {
       return ABORT_EARLY_EITHER
     }

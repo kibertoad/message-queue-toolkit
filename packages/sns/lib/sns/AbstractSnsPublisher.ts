@@ -1,6 +1,6 @@
 import { PublishCommand } from '@aws-sdk/client-sns'
 import type { PublishCommandInput } from '@aws-sdk/client-sns/dist-types/commands/PublishCommand'
-import type { Either} from '@lokalise/node-core';
+import type { Either } from '@lokalise/node-core'
 import { InternalError } from '@lokalise/node-core'
 import type {
   AsyncPublisher,
@@ -62,6 +62,16 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
 
     try {
       messageSchemaResult.result.parse(message)
+
+      /**
+       * If the message doesn't have a timestamp field -> add it
+       * will be used on the consumer to prevent infinite retries on the same message
+       */
+      if (!this.tryToExtractTimestamp(message)) {
+        // @ts-ignore
+        message[this.messageTimestampField] = new Date().toISOString()
+        this.logger.warn(`${this.messageTimestampField} not defined, adding it automatically`)
+      }
 
       if (this.logMessages) {
         // @ts-ignore

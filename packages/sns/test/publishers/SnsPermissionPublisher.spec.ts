@@ -1,6 +1,6 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
-import type { InternalError} from '@lokalise/node-core';
+import type { InternalError } from '@lokalise/node-core'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
 import { assertQueue, deleteQueue, FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
@@ -11,8 +11,14 @@ import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 import { deserializeSNSMessage } from '../../lib/utils/snsMessageDeserializer'
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber'
 import { assertTopic, deleteTopic, getTopicAttributes } from '../../lib/utils/snsUtils'
-import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
-import { PERMISSIONS_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
+import type {
+  PERMISSIONS_ADD_MESSAGE_TYPE,
+  PERMISSIONS_MESSAGE_TYPE,
+} from '../consumers/userConsumerSchemas'
+import {
+  PERMISSIONS_MESSAGE_SCHEMA,
+  PERMISSIONS_ADD_MESSAGE_SCHEMA,
+} from '../consumers/userConsumerSchemas'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -128,6 +134,7 @@ describe('SnsPermissionPublisher', () => {
         userIds,
         messageType: 'add',
         permissions: perms,
+        timestamp: new Date().toISOString(),
       } satisfies PERMISSIONS_MESSAGE_TYPE
 
       const { queueUrl } = await assertQueue(sqsClient, {
@@ -148,7 +155,7 @@ describe('SnsPermissionPublisher', () => {
         },
       )
 
-      let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null
+      let receivedMessage: unknown = null
       consumer = Consumer.create({
         queueUrl: queueUrl,
         handleMessage: async (message: SQSMessage) => {
@@ -170,15 +177,72 @@ describe('SnsPermissionPublisher', () => {
 
       await permissionPublisher.publish(message)
 
-      await waitAndRetry(() => {
-        return receivedMessage !== null
-      })
+      await waitAndRetry(() => !!receivedMessage)
 
       expect(receivedMessage).toEqual({
+        originalMessage: message,
+        parsedMessage: message,
+      })
+
+      consumer.stop()
+    })
+
+    it('publishes a message auto-filling timestamp', async () => {
+      const { permissionPublisher } = diContainer.cradle
+
+      const message = {
         id: '1',
         messageType: 'add',
-        permissions: ['perm1', 'perm2'],
-        userIds: [100, 200, 300],
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+      const { queueUrl } = await assertQueue(sqsClient, {
+        QueueName: queueName,
+      })
+
+      await subscribeToTopic(
+        sqsClient,
+        snsClient,
+        {
+          QueueName: queueName,
+        },
+        {
+          Name: SnsPermissionPublisher.TOPIC_NAME,
+        },
+        {
+          updateAttributesIfExists: false,
+        },
+      )
+
+      let receivedMessage: unknown
+      consumer = Consumer.create({
+        queueUrl: queueUrl,
+        handleMessage: async (message: SQSMessage) => {
+          if (message === null) {
+            return
+          }
+          const decodedMessage = deserializeSNSMessage(
+            message as any,
+            PERMISSIONS_ADD_MESSAGE_SCHEMA,
+            new FakeConsumerErrorResolver(),
+          )
+          receivedMessage = decodedMessage.result!
+        },
+        sqs: diContainer.cradle.sqsClient,
+      })
+      consumer.start()
+
+      consumer.on('error', () => {})
+
+      await permissionPublisher.publish(message)
+
+      await waitAndRetry(() => !!receivedMessage)
+
+      expect(receivedMessage).toEqual({
+        originalMessage: message,
+        parsedMessage: {
+          id: '1',
+          messageType: 'add',
+        },
       })
 
       consumer.stop()

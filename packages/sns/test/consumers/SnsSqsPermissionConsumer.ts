@@ -32,7 +32,12 @@ type PreHandlerOutput = {
 
 type SnsSqsPermissionConsumerOptions = Pick<
   SNSSQSConsumerOptions<SupportedMessages, ExecutionContext, PreHandlerOutput>,
-  'creationConfig' | 'locatorConfig' | 'deletionConfig' | 'deadLetterQueue' | 'consumerOverrides'
+  | 'creationConfig'
+  | 'locatorConfig'
+  | 'deletionConfig'
+  | 'deadLetterQueue'
+  | 'consumerOverrides'
+  | 'maxRetryDuration'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -159,6 +164,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
         subscriptionConfig: {
           updateAttributesIfExists: false,
         },
+        maxRetryDuration: options.maxRetryDuration,
       },
       {
         incrementAmount: 1,

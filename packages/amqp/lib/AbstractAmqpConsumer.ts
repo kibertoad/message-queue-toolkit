@@ -2,6 +2,7 @@ import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   BarrierResult,
   DeadLetterQueueOptions,
+  ParseMessageResult,
   Prehandler,
   PreHandlingOutputs,
   QueueConsumer,
@@ -9,6 +10,7 @@ import type {
   TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
 import {
+  isRetryDateExceeded,
   isMessageError,
   parseMessage,
   HandlerContainer,
@@ -25,6 +27,7 @@ import { AbstractAmqpService } from './AbstractAmqpService'
 import { readAmqpMessage } from './amqpMessageReader'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = { error: 'abort' }
+const DEFAULT_MAX_RETRY_DURATION = 4 * 24 * 60 * 60
 
 export type AMQPConsumerOptions<
   MessagePayloadType extends object,
@@ -60,6 +63,7 @@ export abstract class AbstractAmqpConsumer<
     AMQPLocator,
     NonNullable<unknown>
   >
+  private readonly maxRetryDuration: number
 
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   private readonly handlerContainer: HandlerContainer<
@@ -78,6 +82,7 @@ export abstract class AbstractAmqpConsumer<
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.errorResolver = dependencies.consumerErrorResolver
     this.deadLetterQueueOptions = options.deadLetterQueue
+    this.maxRetryDuration = options.maxRetryDuration ?? DEFAULT_MAX_RETRY_DURATION
 
     const messageSchemas = options.handlers.map((entry) => entry.schema)
     this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
@@ -128,37 +133,48 @@ export abstract class AbstractAmqpConsumer<
         this.handleMessageProcessed(null, 'invalid_message', messageId.result)
         return
       }
+      const { originalMessage, parsedMessage } = deserializedMessage.result
+
       // @ts-ignore
-      const messageType = deserializedMessage.result[this.messageTypeField]
+      const messageType = parsedMessage[this.messageTypeField]
       const transactionSpanId = `queue_${this.queueName}:${
         // @ts-ignore
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        deserializedMessage.result[this.messageTypeField]
+        parsedMessage[this.messageTypeField]
       }`
 
       // @ts-ignore
-      const uniqueTransactionKey = deserializedMessage.result[this.messageIdField]
+      const uniqueTransactionKey = parsedMessage[this.messageIdField]
       this.transactionObservabilityManager?.start(transactionSpanId, uniqueTransactionKey)
       if (this.logMessages) {
-        const resolvedLogMessage = this.resolveMessageLog(deserializedMessage.result, messageType)
+        const resolvedLogMessage = this.resolveMessageLog(parsedMessage, messageType)
         this.logMessage(resolvedLogMessage)
       }
-      this.internalProcessMessage(deserializedMessage.result, messageType)
+      this.internalProcessMessage(parsedMessage, messageType)
         .then((result) => {
-          if (result.error === 'retryLater') {
-            this.channel.nack(message, false, true)
-            this.handleMessageProcessed(deserializedMessage.result, 'retryLater')
-          }
           if (result.result === 'success') {
             this.channel.ack(message)
-            this.handleMessageProcessed(deserializedMessage.result, 'consumed')
+            this.handleMessageProcessed(originalMessage, 'consumed')
+            return
+          }
+
+          // retryLater
+          const timestamp = this.tryToExtractTimestamp(originalMessage) ?? new Date()
+          // requeue the message if maxRetryDuration is not exceeded, else ack it to avoid infinite loop
+          if (!isRetryDateExceeded(timestamp, this.maxRetryDuration)) {
+            this.channel.nack(message, false, true)
+            this.handleMessageProcessed(originalMessage, 'retryLater')
+          } else {
+            // ToDo move message to DLQ once it is implemented
+            this.channel.ack(message)
+            this.handleMessageProcessed(originalMessage, 'error')
           }
         })
         .catch((err) => {
           // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
           // If we fail due to unknown reason, let's retry
           this.channel.nack(message, false, true)
-          this.handleMessageProcessed(deserializedMessage.result, 'retryLater')
+          this.handleMessageProcessed(originalMessage, 'retryLater')
           this.handleError(err)
         })
         .finally(() => {
@@ -180,6 +196,7 @@ export abstract class AbstractAmqpConsumer<
         barrierOutput: barrierResult.output,
       })
     }
+
     return { error: 'retryLater' }
   }
 
@@ -245,7 +262,9 @@ export abstract class AbstractAmqpConsumer<
     )
   }
 
-  private deserializeMessage(message: Message): Either<'abort', MessagePayloadType> {
+  private deserializeMessage(
+    message: Message,
+  ): Either<'abort', ParseMessageResult<MessagePayloadType>> {
     const resolveMessageResult = this.resolveMessage(message)
     if (isMessageError(resolveMessageResult.error)) {
       this.handleError(resolveMessageResult.error)

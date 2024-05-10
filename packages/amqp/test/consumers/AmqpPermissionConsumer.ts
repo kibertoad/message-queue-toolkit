@@ -25,7 +25,7 @@ type PrehandlerOutput = {
 
 type AmqpPermissionConsumerOptions = Pick<
   AMQPConsumerOptions<SupportedEvents, ExecutionContext, PrehandlerOutput>,
-  'creationConfig' | 'locatorConfig' | 'logMessages' | 'deadLetterQueue'
+  'creationConfig' | 'locatorConfig' | 'logMessages' | 'deadLetterQueue' | 'maxRetryDuration'
 > & {
   addPreHandlerBarrier?: (message: SupportedEvents) => Promise<BarrierResult<number>>
   removeHandlerOverride?: (
@@ -76,9 +76,8 @@ export class AmqpPermissionConsumer extends AbstractAmqpConsumer<
         logMessages: options?.logMessages,
         handlerSpy: true,
         messageTypeField: 'messageType',
-        deletionConfig: {
-          deleteIfExists: true,
-        },
+        deletionConfig: { deleteIfExists: true },
+        maxRetryDuration: options?.maxRetryDuration,
         handlers: new MessageHandlerConfigBuilder<
           SupportedEvents,
           ExecutionContext,

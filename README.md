@@ -31,6 +31,7 @@ They implement the following public methods:
         * `messageTypeField` - which field in the message describes the type of a message. This field needs to be defined as `z.literal` in the schema and is used for resolving the correct schema for validation
         * `locatorConfig` - configuration for resolving existing queue and/or topic. Should not be specified together with the `creationConfig`.
         * `creationConfig` - configuration for queue and/or topic to create, if one does not exist. Should not be specified together with the `locatorConfig`.
+        * `messageTimestampField` - which field in the message contains the message creation date (by default it is `timestamp`). This field needs to be a `Date` object or ISO-8601 date string, if your message doesn't contain it the library will add one automatically to avoid infinite loops on consumer;
 * `init()`, prepare publisher for use (e. g. establish all necessary connections);
 * `close()`, stop publisher use (e. g. disconnect);
 * `publish()`, send a message to a queue or topic. It accepts the following parameters:
@@ -54,6 +55,8 @@ Multi-schema consumers support multiple message types via handler configs. They 
     * `options`, composed by
         * `handlers` – configuration for handling each of the supported message types. See "Multi-schema handler definition" for more details;
         * `messageTypeField` - which field in the message describes the type of a message. This field needs to be defined as `z.literal` in the schema and is used for routing the message to the correct handler;
+        * `messageTimestampField` - which field in the message contains the message creation date (by default it is `timestamp`). This field needs to be a `Date` object or an ISO-8601 date string;
+        * `maxRetryDuration` - how long (in seconds) the message should be retried due to the `retryLater` result before marking it as consumed (and sending to DLQ, if one is configured). This is used to avoid infinite loops. Default is 4 days;
         * `queueName`; (for SNS publishers this is a misnomer which actually refers to a topic name)
         * `locatorConfig` - configuration for resolving existing queue and/or topic. Should not be specified together with the `creationConfig`.
         * `creationConfig` - configuration for queue and/or topic to create, if one does not exist. Should not be specified together with the `locatorConfig`.
@@ -168,9 +171,7 @@ To create a dead letter queue, you need to specify the `deadLetterQueue` paramet
 - `redrivePolicy`: an object that contains the following fields:
   - `maxReceiveCount`: the number of times a message can be received before being moved to the DLQ.
 
-If you use the barrier pattern together with a dead letter queue, you should be aware that the library does not simply return the message to the queue, but creates a new one instead to avoid exhausting DLQ limits early.
-Due to this fact, in those cases, you could have duplicated messages if a service crashes after receiving `retryLater` result from the barrier and creating a new message for the retry, but before the original one is consumed (those are not being done as an atomic operation).
-In a future release, we will implement deduplication to remove this risk but in the meantime, please keep this in mind.
+> **_NOTE:_**  if a message is stuck returning retryLater, it will be moved to the DLQ after the `maxRetryDuration` is reached.
 
 ## Fan-out to Multiple Consumers
 

@@ -24,6 +24,7 @@ type SqsPermissionConsumerOptions = Pick<
   | 'deletionConfig'
   | 'deadLetterQueue'
   | 'consumerOverrides'
+  | 'maxRetryDuration'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -95,6 +96,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
         consumerOverrides: options.consumerOverrides ?? {
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
         },
+        maxRetryDuration: options.maxRetryDuration,
         handlers: new MessageHandlerConfigBuilder<
           SupportedMessages,
           ExecutionContext,

@@ -7,6 +7,7 @@ import type { ZodSchema, ZodType } from 'zod'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
 import type { Logger, MessageProcessingResult } from '../types/MessageQueueTypes'
 import type { DeletionConfig, QueueDependencies, QueueOptions } from '../types/queueOptionsTypes'
+import { toDatePreprocessor } from '../utils/toDateProcessor'
 
 import type {
   BarrierCallback,
@@ -43,8 +44,9 @@ export abstract class AbstractQueueService<
 > {
   protected readonly errorReporter: ErrorReporter
   public readonly logger: Logger
-  protected readonly messageTypeField: string
   protected readonly messageIdField: string
+  protected readonly messageTypeField: string
+  protected readonly messageTimestampField: string
   protected readonly logMessages: boolean
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
@@ -64,8 +66,9 @@ export abstract class AbstractQueueService<
     this.errorReporter = errorReporter
     this.logger = logger
 
-    this.messageTypeField = options.messageTypeField
     this.messageIdField = options.messageIdField ?? 'id'
+    this.messageTypeField = options.messageTypeField
+    this.messageTimestampField = options.messageTimestampField ?? 'timestamp'
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig
@@ -191,6 +194,21 @@ export abstract class AbstractQueueService<
 
     // @ts-ignore
     return await barrier(message, executionContext, preHandlerOutput)
+  }
+
+  protected tryToExtractTimestamp(message: MessagePayloadSchemas): Date | undefined {
+    // @ts-ignore
+    if (this.messageTimestampField in message) {
+      // @ts-ignore
+      const res = toDatePreprocessor(message[this.messageTimestampField])
+      if (!(res instanceof Date)) {
+        throw new Error(`${this.messageTimestampField} invalid type`)
+      }
+
+      return res
+    }
+
+    return undefined
   }
 
   protected abstract resolveNextFunction(

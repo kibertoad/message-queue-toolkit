@@ -3,7 +3,10 @@ import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
-import type { PERMISSIONS_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
+import type {
+  PERMISSIONS_ADD_MESSAGE_TYPE,
+  PERMISSIONS_MESSAGE_TYPE,
+} from '../consumers/userConsumerSchemas'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -160,7 +163,7 @@ describe('SqsPermissionPublisher', () => {
       await diContainer.dispose()
     })
 
-    it('publish inalid message', async () => {
+    it('publish invalid message', async () => {
       await expect(
         permissionPublisher.publish({
           id: '10',
@@ -177,12 +180,28 @@ describe('SqsPermissionPublisher', () => {
         userIds: [100, 200, 300],
         messageType: 'add',
         permissions: ['perm1', 'perm2'],
+        timestamp: new Date().toISOString(),
       } satisfies PERMISSIONS_MESSAGE_TYPE
 
       await permissionPublisher.publish(message)
 
       const spy = await permissionPublisher.handlerSpy.waitForMessageWithId('1', 'published')
       expect(spy.message).toEqual(message)
+      expect(spy.processingResult).toBe('published')
+    })
+
+    it('publish a message auto-filling timestamp', async () => {
+      const { permissionPublisher } = diContainer.cradle
+
+      const message = {
+        id: '1',
+        messageType: 'add',
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+      await permissionPublisher.publish(message)
+
+      const spy = await permissionPublisher.handlerSpy.waitForMessageWithId('1', 'published')
+      expect(spy.message).toEqual({ ...message, timestamp: expect.any(String) })
       expect(spy.processingResult).toBe('published')
     })
 
