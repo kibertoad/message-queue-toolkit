@@ -2,6 +2,7 @@ import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   BarrierResult,
   DeadLetterQueueOptions,
+  ParseMessageResult,
   Prehandler,
   PreHandlingOutputs,
   QueueConsumer,
@@ -129,7 +130,7 @@ export abstract class AbstractAmqpConsumer<
         return
       }
       // @ts-ignore
-      const messageType = deserializedMessage.result[this.messageTypeField]
+      const messageType = deserializedMessage.result.parsedMessage[this.messageTypeField]
       const transactionSpanId = `queue_${this.queueName}:${
         // @ts-ignore
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -137,32 +138,31 @@ export abstract class AbstractAmqpConsumer<
       }`
 
       // @ts-ignore
-      const uniqueTransactionKey = deserializedMessage.result[this.messageIdField]
+      const uniqueTransactionKey = deserializedMessage.result.parsedMessage[this.messageIdField]
       this.transactionObservabilityManager?.start(transactionSpanId, uniqueTransactionKey)
       if (this.logMessages) {
-        const resolvedLogMessage = this.resolveMessageLog(deserializedMessage.result, messageType)
+        const resolvedLogMessage = this.resolveMessageLog(
+          deserializedMessage.result.parsedMessage,
+          messageType,
+        )
         this.logMessage(resolvedLogMessage)
       }
-      this.internalProcessMessage(deserializedMessage.result, messageType)
+      this.internalProcessMessage(deserializedMessage.result.parsedMessage, messageType)
         .then((result) => {
-          if (result.error === 'barrierNotPassing') {
-            // TODO: only retry if the message is not oldest than the configured max time (to be implemented)
-            this.channel.nack(message, false, false)
-          }
           if (result.error === 'retryLater') {
             this.channel.nack(message, false, true)
-            this.handleMessageProcessed(deserializedMessage.result, 'retryLater')
+            this.handleMessageProcessed(deserializedMessage.result.originalMessage, 'retryLater')
           }
           if (result.result === 'success') {
             this.channel.ack(message)
-            this.handleMessageProcessed(deserializedMessage.result, 'consumed')
+            this.handleMessageProcessed(deserializedMessage.result.originalMessage, 'consumed')
           }
         })
         .catch((err) => {
           // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
           // If we fail due to unknown reason, let's retry
           this.channel.nack(message, false, true)
-          this.handleMessageProcessed(deserializedMessage.result, 'retryLater')
+          this.handleMessageProcessed(deserializedMessage.result.originalMessage, 'retryLater')
           this.handleError(err)
         })
         .finally(() => {
@@ -174,18 +174,18 @@ export abstract class AbstractAmqpConsumer<
   private async internalProcessMessage(
     message: MessagePayloadType,
     messageType: string,
-  ): Promise<Either<'retryLater' | 'barrierNotPassing', 'success'>> {
+  ): Promise<Either<'retryLater', 'success'>> {
     const preHandlerOutput = await this.processPrehandlers(message, messageType)
     const barrierResult = await this.preHandlerBarrier(message, messageType, preHandlerOutput)
 
-    if (!barrierResult.isPassing) {
-      return { error: 'barrierNotPassing' }
+    if (barrierResult.isPassing) {
+      return this.processMessage(message, messageType, {
+        preHandlerOutput,
+        barrierOutput: barrierResult.output,
+      })
     }
 
-    return this.processMessage(message, messageType, {
-      preHandlerOutput,
-      barrierOutput: barrierResult.output,
-    })
+    return { error: 'retryLater' }
   }
 
   protected override async processMessage(
@@ -250,7 +250,9 @@ export abstract class AbstractAmqpConsumer<
     )
   }
 
-  private deserializeMessage(message: Message): Either<'abort', MessagePayloadType> {
+  private deserializeMessage(
+    message: Message,
+  ): Either<'abort', ParseMessageResult<MessagePayloadType>> {
     const resolveMessageResult = this.resolveMessage(message)
     if (isMessageError(resolveMessageResult.error)) {
       this.handleError(resolveMessageResult.error)

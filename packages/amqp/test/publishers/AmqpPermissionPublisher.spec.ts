@@ -207,7 +207,7 @@ describe('PermissionPublisher', () => {
         timestamp: new Date().toISOString(),
       } satisfies PERMISSIONS_MESSAGE_TYPE
 
-      let receivedMessage: PERMISSIONS_MESSAGE_TYPE | null = null
+      let receivedMessage: unknown
       await channel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
         if (message === null) {
           return
@@ -222,16 +222,11 @@ describe('PermissionPublisher', () => {
 
       permissionPublisher.publish(message)
 
-      await waitAndRetry(() => {
-        return receivedMessage !== null
-      })
+      await waitAndRetry(() => !!receivedMessage)
 
       expect(receivedMessage).toEqual({
-        id: '1',
-        messageType: 'add',
-        userIds: [1],
-        permissions: ['100'],
-        timestamp: message.timestamp,
+        parsedMessage: message,
+        originalMessage: message,
       })
     })
 
@@ -243,7 +238,7 @@ describe('PermissionPublisher', () => {
         messageType: 'add',
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
-      let receivedMessage: PERMISSIONS_ADD_MESSAGE_TYPE | null = null
+      let receivedMessage: unknown
       await channel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
         if (message === null) {
           return
@@ -258,14 +253,18 @@ describe('PermissionPublisher', () => {
 
       permissionPublisher.publish(message)
 
-      await waitAndRetry(() => {
-        return receivedMessage !== null
-      })
+      await waitAndRetry(() => !!receivedMessage)
 
       expect(receivedMessage).toEqual({
-        id: '2',
-        messageType: 'add',
-        timestamp: expect.any(String),
+        parsedMessage: {
+          id: '2',
+          messageType: 'add',
+        },
+        originalMessage: {
+          id: '2',
+          messageType: 'add',
+          timestamp: expect.any(String),
+        },
       })
     })
 

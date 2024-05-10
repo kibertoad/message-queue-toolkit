@@ -1,3 +1,4 @@
+import { deepClone } from '@lokalise/node-core'
 import type { Logger } from '@message-queue-toolkit/core'
 
 export class FakeLogger implements Logger {
@@ -6,21 +7,25 @@ export class FakeLogger implements Logger {
   public readonly loggedErrors: unknown[] = []
 
   debug(obj: unknown) {
-    this.loggedMessages.push(obj)
+    this.saveLog(obj)
   }
   error(obj: unknown) {
-    this.loggedErrors.push(obj)
+    this.saveLog(obj)
   }
   fatal(obj: unknown) {
-    this.loggedErrors.push(obj)
+    this.saveLog(obj)
   }
   info(obj: unknown) {
-    this.loggedMessages.push(obj)
+    this.saveLog(obj)
   }
   trace(obj: unknown) {
-    this.loggedMessages.push(obj)
+    this.saveLog(obj)
   }
   warn(obj: unknown) {
-    this.loggedWarnings.push(obj)
+    this.saveLog(obj)
+  }
+
+  private saveLog(obj: unknown) {
+    this.loggedMessages.push(typeof obj === 'object' ? deepClone(obj) : obj)
   }
 }
