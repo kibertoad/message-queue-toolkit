@@ -165,6 +165,7 @@ export abstract class AbstractAmqpConsumer<
             this.channel.nack(message, false, true)
             this.handleMessageProcessed(originalMessage, 'retryLater')
           } else {
+            // ToDo move message to DLQ once it is implemented
             this.channel.ack(message)
             this.handleMessageProcessed(originalMessage, 'error')
           }
