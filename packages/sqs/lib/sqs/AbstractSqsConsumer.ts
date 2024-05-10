@@ -31,6 +31,7 @@ import { AbstractSqsService } from './AbstractSqsService'
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
+const DEFAULT_MAX_RETRY_DURATION = 4 * 24 * 60 * 60 // 4 days in seconds
 
 type SQSDeadLetterQueueOptions = {
   redrivePolicy: {
@@ -99,25 +100,23 @@ export abstract class AbstractSqsConsumer<
 {
   private consumer?: Consumer
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
-
   private readonly consumerOptionsOverride: Partial<ConsumerOptions>
   private readonly handlerContainer: HandlerContainer<
     MessagePayloadType,
     ExecutionContext,
     PrehandlerOutput
   >
-
-  protected readonly errorResolver: ErrorResolver
-  protected readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
-  protected readonly executionContext: ExecutionContext
-
   private readonly deadLetterQueueOptions?: DeadLetterQueueOptions<
     SQSCreationConfig,
     SQSQueueLocatorType,
     SQSDeadLetterQueueOptions
   >
+  private maxRetryDuration: number
 
   protected deadLetterQueueUrl?: string
+  protected readonly errorResolver: ErrorResolver
+  protected readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
+  protected readonly executionContext: ExecutionContext
 
   protected constructor(
     dependencies: SQSConsumerDependencies,
@@ -127,9 +126,10 @@ export abstract class AbstractSqsConsumer<
     super(dependencies, options)
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.errorResolver = dependencies.consumerErrorResolver
-
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
     this.deadLetterQueueOptions = options.deadLetterQueue
+    this.maxRetryDuration = options.maxRetryDuration ?? DEFAULT_MAX_RETRY_DURATION
+    this.executionContext = executionContext
 
     const messageSchemas = options.handlers.map((entry) => entry.schema)
     this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
@@ -144,7 +144,6 @@ export abstract class AbstractSqsConsumer<
       messageTypeField: this.messageTypeField,
       messageHandlers: options.handlers,
     })
-    this.executionContext = executionContext
   }
 
   override async init(): Promise<void> {
@@ -200,23 +199,22 @@ export abstract class AbstractSqsConsumer<
           this.handleMessageProcessed(null, 'invalid_message', messageId.result)
           return
         }
+        const { parsedMessage, originalMessage } = deserializedMessage.result
+
         // @ts-ignore
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        const messageType = deserializedMessage.result.parsedMessage[this.messageTypeField]
+        const messageType = parsedMessage[this.messageTypeField]
         const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
         // @ts-ignore
-        const uniqueTransactionKey = deserializedMessage.result[this.messageIdField]
+        const uniqueTransactionKey = parsedMessage[this.messageIdField]
         this.transactionObservabilityManager?.start(transactionSpanId, uniqueTransactionKey)
         if (this.logMessages) {
-          const resolvedLogMessage = this.resolveMessageLog(
-            deserializedMessage.result.parsedMessage,
-            messageType,
-          )
+          const resolvedLogMessage = this.resolveMessageLog(parsedMessage, messageType)
           this.logMessage(resolvedLogMessage)
         }
         const result: Either<'retryLater' | Error, 'success'> = await this.internalProcessMessage(
-          deserializedMessage.result.parsedMessage,
+          parsedMessage,
           messageType,
         )
           .catch((err) => {
@@ -230,24 +228,35 @@ export abstract class AbstractSqsConsumer<
 
         // success
         if (result.result) {
-          this.handleMessageProcessed(deserializedMessage.result.originalMessage, 'consumed')
+          this.handleMessageProcessed(originalMessage, 'consumed')
           return message
         }
 
         // failure
         this.handleMessageProcessed(
-          deserializedMessage.result.originalMessage,
+          originalMessage,
           result.error === 'retryLater' ? 'retryLater' : 'error',
         )
 
-        // in case of retryLater, if DLQ is set, we will send the message back to the queue
-        if (result.error === 'retryLater' && this.deadLetterQueueUrl) {
-          await this.sqsClient.send(
-            new SendMessageCommand({
-              QueueUrl: this.queueUrl,
-              MessageBody: message.Body,
-            }),
-          )
+        // in case of retryLater, requeue the message if maxRetryDuration is not exceeded
+        if (result.error === 'retryLater') {
+          // if timestamp is not present, defining it for the next try
+          const timestamp = this.tryToExtractTimestamp(parsedMessage) ?? new Date()
+          const lastRetryDate = new Date(timestamp.getTime() + this.maxRetryDuration * 1000)
+          if (lastRetryDate > new Date()) {
+            await this.sqsClient.send(
+              new SendMessageCommand({
+                QueueUrl: this.queueUrl,
+                MessageBody: JSON.stringify({
+                  ...originalMessage,
+                  [this.messageTimestampField]: timestamp.toISOString(),
+                }),
+              }),
+            )
+          } else {
+            await this.failProcessing(message)
+          }
+
           return message
         }
 
@@ -373,6 +382,16 @@ export abstract class AbstractSqsConsumer<
     }
 
     return ABORT_EARLY_EITHER
+  }
+
+  private tryToExtractTimestamp(message: MessagePayloadType): Date | undefined {
+    // @ts-ignore
+    if (this.messageTimestampField in message) {
+      // @ts-ignore
+      return new Date(message[this.messageTimestampField])
+    }
+
+    return undefined
   }
 
   private deserializeMessage(

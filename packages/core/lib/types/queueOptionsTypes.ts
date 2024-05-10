@@ -84,4 +84,5 @@ export type QueueConsumerOptions<
     DeadLetterQueueQueueLocatorType,
     DeadLetterQueueIntegrationOptions
   >
+  maxRetryDuration?: number
 }
