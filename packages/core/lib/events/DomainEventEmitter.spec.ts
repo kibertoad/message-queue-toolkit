@@ -16,7 +16,7 @@ const createdEventPayload: CommonEventDefinitionSchemaType<typeof TestEvents.cre
   },
   type: 'entity.created',
   id: randomUUID(),
-  timestamp: new Date(),
+  timestamp: new Date().toISOString(),
   metadata: {
     originatedFrom: 'service',
     producedBy: 'producer',

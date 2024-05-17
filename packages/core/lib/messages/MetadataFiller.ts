@@ -6,7 +6,7 @@ import type { CommonEventDefinition } from '../events/eventTypes'
 import type { MessageMetadataType } from './baseMessageSchemas'
 
 export type IdGenerator = () => string
-export type TimestampGenerator = () => Date
+export type TimestampGenerator = () => string
 
 export type MetadataFillerOptions = {
   serviceId: string
@@ -23,7 +23,7 @@ export type MetadataFiller<
 > = {
   produceMetadata(currentMessage: T, eventDefinition: D, precedingMessageMetadata?: M): M
   produceId(): string
-  produceTimestamp(): Date
+  produceTimestamp(): string
 }
 
 export class CommonMetadataFiller implements MetadataFiller {
@@ -43,7 +43,7 @@ export class CommonMetadataFiller implements MetadataFiller {
     this.produceTimestamp =
       options.timestampGenerator ??
       (() => {
-        return new Date()
+        return new Date().toISOString()
       })
   }
 
