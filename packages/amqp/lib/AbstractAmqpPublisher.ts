@@ -50,6 +50,11 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
       if (!this.initPromise) {
         this.initPromise = this.init()
       }
+
+      /**
+       * it is intentional that this promise is not awaited, that's how we keep the method invocation synchronous
+       * RabbitMQ publish by itself doesn't guarantee that your message is delivered successfully, so this kind of fire-and-forget is not strongly different from how amqp-lib behaves in the first place.
+       */
       this.initPromise
         .then(() => {
           this.publish(message)
