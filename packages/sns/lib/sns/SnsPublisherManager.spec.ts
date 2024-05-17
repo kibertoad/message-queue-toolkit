@@ -15,7 +15,7 @@ import { CommonSnsPublisher } from './CommonSnsPublisherFactory'
 import type { SnsMessagePublishType, SnsPublisherManager } from './SnsPublisherManager'
 import { FakeConsumer } from './fakes/FakeConsumer'
 
-describe('AutopilotPublisherManager', () => {
+describe('SnsPublisherManager', () => {
   let diContainer: AwilixContainer<Dependencies>
   let publisherManager: SnsPublisherManager<
     CommonSnsPublisher<TestEventPayloadsType>,
@@ -80,7 +80,7 @@ describe('AutopilotPublisherManager', () => {
       await fakeConsumer.close()
     })
 
-    it('publish to a non existing topic will throw error', async () => {
+    it('publish to a non-existing topic will throw error', async () => {
       await expect(
         publisherManager.publish('non-existing-topic', {
           type: 'entity.created',

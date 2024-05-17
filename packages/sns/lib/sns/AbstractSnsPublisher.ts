@@ -31,7 +31,6 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
 {
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
 
-  private isInitted: boolean
   private initPromise?: Promise<void>
 
   constructor(dependencies: SNSDependencies, options: SNSPublisherOptions<MessagePayloadType>) {
@@ -42,7 +41,6 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
       messageSchemas,
       messageTypeField: options.messageTypeField,
     })
-    this.isInitted = false
   }
 
   async publish(message: MessagePayloadType, options: SNSMessageOptions = {}): Promise<void> {
@@ -58,6 +56,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         this.initPromise = this.init()
       }
       await this.initPromise
+      this.initPromise = undefined
     }
 
     try {

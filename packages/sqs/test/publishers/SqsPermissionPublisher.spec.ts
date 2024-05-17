@@ -145,16 +145,12 @@ describe('SqsPermissionPublisher', () => {
 
   describe('publish', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let sqsClient: SQSClient
     let permissionPublisher: SqsPermissionPublisher
 
     beforeEach(async () => {
       diContainer = await registerDependencies()
-      sqsClient = diContainer.cradle.sqsClient
       await diContainer.cradle.permissionConsumer.close()
       permissionPublisher = diContainer.cradle.permissionPublisher
-
-      await deleteQueue(sqsClient, SqsPermissionPublisher.QUEUE_NAME)
     })
 
     afterEach(async () => {
