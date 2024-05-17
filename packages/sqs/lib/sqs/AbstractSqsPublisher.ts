@@ -26,7 +26,6 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
   implements AsyncPublisher<MessagePayloadType, SQSMessageOptions>
 {
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
-  private isInitted: boolean
   private initPromise?: Promise<void>
 
   constructor(
@@ -40,7 +39,6 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       messageSchemas,
       messageTypeField: options.messageTypeField,
     })
-    this.isInitted = false
   }
 
   async publish(message: MessagePayloadType, options: SQSMessageOptions = {}): Promise<void> {

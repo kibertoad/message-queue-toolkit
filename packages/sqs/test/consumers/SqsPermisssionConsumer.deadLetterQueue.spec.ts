@@ -4,7 +4,6 @@ import { waitAndRetry } from '@lokalise/node-core'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import z from 'zod'
 
 import type { SQSMessage } from '../../lib/types/MessageTypes'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'

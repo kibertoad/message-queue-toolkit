@@ -159,7 +159,8 @@ describe('PermissionPublisher', () => {
     it('return details if publish failed', async () => {
       expect.assertions(3)
       try {
-        await permissionPublisher.close()
+        // @ts-ignore
+        permissionPublisher.channel = undefined
         permissionPublisher.publish({
           id: '11',
           messageType: 'add',
@@ -199,6 +200,53 @@ describe('PermissionPublisher', () => {
 
     it('publishes a message', async () => {
       await permissionConsumer.close()
+
+      const message = {
+        id: '1',
+        messageType: 'add',
+        userIds: [1],
+        permissions: ['100'],
+        timestamp: new Date(),
+      } satisfies PERMISSIONS_MESSAGE_TYPE
+
+      let receivedMessage: unknown
+      await channel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
+        if (message === null) {
+          return
+        }
+        const decodedMessage = deserializeAmqpMessage(
+          message,
+          PERMISSIONS_MESSAGE_SCHEMA,
+          new FakeConsumerErrorResolver(),
+        )
+        receivedMessage = decodedMessage.result!
+      })
+
+      permissionPublisher.publish(message)
+
+      await waitAndRetry(() => !!receivedMessage)
+
+      expect(receivedMessage).toEqual({
+        parsedMessage: {
+          id: '1',
+          messageType: 'add',
+          userIds: [1],
+          permissions: ['100'],
+          timestamp: message.timestamp.toISOString(),
+        },
+        originalMessage: {
+          id: '1',
+          messageType: 'add',
+          userIds: [1],
+          permissions: ['100'],
+          timestamp: message.timestamp.toISOString(),
+        },
+      })
+    })
+
+    it('publishes a message with lazy init', async () => {
+      await permissionConsumer.close()
+      await permissionPublisher.close()
 
       const message = {
         id: '1',

@@ -40,9 +40,6 @@ They implement the following public methods:
 
 > **_NOTE:_**  See [SqsPermissionPublisher.ts](./packages/sqs/test/publishers/SqsPermissionPublisher.ts) for a practical example.
 
-> **_NOTE:_**  Lazy loading is not supported for AMQP publishers.
-
-
 ### Consumers
 
 `message-queue-toolkit` provides base classes for implementing consumers for each of the supported protocol.

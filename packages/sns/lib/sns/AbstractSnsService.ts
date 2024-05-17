@@ -71,9 +71,11 @@ export abstract class AbstractSnsService<
 
     const initResult = await initSns(this.snsClient, this.locatorConfig, this.creationConfig)
     this.topicArn = initResult.topicArn
+    this.isInitted = true
   }
 
   public override close(): Promise<void> {
+    this.isInitted = false
     return Promise.resolve()
   }
 }

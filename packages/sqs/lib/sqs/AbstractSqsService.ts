@@ -70,8 +70,11 @@ export abstract class AbstractSqsService<
     this.queueName = queueName
     this.queueUrl = queueUrl
     this.queueArn = queueArn
+    this.isInitted = true
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  public override async close(): Promise<void> {}
+  public override close(): Promise<void> {
+    this.isInitted = false
+    return Promise.resolve()
+  }
 }

@@ -52,6 +52,7 @@ export abstract class AbstractQueueService<
   protected readonly locatorConfig?: QueueLocatorType
   protected readonly deletionConfig?: DeletionConfig
   protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
+  protected isInitted: boolean
 
   get handlerSpy(): PublicHandlerSpy<MessagePayloadSchemas> {
     if (!this._handlerSpy) {
@@ -75,6 +76,7 @@ export abstract class AbstractQueueService<
 
     this.logMessages = options.logMessages ?? false
     this._handlerSpy = resolveHandlerSpy<MessagePayloadSchemas>(options)
+    this.isInitted = false
   }
 
   protected abstract resolveSchema(

@@ -25,6 +25,8 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
 {
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
 
+  private initPromise?: Promise<void>
+
   constructor(dependencies: AMQPDependencies, options: AMQPPublisherOptions<MessagePayloadType>) {
     super(dependencies, options)
 
@@ -41,6 +43,22 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
       throw resolveSchemaResult.error
     }
     resolveSchemaResult.result.parse(message)
+
+    // If it's not initted yet, do the lazy init
+    if (!this.isInitted) {
+      // avoid multiple concurrent inits
+      if (!this.initPromise) {
+        this.initPromise = this.init()
+      }
+      this.initPromise
+        .then(() => {
+          this.publish(message)
+        })
+        .catch((err) => {
+          this.handleError(err)
+        })
+      return
+    }
 
     /**
      * If the message doesn't have a timestamp field -> add it
@@ -106,6 +124,11 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
 
   protected override resolveNextFunction(): () => void {
     throw new Error('Not implemented for publisher')
+  }
+
+  async close(): Promise<void> {
+    this.initPromise = undefined
+    await super.close()
   }
 
   override processMessage(): Promise<Either<'retryLater', 'success'>> {

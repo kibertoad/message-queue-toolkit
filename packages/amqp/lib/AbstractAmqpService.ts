@@ -158,6 +158,7 @@ export abstract class AbstractAmqpService<
     if (this.connection) {
       await this.receiveNewConnection(this.connection)
     }
+    this.isInitted = true
   }
 
   public async reconnect() {
@@ -167,5 +168,6 @@ export abstract class AbstractAmqpService<
   async close(): Promise<void> {
     this.isShuttingDown = true
     await this.destroyChannel()
+    this.isInitted = false
   }
 }
