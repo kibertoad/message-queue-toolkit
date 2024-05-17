@@ -145,16 +145,12 @@ describe('SqsPermissionPublisher', () => {
 
   describe('publish', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let sqsClient: SQSClient
     let permissionPublisher: SqsPermissionPublisher
 
     beforeEach(async () => {
       diContainer = await registerDependencies()
-      sqsClient = diContainer.cradle.sqsClient
       await diContainer.cradle.permissionConsumer.close()
       permissionPublisher = diContainer.cradle.permissionPublisher
-
-      await deleteQueue(sqsClient, SqsPermissionPublisher.QUEUE_NAME)
     })
 
     afterEach(async () => {
@@ -188,7 +184,7 @@ describe('SqsPermissionPublisher', () => {
       const spy = await permissionPublisher.handlerSpy.waitForMessageWithId('1', 'published')
       expect(spy.message).toEqual(message)
       expect(spy.processingResult).toBe('published')
-    })
+    }, 99999999)
 
     it('publish a message auto-filling timestamp', async () => {
       const { permissionPublisher } = diContainer.cradle

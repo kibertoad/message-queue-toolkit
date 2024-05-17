@@ -1,6 +1,7 @@
 import type { SendMessageCommandInput } from '@aws-sdk/client-sqs'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
+import { InternalError } from '@lokalise/node-core'
 import type {
   AsyncPublisher,
   MessageInvalidFormatError,
@@ -54,6 +55,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         this.initPromise = this.init()
       }
       await this.initPromise
+      this.initPromise = undefined
     }
 
     try {
@@ -85,8 +87,20 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       await this.sqsClient.send(command)
       this.handleMessageProcessed(message, 'published')
     } catch (error) {
-      this.handleError(error)
-      throw error
+      const err = error as Error
+      this.handleError(err)
+      throw new InternalError({
+        message: `Error while publishing to SQS: ${err.message}`,
+        errorCode: 'SQS_PUBLISH_ERROR',
+        details: {
+          publisher: this.constructor.name,
+          queueArn: this.queueArn,
+          queueName: this.queueName,
+          // @ts-ignore
+          messageType: message[this.messageTypeField] ?? 'unknown',
+        },
+        cause: err,
+      })
     }
   }
 

@@ -56,6 +56,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         this.initPromise = this.init()
       }
       await this.initPromise
+      this.initPromise = undefined
     }
 
     try {
