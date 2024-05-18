@@ -62,3 +62,5 @@ export * from './lib/events/baseEventSchemas'
 export * from './lib/messages/baseMessageSchemas'
 
 export * from './lib/messages/MetadataFiller'
+
+export * from './lib/queues/AbstractPublisherManager'

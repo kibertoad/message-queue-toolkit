@@ -25,7 +25,7 @@ export type CommonQueueOptions = {
   deletionConfig?: DeletionConfig
 }
 
-type CommonCreationConfigType = {
+export type CommonCreationConfigType = {
   updateAttributesIfExists?: boolean
 }
 

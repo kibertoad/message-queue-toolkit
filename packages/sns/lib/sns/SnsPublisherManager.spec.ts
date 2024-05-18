@@ -82,13 +82,14 @@ describe('SnsPublisherManager', () => {
 
     it('publish to a non-existing topic will throw error', async () => {
       await expect(
+        // @ts-expect-error Testing error scenario
         publisherManager.publish('non-existing-topic', {
           type: 'entity.created',
           payload: {
             message: 'msg',
           },
         }),
-      ).rejects.toThrow('No publisher for topic non-existing-topic')
+      ).rejects.toThrow('No publisher for target non-existing-topic')
     })
   })
 
@@ -99,8 +100,9 @@ describe('SnsPublisherManager', () => {
     })
 
     it('returns error when no publisher for topic', () => {
+      // @ts-expect-error Testing incorrect scenario
       expect(() => publisherManager.handlerSpy('non-existing-topic')).toThrow(
-        'No publisher for topic non-existing-topic',
+        'No publisher for target non-existing-topic',
       )
     })
   })
@@ -132,6 +134,7 @@ describe('SnsPublisherManager', () => {
         schemaVersion: '2.0.0',
       })
 
+      // @ts-expect-error Testing injected publisher
       await publisherManager.publish(topic, {
         id: messageId,
         type: 'entity.created',
@@ -142,6 +145,7 @@ describe('SnsPublisherManager', () => {
 
       // Then
       const spyRes = await publisherManager
+        // @ts-expect-error Testing injected publisher
         .handlerSpy(topic)
         .waitForMessageWithId(messageId, 'published')
       expect(spyRes.processingResult).toBe('published')
