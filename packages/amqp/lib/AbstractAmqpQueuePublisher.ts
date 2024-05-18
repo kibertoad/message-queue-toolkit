@@ -3,7 +3,6 @@ import type { Options } from 'amqplib/properties'
 import { AbstractAmqpPublisher } from './AbstractAmqpPublisher'
 
 export type AmqpQueueMessageOptions = {
-  // queue: string
   publishOptions: Options.Publish
 }
 
