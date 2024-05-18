@@ -28,15 +28,19 @@ export type AmqpPublisherManagerDependencies<SupportedEvents extends AmqpAwareEv
 } & AMQPDependencies
 
 export type AmqpPublisherManagerOptions<
-  T extends AbstractAmqpPublisher<EventType, MO>,
-  MO,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  PO extends Omit<AMQPPublisherOptions<any>, 'creationConfig'>,
+  PublisherType extends AbstractAmqpPublisher<EventType, MessageOptionsType>,
+  MessageOptionsType,
+  PublisherOptionsType extends Omit<AMQPPublisherOptions<EventType>, 'creationConfig'>,
   EventType extends BaseEventType,
   MetadataType,
 > = {
   metadataField?: string
-  publisherFactory: AmqpPublisherFactory<T, EventType, MO, PO>
+  publisherFactory: AmqpPublisherFactory<
+    PublisherType,
+    EventType,
+    MessageOptionsType,
+    PublisherOptionsType
+  >
   metadataFiller: MetadataFiller<EventType, MetadataType>
   newPublisherOptions: Omit<
     AMQPPublisherOptions<EventType>,

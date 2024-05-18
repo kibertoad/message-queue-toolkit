@@ -2,7 +2,6 @@ import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { MessageMetadataType } from '@message-queue-toolkit/core/lib/messages/baseMessageSchemas'
 import type { TypeOf } from 'zod'
 import type z from 'zod'
-import { util } from 'zod'
 
 import type {
   AbstractAmqpExchangePublisher,
@@ -17,8 +16,6 @@ import type {
   AmqpPublisherManagerOptions,
 } from './AmqpQueuePublisherManager'
 import { CommonAmqpExchangePublisherFactory } from './CommonAmqpPublisherFactory'
-
-import Omit = util.Omit
 
 export class AmqpExchangePublisherManager<
   T extends AbstractAmqpExchangePublisher<z.infer<SupportedEventDefinitions[number]['schema']>>,
@@ -68,7 +65,7 @@ export class AmqpExchangePublisherManager<
   protected resolvePublisherConfigOverrides(
     exchange: string,
   ): Partial<
-    util.Omit<
+    Omit<
       AMQPExchangePublisherOptions<TypeOf<SupportedEventDefinitions[number]['schema']>>,
       'messageSchemas' | 'locatorConfig'
     >
