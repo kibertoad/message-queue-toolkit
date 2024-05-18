@@ -1,6 +1,8 @@
 import type { TransactionObservabilityManager } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
+import type { PublicHandlerSpy } from '../queues/HandlerSpy'
+
 export interface QueueConsumer {
   start(): Promise<unknown> // subscribe and start listening
   close(): Promise<unknown>
@@ -13,11 +15,13 @@ export type MessageProcessingResult =
   | 'error'
   | 'invalid_message'
 
-export interface SyncPublisher<MessagePayloadType> {
+export interface SyncPublisher<MessagePayloadType extends object> {
+  handlerSpy: PublicHandlerSpy<MessagePayloadType>
   publish(message: MessagePayloadType): void
 }
 
-export interface AsyncPublisher<MessagePayloadType, MessageOptions> {
+export interface AsyncPublisher<MessagePayloadType extends object, MessageOptions> {
+  handlerSpy: PublicHandlerSpy<MessagePayloadType>
   publish(message: MessagePayloadType, options: MessageOptions): Promise<unknown>
 }
 

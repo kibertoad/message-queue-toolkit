@@ -1,18 +1,15 @@
-import type { SNSClient } from '@aws-sdk/client-sns'
-import type { ErrorReporter } from '@lokalise/node-core'
 import type {
   BaseEventType,
   CommonEventDefinition,
   EventRegistry,
-  Logger,
   MetadataFiller,
 } from '@message-queue-toolkit/core'
+import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { MessageMetadataType } from '@message-queue-toolkit/core/lib/messages/baseMessageSchemas'
-import type { SNSDependencies } from '@message-queue-toolkit/sns'
 import type z from 'zod'
 
 import type { AbstractSnsPublisher, SNSPublisherOptions } from './AbstractSnsPublisher'
-import type { SNSCreationConfig } from './AbstractSnsService'
+import type { SNSCreationConfig, SNSDependencies, SNSQueueLocatorType } from './AbstractSnsService'
 import type { SnsPublisherFactory } from './CommonSnsPublisherFactory'
 import { CommonSnsPublisherFactory } from './CommonSnsPublisherFactory'
 
@@ -52,26 +49,46 @@ export class SnsPublisherManager<
   T extends AbstractSnsPublisher<z.infer<SupportedEventDefinitions[number]['schema']>>,
   SupportedEventDefinitions extends SnsAwareEventDefinition[],
   MetadataType = MessageMetadataType,
+> extends AbstractPublisherManager<
+  SnsAwareEventDefinition,
+  NonNullable<SupportedEventDefinitions[number]['snsTopic']>,
+  AbstractSnsPublisher<z.infer<SupportedEventDefinitions[number]['schema']>>,
+  SNSDependencies,
+  SNSCreationConfig,
+  SNSQueueLocatorType,
+  SnsMessageSchemaType<SnsAwareEventDefinition>,
+  Omit<
+    SNSPublisherOptions<z.infer<SupportedEventDefinitions[number]['schema']>>,
+    'messageSchemas' | 'creationConfig' | 'locatorConfig'
+  >,
+  SupportedEventDefinitions,
+  MetadataType,
+  z.infer<SupportedEventDefinitions[number]['schema']>
 > {
+  /*
   private readonly publisherFactory: SnsPublisherFactory<
     T,
     z.infer<SupportedEventDefinitions[number]['schema']>
   >
-  private readonly snsClient: SNSClient
-  private readonly logger: Logger
-  private readonly errorReporter: ErrorReporter
+   */
 
+  /*
   private readonly topicToEventMap: Record<string, CommonEventDefinition[]> = {}
   private topicToPublisherMap: Record<string, T> = {}
+
+   */
+
+  /*
   private readonly newPublisherOptions: Omit<
     SNSPublisherOptions<z.infer<SupportedEventDefinitions[number]['schema']>>,
     'messageSchemas' | 'creationConfig' | 'locatorConfig'
   >
+
   private readonly metadataFiller: MetadataFiller<
     z.infer<SupportedEventDefinitions[number]['schema']>,
     MetadataType
   >
-  private readonly metadataField: string
+   */
 
   constructor(
     dependencies: SnsPublisherManagerDependencies<SupportedEventDefinitions>,
@@ -81,119 +98,35 @@ export class SnsPublisherManager<
       MetadataType
     >,
   ) {
-    this.snsClient = dependencies.snsClient
-    this.errorReporter = dependencies.errorReporter
-    this.logger = dependencies.logger
-    this.publisherFactory = options.publisherFactory ?? new CommonSnsPublisherFactory()
-    this.newPublisherOptions = options.newPublisherOptions
-    this.metadataFiller = options.metadataFiller
-    this.metadataField = options.metadataField ?? 'metadata'
-
-    this.registerEvents(dependencies.eventRegistry.supportedEvents)
-    this.registerPublishers()
+    super({
+      isAsync: true,
+      eventRegistry: dependencies.eventRegistry,
+      metadataField: options.metadataField ?? 'metadata',
+      metadataFiller: options.metadataFiller,
+      newPublisherOptions: options.newPublisherOptions,
+      publisherDependencies: {
+        snsClient: dependencies.snsClient,
+        logger: dependencies.logger,
+        errorReporter: dependencies.errorReporter,
+      },
+      publisherFactory: options.publisherFactory ?? new CommonSnsPublisherFactory(),
+    })
   }
 
-  private registerEvents(events: SupportedEventDefinitions) {
-    for (const supportedEvent of events) {
-      if (!supportedEvent.snsTopic) {
-        continue
-      }
-
-      if (!this.topicToEventMap[supportedEvent.snsTopic]) {
-        this.topicToEventMap[supportedEvent.snsTopic] = []
-      }
-
-      this.topicToEventMap[supportedEvent.snsTopic].push(supportedEvent)
-    }
-  }
-
-  private registerPublishers() {
-    const dependencies: SNSDependencies = {
-      snsClient: this.snsClient,
-      logger: this.logger,
-      errorReporter: this.errorReporter,
-    }
-    for (const snsTopic in this.topicToEventMap) {
-      if (this.topicToPublisherMap[snsTopic]) {
-        continue
-      }
-
-      const messageSchemas = this.topicToEventMap[snsTopic].map((entry) => {
-        return entry.schema
-      })
-      const creationConfig: SNSCreationConfig = {
-        ...this.newPublisherOptions,
-        topic: {
-          Name: snsTopic,
-        },
-      }
-
-      this.topicToPublisherMap[snsTopic] = this.publisherFactory.buildPublisher(dependencies, {
-        ...this.newPublisherOptions,
-        creationConfig,
-        messageSchemas,
-      })
+  protected override resolveCreationConfig(
+    eventTarget: NonNullable<SupportedEventDefinitions[number]['snsTopic']>,
+  ): SNSCreationConfig {
+    return {
+      ...this.newPublisherOptions,
+      topic: {
+        Name: eventTarget,
+      },
     }
   }
 
-  public injectPublisher(snsTopic: string, publisher: T) {
-    this.topicToPublisherMap[snsTopic] = publisher
-  }
-
-  public injectEventDefinition(eventDefinition: SnsAwareEventDefinition) {
-    if (!eventDefinition.snsTopic) {
-      throw new Error('snsTopic is mandatory')
-    }
-
-    if (!this.topicToEventMap[eventDefinition.snsTopic]) {
-      this.topicToEventMap[eventDefinition.snsTopic] = []
-    }
-
-    this.topicToEventMap[eventDefinition.snsTopic].push(eventDefinition)
-  }
-
-  public async publish(
-    snsTopic: string,
-    message: SnsMessagePublishType<SupportedEventDefinitions[number]>,
-    precedingEventMetadata?: MetadataType,
-  ): Promise<SnsMessageSchemaType<SupportedEventDefinitions[number]>> {
-    const publisher = this.topicToPublisherMap[snsTopic]
-    if (!publisher) {
-      throw new Error(`No publisher for topic ${snsTopic}`)
-    }
-
-    // ToDo optimize the lookup
-    const messageDefinition = this.topicToEventMap[snsTopic].find(
-      (entry) => entry.schema.shape.type.value === message.type,
-    )
-
-    // @ts-ignore
-    const resolvedMetadata = message[this.metadataField]
-      ? // @ts-ignore
-        message[this.metadataField]
-      : // @ts-ignore
-        this.metadataFiller.produceMetadata(message, messageDefinition, precedingEventMetadata)
-
-    const resolvedMessage: SnsMessageSchemaType<SupportedEventDefinitions[number]> = {
-      id: message.id ? message.id : this.metadataFiller.produceId(),
-      timestamp: this.metadataFiller.produceTimestamp(),
-      ...message,
-      // @ts-ignore
-      metadata: resolvedMetadata,
-    }
-
-    await publisher.publish(resolvedMessage)
-
-    return resolvedMessage
-  }
-
-  public handlerSpy(snsTopic: string) {
-    const publisher = this.topicToPublisherMap[snsTopic]
-
-    if (!publisher) {
-      throw new Error(`No publisher for topic ${snsTopic}`)
-    }
-
-    return publisher.handlerSpy
+  protected override resolveEventTarget(
+    event: SnsAwareEventDefinition,
+  ): NonNullable<SupportedEventDefinitions[number]['snsTopic']> | undefined {
+    return event.snsTopic
   }
 }
