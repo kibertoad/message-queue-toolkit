@@ -1,33 +1,34 @@
-import {AwilixContainer} from "awilix";
-import {Dependencies, registerDependencies} from "../test/utils/testContext";
-import {beforeAll} from "vitest";
-import {TEST_AMQP_CONFIG} from "../test/utils/testAmqpConfig";
+import type { AwilixContainer } from 'awilix'
+import { beforeAll } from 'vitest'
+
+import { FakeConsumer } from '../test/fakes/FakeConsumer'
+import { TEST_AMQP_CONFIG } from '../test/utils/testAmqpConfig'
+import { registerDependencies, TestEvents } from '../test/utils/testContext'
+import type { Dependencies } from '../test/utils/testContext'
 
 describe('AmqpQueuePublisherManager', () => {
-    describe('publish', () => {
-        let diContainer: AwilixContainer<Dependencies>
-        beforeAll(async () => {
-            diContainer = await registerDependencies(TEST_AMQP_CONFIG)
-        })
-
-        it('publishes to the correct queue', async () => {
-            const { queuePublisherManager } = diContainer.cradle
-
-            await queuePublisherManager.publish('dummy', {
-                ...queuePublisherManager.resolveBaseFields(),
-                type: 'entity.updated',
-                payload: {
-                    updatedData: 'msg'
-                }
-            })
-
-            const result = await queuePublisherManager.handlerSpy('dummy').waitForMessage({
-                payload: {
-                    updatedData: 'msg'
-                }
-            })
-
-            expect(result.processingResult).toBe('published')
-        })
+  describe('publish', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    beforeAll(async () => {
+      diContainer = await registerDependencies(TEST_AMQP_CONFIG)
     })
+
+    it('publishes to the correct queue', async () => {
+      const { queuePublisherManager } = diContainer.cradle
+      const fakeConsumer = new FakeConsumer(diContainer.cradle, TestEvents.updated)
+      await fakeConsumer.start()
+
+      const publishedMessage = await queuePublisherManager.publish(FakeConsumer.QUEUE_NAME, {
+        ...queuePublisherManager.resolveBaseFields(),
+        type: 'entity.updated',
+        payload: {
+          updatedData: 'msg',
+        },
+      })
+
+      const result = await fakeConsumer.handlerSpy.waitForMessageWithId(publishedMessage.id)
+
+      expect(result.processingResult).toBe('consumed')
+    })
+  })
 })
