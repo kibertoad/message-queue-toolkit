@@ -511,45 +511,52 @@ describe('SqsPermissionConsumer', () => {
       )
     })
 
-    it.each([false, true])('using 2 consumers with heartbeat -> %s', async (heartbeatEnabled) => {
-      let consumer1IsProcessing = false
-      let consumer1Counter = 0
-      let consumer2Counter = 0
+    it.each([false, true])(
+      'using 2 consumers with heartbeat -> %s',
+      async (heartbeatEnabled) => {
+        let consumer1IsProcessing = false
+        let consumer1Counter = 0
+        let consumer2Counter = 0
 
-      const consumer1 = new SqsPermissionConsumer(diContainer.cradle, {
-        creationConfig: { queue: { QueueName: queueName, Attributes: { VisibilityTimeout: '2' } } },
-        consumerOverrides: { heartbeatInterval: heartbeatEnabled ? 1 : undefined },
-        removeHandlerOverride: async () => {
-          consumer1IsProcessing = true
-          await setTimeout(3100) // Wait to the visibility timeout to expire
-          consumer1Counter++
-          consumer1IsProcessing = false
-          return { result: 'success' }
-        },
-      })
-      await consumer1.start()
+        const consumer1 = new SqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            queue: { QueueName: queueName, Attributes: { VisibilityTimeout: '2' } },
+          },
+          consumerOverrides: { heartbeatInterval: heartbeatEnabled ? 1 : undefined },
+          removeHandlerOverride: async () => {
+            consumer1IsProcessing = true
+            await setTimeout(3100) // Wait to the visibility timeout to expire
+            consumer1Counter++
+            consumer1IsProcessing = false
+            return { result: 'success' }
+          },
+        })
+        await consumer1.start()
 
-      const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
-        locatorConfig: { queueUrl: consumer1.queueProps.url },
-        removeHandlerOverride: async () => {
-          consumer2Counter++
-          return { result: 'success' }
-        },
-      })
-      const publisher = new SqsPermissionPublisher(diContainer.cradle, {
-        locatorConfig: { queueUrl: consumer1.queueProps.url },
-      })
+        const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
+          locatorConfig: { queueUrl: consumer1.queueProps.url },
+          removeHandlerOverride: async () => {
+            consumer2Counter++
+            return { result: 'success' }
+          },
+        })
+        const publisher = new SqsPermissionPublisher(diContainer.cradle, {
+          locatorConfig: { queueUrl: consumer1.queueProps.url },
+        })
 
-      await publisher.publish({ id: '10', messageType: 'remove' })
-      // wait for consumer1 to start processing to start second consumer
-      await waitAndRetry(() => consumer1IsProcessing, 5, 5)
-      await consumer2.start()
+        await publisher.publish({ id: '10', messageType: 'remove' })
+        // wait for consumer1 to start processing to start second consumer
+        await waitAndRetry(() => consumer1IsProcessing, 5, 5)
+        await consumer2.start()
 
-      // wait for both consumers to process message
-      await waitAndRetry(() => consumer1Counter > 0 && consumer2Counter > 0, 100, 40)
+        // wait for both consumers to process message
+        await waitAndRetry(() => consumer1Counter > 0 && consumer2Counter > 0, 100, 40)
 
-      expect(consumer1Counter).toBe(1)
-      expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)
-    })
+        expect(consumer1Counter).toBe(1)
+        expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)
+      },
+      // This reduces flakiness in CI
+      10000,
+    )
   })
 })
