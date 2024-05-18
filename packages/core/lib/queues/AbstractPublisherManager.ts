@@ -66,9 +66,15 @@ export abstract class AbstractPublisherManager<
   protected readonly metadataField: string
 
   // In this context "target" can be a topic or an exchange, depending on the transport
-  protected readonly targetToEventMap: Record<EventTargets, EventDefinitionType[]> = {} as Record<EventTargets, EventDefinitionType[]>
+  protected readonly targetToEventMap: Record<EventTargets, EventDefinitionType[]> = {} as Record<
+    EventTargets,
+    EventDefinitionType[]
+  >
   protected readonly isAsync: boolean
-  protected targetToPublisherMap: Record<EventTargets, PublisherType> = {} as Record<EventTargets, PublisherType>
+  protected targetToPublisherMap: Record<EventTargets, PublisherType> = {} as Record<
+    EventTargets,
+    PublisherType
+  >
   private readonly publisherDependencies: DependenciesType
 
   protected constructor({
