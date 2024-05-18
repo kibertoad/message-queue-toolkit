@@ -19,7 +19,7 @@ export type AmqpExchangeMessageOptions = {
   publishOptions: Options.Publish
 }
 
-export class AbstractAmqpExchangePublisher<
+export abstract class AbstractAmqpExchangePublisher<
   MessagePayloadType extends object,
 > extends AbstractAmqpPublisher<MessagePayloadType, AmqpExchangeMessageOptions> {
   constructor(

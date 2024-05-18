@@ -10,7 +10,7 @@ const NO_PARAMS: AmqpQueueMessageOptions = {
   publishOptions: {},
 }
 
-export class AbstractAmqpQueuePublisher<
+export abstract class AbstractAmqpQueuePublisher<
   MessagePayloadType extends object,
 > extends AbstractAmqpPublisher<MessagePayloadType, AmqpQueueMessageOptions> {
   protected publishInternal(message: Buffer, options: AmqpQueueMessageOptions): void {
