@@ -17,13 +17,16 @@ export type AMQPPublisherOptions<MessagePayloadType extends object> = QueuePubli
   AMQPCreationConfig,
   AMQPLocator,
   MessagePayloadType
->
+> & {
+  exchange?: string
+}
 
-export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
+export abstract class AbstractAmqpPublisher<MessagePayloadType extends object, MessageOptionsType>
   extends AbstractAmqpService<MessagePayloadType>
-  implements SyncPublisher<MessagePayloadType>
+  implements SyncPublisher<MessagePayloadType, MessageOptionsType>
 {
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
+  protected readonly exchange?: string
 
   private initPromise?: Promise<void>
 
@@ -35,9 +38,10 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
       messageSchemas,
       messageTypeField: options.messageTypeField,
     })
+    this.exchange = options.exchange
   }
 
-  publish(message: MessagePayloadType): void {
+  publish(message: MessagePayloadType, options: MessageOptionsType): void {
     const resolveSchemaResult = this.resolveSchema(message)
     if (resolveSchemaResult.error) {
       throw resolveSchemaResult.error
@@ -57,7 +61,7 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
        */
       this.initPromise
         .then(() => {
-          this.publish(message)
+          this.publish(message, options)
         })
         .catch((err) => {
           this.handleError(err)
@@ -82,7 +86,7 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
     }
 
     try {
-      this.channel.sendToQueue(this.queueName, objectToBuffer(message))
+      this.publishInternal(objectToBuffer(message), options)
     } catch (err) {
       // Unfortunately, reliable retry mechanism can't be implemented with try-catch block,
       // as not all failures end up here. If connection is closed programmatically, it works fine,
@@ -106,6 +110,8 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object>
       }
     }
   }
+
+  protected abstract publishInternal(message: Buffer, options: MessageOptionsType): void
 
   protected override resolveSchema(
     message: MessagePayloadType,

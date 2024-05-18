@@ -15,9 +15,9 @@ export type MessageProcessingResult =
   | 'error'
   | 'invalid_message'
 
-export interface SyncPublisher<MessagePayloadType extends object> {
+export interface SyncPublisher<MessagePayloadType extends object, MessageOptions> {
   handlerSpy: PublicHandlerSpy<MessagePayloadType>
-  publish(message: MessagePayloadType): void
+  publish(message: MessagePayloadType, options: MessageOptions): void
 }
 
 export interface AsyncPublisher<MessagePayloadType extends object, MessageOptions> {

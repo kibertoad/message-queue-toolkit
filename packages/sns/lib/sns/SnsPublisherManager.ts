@@ -65,31 +65,6 @@ export class SnsPublisherManager<
   MetadataType,
   z.infer<SupportedEventDefinitions[number]['schema']>
 > {
-  /*
-  private readonly publisherFactory: SnsPublisherFactory<
-    T,
-    z.infer<SupportedEventDefinitions[number]['schema']>
-  >
-   */
-
-  /*
-  private readonly topicToEventMap: Record<string, CommonEventDefinition[]> = {}
-  private topicToPublisherMap: Record<string, T> = {}
-
-   */
-
-  /*
-  private readonly newPublisherOptions: Omit<
-    SNSPublisherOptions<z.infer<SupportedEventDefinitions[number]['schema']>>,
-    'messageSchemas' | 'creationConfig' | 'locatorConfig'
-  >
-
-  private readonly metadataFiller: MetadataFiller<
-    z.infer<SupportedEventDefinitions[number]['schema']>,
-    MetadataType
-  >
-   */
-
   constructor(
     dependencies: SnsPublisherManagerDependencies<SupportedEventDefinitions>,
     options: SnsPublisherManagerOptions<

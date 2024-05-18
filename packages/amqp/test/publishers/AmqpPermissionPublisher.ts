@@ -1,5 +1,5 @@
 import type { AMQPPublisherOptions } from '../../lib/AbstractAmqpPublisher'
-import { AbstractAmqpPublisher } from '../../lib/AbstractAmqpPublisher'
+import { AbstractAmqpQueuePublisher } from '../../lib/AbstractAmqpQueuePublisher'
 import type { AMQPDependencies } from '../../lib/AbstractAmqpService'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
@@ -12,7 +12,7 @@ import {
 
 type SupportedTypes = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 
-export class AmqpPermissionPublisher extends AbstractAmqpPublisher<SupportedTypes> {
+export class AmqpPermissionPublisher extends AbstractAmqpQueuePublisher<SupportedTypes> {
   public static QUEUE_NAME = 'user_permissions_multi'
 
   constructor(
