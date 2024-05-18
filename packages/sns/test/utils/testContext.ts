@@ -34,7 +34,7 @@ export const TestEvents = {
     schema: BASE_MESSAGE_SCHEMA.extend({
       type: z.literal('entity.created'),
       payload: z.object({
-        message: z.string(),
+        newData: z.string(),
       }),
     }),
     schemaVersion: '1.0.1',
@@ -45,7 +45,7 @@ export const TestEvents = {
     schema: BASE_MESSAGE_SCHEMA.extend({
       type: z.literal('entity.updated'),
       payload: z.object({
-        message: z.string(),
+        updatedData: z.string(),
       }),
     }),
     snsTopic: 'dummy',

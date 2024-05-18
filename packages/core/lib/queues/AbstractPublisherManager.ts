@@ -1,20 +1,13 @@
-import type {
-  AsyncPublisher,
-  CommonEventDefinition,
-  QueuePublisherOptions,
-} from '@message-queue-toolkit/core'
 import type { TypeOf, z } from 'zod'
 
 import type { EventRegistry } from '../events/EventRegistry'
 import type { BaseEventType } from '../events/baseEventSchemas'
+import type { CommonEventDefinition } from '../events/eventTypes'
 import type { MetadataFiller } from '../messages/MetadataFiller'
-import type { SyncPublisher } from '../types/MessageQueueTypes'
-import type { CommonCreationConfigType } from '../types/queueOptionsTypes'
+import type { AsyncPublisher, SyncPublisher } from '../types/MessageQueueTypes'
+import type { CommonCreationConfigType, QueuePublisherOptions } from '../types/queueOptionsTypes'
 
-export type MessagePublishType<T extends CommonEventDefinition> = Pick<
-  z.infer<T['schema']>,
-  'type' | 'payload'
-> & { id?: string }
+export type MessagePublishType<T extends CommonEventDefinition> = z.infer<T['schema']>
 
 export type MessageSchemaType<T extends CommonEventDefinition> = z.infer<T['schema']>
 
@@ -216,11 +209,15 @@ export abstract class AbstractPublisherManager<
         this.metadataFiller.produceMetadata(message, messageDefinition, precedingEventMetadata)
 
     return {
-      id: message.id ? message.id : this.metadataFiller.produceId(),
-      timestamp: this.metadataFiller.produceTimestamp(),
       ...message,
-      // @ts-ignore
       metadata: resolvedMetadata,
+    }
+  }
+
+  public resolveBaseFields() {
+    return {
+      id: this.metadataFiller.produceId(),
+      timestamp: this.metadataFiller.produceTimestamp(),
     }
   }
 

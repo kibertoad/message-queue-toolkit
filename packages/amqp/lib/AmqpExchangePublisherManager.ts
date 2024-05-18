@@ -51,7 +51,7 @@ export class AmqpExchangePublisherManager<
     >,
   ) {
     super({
-      isAsync: true,
+      isAsync: false,
       eventRegistry: dependencies.eventRegistry,
       metadataField: options.metadataField ?? 'metadata',
       metadataFiller: options.metadataFiller,
