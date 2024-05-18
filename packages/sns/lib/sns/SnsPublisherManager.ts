@@ -8,7 +8,11 @@ import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { MessageMetadataType } from '@message-queue-toolkit/core/lib/messages/baseMessageSchemas'
 import type z from 'zod'
 
-import type { AbstractSnsPublisher, SNSPublisherOptions } from './AbstractSnsPublisher'
+import type {
+  AbstractSnsPublisher,
+  SNSMessageOptions,
+  SNSPublisherOptions,
+} from './AbstractSnsPublisher'
 import type { SNSCreationConfig, SNSDependencies, SNSQueueLocatorType } from './AbstractSnsService'
 import type { SnsPublisherFactory } from './CommonSnsPublisherFactory'
 import { CommonSnsPublisherFactory } from './CommonSnsPublisherFactory'
@@ -40,11 +44,6 @@ export type SnsPublisherManagerOptions<
 
 export type SnsMessageSchemaType<T extends SnsAwareEventDefinition> = z.infer<T['schema']>
 
-export type SnsMessagePublishType<T extends SnsAwareEventDefinition> = Pick<
-  z.infer<T['schema']>,
-  'type' | 'payload'
-> & { id?: string }
-
 export class SnsPublisherManager<
   T extends AbstractSnsPublisher<z.infer<SupportedEventDefinitions[number]['schema']>>,
   SupportedEventDefinitions extends SnsAwareEventDefinition[],
@@ -63,33 +62,8 @@ export class SnsPublisherManager<
   >,
   SupportedEventDefinitions,
   MetadataType,
-  z.infer<SupportedEventDefinitions[number]['schema']>
+  SNSMessageOptions
 > {
-  /*
-  private readonly publisherFactory: SnsPublisherFactory<
-    T,
-    z.infer<SupportedEventDefinitions[number]['schema']>
-  >
-   */
-
-  /*
-  private readonly topicToEventMap: Record<string, CommonEventDefinition[]> = {}
-  private topicToPublisherMap: Record<string, T> = {}
-
-   */
-
-  /*
-  private readonly newPublisherOptions: Omit<
-    SNSPublisherOptions<z.infer<SupportedEventDefinitions[number]['schema']>>,
-    'messageSchemas' | 'creationConfig' | 'locatorConfig'
-  >
-
-  private readonly metadataFiller: MetadataFiller<
-    z.infer<SupportedEventDefinitions[number]['schema']>,
-    MetadataType
-  >
-   */
-
   constructor(
     dependencies: SnsPublisherManagerDependencies<SupportedEventDefinitions>,
     options: SnsPublisherManagerOptions<

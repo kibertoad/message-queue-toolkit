@@ -23,6 +23,11 @@ export type AMQPCreationConfig = {
   updateAttributesIfExists?: boolean
 }
 
+export type AMQPSubscriptionConfig = {
+  exchange: string
+  routingKey: string
+}
+
 export type AMQPLocator = {
   queueName: string
 }

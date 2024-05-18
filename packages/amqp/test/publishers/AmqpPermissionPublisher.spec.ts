@@ -16,7 +16,7 @@ import {
   PERMISSIONS_MESSAGE_SCHEMA,
   PERMISSIONS_ADD_MESSAGE_SCHEMA,
 } from '../consumers/userConsumerSchemas'
-import { FakeConsumer } from '../fakes/FakeConsumer'
+import { CustomFakeConsumer } from '../fakes/CustomFakeConsumer'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { FakeLogger } from '../fakes/FakeLogger'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
@@ -65,12 +65,17 @@ describe('PermissionPublisher', () => {
     beforeAll(async () => {
       diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
-        permissionConsumer: asClass(FakeConsumer, {
-          lifetime: Lifetime.SINGLETON,
-          asyncInit: 'start',
-          asyncDispose: 'close',
-          asyncDisposePriority: 10,
-        }),
+        permissionConsumer: asFunction(
+          (dependencies) => {
+            return new CustomFakeConsumer(dependencies, PERMISSIONS_MESSAGE_SCHEMA)
+          },
+          {
+            lifetime: Lifetime.SINGLETON,
+            asyncInit: 'start',
+            asyncDispose: 'close',
+            asyncDisposePriority: 10,
+          },
+        ),
       })
     })
 

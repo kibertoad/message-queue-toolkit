@@ -12,7 +12,7 @@ import type {
 import { registerDependencies, TestEvents } from '../../test/utils/testContext'
 
 import { CommonSnsPublisher } from './CommonSnsPublisherFactory'
-import type { SnsMessagePublishType, SnsPublisherManager } from './SnsPublisherManager'
+import type { SnsPublisherManager } from './SnsPublisherManager'
 import { FakeConsumer } from './fakes/FakeConsumer'
 
 describe('SnsPublisherManager', () => {
@@ -34,13 +34,6 @@ describe('SnsPublisherManager', () => {
   describe('publish', () => {
     it('publishes to a correct publisher', async () => {
       // Given
-      const message = {
-        payload: {
-          message: 'msg',
-        },
-        type: 'entity.created',
-      } satisfies SnsMessagePublishType<typeof TestEvents.created>
-
       const fakeConsumer = new FakeConsumer(
         diContainer.cradle,
         'queue',
@@ -50,7 +43,13 @@ describe('SnsPublisherManager', () => {
       await fakeConsumer.start()
 
       // When
-      const publishedMessage = await publisherManager.publish(TestEvents.created.snsTopic, message)
+      const publishedMessage = await publisherManager.publish(TestEvents.created.snsTopic, {
+        ...publisherManager.resolveBaseFields(),
+        payload: {
+          newData: 'msg',
+        },
+        type: 'entity.created',
+      })
 
       const handlerSpyPromise = publisherManager
         .handlerSpy(TestEvents.created.snsTopic)
@@ -71,7 +70,7 @@ describe('SnsPublisherManager', () => {
           schemaVersion: '1.0.1',
         },
         payload: {
-          message: 'msg',
+          newData: 'msg',
         },
         timestamp: expect.any(String),
         type: 'entity.created',
@@ -80,13 +79,26 @@ describe('SnsPublisherManager', () => {
       await fakeConsumer.close()
     })
 
+    it('message publishing is type-safe', async () => {
+      await expect(
+        publisherManager.publish(TestEvents.created.snsTopic, {
+          ...publisherManager.resolveBaseFields(),
+          payload: {
+            // @ts-expect-error This should be causing a compilation error
+            updatedData: 'edwe',
+          },
+          type: 'entity.created',
+        }),
+      ).rejects.toThrow(/invalid_type/)
+    })
+
     it('publish to a non-existing topic will throw error', async () => {
       await expect(
         // @ts-expect-error Testing error scenario
         publisherManager.publish('non-existing-topic', {
           type: 'entity.created',
           payload: {
-            message: 'msg',
+            newData: 'msg',
           },
         }),
       ).rejects.toThrow('No publisher for target non-existing-topic')
@@ -136,10 +148,11 @@ describe('SnsPublisherManager', () => {
 
       // @ts-expect-error Testing injected publisher
       await publisherManager.publish(topic, {
+        ...publisherManager.resolveBaseFields(),
         id: messageId,
         type: 'entity.created',
         payload: {
-          message: 'msg',
+          newData: 'msg',
         },
       })
 

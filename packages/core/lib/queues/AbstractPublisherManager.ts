@@ -1,25 +1,18 @@
-import type {
-  AsyncPublisher,
-  CommonEventDefinition,
-  QueuePublisherOptions,
-} from '@message-queue-toolkit/core'
 import type { TypeOf, z } from 'zod'
 
 import type { EventRegistry } from '../events/EventRegistry'
 import type { BaseEventType } from '../events/baseEventSchemas'
+import type { CommonEventDefinition } from '../events/eventTypes'
 import type { MetadataFiller } from '../messages/MetadataFiller'
-import type { SyncPublisher } from '../types/MessageQueueTypes'
-import type { CommonCreationConfigType } from '../types/queueOptionsTypes'
+import type { AsyncPublisher, SyncPublisher } from '../types/MessageQueueTypes'
+import type { CommonCreationConfigType, QueuePublisherOptions } from '../types/queueOptionsTypes'
 
-export type MessagePublishType<T extends CommonEventDefinition> = Pick<
-  z.infer<T['schema']>,
-  'type' | 'payload'
-> & { id?: string }
+export type MessagePublishType<T extends CommonEventDefinition> = z.infer<T['schema']>
 
 export type MessageSchemaType<T extends CommonEventDefinition> = z.infer<T['schema']>
 
 export type AbstractPublisherFactory<
-  PublisherType extends AsyncPublisher<object, unknown> | SyncPublisher<object>,
+  PublisherType extends AsyncPublisher<object, unknown> | SyncPublisher<object, unknown>,
   DependenciesType,
   CreationConfigType extends CommonCreationConfigType,
   QueueLocatorType extends object,
@@ -35,7 +28,7 @@ export type AbstractPublisherFactory<
 export abstract class AbstractPublisherManager<
   EventDefinitionType extends CommonEventDefinition,
   EventTargets extends string,
-  PublisherType extends AsyncPublisher<object, unknown> | SyncPublisher<object>,
+  PublisherType extends AsyncPublisher<object, unknown> | SyncPublisher<object, unknown>,
   DependenciesType,
   CreationConfigType extends CommonCreationConfigType,
   QueueLocatorType extends object,
@@ -116,6 +109,10 @@ export abstract class AbstractPublisherManager<
   }
 
   protected abstract resolveEventTarget(event: EventDefinitionType): EventTargets | undefined
+  protected abstract resolveCreationConfig(eventTarget: string): CreationConfigType
+  protected resolvePublisherConfigOverrides(_eventTarget: string): Partial<OptionsType> {
+    return {}
+  }
 
   private registerEvents(events: SupportedEventDefinitions) {
     for (const supportedEvent of events) {
@@ -132,9 +129,6 @@ export abstract class AbstractPublisherManager<
       this.targetToEventMap[eventTarget].push(supportedEvent)
     }
   }
-
-  protected abstract resolveCreationConfig(eventTarget: string): CreationConfigType
-
   private registerPublishers() {
     for (const eventTarget in this.targetToEventMap) {
       if (this.targetToPublisherMap[eventTarget]) {
@@ -145,6 +139,7 @@ export abstract class AbstractPublisherManager<
         return entry.schema
       })
       const creationConfig = this.resolveCreationConfig(eventTarget)
+      const configOverrides = this.resolvePublisherConfigOverrides(eventTarget)
 
       this.targetToPublisherMap[eventTarget] = this.publisherFactory.buildPublisher(
         this.publisherDependencies,
@@ -152,6 +147,7 @@ export abstract class AbstractPublisherManager<
           ...this.newPublisherOptions,
           creationConfig,
           messageSchemas,
+          ...configOverrides,
         },
       )
     }
@@ -184,12 +180,27 @@ export abstract class AbstractPublisherManager<
     if (!publisher) {
       throw new Error(`No publisher for target ${eventTarget}`)
     }
-
     // ToDo optimize the lookup
     const messageDefinition = this.targetToEventMap[eventTarget].find(
       (entry) => entry.schema.shape.type.value === message.type,
     )
 
+    const resolvedMessage = this.resolveMessage(messageDefinition, message, precedingEventMetadata)
+
+    if (this.isAsync) {
+      await (publisher as AsyncPublisher<object, unknown>).publish(resolvedMessage, messageOptions)
+    } else {
+      (publisher as SyncPublisher<object, unknown>).publish(resolvedMessage, messageOptions)
+    }
+
+    return resolvedMessage
+  }
+
+  protected resolveMessage(
+    messageDefinition: EventDefinitionType | undefined,
+    message: MessagePublishType<SupportedEventDefinitions[number]>,
+    precedingEventMetadata?: MetadataType,
+  ): MessageSchemaType<SupportedEventDefinitions[number]> {
     // @ts-ignore
     const resolvedMetadata = message[this.metadataField]
       ? // @ts-ignore
@@ -197,21 +208,17 @@ export abstract class AbstractPublisherManager<
       : // @ts-ignore
         this.metadataFiller.produceMetadata(message, messageDefinition, precedingEventMetadata)
 
-    const resolvedMessage: MessageSchemaType<SupportedEventDefinitions[number]> = {
-      id: message.id ? message.id : this.metadataFiller.produceId(),
-      timestamp: this.metadataFiller.produceTimestamp(),
+    return {
       ...message,
-      // @ts-ignore
       metadata: resolvedMetadata,
     }
+  }
 
-    if (this.isAsync) {
-      await (publisher as AsyncPublisher<object, unknown>).publish(resolvedMessage, messageOptions)
-    } else {
-      (publisher as SyncPublisher<object>).publish(resolvedMessage)
+  public resolveBaseFields() {
+    return {
+      id: this.metadataFiller.produceId(),
+      timestamp: this.metadataFiller.produceTimestamp(),
     }
-
-    return resolvedMessage
   }
 
   /**

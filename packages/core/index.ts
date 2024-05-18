@@ -25,6 +25,7 @@ export { RetryMessageLaterError } from './lib/errors/RetryMessageLaterError'
 export { DoNotProcessMessageError } from './lib/errors/DoNotProcessError'
 
 export {
+  PrehandlerResult,
   HandlerContainer,
   MessageHandlerConfig,
   MessageHandlerConfigBuilder,

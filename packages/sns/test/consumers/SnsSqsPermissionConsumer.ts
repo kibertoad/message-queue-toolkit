@@ -1,11 +1,11 @@
 import type { Either } from '@lokalise/node-core'
-import {
-  type BarrierResult,
-  MessageHandlerConfigBuilder,
-  type Prehandler,
-  type PreHandlingOutputs,
-} from '@message-queue-toolkit/core'
-import type { PrehandlerResult } from '@message-queue-toolkit/core/dist/lib/queues/HandlerContainer'
+import type {
+    PrehandlerResult,
+    BarrierResult,
+    Prehandler,
+    PreHandlingOutputs} from '@message-queue-toolkit/core';
+import { MessageHandlerConfigBuilder,
+} from '@message-queue-toolkit/core';
 
 import type {
   SNSSQSConsumerDependencies,

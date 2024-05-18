@@ -1,18 +1,55 @@
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
+import {
+  BASE_MESSAGE_SCHEMA,
+  CommonMetadataFiller,
+  EventRegistry,
+} from '@message-queue-toolkit/core'
 import type { Resolver } from 'awilix'
 import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
+import { z } from 'zod'
 
 import { AmqpConnectionManager } from '../../lib/AmqpConnectionManager'
+import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager'
+import { AmqpQueuePublisherManager } from '../../lib/AmqpQueuePublisherManager'
+import type { CommonAmqpQueuePublisher } from '../../lib/CommonAmqpPublisherFactory'
+import { CommonAmqpQueuePublisherFactory } from '../../lib/CommonAmqpPublisherFactory'
 import type { AmqpConfig } from '../../lib/amqpConnectionResolver'
 import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver'
 import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer'
+import { FakeConsumer } from '../fakes/FakeConsumer'
 import { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublisher'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
 export type DependencyOverrides = Partial<DiConfig>
+
+export const TestEvents = {
+  created: {
+    schema: BASE_MESSAGE_SCHEMA.extend({
+      type: z.literal('entity.created'),
+      payload: z.object({
+        newData: z.string(),
+      }),
+    }),
+    schemaVersion: '1.0.1',
+    queueName: FakeConsumer.QUEUE_NAME,
+  },
+
+  updated: {
+    schema: BASE_MESSAGE_SCHEMA.extend({
+      type: z.literal('entity.updated'),
+      payload: z.object({
+        updatedData: z.string(),
+      }),
+    }),
+    queueName: FakeConsumer.QUEUE_NAME,
+  },
+} as const satisfies Record<string, AmqpAwareEventDefinition>
+
+export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
+export type TestEventPayloadsType = z.infer<TestEventsType[number]['schema']>
 
 // @ts-ignore
 const TestLogger: Logger = console
@@ -69,6 +106,30 @@ export async function registerDependencies(
       enabled: queuesEnabled,
     }),
 
+    eventRegistry: asFunction(() => {
+      return new EventRegistry(Object.values(TestEvents))
+    }, SINGLETON_CONFIG),
+    queuePublisherManager: asFunction(
+      (dependencies) => {
+        return new AmqpQueuePublisherManager(dependencies, {
+          metadataFiller: new CommonMetadataFiller({
+            serviceId: 'service',
+            schemaVersion: '1.0.0',
+          }),
+          publisherFactory: new CommonAmqpQueuePublisherFactory(),
+          newPublisherOptions: {
+            handlerSpy: true,
+            messageIdField: 'id',
+            messageTypeField: 'type',
+          },
+        })
+      },
+      {
+        lifetime: Lifetime.SINGLETON,
+        enabled: queuesEnabled,
+      },
+    ),
+
     // vendor-specific dependencies
     transactionObservabilityManager: asFunction(() => {
       return undefined
@@ -105,4 +166,10 @@ export interface Dependencies {
   consumerErrorResolver: ErrorResolver
   permissionConsumer: AmqpPermissionConsumer
   permissionPublisher: AmqpPermissionPublisher
+
+  eventRegistry: EventRegistry<TestEventsType>
+  queuePublisherManager: AmqpQueuePublisherManager<
+    CommonAmqpQueuePublisher<TestEventPayloadsType>,
+    TestEventsType
+  >
 }
