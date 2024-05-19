@@ -2,7 +2,7 @@ import type { Either } from '@lokalise/node-core'
 import type { BarrierResult, Prehandler, PreHandlingOutputs } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 
-import type { AMQPConsumerOptions } from '../../lib/AbstractAmqpQueueConsumer'
+import type { AMQPConsumerOptions } from '../../lib/AbstractAmqpConsumer'
 import { AbstractAmqpQueueConsumer } from '../../lib/AbstractAmqpQueueConsumer'
 import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService'
 

@@ -1,6 +1,8 @@
 import type {
   CommonEventDefinition,
   EventRegistry,
+  MessagePublishType,
+  MessageSchemaType,
   MetadataFiller,
   PublisherBaseEventType,
 } from '@message-queue-toolkit/core'
@@ -85,6 +87,15 @@ export class SnsPublisherManager<
       },
       publisherFactory: options.publisherFactory ?? new CommonSnsPublisherFactory(),
     })
+  }
+
+  publish(
+    topic: NonNullable<SupportedEventDefinitions[number]['snsTopic']>,
+    message: MessagePublishType<SupportedEventDefinitions[number]>,
+    precedingEventMetadata?: MetadataType,
+    messageOptions?: SNSMessageOptions,
+  ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+    return super.publish(topic, message, precedingEventMetadata, messageOptions)
   }
 
   protected override resolveCreationConfig(

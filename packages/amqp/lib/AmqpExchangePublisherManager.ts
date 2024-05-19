@@ -1,10 +1,14 @@
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
-import type { MessageMetadataType } from '@message-queue-toolkit/core/lib/messages/baseMessageSchemas'
-import type { TypeOf } from 'zod'
+import type {
+  MessagePublishType,
+  MessageSchemaType,
+  MessageMetadataType,
+} from '@message-queue-toolkit/core'
 import type z from 'zod'
 
 import type {
   AbstractAmqpExchangePublisher,
+  AmqpExchangeMessageOptions,
   AMQPExchangePublisherOptions,
 } from './AbstractAmqpExchangePublisher'
 import type { AmqpQueueMessageOptions } from './AbstractAmqpQueuePublisher'
@@ -37,7 +41,7 @@ export class AmqpExchangePublisherManager<
   >,
   SupportedEventDefinitions,
   MetadataType,
-  z.infer<SupportedEventDefinitions[number]['publisherSchema']>
+  AmqpExchangeMessageOptions
 > {
   constructor(
     dependencies: AmqpPublisherManagerDependencies<SupportedEventDefinitions>,
@@ -68,7 +72,7 @@ export class AmqpExchangePublisherManager<
     exchange: string,
   ): Partial<
     Omit<
-      AMQPExchangePublisherOptions<TypeOf<SupportedEventDefinitions[number]['publisherSchema']>>,
+      AMQPExchangePublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
       'messageSchemas' | 'locatorConfig'
     >
   > {
@@ -85,6 +89,15 @@ export class AmqpExchangePublisherManager<
       queueOptions: {},
       queueName,
     }
+  }
+
+  publish(
+    eventTarget: NonNullable<SupportedEventDefinitions[number]['exchange']>,
+    message: MessagePublishType<SupportedEventDefinitions[number]>,
+    precedingEventMetadata?: MetadataType,
+    messageOptions?: AmqpExchangeMessageOptions,
+  ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+    return super.publish(eventTarget, message, precedingEventMetadata, messageOptions)
   }
 
   protected override resolveEventTarget(

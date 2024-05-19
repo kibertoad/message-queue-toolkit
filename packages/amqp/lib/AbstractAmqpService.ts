@@ -120,20 +120,6 @@ export abstract class AbstractAmqpService<
 
   protected abstract createMissingEntities(): Promise<void>
 
-  protected async checkQueueExists() {
-    // queue check breaks channel if not successful
-    const checkChannel = await this.connection!.createChannel()
-    checkChannel.on('error', () => {
-      // it's OK
-    })
-    try {
-      await checkChannel.checkQueue(this.locatorConfig!.queueName)
-      await checkChannel.close()
-    } catch (err) {
-      throw new Error(`Queue with queueName ${this.locatorConfig!.queueName} does not exist.`)
-    }
-  }
-
   private async destroyChannel(): Promise<void> {
     if (this.channel) {
       try {
