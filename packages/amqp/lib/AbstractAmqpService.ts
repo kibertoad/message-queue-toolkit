@@ -8,7 +8,7 @@ import type { Channel, Connection, Message } from 'amqplib'
 import type { Options } from 'amqplib/properties'
 
 import type { AmqpConnectionManager, ConnectionReceiver } from './AmqpConnectionManager'
-import { deleteAmqp } from './utils/amqpInitter'
+import { deleteAmqpQueue } from './utils/amqpQueueUtils'
 
 export type AMQPDependencies = QueueDependencies & {
   amqpConnectionManager: AmqpConnectionManager
@@ -99,7 +99,7 @@ export abstract class AbstractAmqpService<
     }
 
     if (this.deletionConfig && this.creationConfig) {
-      await deleteAmqp(this.channel, this.deletionConfig, this.creationConfig)
+      await deleteAmqpQueue(this.channel, this.deletionConfig, this.creationConfig)
     }
 
     this.channel.on('close', () => {
@@ -115,29 +115,10 @@ export abstract class AbstractAmqpService<
       this.handleError(err)
     })
 
-    if (this.creationConfig) {
-      await this.channel.assertQueue(
-        this.creationConfig.queueName,
-        this.creationConfig.queueOptions,
-      )
-    } else {
-      await this.checkQueueExists()
-    }
+    await this.createMissingEntities()
   }
 
-  private async checkQueueExists() {
-    // queue check breaks channel if not successful
-    const checkChannel = await this.connection!.createChannel()
-    checkChannel.on('error', () => {
-      // it's OK
-    })
-    try {
-      await checkChannel.checkQueue(this.locatorConfig!.queueName)
-      await checkChannel.close()
-    } catch (err) {
-      throw new Error(`Queue with queueName ${this.locatorConfig!.queueName} does not exist.`)
-    }
-  }
+  protected abstract createMissingEntities(): Promise<void>
 
   private async destroyChannel(): Promise<void> {
     if (this.channel) {

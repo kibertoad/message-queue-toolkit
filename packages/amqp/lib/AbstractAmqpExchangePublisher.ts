@@ -47,4 +47,9 @@ export abstract class AbstractAmqpExchangePublisher<
       options.publishOptions,
     )
   }
+
+  protected createMissingEntities(): Promise<void> {
+    this.logger.warn('Missing entity creation is not implemented')
+    return Promise.resolve()
+  }
 }

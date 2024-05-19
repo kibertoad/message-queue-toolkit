@@ -3,7 +3,7 @@ import type { BarrierResult, Prehandler, PreHandlingOutputs } from '@message-que
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 
 import type { AMQPConsumerOptions } from '../../lib/AbstractAmqpConsumer'
-import { AbstractAmqpConsumer } from '../../lib/AbstractAmqpConsumer'
+import { AbstractAmqpQueueConsumer } from '../../lib/AbstractAmqpQueueConsumer'
 import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService'
 
 import type {
@@ -36,7 +36,7 @@ type AmqpPermissionConsumerOptions = Pick<
   removePreHandlers?: Prehandler<SupportedEvents, ExecutionContext, PrehandlerOutput>[]
 }
 
-export class AmqpPermissionConsumer extends AbstractAmqpConsumer<
+export class AmqpPermissionConsumer extends AbstractAmqpQueueConsumer<
   SupportedEvents,
   ExecutionContext,
   PrehandlerOutput

@@ -1,11 +1,11 @@
 import type { BaseMessageType } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 
-import { AbstractAmqpConsumer } from '../../lib/AbstractAmqpConsumer'
+import { AbstractAmqpQueueConsumer } from '../../lib/AbstractAmqpQueueConsumer'
 import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService'
 import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager'
 
-export class FakeConsumer extends AbstractAmqpConsumer<BaseMessageType, unknown> {
+export class FakeConsumer extends AbstractAmqpQueueConsumer<BaseMessageType, unknown> {
   public static readonly QUEUE_NAME = 'dummy-queue'
   constructor(dependencies: AMQPConsumerDependencies, eventDefinition: AmqpAwareEventDefinition) {
     super(

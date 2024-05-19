@@ -4,6 +4,8 @@ import type {
   EventRegistry,
   MetadataFiller,
   MessageMetadataType,
+  MessagePublishType,
+  MessageSchemaType,
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type z from 'zod'
@@ -62,7 +64,7 @@ export class AmqpQueuePublisherManager<
   MetadataType = MessageMetadataType,
 > extends AbstractPublisherManager<
   AmqpAwareEventDefinition,
-  NonNullable<SupportedEventDefinitions[number]['exchange']>,
+  NonNullable<SupportedEventDefinitions[number]['queueName']>,
   AbstractAmqpQueuePublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
   AMQPDependencies,
   AMQPCreationConfig,
@@ -74,7 +76,7 @@ export class AmqpQueuePublisherManager<
   >,
   SupportedEventDefinitions,
   MetadataType,
-  z.infer<SupportedEventDefinitions[number]['publisherSchema']>
+  AmqpQueueMessageOptions
 > {
   constructor(
     dependencies: AmqpPublisherManagerDependencies<SupportedEventDefinitions>,
@@ -109,6 +111,17 @@ export class AmqpQueuePublisherManager<
       queueOptions: {},
       queueName,
     }
+  }
+
+  publish(
+    queue: NonNullable<SupportedEventDefinitions[number]['queueName']>,
+    message: MessagePublishType<SupportedEventDefinitions[number]>,
+    precedingEventMetadata?: MetadataType,
+    messageOptions?: AmqpQueueMessageOptions,
+  ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+    // Purpose of this override is to provide better name for the first argument
+    // For AMQP Queues it is going to be queue
+    return super.publish(queue, message, precedingEventMetadata, messageOptions)
   }
 
   protected override resolveEventTarget(

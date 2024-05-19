@@ -1,6 +1,7 @@
 import type { Options } from 'amqplib/properties'
 
 import { AbstractAmqpPublisher } from './AbstractAmqpPublisher'
+import { ensureAmqpQueue } from './utils/amqpQueueUtils'
 
 export type AmqpQueueMessageOptions = {
   publishOptions: Options.Publish
@@ -19,5 +20,9 @@ export abstract class AbstractAmqpQueuePublisher<
 
   publish(message: MessagePayloadType, options: AmqpQueueMessageOptions = NO_PARAMS) {
     super.publish(message, options)
+  }
+
+  protected override createMissingEntities(): Promise<void> {
+    return ensureAmqpQueue(this.connection!, this.channel, this.creationConfig, this.locatorConfig)
   }
 }
