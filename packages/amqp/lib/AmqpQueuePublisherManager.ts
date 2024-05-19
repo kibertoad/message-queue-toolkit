@@ -1,11 +1,11 @@
 import type {
-  BaseEventType,
+  PublisherBaseEventType,
   CommonEventDefinition,
   EventRegistry,
   MetadataFiller,
+  MessageMetadataType,
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
-import type { MessageMetadataType } from '@message-queue-toolkit/core/lib/messages/baseMessageSchemas'
 import type z from 'zod'
 
 import type { AbstractAmqpPublisher, AMQPPublisherOptions } from './AbstractAmqpPublisher'
@@ -31,7 +31,7 @@ export type AmqpPublisherManagerOptions<
   PublisherType extends AbstractAmqpPublisher<EventType, MessageOptionsType>,
   MessageOptionsType,
   PublisherOptionsType extends Omit<AMQPPublisherOptions<EventType>, 'creationConfig'>,
-  EventType extends BaseEventType,
+  EventType extends PublisherBaseEventType,
   MetadataType,
 > = {
   metadataField?: string
@@ -50,35 +50,39 @@ export type AmqpPublisherManagerOptions<
   }
 }
 
-export type AmqpMessageSchemaType<T extends AmqpAwareEventDefinition> = z.infer<T['schema']>
+export type AmqpMessageSchemaType<T extends AmqpAwareEventDefinition> = z.infer<
+  T['publisherSchema']
+>
 
 export class AmqpQueuePublisherManager<
-  T extends AbstractAmqpQueuePublisher<z.infer<SupportedEventDefinitions[number]['schema']>>,
+  T extends AbstractAmqpQueuePublisher<
+    z.infer<SupportedEventDefinitions[number]['publisherSchema']>
+  >,
   SupportedEventDefinitions extends AmqpAwareEventDefinition[],
   MetadataType = MessageMetadataType,
 > extends AbstractPublisherManager<
   AmqpAwareEventDefinition,
   NonNullable<SupportedEventDefinitions[number]['exchange']>,
-  AbstractAmqpQueuePublisher<z.infer<SupportedEventDefinitions[number]['schema']>>,
+  AbstractAmqpQueuePublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
   AMQPDependencies,
   AMQPCreationConfig,
   AMQPLocator,
   AmqpMessageSchemaType<AmqpAwareEventDefinition>,
   Omit<
-    AMQPPublisherOptions<z.infer<SupportedEventDefinitions[number]['schema']>>,
+    AMQPPublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
     'messageSchemas' | 'creationConfig' | 'locatorConfig'
   >,
   SupportedEventDefinitions,
   MetadataType,
-  z.infer<SupportedEventDefinitions[number]['schema']>
+  z.infer<SupportedEventDefinitions[number]['publisherSchema']>
 > {
   constructor(
     dependencies: AmqpPublisherManagerDependencies<SupportedEventDefinitions>,
     options: AmqpPublisherManagerOptions<
       T,
       AmqpQueueMessageOptions,
-      AMQPPublisherOptions<z.infer<SupportedEventDefinitions[number]['schema']>>,
-      z.infer<SupportedEventDefinitions[number]['schema']>,
+      AMQPPublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+      z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
       MetadataType
     >,
   ) {

@@ -10,8 +10,8 @@ export class EventRegistry<SupportedEvents extends CommonEventDefinition[]> {
     this.supportedEventsSet = new Set<string>()
 
     for (const supportedEvent of supportedEvents) {
-      this.supportedEventMap[supportedEvent.schema.shape.type.value] = supportedEvent
-      this.supportedEventsSet.add(supportedEvent.schema.shape.type.value)
+      this.supportedEventMap[supportedEvent.consumerSchema.shape.type.value] = supportedEvent
+      this.supportedEventsSet.add(supportedEvent.consumerSchema.shape.type.value)
     }
   }
 
