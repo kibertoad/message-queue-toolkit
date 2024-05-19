@@ -1,6 +1,8 @@
 export type { AMQPQueueConfig } from './lib/AbstractAmqpService'
 
+export { AbstractAmqpQueueConsumer } from './lib/AbstractAmqpQueueConsumer'
 export { AbstractAmqpConsumer, AMQPConsumerOptions } from './lib/AbstractAmqpConsumer'
+
 export { AmqpConsumerErrorResolver } from './lib/errors/AmqpConsumerErrorResolver'
 
 export type { AmqpConfig } from './lib/amqpConnectionResolver'

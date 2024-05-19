@@ -4,7 +4,7 @@ import type { Channel } from 'amqplib'
 
 import type { AMQPCreationConfig } from '../AbstractAmqpService'
 
-export async function deleteAmqp(
+export async function deleteAmqpQueue(
   channel: Channel,
   deletionConfig: DeletionConfig,
   creationConfig: AMQPCreationConfig,
