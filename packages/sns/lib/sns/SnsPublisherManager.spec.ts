@@ -144,7 +144,6 @@ describe('SnsPublisherManager', () => {
 
       // @ts-expect-error Testing injected publisher
       await publisherManager.publish(topic, {
-        ...publisherManager.resolveBaseFields(),
         id: messageId,
         type: 'entity.created',
         payload: {
