@@ -49,7 +49,7 @@ export const TestEvents = {
 } as const satisfies Record<string, AmqpAwareEventDefinition>
 
 export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
-export type TestEventPayloadsType = z.infer<TestEventsType[number]['publisherSchema']>
+export type TestEventPublishPayloadsType = z.infer<TestEventsType[number]['publisherSchema']>
 
 // @ts-ignore
 const TestLogger: Logger = console
@@ -169,7 +169,7 @@ export interface Dependencies {
 
   eventRegistry: EventRegistry<TestEventsType>
   queuePublisherManager: AmqpQueuePublisherManager<
-    CommonAmqpQueuePublisher<TestEventPayloadsType>,
+    CommonAmqpQueuePublisher<TestEventPublishPayloadsType>,
     TestEventsType
   >
 }
