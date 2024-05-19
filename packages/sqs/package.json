@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/sqs",
-  "version": "14.1.0",
+  "version": "15.0.0",
   "private": false,
   "license": "MIT",
   "description": "SQS adapter for message-queue-toolkit",
@@ -31,7 +31,7 @@
   },
   "peerDependencies": {
     "@aws-sdk/client-sqs": "^3.556.0",
-    "@message-queue-toolkit/core": "^12.1.0"
+    "@message-queue-toolkit/core": "^13.0.0"
   },
   "devDependencies": {
     "@aws-sdk/client-sqs": "^3.569.0",
