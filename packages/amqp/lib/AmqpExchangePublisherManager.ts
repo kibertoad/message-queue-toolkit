@@ -18,32 +18,34 @@ import type {
 import { CommonAmqpExchangePublisherFactory } from './CommonAmqpPublisherFactory'
 
 export class AmqpExchangePublisherManager<
-  T extends AbstractAmqpExchangePublisher<z.infer<SupportedEventDefinitions[number]['schema']>>,
+  T extends AbstractAmqpExchangePublisher<
+    z.infer<SupportedEventDefinitions[number]['publisherSchema']>
+  >,
   SupportedEventDefinitions extends AmqpAwareEventDefinition[],
   MetadataType = MessageMetadataType,
 > extends AbstractPublisherManager<
   AmqpAwareEventDefinition,
   NonNullable<SupportedEventDefinitions[number]['exchange']>,
-  AbstractAmqpExchangePublisher<z.infer<SupportedEventDefinitions[number]['schema']>>,
+  AbstractAmqpExchangePublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
   AMQPDependencies,
   AMQPCreationConfig,
   AMQPLocator,
   AmqpMessageSchemaType<AmqpAwareEventDefinition>,
   Omit<
-    AMQPExchangePublisherOptions<z.infer<SupportedEventDefinitions[number]['schema']>>,
+    AMQPExchangePublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
     'messageSchemas' | 'locatorConfig' | 'exchange'
   >,
   SupportedEventDefinitions,
   MetadataType,
-  z.infer<SupportedEventDefinitions[number]['schema']>
+  z.infer<SupportedEventDefinitions[number]['publisherSchema']>
 > {
   constructor(
     dependencies: AmqpPublisherManagerDependencies<SupportedEventDefinitions>,
     options: AmqpPublisherManagerOptions<
       T,
       AmqpQueueMessageOptions,
-      AMQPExchangePublisherOptions<z.infer<SupportedEventDefinitions[number]['schema']>>,
-      z.infer<SupportedEventDefinitions[number]['schema']>,
+      AMQPExchangePublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+      z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
       MetadataType
     >,
   ) {
@@ -66,7 +68,7 @@ export class AmqpExchangePublisherManager<
     exchange: string,
   ): Partial<
     Omit<
-      AMQPExchangePublisherOptions<TypeOf<SupportedEventDefinitions[number]['schema']>>,
+      AMQPExchangePublisherOptions<TypeOf<SupportedEventDefinitions[number]['publisherSchema']>>,
       'messageSchemas' | 'locatorConfig'
     >
   > {

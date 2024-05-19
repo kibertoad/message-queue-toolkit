@@ -1,6 +1,12 @@
-import z from 'zod'
+import z, { type ZodLiteral, type ZodObject, type ZodOptional, type ZodString } from 'zod'
+import type { ZodRawShape } from 'zod/lib/types'
 
-import { BASE_EVENT_SCHEMA } from '../events/baseEventSchemas'
+import {
+  CONSUMER_BASE_EVENT_SCHEMA,
+  GENERATED_BASE_EVENT_SCHEMA,
+  OPTIONAL_GENERATED_BASE_EVENT_SCHEMA,
+} from '../events/baseEventSchemas'
+import type { CommonEventDefinition } from '../events/eventTypes'
 
 // External message metadata that describe the context in which the message was created, primarily used for debugging purposes
 export const MESSAGE_METADATA_SCHEMA = z
@@ -18,11 +24,70 @@ export const MESSAGE_METADATA_SCHEMA = z
   })
   .describe('external message metadata')
 
-export const BASE_MESSAGE_SCHEMA = BASE_EVENT_SCHEMA.extend({
+export const MESSAGE_SCHEMA_EXTENSION = {
   // For internal domain events that did not originate within a message chain metadata field can be omitted, producer should then assume it is initiating a new chain
   metadata: MESSAGE_METADATA_SCHEMA.optional(),
-})
+}
+
+export const BASE_MESSAGE_SCHEMA = CONSUMER_BASE_EVENT_SCHEMA.extend(MESSAGE_SCHEMA_EXTENSION)
 
 export type BaseMessageType = z.infer<typeof BASE_MESSAGE_SCHEMA>
 
 export type MessageMetadataType = z.infer<typeof MESSAGE_METADATA_SCHEMA>
+
+export type CommonMessageDefinitionSchemaType<T extends CommonEventDefinition> = z.infer<
+  T['consumerSchema']
+>
+
+type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string> = {
+  consumerSchema: ZodObject<{
+    id: ZodString
+    timestamp: ZodString
+    type: ZodLiteral<Z>
+    payload: T
+    metadata: ZodOptional<
+      ZodObject<{
+        schemaVersion: ZodString
+        producedBy: ZodString
+        originatedFrom: ZodString
+        correlationId: ZodString
+      }>
+    >
+  }>
+
+  publisherSchema: ZodObject<{
+    id: ZodOptional<ZodString>
+    timestamp: ZodOptional<ZodString>
+    type: ZodLiteral<Z>
+    payload: T
+    metadata: ZodOptional<
+      ZodObject<{
+        schemaVersion: ZodString
+        producedBy: ZodString
+        originatedFrom: ZodString
+        correlationId: ZodString
+      }>
+    >
+  }>
+}
+
+export function enrichMessageSchemaWithBase<
+  T extends ZodObject<Y>,
+  Y extends ZodRawShape,
+  Z extends string,
+>(type: Z, payloadSchema: T): ReturnType<T, Y, Z> {
+  const baseSchema = z.object({
+    type: z.literal(type),
+    payload: payloadSchema,
+  })
+
+  const consumerSchema =
+    GENERATED_BASE_EVENT_SCHEMA.merge(baseSchema).extend(MESSAGE_SCHEMA_EXTENSION)
+  const publisherSchema =
+    OPTIONAL_GENERATED_BASE_EVENT_SCHEMA.merge(baseSchema).extend(MESSAGE_SCHEMA_EXTENSION)
+
+  return {
+    consumerSchema: consumerSchema,
+    publisherSchema: publisherSchema,
+  }
+}

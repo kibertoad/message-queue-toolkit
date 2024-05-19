@@ -1,7 +1,7 @@
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
 import {
-  BASE_MESSAGE_SCHEMA,
+  enrichMessageSchemaWithBase,
   CommonMetadataFiller,
   EventRegistry,
 } from '@message-queue-toolkit/core'
@@ -27,29 +27,29 @@ export type DependencyOverrides = Partial<DiConfig>
 
 export const TestEvents = {
   created: {
-    schema: BASE_MESSAGE_SCHEMA.extend({
-      type: z.literal('entity.created'),
-      payload: z.object({
+    ...enrichMessageSchemaWithBase(
+      'entity.created',
+      z.object({
         newData: z.string(),
       }),
-    }),
+    ),
     schemaVersion: '1.0.1',
     queueName: FakeConsumer.QUEUE_NAME,
   },
 
   updated: {
-    schema: BASE_MESSAGE_SCHEMA.extend({
-      type: z.literal('entity.updated'),
-      payload: z.object({
+    ...enrichMessageSchemaWithBase(
+      'entity.updated',
+      z.object({
         updatedData: z.string(),
       }),
-    }),
+    ),
     queueName: FakeConsumer.QUEUE_NAME,
   },
 } as const satisfies Record<string, AmqpAwareEventDefinition>
 
 export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
-export type TestEventPayloadsType = z.infer<TestEventsType[number]['schema']>
+export type TestEventPublishPayloadsType = z.infer<TestEventsType[number]['publisherSchema']>
 
 // @ts-ignore
 const TestLogger: Logger = console
@@ -169,7 +169,7 @@ export interface Dependencies {
 
   eventRegistry: EventRegistry<TestEventsType>
   queuePublisherManager: AmqpQueuePublisherManager<
-    CommonAmqpQueuePublisher<TestEventPayloadsType>,
+    CommonAmqpQueuePublisher<TestEventPublishPayloadsType>,
     TestEventsType
   >
 }

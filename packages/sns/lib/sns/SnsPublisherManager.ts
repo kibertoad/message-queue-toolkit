@@ -1,8 +1,8 @@
 import type {
-  BaseEventType,
   CommonEventDefinition,
   EventRegistry,
   MetadataFiller,
+  PublisherBaseEventType,
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { MessageMetadataType } from '@message-queue-toolkit/core/lib/messages/baseMessageSchemas'
@@ -28,7 +28,7 @@ export type SnsPublisherManagerDependencies<SupportedEvents extends SnsAwareEven
 
 export type SnsPublisherManagerOptions<
   T extends AbstractSnsPublisher<EventType>,
-  EventType extends BaseEventType,
+  EventType extends PublisherBaseEventType,
   MetadataType,
 > = {
   metadataField?: string
@@ -42,22 +42,22 @@ export type SnsPublisherManagerOptions<
   }
 }
 
-export type SnsMessageSchemaType<T extends SnsAwareEventDefinition> = z.infer<T['schema']>
+export type SnsMessageSchemaType<T extends SnsAwareEventDefinition> = z.infer<T['publisherSchema']>
 
 export class SnsPublisherManager<
-  T extends AbstractSnsPublisher<z.infer<SupportedEventDefinitions[number]['schema']>>,
+  T extends AbstractSnsPublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
   SupportedEventDefinitions extends SnsAwareEventDefinition[],
   MetadataType = MessageMetadataType,
 > extends AbstractPublisherManager<
   SnsAwareEventDefinition,
   NonNullable<SupportedEventDefinitions[number]['snsTopic']>,
-  AbstractSnsPublisher<z.infer<SupportedEventDefinitions[number]['schema']>>,
+  AbstractSnsPublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
   SNSDependencies,
   SNSCreationConfig,
   SNSQueueLocatorType,
   SnsMessageSchemaType<SnsAwareEventDefinition>,
   Omit<
-    SNSPublisherOptions<z.infer<SupportedEventDefinitions[number]['schema']>>,
+    SNSPublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
     'messageSchemas' | 'creationConfig' | 'locatorConfig'
   >,
   SupportedEventDefinitions,
@@ -68,7 +68,7 @@ export class SnsPublisherManager<
     dependencies: SnsPublisherManagerDependencies<SupportedEventDefinitions>,
     options: SnsPublisherManagerOptions<
       T,
-      z.infer<SupportedEventDefinitions[number]['schema']>,
+      z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
       MetadataType
     >,
   ) {

@@ -24,7 +24,7 @@ export class FakeConsumer extends AbstractAmqpQueueConsumer<BaseMessageType, unk
         handlerSpy: true,
         messageTypeField: 'type',
         handlers: new MessageHandlerConfigBuilder<BaseMessageType, unknown>()
-          .addConfig(eventDefinition.schema, () => Promise.resolve({ result: 'success' }))
+          .addConfig(eventDefinition.consumerSchema, () => Promise.resolve({ result: 'success' }))
           .build(),
       },
       {},

@@ -27,7 +27,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     supportedEvent: SupportedEvent,
     data: Omit<CommonEventDefinitionSchemaType<SupportedEvent>, 'type'>,
   ) {
-    const eventTypeName = supportedEvent.schema.shape.type.value
+    const eventTypeName = supportedEvent.consumerSchema.shape.type.value
 
     if (!this.eventRegistry.isSupportedEvent(eventTypeName)) {
       throw new InternalError({
@@ -45,7 +45,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
     const validatedEvent = this.eventRegistry
       .getEventDefinitionByTypeName(eventTypeName)
-      .schema.parse({
+      .consumerSchema.parse({
         type: eventTypeName,
         ...data,
       })
