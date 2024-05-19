@@ -1,22 +1,22 @@
 import type { TypeOf, z } from 'zod'
 
 import type { EventRegistry } from '../events/EventRegistry'
-import type { BaseEventType } from '../events/baseEventSchemas'
+import type { PublisherBaseEventType } from '../events/baseEventSchemas'
 import type { CommonEventDefinition } from '../events/eventTypes'
 import type { MetadataFiller } from '../messages/MetadataFiller'
 import type { AsyncPublisher, SyncPublisher } from '../types/MessageQueueTypes'
 import type { CommonCreationConfigType, QueuePublisherOptions } from '../types/queueOptionsTypes'
 
-export type MessagePublishType<T extends CommonEventDefinition> = z.infer<T['schema']>
+export type MessagePublishType<T extends CommonEventDefinition> = z.infer<T['publisherSchema']>
 
-export type MessageSchemaType<T extends CommonEventDefinition> = z.infer<T['schema']>
+export type MessageSchemaType<T extends CommonEventDefinition> = z.infer<T['consumerSchema']>
 
 export type AbstractPublisherFactory<
   PublisherType extends AsyncPublisher<object, unknown> | SyncPublisher<object, unknown>,
   DependenciesType,
   CreationConfigType extends CommonCreationConfigType,
   QueueLocatorType extends object,
-  EventType extends BaseEventType,
+  EventType extends PublisherBaseEventType,
   OptionsType extends Omit<
     QueuePublisherOptions<CreationConfigType, QueueLocatorType, EventType>,
     'messageSchemas' | 'creationConfig' | 'locatorConfig'
@@ -32,7 +32,7 @@ export abstract class AbstractPublisherManager<
   DependenciesType,
   CreationConfigType extends CommonCreationConfigType,
   QueueLocatorType extends object,
-  EventType extends BaseEventType,
+  EventType extends PublisherBaseEventType,
   OptionsType extends Omit<
     QueuePublisherOptions<CreationConfigType, QueueLocatorType, EventType>,
     'messageSchemas' | 'creationConfig' | 'locatorConfig'
@@ -53,7 +53,7 @@ export abstract class AbstractPublisherManager<
   protected readonly newPublisherOptions: OptionsType
 
   protected readonly metadataFiller: MetadataFiller<
-    z.infer<SupportedEventDefinitions[number]['schema']>,
+    z.infer<SupportedEventDefinitions[number]['consumerSchema']>,
     MetadataType
   >
   protected readonly metadataField: string
@@ -90,7 +90,7 @@ export abstract class AbstractPublisherManager<
     newPublisherOptions: OptionsType
     publisherDependencies: DependenciesType
     metadataFiller: MetadataFiller<
-      TypeOf<SupportedEventDefinitions[number]['schema']>,
+      TypeOf<SupportedEventDefinitions[number]['consumerSchema']>,
       MetadataType
     >
     eventRegistry: EventRegistry<SupportedEventDefinitions>
@@ -136,7 +136,7 @@ export abstract class AbstractPublisherManager<
       }
 
       const messageSchemas = this.targetToEventMap[eventTarget].map((entry) => {
-        return entry.schema
+        return entry.consumerSchema
       })
       const creationConfig = this.resolveCreationConfig(eventTarget)
       const configOverrides = this.resolvePublisherConfigOverrides(eventTarget)
@@ -182,7 +182,7 @@ export abstract class AbstractPublisherManager<
     }
     // ToDo optimize the lookup
     const messageDefinition = this.targetToEventMap[eventTarget].find(
-      (entry) => entry.schema.shape.type.value === message.type,
+      (entry) => entry.consumerSchema.shape.type.value === message.type,
     )
 
     const resolvedMessage = this.resolveMessage(messageDefinition, message, precedingEventMetadata)
@@ -208,7 +208,10 @@ export abstract class AbstractPublisherManager<
       : // @ts-ignore
         this.metadataFiller.produceMetadata(message, messageDefinition, precedingEventMetadata)
 
+    // @ts-ignore
     return {
+      id: this.metadataFiller.produceId(),
+      timestamp: this.metadataFiller.produceTimestamp(),
       ...message,
       metadata: resolvedMetadata,
     }

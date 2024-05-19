@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
 
-import { BASE_MESSAGE_SCHEMA } from '@message-queue-toolkit/core'
+import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import z from 'zod'
 
 import type {
   Dependencies,
-  TestEventPayloadsType,
+  TestEventPublishPayloadsType,
   TestEventsType,
 } from '../../test/utils/testContext'
 import { registerDependencies, TestEvents } from '../../test/utils/testContext'
@@ -18,7 +18,7 @@ import { FakeConsumer } from './fakes/FakeConsumer'
 describe('SnsPublisherManager', () => {
   let diContainer: AwilixContainer<Dependencies>
   let publisherManager: SnsPublisherManager<
-    CommonSnsPublisher<TestEventPayloadsType>,
+    CommonSnsPublisher<TestEventPublishPayloadsType>,
     TestEventsType
   >
 
@@ -38,13 +38,12 @@ describe('SnsPublisherManager', () => {
         diContainer.cradle,
         'queue',
         TestEvents.created.snsTopic,
-        TestEvents.created.schema,
+        TestEvents.created.consumerSchema,
       )
       await fakeConsumer.start()
 
       // When
       const publishedMessage = await publisherManager.publish(TestEvents.created.snsTopic, {
-        ...publisherManager.resolveBaseFields(),
         payload: {
           newData: 'msg',
         },
@@ -82,7 +81,6 @@ describe('SnsPublisherManager', () => {
     it('message publishing is type-safe', async () => {
       await expect(
         publisherManager.publish(TestEvents.created.snsTopic, {
-          ...publisherManager.resolveBaseFields(),
           payload: {
             // @ts-expect-error This should be causing a compilation error
             updatedData: 'edwe',
@@ -131,7 +129,7 @@ describe('SnsPublisherManager', () => {
         },
         handlerSpy: true,
         messageTypeField: 'type',
-        messageSchemas: [TestEvents.created.schema],
+        messageSchemas: [TestEvents.created.publisherSchema],
       })
 
       // When
@@ -139,16 +137,13 @@ describe('SnsPublisherManager', () => {
       // @ts-ignore
       publisherManager.injectPublisher(topic, newPublisher)
       publisherManager.injectEventDefinition({
-        schema: BASE_MESSAGE_SCHEMA.extend({
-          type: z.literal('entity.created'),
-        }),
+        ...enrichMessageSchemaWithBase('entity.created', z.object({}).catchall(z.any())),
         snsTopic: topic,
         schemaVersion: '2.0.0',
       })
 
       // @ts-expect-error Testing injected publisher
       await publisherManager.publish(topic, {
-        ...publisherManager.resolveBaseFields(),
         id: messageId,
         type: 'entity.created',
         payload: {

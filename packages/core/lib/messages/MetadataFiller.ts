@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import type { BaseEventType } from '../events/baseEventSchemas'
+import type { PublisherBaseEventType } from '../events/baseEventSchemas'
 import type { CommonEventDefinition } from '../events/eventTypes'
 
 import type { MessageMetadataType } from './baseMessageSchemas'
@@ -17,7 +17,7 @@ export type MetadataFillerOptions = {
 }
 
 export type MetadataFiller<
-  T extends BaseEventType = BaseEventType,
+  T extends PublisherBaseEventType = PublisherBaseEventType,
   D = CommonEventDefinition,
   M = MessageMetadataType,
 > = {
@@ -48,7 +48,7 @@ export class CommonMetadataFiller implements MetadataFiller {
   }
 
   produceMetadata(
-    _currentMessage: BaseEventType,
+    _currentMessage: PublisherBaseEventType,
     eventDefinition: CommonEventDefinition,
     precedingMessageMetadata?: MessageMetadataType,
   ): MessageMetadataType {

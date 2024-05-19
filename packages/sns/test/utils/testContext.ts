@@ -3,7 +3,7 @@ import { SQSClient } from '@aws-sdk/client-sqs'
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
 import {
-  BASE_MESSAGE_SCHEMA,
+  enrichMessageSchemaWithBase,
   CommonMetadataFiller,
   EventRegistry,
 } from '@message-queue-toolkit/core'
@@ -31,29 +31,29 @@ const TestLogger: Logger = console
 
 export const TestEvents = {
   created: {
-    schema: BASE_MESSAGE_SCHEMA.extend({
-      type: z.literal('entity.created'),
-      payload: z.object({
+    ...enrichMessageSchemaWithBase(
+      'entity.created',
+      z.object({
         newData: z.string(),
       }),
-    }),
+    ),
     schemaVersion: '1.0.1',
     snsTopic: 'dummy',
   },
 
   updated: {
-    schema: BASE_MESSAGE_SCHEMA.extend({
-      type: z.literal('entity.updated'),
-      payload: z.object({
+    ...enrichMessageSchemaWithBase(
+      'entity.updated',
+      z.object({
         updatedData: z.string(),
       }),
-    }),
+    ),
     snsTopic: 'dummy',
   },
 } as const satisfies Record<string, SnsAwareEventDefinition>
 
 export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
-export type TestEventPayloadsType = z.infer<TestEventsType[number]['schema']>
+export type TestEventPublishPayloadsType = z.infer<TestEventsType[number]['publisherSchema']>
 
 export async function registerDependencies(
   dependencyOverrides: DependencyOverrides = {},
@@ -178,5 +178,8 @@ export interface Dependencies {
   permissionConsumer: SnsSqsPermissionConsumer
   permissionPublisher: SnsPermissionPublisher
   eventRegistry: EventRegistry<TestEventsType>
-  publisherManager: SnsPublisherManager<CommonSnsPublisher<TestEventPayloadsType>, TestEventsType>
+  publisherManager: SnsPublisherManager<
+    CommonSnsPublisher<TestEventPublishPayloadsType>,
+    TestEventsType
+  >
 }

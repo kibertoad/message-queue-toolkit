@@ -19,7 +19,6 @@ describe('AmqpQueuePublisherManager', () => {
       await fakeConsumer.start()
 
       const publishedMessage = await queuePublisherManager.publish(FakeConsumer.QUEUE_NAME, {
-        ...queuePublisherManager.resolveBaseFields(),
         type: 'entity.updated',
         payload: {
           updatedData: 'msg',

@@ -1,4 +1,4 @@
-import type { BaseEventType } from '@message-queue-toolkit/core'
+import type { PublisherBaseEventType } from '@message-queue-toolkit/core'
 
 import type {
   AmqpExchangeMessageOptions,
@@ -12,7 +12,7 @@ import type { AMQPDependencies } from './AbstractAmqpService'
 
 export type AmqpPublisherFactory<
   T extends AbstractAmqpPublisher<M, MessageOptions>,
-  M extends BaseEventType,
+  M extends PublisherBaseEventType,
   MessageOptions,
   PublisherOptions extends Omit<AMQPPublisherOptions<M>, 'creationConfig'>,
 > = {
@@ -20,15 +20,16 @@ export type AmqpPublisherFactory<
 }
 
 export class CommonAmqpQueuePublisher<
-  M extends BaseEventType = BaseEventType,
+  M extends PublisherBaseEventType = PublisherBaseEventType,
 > extends AbstractAmqpQueuePublisher<M> {}
 
 export class CommonAmqpExchangePublisher<
-  M extends BaseEventType = BaseEventType,
+  M extends PublisherBaseEventType = PublisherBaseEventType,
 > extends AbstractAmqpExchangePublisher<M> {}
 
-export class CommonAmqpQueuePublisherFactory<M extends BaseEventType = BaseEventType>
-  implements
+export class CommonAmqpQueuePublisherFactory<
+  M extends PublisherBaseEventType = PublisherBaseEventType,
+> implements
     AmqpPublisherFactory<
       CommonAmqpQueuePublisher<M>,
       M,
@@ -44,8 +45,9 @@ export class CommonAmqpQueuePublisherFactory<M extends BaseEventType = BaseEvent
   }
 }
 
-export class CommonAmqpExchangePublisherFactory<M extends BaseEventType = BaseEventType>
-  implements
+export class CommonAmqpExchangePublisherFactory<
+  M extends PublisherBaseEventType = PublisherBaseEventType,
+> implements
     AmqpPublisherFactory<
       CommonAmqpExchangePublisher<M>,
       M,
