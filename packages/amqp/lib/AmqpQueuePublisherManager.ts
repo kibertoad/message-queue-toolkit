@@ -116,7 +116,7 @@ export class AmqpQueuePublisherManager<
   publish(
     queue: NonNullable<SupportedEventDefinitions[number]['queueName']>,
     message: MessagePublishType<SupportedEventDefinitions[number]>,
-    precedingEventMetadata?: MetadataType,
+    precedingEventMetadata?: Partial<MetadataType>,
     messageOptions?: AmqpQueueMessageOptions,
   ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
     // Purpose of this override is to provide better name for the first argument

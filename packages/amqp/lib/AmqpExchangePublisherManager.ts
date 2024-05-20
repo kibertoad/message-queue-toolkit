@@ -94,7 +94,7 @@ export class AmqpExchangePublisherManager<
   publish(
     eventTarget: NonNullable<SupportedEventDefinitions[number]['exchange']>,
     message: MessagePublishType<SupportedEventDefinitions[number]>,
-    precedingEventMetadata?: MetadataType,
+    precedingEventMetadata?: Partial<MetadataType>,
     messageOptions?: AmqpExchangeMessageOptions,
   ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
     return super.publish(eventTarget, message, precedingEventMetadata, messageOptions)
