@@ -92,7 +92,7 @@ export class SnsPublisherManager<
   publish(
     topic: NonNullable<SupportedEventDefinitions[number]['snsTopic']>,
     message: MessagePublishType<SupportedEventDefinitions[number]>,
-    precedingEventMetadata?: MetadataType,
+    precedingEventMetadata?: Partial<MetadataType>,
     messageOptions?: SNSMessageOptions,
   ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
     // Purpose of this override is to provide better name for the first argument

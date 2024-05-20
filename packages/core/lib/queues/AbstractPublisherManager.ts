@@ -173,7 +173,7 @@ export abstract class AbstractPublisherManager<
   public async publish(
     eventTarget: EventTargets,
     message: MessagePublishType<SupportedEventDefinitions[number]>,
-    precedingEventMetadata?: MetadataType,
+    precedingEventMetadata?: Partial<MetadataType>,
     messageOptions?: MessageOptionsType,
   ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
     const publisher = this.targetToPublisherMap[eventTarget]
@@ -199,7 +199,7 @@ export abstract class AbstractPublisherManager<
   protected resolveMessage(
     messageDefinition: EventDefinitionType | undefined,
     message: MessagePublishType<SupportedEventDefinitions[number]>,
-    precedingEventMetadata?: MetadataType,
+    precedingEventMetadata?: Partial<MetadataType>,
   ): MessageSchemaType<SupportedEventDefinitions[number]> {
     // @ts-ignore
     const resolvedMetadata = message[this.metadataField]
