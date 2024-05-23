@@ -216,13 +216,15 @@ export abstract class AbstractQueueService<
   */
 
   protected updateInternalProperties(message: MessagePayloadSchemas): MessagePayloadSchemas {
+    const messageCopy = { ...message } // clone the message to avoid mutation
+
     /**
      * If the message doesn't have a timestamp field -> add it
      * will be used to prevent infinite retries on the same message
      */
     if (!this.tryToExtractTimestamp(message)) {
       // @ts-ignore
-      message[this.messageTimestampField] = new Date().toISOString()
+      messageCopy[this.messageTimestampField] = new Date().toISOString()
       this.logger.warn(`${this.messageTimestampField} not defined, adding it automatically`)
     }
 
@@ -231,9 +233,9 @@ export abstract class AbstractQueueService<
      */
     const numberOfRetries = this.tryToExtractNumberOfRetries(message)
     // @ts-ignore
-    message[this.messageNumberOfRetriesField] = numberOfRetries ? numberOfRetries + 1 : 1
+    messageCopy[this.messageNumberOfRetriesField] = numberOfRetries ? numberOfRetries + 1 : 1
 
-    return message
+    return messageCopy
   }
 
   private tryToExtractTimestamp(message: MessagePayloadSchemas): Date | undefined {
