@@ -90,12 +90,11 @@ describe('AmqpPermissionConsumer', () => {
       expect(logger.loggedMessages.length).toBe(5)
       expect(logger.loggedMessages).toEqual([
         'Propagating new connection across 0 receivers',
-        'timestamp not defined, adding it automatically',
         {
           id: '1',
           messageType: 'add',
-          timestamp: expect.any(String),
         },
+        'timestamp not defined, adding it automatically',
         {
           id: '1',
           messageType: 'add',
@@ -417,7 +416,7 @@ describe('AmqpPermissionConsumer', () => {
       publisher.publish(message)
 
       const jobSpy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
-      expect(jobSpy.message).toEqual(message)
+      expect(jobSpy.message).toEqual({ ...message, _internalNumberOfRetries: 0 })
       expect(counter).toBeGreaterThan(2)
     })
 
@@ -442,7 +441,7 @@ describe('AmqpPermissionConsumer', () => {
       publisher.publish(message)
 
       const jobSpy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
-      expect(jobSpy.message).toEqual(message)
+      expect(jobSpy.message).toEqual({ ...message, _internalNumberOfRetries: 0 })
       expect(counter).toBeGreaterThan(2)
     })
   })

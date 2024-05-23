@@ -158,10 +158,9 @@ export abstract class AbstractAmqpConsumer<
             return
           }
 
-          // retryLater
-          const timestamp = this.tryToExtractTimestamp(originalMessage) ?? new Date()
           // requeue the message if maxRetryDuration is not exceeded, else ack it to avoid infinite loop
-          if (!isRetryDateExceeded(timestamp, this.maxRetryDuration)) {
+          if (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
+            // TODO: Add retry delay + republish message updating internal properties
             this.channel.nack(message, false, true)
             this.handleMessageProcessed(originalMessage, 'retryLater')
           } else {
