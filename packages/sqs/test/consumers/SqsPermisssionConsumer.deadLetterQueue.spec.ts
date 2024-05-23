@@ -336,7 +336,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           creationConfig: { queue: { QueueName: deadLetterQueueName } },
           redrivePolicy: { maxReceiveCount: 200 },
         },
-        maxRetryDuration: 3,
+        maxRetryDuration: 2,
         addPreHandlerBarrier: (_msg) => {
           counter++
           return Promise.resolve({ isPassing: false })
@@ -357,7 +357,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
         id: '1',
         messageType: 'add',
-        timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
+        timestamp: new Date(new Date().getTime() - 1000).toISOString(),
       }
       await permissionPublisher.publish(message)
 
@@ -366,7 +366,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       // due to exponential backoff and timestamp, message is only retried once before being moved to DLQ
       expect(counter).toBe(2)
 
-      await waitAndRetry(async () => dlqMessage)
+      await waitAndRetry(() => dlqMessage)
       const messageBody = JSON.parse(dlqMessage.Body)
       expect(messageBody).toEqual({
         id: '1',
@@ -388,7 +388,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           creationConfig: { queue: { QueueName: deadLetterQueueName } },
           redrivePolicy: { maxReceiveCount: 200 },
         },
-        maxRetryDuration: 3,
+        maxRetryDuration: 2,
         removeHandlerOverride: async () => {
           counter++
           return Promise.resolve({ error: 'retryLater' })
@@ -407,9 +407,9 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       dlqConsumer.start()
 
       const message: PERMISSIONS_REMOVE_MESSAGE_TYPE = {
-        id: '1',
+        id: '2',
         messageType: 'remove',
-        timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
+        timestamp: new Date(new Date().getTime() - 1000).toISOString(),
       }
       await permissionPublisher.publish(message)
 
@@ -418,10 +418,10 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       // due to exponential backoff and timestamp, message is only retried once before being moved to DLQ
       expect(counter).toBe(2)
 
-      await waitAndRetry(async () => dlqMessage)
+      await waitAndRetry(() => dlqMessage)
       const messageBody = JSON.parse(dlqMessage.Body)
       expect(messageBody).toEqual({
-        id: '1',
+        id: '2',
         messageType: 'remove',
         timestamp: message.timestamp,
         _internalNumberOfRetries: expect.any(Number),
