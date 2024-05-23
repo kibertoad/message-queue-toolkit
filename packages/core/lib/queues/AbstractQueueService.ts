@@ -7,6 +7,7 @@ import type { ZodSchema, ZodType } from 'zod'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
 import type { Logger, MessageProcessingResult } from '../types/MessageQueueTypes'
 import type { DeletionConfig, QueueDependencies, QueueOptions } from '../types/queueOptionsTypes'
+import { isRetryDateExceeded } from '../utils/dateUtils'
 import { toDatePreprocessor } from '../utils/toDateProcessor'
 
 import type {
@@ -42,11 +43,15 @@ export abstract class AbstractQueueService<
   ExecutionContext = undefined,
   PrehandlerOutput = undefined,
 > {
+  // Used to keep track of the number of retries performed on consumer
+  private readonly messageNumberOfRetriesField = '_internalNumberOfRetries'
+  // Used to avoid infinite retries on the same message
+  protected readonly messageTimestampField: string
+
   protected readonly errorReporter: ErrorReporter
   public readonly logger: Logger
   protected readonly messageIdField: string
   protected readonly messageTypeField: string
-  protected readonly messageTimestampField: string
   protected readonly logMessages: boolean
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
@@ -198,7 +203,40 @@ export abstract class AbstractQueueService<
     return await barrier(message, executionContext, preHandlerOutput)
   }
 
-  protected tryToExtractTimestamp(message: MessagePayloadSchemas): Date | undefined {
+  shouldBeRetried(message: MessagePayloadSchemas, maxRetryDuration: number): boolean {
+    const timestamp = this.tryToExtractTimestamp(message) ?? new Date()
+    return !isRetryDateExceeded(timestamp, maxRetryDuration)
+  }
+  /*
+  protected getMessageRetryDelayInSeconds(message: MessagePayloadSchemas): number {
+    const retries = this.tryToExtractNumberOfRetries(message) ?? 1
+
+    return Math.pow(2, retries) // TODO
+  }
+  */
+
+  protected updateInternalProperties(message: MessagePayloadSchemas): MessagePayloadSchemas {
+    /**
+     * If the message doesn't have a timestamp field -> add it
+     * will be used to prevent infinite retries on the same message
+     */
+    if (!this.tryToExtractTimestamp(message)) {
+      // @ts-ignore
+      message[this.messageTimestampField] = new Date().toISOString()
+      this.logger.warn(`${this.messageTimestampField} not defined, adding it automatically`)
+    }
+
+    /**
+     * add/increment the number of retries performed to exponential message delay
+     */
+    const numberOfRetries = this.tryToExtractNumberOfRetries(message)
+    // @ts-ignore
+    message[this.messageNumberOfRetriesField] = numberOfRetries ? numberOfRetries + 1 : 1
+
+    return message
+  }
+
+  private tryToExtractTimestamp(message: MessagePayloadSchemas): Date | undefined {
     // @ts-ignore
     if (this.messageTimestampField in message) {
       // @ts-ignore
@@ -208,6 +246,18 @@ export abstract class AbstractQueueService<
       }
 
       return res
+    }
+
+    return undefined
+  }
+
+  private tryToExtractNumberOfRetries(message: MessagePayloadSchemas): number | undefined {
+    if (
+      this.messageNumberOfRetriesField in message &&
+      typeof message[this.messageNumberOfRetriesField] === 'number'
+    ) {
+      // @ts-ignore
+      return message[this.messageNumberOfRetriesField]
     }
 
     return undefined
