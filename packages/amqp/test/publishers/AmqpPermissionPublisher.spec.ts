@@ -326,6 +326,7 @@ describe('PermissionPublisher', () => {
         parsedMessage: {
           id: '2',
           messageType: 'add',
+          timestamp: expect.any(String),
         },
         originalMessage: {
           id: '2',
