@@ -409,7 +409,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       }
       await permissionPublisher.publish(message)
 
-      const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
+      const spyResult = await consumer.handlerSpy.waitForMessageWithId('2', 'error')
       expect(spyResult.message).toEqual(message)
       // due to exponential backoff and timestamp, message is only retried once before being moved to DLQ
       expect(counter).toBe(2)
