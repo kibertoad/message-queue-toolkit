@@ -13,7 +13,11 @@ import type { Dependencies } from '../utils/testContext'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 
 import { AmqpPermissionConsumer } from './AmqpPermissionConsumer'
-import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
+import type {
+  PERMISSIONS_ADD_MESSAGE_TYPE,
+  PERMISSIONS_MESSAGE_TYPE,
+  PERMISSIONS_REMOVE_MESSAGE_TYPE,
+} from './userConsumerSchemas'
 
 describe('AmqpPermissionConsumer', () => {
   describe('init', () => {
@@ -98,6 +102,7 @@ describe('AmqpPermissionConsumer', () => {
         {
           id: '1',
           messageType: 'add',
+          timestamp: expect.any(String),
         },
         {
           messageId: '1',
@@ -406,17 +411,15 @@ describe('AmqpPermissionConsumer', () => {
       })
       await consumer.start()
 
-      const message: PERMISSIONS_MESSAGE_TYPE = {
+      const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
         id: '1',
         messageType: 'add',
-        userIds: [1],
-        permissions: ['100'],
         timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
       }
       publisher.publish(message)
 
       const jobSpy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
-      expect(jobSpy.message).toEqual({ ...message, _internalNumberOfRetries: 0 })
+      expect(jobSpy.message).toEqual(message)
       expect(counter).toBeGreaterThan(2)
     })
 
@@ -431,17 +434,15 @@ describe('AmqpPermissionConsumer', () => {
       })
       await consumer.start()
 
-      const message: PERMISSIONS_MESSAGE_TYPE = {
+      const message: PERMISSIONS_REMOVE_MESSAGE_TYPE = {
         id: '1',
         messageType: 'remove',
-        userIds: [1],
-        permissions: ['100'],
         timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
       }
       publisher.publish(message)
 
       const jobSpy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
-      expect(jobSpy.message).toEqual({ ...message, _internalNumberOfRetries: 0 })
+      expect(jobSpy.message).toEqual(message)
       expect(counter).toBeGreaterThan(2)
     })
   })

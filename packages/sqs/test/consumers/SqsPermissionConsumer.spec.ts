@@ -197,6 +197,7 @@ describe('SqsPermissionConsumer', () => {
           {
             "id": "1",
             "messageType": "add",
+            "timestamp": "2024-05-23T18:43:01.090Z",
           },
           {
             "messageId": "1",

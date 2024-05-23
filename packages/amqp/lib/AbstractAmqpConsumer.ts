@@ -154,7 +154,7 @@ export abstract class AbstractAmqpConsumer<
         .then((result) => {
           if (result.result === 'success') {
             this.channel.ack(message)
-            this.handleMessageProcessed(originalMessage, 'consumed')
+            this.handleMessageProcessed(parsedMessage, 'consumed')
             return
           }
 
@@ -162,18 +162,18 @@ export abstract class AbstractAmqpConsumer<
           if (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
             // TODO: Add retry delay + republish message updating internal properties
             this.channel.nack(message, false, true)
-            this.handleMessageProcessed(originalMessage, 'retryLater')
+            this.handleMessageProcessed(parsedMessage, 'retryLater')
           } else {
             // ToDo move message to DLQ once it is implemented
             this.channel.ack(message)
-            this.handleMessageProcessed(originalMessage, 'error')
+            this.handleMessageProcessed(parsedMessage, 'error')
           }
         })
         .catch((err) => {
           // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
           // If we fail due to unknown reason, let's retry
           this.channel.nack(message, false, true)
-          this.handleMessageProcessed(originalMessage, 'retryLater')
+          this.handleMessageProcessed(parsedMessage, 'retryLater')
           this.handleError(err)
         })
         .finally(() => {

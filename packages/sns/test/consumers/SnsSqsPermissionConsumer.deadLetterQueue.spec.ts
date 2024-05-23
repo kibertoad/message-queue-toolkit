@@ -17,7 +17,10 @@ import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
-import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
+import type {
+  PERMISSIONS_MESSAGE_TYPE,
+  PERMISSIONS_REMOVE_MESSAGE_TYPE,
+} from './userConsumerSchemas'
 
 // Note that dead letter queue are fully tested by sqs library - only including a few tests here to make sure the integration works
 describe('SnsSqsPermissionConsumer - dead letter queue', () => {
@@ -156,26 +159,27 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
       })
       dlqConsumer.start()
 
-      const message: PERMISSIONS_MESSAGE_TYPE = {
+      const message: PERMISSIONS_REMOVE_MESSAGE_TYPE = {
         id: '1',
         messageType: 'remove',
-        userIds: [1],
-        permissions: ['100'],
         timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
       }
       await publisher.publish(message)
 
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
-      expect(spyResult.message).toEqual({
-        ...message,
-        _internalNumberOfRetries: expect.any(Number),
-      })
-      // @ts-expect-error
-      expect(spyResult.message['_internalNumberOfRetries']).toBeGreaterThan(2)
+      expect(spyResult.message).toEqual(message)
       expect(counter).toBeGreaterThan(2)
 
       await waitAndRetry(async () => dlqMessage)
-      expect(JSON.parse(dlqMessage.Body)).toMatchObject({ id: '1', messageType: 'remove' })
+
+      const messageBody = JSON.parse(dlqMessage.Body)
+      expect(messageBody).toEqual({
+        id: '1',
+        messageType: 'remove',
+        timestamp: message.timestamp,
+        _internalNumberOfRetries: expect.any(Number),
+      })
+      expect(messageBody._internalNumberOfRetries).toBeGreaterThan(2)
 
       dlqConsumer.stop()
     })

@@ -15,17 +15,12 @@ import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_MESSAGE_TYPE,
 } from '../consumers/userConsumerSchemas'
-import {
-  PERMISSIONS_MESSAGE_SCHEMA,
-  PERMISSIONS_ADD_MESSAGE_SCHEMA,
-} from '../consumers/userConsumerSchemas'
+import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsPermissionPublisher } from './SnsPermissionPublisher'
 
-const perms: [string, ...string[]] = ['perm1', 'perm2']
-const userIds = [100, 200, 300]
 const queueName = 'someQueue'
 
 describe('SnsPermissionPublisher', () => {
@@ -131,11 +126,9 @@ describe('SnsPermissionPublisher', () => {
 
       const message = {
         id: '1',
-        userIds,
         messageType: 'add',
-        permissions: perms,
         timestamp: new Date().toISOString(),
-      } satisfies PERMISSIONS_MESSAGE_TYPE
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       const { queueUrl } = await assertQueue(sqsClient, {
         QueueName: queueName,
@@ -164,7 +157,7 @@ describe('SnsPermissionPublisher', () => {
           }
           const decodedMessage = deserializeSNSMessage(
             message as any,
-            PERMISSIONS_MESSAGE_SCHEMA,
+            PERMISSIONS_ADD_MESSAGE_SCHEMA,
             new FakeConsumerErrorResolver(),
           )
           receivedMessage = decodedMessage.result!
@@ -246,6 +239,7 @@ describe('SnsPermissionPublisher', () => {
         parsedMessage: {
           id: '1',
           messageType: 'add',
+          timestamp: expect.any(String),
         },
       })
 
@@ -262,7 +256,6 @@ describe('SnsPermissionPublisher', () => {
 
       const message = {
         id: '1',
-        userIds,
         messageType: 'add',
         permissions,
       } satisfies PERMISSIONS_MESSAGE_TYPE
@@ -299,15 +292,13 @@ describe('SnsPermissionPublisher', () => {
 
       const message = {
         id: '1',
-        userIds,
         messageType: 'add',
-        permissions: perms,
-      } satisfies PERMISSIONS_MESSAGE_TYPE
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await newPublisher.publish(message)
 
       const res = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(res.message).toMatchObject(message)
+      expect(res.message).toEqual(message)
     })
   })
 })

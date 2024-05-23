@@ -59,7 +59,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     }
 
     try {
-      messageSchemaResult.result.parse(message)
+      const parsedMessage = messageSchemaResult.result.parse(message)
 
       if (this.logMessages) {
         // @ts-ignore
@@ -77,7 +77,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       } satisfies SendMessageCommandInput
       const command = new SendMessageCommand(input)
       await this.sqsClient.send(command)
-      this.handleMessageProcessed(message, 'published')
+      this.handleMessageProcessed(parsedMessage, 'published')
     } catch (error) {
       const err = error as Error
       this.handleError(err)

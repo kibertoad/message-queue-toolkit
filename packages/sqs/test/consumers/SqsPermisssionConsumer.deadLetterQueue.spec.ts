@@ -13,7 +13,7 @@ import { registerDependencies } from '../utils/testContext'
 
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
 import type {
-  PERMISSIONS_MESSAGE_TYPE,
+  PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
 } from './userConsumerSchemas'
 
@@ -246,7 +246,12 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       await waitAndRetry(async () => dlqMessage, 50, 20)
 
       expect(counter).toBe(2)
-      expect(JSON.parse(dlqMessage.Body)).toMatchObject({ id: '1', messageType: 'remove' })
+      expect(JSON.parse(dlqMessage.Body)).toEqual({
+        id: '1',
+        messageType: 'remove',
+        timestamp: expect.any(String),
+        _internalNumberOfRetries: 0,
+      })
     })
 
     it('messages with retryLater should always be retried and not go to DLQ', async () => {
@@ -337,26 +342,26 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       })
       dlqConsumer.start()
 
-      const message: PERMISSIONS_MESSAGE_TYPE = {
+      const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
         id: '1',
         messageType: 'add',
-        userIds: [1],
-        permissions: ['100'],
         timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
       }
       await permissionPublisher.publish(message)
 
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
-      expect(spyResult.message).toEqual({
-        ...message,
-        _internalNumberOfRetries: expect.any(Number),
-      })
-      // @ts-expect-error
-      expect(spyResult.message['_internalNumberOfRetries']).toBeGreaterThan(1)
+      expect(spyResult.message).toEqual(message)
       expect(counter).toBeGreaterThan(2)
 
       await waitAndRetry(async () => dlqMessage)
-      expect(JSON.parse(dlqMessage.Body)).toMatchObject({ id: '1', messageType: 'add' })
+      const messageBody = JSON.parse(dlqMessage.Body)
+      expect(messageBody).toEqual({
+        id: '1',
+        messageType: 'add',
+        timestamp: message.timestamp,
+        _internalNumberOfRetries: expect.any(Number),
+      })
+      expect(messageBody._internalNumberOfRetries).toBeGreaterThan(5)
 
       dlqConsumer.stop()
     })
@@ -387,26 +392,26 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       })
       dlqConsumer.start()
 
-      const message: PERMISSIONS_MESSAGE_TYPE = {
+      const message: PERMISSIONS_REMOVE_MESSAGE_TYPE = {
         id: '1',
         messageType: 'remove',
-        userIds: [1],
-        permissions: ['100'],
         timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
       }
       await permissionPublisher.publish(message)
 
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
-      expect(spyResult.message).toEqual({
-        ...message,
-        _internalNumberOfRetries: expect.any(Number),
-      })
-      // @ts-expect-error
-      expect(spyResult.message['_internalNumberOfRetries']).toBeGreaterThan(1)
+      expect(spyResult.message).toEqual(message)
       expect(counter).toBeGreaterThan(2)
 
       await waitAndRetry(async () => dlqMessage)
-      expect(JSON.parse(dlqMessage.Body)).toMatchObject({ id: '1', messageType: 'remove' })
+      const messageBody = JSON.parse(dlqMessage.Body)
+      expect(messageBody).toEqual({
+        id: '1',
+        messageType: 'remove',
+        timestamp: message.timestamp,
+        _internalNumberOfRetries: expect.any(Number),
+      })
+      expect(messageBody._internalNumberOfRetries).toBeGreaterThan(5)
 
       dlqConsumer.stop()
     })

@@ -11,11 +11,13 @@ export const PERMISSIONS_MESSAGE_SCHEMA = z.object({
 export const PERMISSIONS_ADD_MESSAGE_SCHEMA = z.object({
   id: z.string(),
   messageType: z.literal('add'),
+  timestamp: z.string().or(z.date()).optional(),
 })
 
 export const PERMISSIONS_REMOVE_MESSAGE_SCHEMA = z.object({
   id: z.string(),
   messageType: z.literal('remove'),
+  timestamp: z.string().or(z.date()).optional(),
 })
 
 export type PERMISSIONS_MESSAGE_TYPE = z.infer<typeof PERMISSIONS_MESSAGE_SCHEMA>

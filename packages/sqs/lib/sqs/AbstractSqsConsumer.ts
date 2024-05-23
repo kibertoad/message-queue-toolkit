@@ -241,16 +241,16 @@ export abstract class AbstractSqsConsumer<
                 MessageBody: JSON.stringify(this.updateInternalProperties(originalMessage)),
               }),
             )
-            this.handleMessageProcessed(originalMessage, 'retryLater')
+            this.handleMessageProcessed(parsedMessage, 'retryLater')
           } else {
             await this.failProcessing(message)
-            this.handleMessageProcessed(originalMessage, 'error')
+            this.handleMessageProcessed(parsedMessage, 'error')
           }
 
           return message
         }
 
-        this.handleMessageProcessed(originalMessage, 'error')
+        this.handleMessageProcessed(parsedMessage, 'error')
         return Promise.reject(result.error)
       },
     })

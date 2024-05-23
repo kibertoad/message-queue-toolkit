@@ -1,12 +1,15 @@
 import type { SQSClient } from '@aws-sdk/client-sqs'
+import { waitAndRetry } from '@lokalise/node-core'
 import type { AwilixContainer } from 'awilix'
+import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
+import type { SQSMessage } from '../../lib/types/MessageTypes'
+import { deserializeSQSMessage } from '../../lib/utils/sqsMessageDeserializer'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
-import type {
-  PERMISSIONS_ADD_MESSAGE_TYPE,
-  PERMISSIONS_MESSAGE_TYPE,
-} from '../consumers/userConsumerSchemas'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
+import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -173,21 +176,46 @@ describe('SqsPermissionPublisher', () => {
 
       const message = {
         id: '1',
-        userIds: [100, 200, 300],
         messageType: 'add',
-        permissions: ['perm1', 'perm2'],
         timestamp: new Date().toISOString(),
-      } satisfies PERMISSIONS_MESSAGE_TYPE
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await permissionPublisher.publish(message)
 
       const spy = await permissionPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(spy.message).toMatchObject(message)
+      expect(spy.message).toEqual(message)
       expect(spy.processingResult).toBe('published')
     })
 
     it('publish a message auto-filling internal properties', async () => {
-      const { permissionPublisher } = diContainer.cradle
+      const QueueName = 'auto-filling_test_queue'
+      const { queueUrl } = await assertQueue(diContainer.cradle.sqsClient, {
+        QueueName,
+      })
+
+      const permissionPublisher = new SqsPermissionPublisher(diContainer.cradle, {
+        creationConfig: {
+          queue: { QueueName },
+        },
+      })
+
+      let receivedMessage: unknown
+      const consumer = Consumer.create({
+        queueUrl: queueUrl,
+        handleMessage: async (message: SQSMessage) => {
+          if (message === null) {
+            return
+          }
+          const decodedMessage = deserializeSQSMessage(
+            message as any,
+            PERMISSIONS_ADD_MESSAGE_SCHEMA,
+            new FakeConsumerErrorResolver(),
+          )
+          receivedMessage = decodedMessage.result!
+        },
+        sqs: diContainer.cradle.sqsClient,
+      })
+      consumer.start()
 
       const message = {
         id: '1',
@@ -196,13 +224,23 @@ describe('SqsPermissionPublisher', () => {
 
       await permissionPublisher.publish(message)
 
-      const spy = await permissionPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(spy.message).toEqual({
-        ...message,
-        timestamp: expect.any(String),
-        _internalNumberOfRetries: 0,
+      await waitAndRetry(() => !!receivedMessage)
+      expect(receivedMessage).toEqual({
+        originalMessage: {
+          id: '1',
+          messageType: 'add',
+          timestamp: expect.any(String),
+          _internalNumberOfRetries: 0,
+        },
+        parsedMessage: {
+          id: '1',
+          messageType: 'add',
+          timestamp: expect.any(String),
+        },
       })
-      expect(spy.processingResult).toBe('published')
+
+      consumer.stop()
+      await permissionPublisher.close()
     })
 
     it('publish message with lazy loading', async () => {
@@ -210,15 +248,13 @@ describe('SqsPermissionPublisher', () => {
 
       const message = {
         id: '1',
-        userIds: [100, 200, 300],
         messageType: 'add',
-        permissions: ['perm1', 'perm2'],
-      } satisfies PERMISSIONS_MESSAGE_TYPE
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await newPublisher.publish(message)
 
       const spy = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(spy.message).toMatchObject(message)
+      expect(spy.message).toEqual(message)
       expect(spy.processingResult).toBe('published')
     })
   })
