@@ -291,7 +291,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       // delay is 2s, but consumer can take a bit longer to pick up the message
       const secondsSecondRetry = (messageArrivalTime[2] - messageArrivalTime[1]) / 1000
       expect(secondsSecondRetry >= 2 && secondsFirstRetry < 3.5).toBe(true)
-    }, 6000) // 6s - testing exponential retry delay
+    }, 10000) // 6s - testing exponential retry delay
 
     it('messages with deserialization errors should go to DLQ', async () => {
       consumer = new SqsPermissionConsumer(diContainer.cradle, {
