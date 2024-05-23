@@ -7,10 +7,10 @@ import { afterAll, beforeAll, expect } from 'vitest'
 import type { Dependencies } from '../../test/testContext'
 import { registerDependencies, TestEvents } from '../../test/testContext'
 
-import type { CommonEventDefinitionSchemaType } from './eventTypes'
+import type { CommonEventDefinitionConsumerSchemaType } from './eventTypes'
 import { FakeListener } from './fakes/FakeListener'
 
-const createdEventPayload: CommonEventDefinitionSchemaType<typeof TestEvents.created> = {
+const createdEventPayload: CommonEventDefinitionConsumerSchemaType<typeof TestEvents.created> = {
   payload: {
     message: 'msg',
   },
@@ -25,7 +25,7 @@ const createdEventPayload: CommonEventDefinitionSchemaType<typeof TestEvents.cre
   },
 }
 
-const updatedEventPayload: CommonEventDefinitionSchemaType<typeof TestEvents.updated> = {
+const updatedEventPayload: CommonEventDefinitionConsumerSchemaType<typeof TestEvents.updated> = {
   ...createdEventPayload,
   type: 'entity.updated',
 }
@@ -73,6 +73,27 @@ describe('AutopilotEventEmitter', () => {
 
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+  })
+
+  it('emits event to anyListener with metadata', async () => {
+    const { eventEmitter } = diContainer.cradle
+    const fakeListener = new FakeListener(diContainer.cradle.eventRegistry.supportedEvents)
+    eventEmitter.onAny(fakeListener)
+
+    await eventEmitter.emit(TestEvents.created, createdEventPayload, {
+      correlationId: 'dummy',
+    })
+
+    await waitAndRetry(() => {
+      return fakeListener.receivedEvents.length > 0
+    })
+
+    expect(fakeListener.receivedEvents).toHaveLength(1)
+    expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+    expect(fakeListener.receivedMetadata).toHaveLength(1)
+    expect(fakeListener.receivedMetadata[0]).toMatchObject({
+      correlationId: 'dummy',
+    })
   })
 
   it('emits event to singleListener', async () => {
