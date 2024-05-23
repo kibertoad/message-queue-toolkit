@@ -238,6 +238,7 @@ export abstract class AbstractSqsConsumer<
             await this.sqsClient.send(
               new SendMessageCommand({
                 QueueUrl: this.queueUrl,
+                DelaySeconds: this.getMessageRetryDelayInSeconds(originalMessage),
                 MessageBody: JSON.stringify(this.updateInternalProperties(originalMessage)),
               }),
             )
