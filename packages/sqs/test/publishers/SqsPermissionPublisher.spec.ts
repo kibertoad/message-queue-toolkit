@@ -182,7 +182,7 @@ describe('SqsPermissionPublisher', () => {
       await permissionPublisher.publish(message)
 
       const spy = await permissionPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(spy.message).toEqual(message)
+      expect(spy.message).toEqual({ ...message, _internalNumberOfRetries: 0 })
       expect(spy.processingResult).toBe('published')
     })
 
@@ -200,7 +200,7 @@ describe('SqsPermissionPublisher', () => {
       expect(spy.message).toEqual({
         ...message,
         timestamp: expect.any(String),
-        _internalNumberOfRetries: 1,
+        _internalNumberOfRetries: 0,
       })
       expect(spy.processingResult).toBe('published')
     })
@@ -218,7 +218,11 @@ describe('SqsPermissionPublisher', () => {
       await newPublisher.publish(message)
 
       const spy = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(spy.message).toEqual(message)
+      expect(spy.message).toEqual({
+        ...message,
+        _internalNumberOfRetries: 0,
+        timestamp: expect.any(String),
+      })
       expect(spy.processingResult).toBe('published')
     })
   })

@@ -233,7 +233,8 @@ export abstract class AbstractQueueService<
      */
     const numberOfRetries = this.tryToExtractNumberOfRetries(message)
     // @ts-ignore
-    messageCopy[this.messageNumberOfRetriesField] = numberOfRetries ? numberOfRetries + 1 : 1
+    messageCopy[this.messageNumberOfRetriesField] =
+      numberOfRetries !== undefined ? numberOfRetries + 1 : 0
 
     return messageCopy
   }
