@@ -192,19 +192,17 @@ describe('SqsPermissionConsumer', () => {
       await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
       expect(logger.loggedMessages.length).toBe(2)
-      expect(logger.loggedMessages).toMatchInlineSnapshot(`
-        [
-          {
-            "id": "1",
-            "messageType": "add",
-            "timestamp": "2024-05-23T18:43:01.090Z",
-          },
-          {
-            "messageId": "1",
-            "processingResult": "consumed",
-          },
-        ]
-      `)
+      expect(logger.loggedMessages).toMatchObject([
+        {
+          id: '1',
+          messageType: 'add',
+          timestamp: expect.any(String),
+        },
+        {
+          messageId: '1',
+          processingResult: 'consumed',
+        },
+      ])
       await newConsumer.close()
     })
   })

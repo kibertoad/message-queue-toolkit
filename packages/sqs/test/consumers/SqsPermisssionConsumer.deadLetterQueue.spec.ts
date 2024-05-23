@@ -254,7 +254,8 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       })
     })
 
-    it('messages with retryLater should always be retried and not go to DLQ', async () => {
+    // TODO: add checks for delayed retry
+    it('messages with retryLater should be retried with exponential delay and not go to DLQ', async () => {
       const sqsMessage: PERMISSIONS_REMOVE_MESSAGE_TYPE = { id: '1', messageType: 'remove' }
 
       let counter = 0
@@ -269,7 +270,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
             throw new Error('not expected message')
           }
           counter++
-          return counter < 10 ? { error: 'retryLater' } : { result: 'success' }
+          return counter < 3 ? { error: 'retryLater' } : { result: 'success' }
         },
       })
       await consumer.start()
@@ -351,7 +352,8 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
 
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
       expect(spyResult.message).toEqual(message)
-      expect(counter).toBeGreaterThan(2)
+      // due to exponential backoff and timestamp, message is only retried once before being moved to DLQ
+      expect(counter).toBe(2)
 
       await waitAndRetry(async () => dlqMessage)
       const messageBody = JSON.parse(dlqMessage.Body)
@@ -361,7 +363,8 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         timestamp: message.timestamp,
         _internalNumberOfRetries: expect.any(Number),
       })
-      expect(messageBody._internalNumberOfRetries).toBeGreaterThan(5)
+      // due to exponential backoff and timestamp, on second retry message is moved to DLQ so _internalNumberOfRetries is 1
+      expect(messageBody._internalNumberOfRetries).toBe(1)
 
       dlqConsumer.stop()
     })
@@ -401,7 +404,8 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
 
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
       expect(spyResult.message).toEqual(message)
-      expect(counter).toBeGreaterThan(2)
+      // due to exponential backoff and timestamp, message is only retried once before being moved to DLQ
+      expect(counter).toBe(1)
 
       await waitAndRetry(async () => dlqMessage)
       const messageBody = JSON.parse(dlqMessage.Body)
@@ -411,7 +415,8 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         timestamp: message.timestamp,
         _internalNumberOfRetries: expect.any(Number),
       })
-      expect(messageBody._internalNumberOfRetries).toBeGreaterThan(5)
+      // due to exponential backoff and timestamp, on second retry message is moved to DLQ so _internalNumberOfRetries is 1
+      expect(messageBody._internalNumberOfRetries).toBe(1)
 
       dlqConsumer.stop()
     })
