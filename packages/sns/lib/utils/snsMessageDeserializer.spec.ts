@@ -13,7 +13,6 @@ describe('messageDeserializer', () => {
     const messagePayload = {
       id: '1',
       messageType: 'add',
-      userIds: [1],
       permissions: ['perm'],
       nonSchemaField: 'nonSchemaField',
     }
@@ -47,7 +46,6 @@ describe('messageDeserializer', () => {
       parsedMessage: {
         id: '1',
         messageType: 'add',
-        userIds: [1],
         permissions: ['perm'],
       },
     })
