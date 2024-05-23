@@ -347,7 +347,12 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       await permissionPublisher.publish(message)
 
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
-      expect(spyResult.message).toEqual(message)
+      expect(spyResult.message).toEqual({
+        ...message,
+        _internalNumberOfRetries: expect.any(Number),
+      })
+      // @ts-expect-error
+      expect(spyResult.message['_internalNumberOfRetries']).toBeGreaterThan(1)
       expect(counter).toBeGreaterThan(2)
 
       await waitAndRetry(async () => dlqMessage)
@@ -392,7 +397,12 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       await permissionPublisher.publish(message)
 
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
-      expect(spyResult.message).toEqual(message)
+      expect(spyResult.message).toEqual({
+        ...message,
+        _internalNumberOfRetries: expect.any(Number),
+      })
+      // @ts-expect-error
+      expect(spyResult.message['_internalNumberOfRetries']).toBeGreaterThan(1)
       expect(counter).toBeGreaterThan(2)
 
       await waitAndRetry(async () => dlqMessage)

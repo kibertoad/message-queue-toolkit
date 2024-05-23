@@ -186,7 +186,7 @@ describe('SqsPermissionPublisher', () => {
       expect(spy.processingResult).toBe('published')
     })
 
-    it('publish a message auto-filling timestamp', async () => {
+    it('publish a message auto-filling internal properties', async () => {
       const { permissionPublisher } = diContainer.cradle
 
       const message = {
@@ -197,7 +197,11 @@ describe('SqsPermissionPublisher', () => {
       await permissionPublisher.publish(message)
 
       const spy = await permissionPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(spy.message).toEqual({ ...message, timestamp: expect.any(String) })
+      expect(spy.message).toEqual({
+        ...message,
+        timestamp: expect.any(String),
+        _internalNumberOfRetries: 1,
+      })
       expect(spy.processingResult).toBe('published')
     })
 

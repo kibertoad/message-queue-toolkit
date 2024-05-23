@@ -234,16 +234,11 @@ export abstract class AbstractSqsConsumer<
         }
 
         if (result.error === 'retryLater') {
-          const timestamp = this.tryToExtractTimestamp(originalMessage) ?? new Date()
-          // requeue the message if maxRetryDuration is not exceeded, else ack it to avoid infinite loop
-          if (!isRetryDateExceeded(timestamp, this.maxRetryDuration)) {
+          if (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
             await this.sqsClient.send(
               new SendMessageCommand({
                 QueueUrl: this.queueUrl,
-                MessageBody: JSON.stringify({
-                  ...originalMessage,
-                  [this.messageTimestampField]: timestamp.toISOString(),
-                }),
+                MessageBody: JSON.stringify(this.updateInternalProperties(originalMessage)),
               }),
             )
             this.handleMessageProcessed(originalMessage, 'retryLater')
