@@ -1,13 +1,16 @@
 import { InternalError } from '@lokalise/node-core'
 
+import type { MessageMetadataType } from '../messages/baseMessageSchemas'
+
 import type { EventRegistry } from './EventRegistry'
 import type {
   EventHandler,
   AnyEventHandler,
   SingleEventHandler,
   CommonEventDefinition,
-  CommonEventDefinitionSchemaType,
+  CommonEventDefinitionConsumerSchemaType,
   EventTypeNames,
+  CommonEventDefinitionPublisherSchemaType,
 } from './eventTypes'
 
 export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]> {
@@ -15,7 +18,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   private readonly eventHandlerMap: Record<
     string,
-    EventHandler<CommonEventDefinitionSchemaType<SupportedEvents[number]>>[]
+    EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>[]
   > = {}
   private readonly anyHandlers: AnyEventHandler<SupportedEvents>[] = []
 
@@ -25,9 +28,10 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   public async emit<SupportedEvent extends SupportedEvents[number]>(
     supportedEvent: SupportedEvent,
-    data: Omit<CommonEventDefinitionSchemaType<SupportedEvent>, 'type'>,
+    data: Omit<CommonEventDefinitionPublisherSchemaType<SupportedEvent>, 'type'>,
+    metadata?: Partial<MessageMetadataType>,
   ) {
-    const eventTypeName = supportedEvent.consumerSchema.shape.type.value
+    const eventTypeName = supportedEvent.publisherSchema.shape.type.value
 
     if (!this.eventRegistry.isSupportedEvent(eventTypeName)) {
       throw new InternalError({
@@ -52,12 +56,12 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
     if (eventHandlers) {
       for (const handler of eventHandlers) {
-        await handler.handleEvent(validatedEvent)
+        await handler.handleEvent(validatedEvent, metadata)
       }
     }
 
     for (const handler of this.anyHandlers) {
-      await handler.handleEvent(validatedEvent)
+      await handler.handleEvent(validatedEvent, metadata)
     }
   }
 

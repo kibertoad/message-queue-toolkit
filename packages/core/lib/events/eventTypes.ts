@@ -1,10 +1,12 @@
 import type { ZodObject, ZodTypeAny } from 'zod'
 import type z from 'zod'
 
+import type { MessageMetadataType } from '../messages/baseMessageSchemas'
+
 import type { CONSUMER_BASE_EVENT_SCHEMA, PUBLISHER_BASE_EVENT_SCHEMA } from './baseEventSchemas'
 
 export type EventTypeNames<EventDefinition extends CommonEventDefinition> =
-  CommonEventDefinitionSchemaType<EventDefinition>['type']
+  CommonEventDefinitionConsumerSchemaType<EventDefinition>['type']
 
 export type CommonEventDefinition = {
   consumerSchema: ZodObject<
@@ -16,19 +18,27 @@ export type CommonEventDefinition = {
   schemaVersion?: string
 }
 
-export type CommonEventDefinitionSchemaType<T extends CommonEventDefinition> = z.infer<
+export type CommonEventDefinitionConsumerSchemaType<T extends CommonEventDefinition> = z.infer<
   T['consumerSchema']
+>
+
+export type CommonEventDefinitionPublisherSchemaType<T extends CommonEventDefinition> = z.infer<
+  T['publisherSchema']
 >
 
 export type EventHandler<
   EventDefinitionSchema extends
-    CommonEventDefinitionSchemaType<CommonEventDefinition> = CommonEventDefinitionSchemaType<CommonEventDefinition>,
+    CommonEventDefinitionConsumerSchemaType<CommonEventDefinition> = CommonEventDefinitionConsumerSchemaType<CommonEventDefinition>,
+  MetadataDefinitionSchema extends Partial<MessageMetadataType> = Partial<MessageMetadataType>,
 > = {
-  handleEvent(event: EventDefinitionSchema): void | Promise<void>
+  handleEvent(
+    event: EventDefinitionSchema,
+    metadata?: MetadataDefinitionSchema,
+  ): void | Promise<void>
 }
 
 export type AnyEventHandler<EventDefinitions extends CommonEventDefinition[]> = EventHandler<
-  CommonEventDefinitionSchemaType<EventDefinitions[number]>
+  CommonEventDefinitionConsumerSchemaType<EventDefinitions[number]>
 >
 
 export type SingleEventHandler<
@@ -39,4 +49,7 @@ export type SingleEventHandler<
 type EventFromArrayByTypeName<
   EventDefinition extends CommonEventDefinition[],
   EventTypeName extends EventTypeNames<EventDefinition[number]>,
-> = Extract<CommonEventDefinitionSchemaType<EventDefinition[number]>, { type: EventTypeName }>
+> = Extract<
+  CommonEventDefinitionConsumerSchemaType<EventDefinition[number]>,
+  { type: EventTypeName }
+>
