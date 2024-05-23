@@ -165,7 +165,8 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
 
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
       expect(spyResult.message).toEqual(message)
-      expect(counter).toBeGreaterThan(2)
+      // due to exponential backoff and timestamp, message is only retried once before being moved to DLQ
+      expect(counter).toBe(2)
 
       await waitAndRetry(async () => dlqMessage)
 
