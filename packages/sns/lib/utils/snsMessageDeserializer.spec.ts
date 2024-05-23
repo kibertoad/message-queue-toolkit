@@ -55,7 +55,7 @@ describe('messageDeserializer', () => {
 
   it('throws an error on invalid JSON', () => {
     const messagePayload: Partial<PERMISSIONS_MESSAGE_TYPE> = {
-      userIds: [1],
+      permissions: ['perm'],
     }
 
     const snsMessage: SNS_MESSAGE_BODY_TYPE = {
@@ -89,7 +89,7 @@ describe('messageDeserializer', () => {
 
   it('throws an error on invalid SNS envelope', () => {
     const messagePayload: Partial<PERMISSIONS_MESSAGE_TYPE> = {
-      userIds: [1],
+      permissions: ['perm'],
     }
 
     const snsMessage: Partial<SNS_MESSAGE_BODY_TYPE> = {

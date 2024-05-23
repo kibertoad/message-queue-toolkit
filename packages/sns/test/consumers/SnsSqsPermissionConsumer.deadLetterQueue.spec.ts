@@ -17,10 +17,7 @@ import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
-import type {
-  PERMISSIONS_MESSAGE_TYPE,
-  PERMISSIONS_REMOVE_MESSAGE_TYPE,
-} from './userConsumerSchemas'
+import type { PERMISSIONS_REMOVE_MESSAGE_TYPE } from './userConsumerSchemas'
 
 // Note that dead letter queue are fully tested by sqs library - only including a few tests here to make sure the integration works
 describe('SnsSqsPermissionConsumer - dead letter queue', () => {
