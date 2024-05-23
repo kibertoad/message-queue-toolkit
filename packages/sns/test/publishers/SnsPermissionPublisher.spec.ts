@@ -180,14 +180,14 @@ describe('SnsPermissionPublisher', () => {
       await waitAndRetry(() => !!receivedMessage)
 
       expect(receivedMessage).toEqual({
-        originalMessage: message,
+        originalMessage: { ...message, _internalNumberOfRetries: 0, timestamp: expect.any(String) },
         parsedMessage: message,
       })
 
       consumer.stop()
     })
 
-    it('publishes a message auto-filling timestamp', async () => {
+    it('publishes a message auto-filling internal properties', async () => {
       const { permissionPublisher } = diContainer.cradle
 
       const message = {
@@ -238,7 +238,11 @@ describe('SnsPermissionPublisher', () => {
       await waitAndRetry(() => !!receivedMessage)
 
       expect(receivedMessage).toEqual({
-        originalMessage: message,
+        originalMessage: {
+          ...message,
+          timestamp: expect.any(String),
+          _internalNumberOfRetries: 0,
+        },
         parsedMessage: {
           id: '1',
           messageType: 'add',
@@ -303,7 +307,7 @@ describe('SnsPermissionPublisher', () => {
       await newPublisher.publish(message)
 
       const res = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(res.message).toEqual(message)
+      expect(res.message).toMatchObject(message)
     })
   })
 })
