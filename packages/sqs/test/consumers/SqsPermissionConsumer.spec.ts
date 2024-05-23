@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { setTimeout } from 'node:timers/promises'
 
 import type { SendMessageCommandInput, SQSClient } from '@aws-sdk/client-sqs'
@@ -557,5 +558,87 @@ describe('SqsPermissionConsumer', () => {
       // This reduces flakiness in CI
       10000,
     )
+  })
+
+  describe('exponential backoff retry', () => {
+    const queueName = 'myTestQueue_exponentialBackoffRetry'
+    let diContainer: AwilixContainer<Dependencies>
+
+    beforeEach(async () => {
+      diContainer = await registerDependencies({
+        permissionPublisher: asValue(() => undefined),
+        permissionConsumer: asValue(() => undefined),
+      })
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('should use internal field and 1 base delay', async () => {
+      const consumer = new SqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          queue: { QueueName: queueName },
+        },
+        removeHandlerOverride: () => {
+          return Promise.resolve({ error: 'retryLater' })
+        },
+      })
+      await consumer.start()
+
+      const publisher = new SqsPermissionPublisher(diContainer.cradle, {
+        locatorConfig: { queueUrl: consumer.queueProps.url },
+      })
+      await publisher.init()
+
+      const sqsSpy = vi.spyOn(diContainer.cradle.sqsClient, 'send')
+      await publisher.publish({
+        id: '10',
+        messageType: 'remove',
+        _internalNumberOfRetries: 1, // Note that publish will add 1 to this value, but it's fine for this test
+      } as any)
+      await publisher.publish({
+        id: '20',
+        messageType: 'remove',
+        _internalNumberOfRetries: 10, // Note that publish will add 1 to this value, but it's fine for this test
+      } as any)
+
+      await waitAndRetry(
+        () => {
+          const sendMessageCommands = sqsSpy.mock.calls
+            .map((call) => call[0].input)
+            .filter((input) => 'MessageBody' in input)
+
+          return sendMessageCommands.length === 4
+        },
+        5,
+        100,
+      )
+
+      const sendMessageCommands = sqsSpy.mock.calls
+        .map((call) => call[0].input)
+        .filter((input) => 'MessageBody' in input)
+
+      expect(sendMessageCommands).toHaveLength(4)
+      expect(sendMessageCommands).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            MessageBody: expect.stringContaining('"_internalNumberOfRetries":2'),
+          }),
+          expect.objectContaining({
+            MessageBody: expect.stringContaining('"_internalNumberOfRetries":11'),
+          }),
+          expect.objectContaining({
+            MessageBody: expect.stringContaining('"_internalNumberOfRetries":3'),
+            DelaySeconds: 4,
+          }),
+          expect.objectContaining({
+            MessageBody: expect.stringContaining('"_internalNumberOfRetries":12'),
+            DelaySeconds: 2048,
+          }),
+        ]),
+      )
+    })
   })
 })

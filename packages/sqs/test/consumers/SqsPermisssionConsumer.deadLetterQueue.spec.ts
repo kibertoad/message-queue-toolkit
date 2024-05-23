@@ -271,7 +271,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           }
           counter++
           messageArrivalTime.push(new Date().getTime())
-          return counter < 3 ? { error: 'retryLater' } : { result: 'success' }
+          return counter < 2 ? { error: 'retryLater' } : { result: 'success' }
         },
       })
       await consumer.start()
@@ -282,16 +282,12 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       expect(handlerSpyResult.processingResult).toBe('consumed')
       expect(handlerSpyResult.message).toMatchObject({ id: '1', messageType: 'remove' })
 
-      expect(counter).toBe(3)
+      expect(counter).toBe(2)
 
       // delay is 1s, but consumer can take the message
-      const secondsFirstRetry = (messageArrivalTime[1] - messageArrivalTime[0]) / 1000
-      expect(secondsFirstRetry >= 1 && secondsFirstRetry < 2).toBe(true)
-
-      // delay is 2s, but consumer can take a bit longer to pick up the message
-      const secondsSecondRetry = (messageArrivalTime[2] - messageArrivalTime[1]) / 1000
-      expect(secondsSecondRetry >= 2 && secondsFirstRetry < 3.5).toBe(true)
-    }, 6000) // 6s - testing exponential retry delay
+      const secondsRetry = (messageArrivalTime[1] - messageArrivalTime[0]) / 1000
+      expect(secondsRetry >= 1 && secondsRetry < 2).toBe(true)
+    })
 
     it('messages with deserialization errors should go to DLQ', async () => {
       consumer = new SqsPermissionConsumer(diContainer.cradle, {
