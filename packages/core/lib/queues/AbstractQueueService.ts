@@ -207,13 +207,15 @@ export abstract class AbstractQueueService<
     const timestamp = this.tryToExtractTimestamp(message) ?? new Date()
     return !isRetryDateExceeded(timestamp, maxRetryDuration)
   }
-  /*
-  protected getMessageRetryDelayInSeconds(message: MessagePayloadSchemas): number {
-    const retries = this.tryToExtractNumberOfRetries(message) ?? 1
 
-    return Math.pow(2, retries) // TODO
+  protected getMessageRetryDelayInSeconds(message: MessagePayloadSchemas): number {
+    // if not defined, this is the first attempt
+    const retries = this.tryToExtractNumberOfRetries(message) ?? 0
+
+    // exponential backoff -> (2 ^ (attempts)) * delay
+    // delay = 1 second
+    return Math.pow(2, retries)
   }
-  */
 
   protected updateInternalProperties(message: MessagePayloadSchemas): MessagePayloadSchemas {
     const messageCopy = { ...message } // clone the message to avoid mutation
