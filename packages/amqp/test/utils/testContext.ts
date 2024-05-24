@@ -114,7 +114,6 @@ export async function registerDependencies(
         return new AmqpQueuePublisherManager(dependencies, {
           metadataFiller: new CommonMetadataFiller({
             serviceId: 'service',
-            schemaVersion: '1.0.0',
           }),
           publisherFactory: new CommonAmqpQueuePublisherFactory(),
           newPublisherOptions: {
