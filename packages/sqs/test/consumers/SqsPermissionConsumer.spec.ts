@@ -596,10 +596,14 @@ describe('SqsPermissionConsumer', () => {
       await publisher.publish({
         id: '10',
         messageType: 'remove',
+      })
+      await publisher.publish({
+        id: '20',
+        messageType: 'remove',
         _internalNumberOfRetries: 1, // Note that publish will add 1 to this value, but it's fine for this test
       } as any)
       await publisher.publish({
-        id: '20',
+        id: '30',
         messageType: 'remove',
         _internalNumberOfRetries: 10, // Note that publish will add 1 to this value, but it's fine for this test
       } as any)
@@ -624,10 +628,17 @@ describe('SqsPermissionConsumer', () => {
       expect(sendMessageCommands).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
+            MessageBody: expect.stringContaining('"_internalNumberOfRetries":0'),
+          }),
+          expect.objectContaining({
             MessageBody: expect.stringContaining('"_internalNumberOfRetries":2'),
           }),
           expect.objectContaining({
             MessageBody: expect.stringContaining('"_internalNumberOfRetries":11'),
+          }),
+          expect.objectContaining({
+            MessageBody: expect.stringContaining('"_internalNumberOfRetries":1'),
+            DelaySeconds: 1,
           }),
           expect.objectContaining({
             MessageBody: expect.stringContaining('"_internalNumberOfRetries":3'),

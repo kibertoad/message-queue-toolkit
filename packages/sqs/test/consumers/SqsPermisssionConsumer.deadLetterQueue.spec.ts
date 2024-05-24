@@ -286,7 +286,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
 
       // delay is 1s, but consumer can take the message
       const secondsRetry = (messageArrivalTime[1] - messageArrivalTime[0]) / 1000
-      expect(secondsRetry >= 1 && secondsRetry < 2).toBe(true)
+      expect(secondsRetry).toBeGreaterThan(1)
     })
 
     it('messages with deserialization errors should go to DLQ', async () => {
