@@ -4,6 +4,8 @@ import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
+import { SqsPermissionConsumer } from '@message-queue-toolkit/sqs/dist/test/consumers/SqsPermissionConsumer'
+import { SqsPermissionPublisher } from '@message-queue-toolkit/sqs/dist/test/publishers/SqsPermissionPublisher'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
@@ -516,5 +518,68 @@ describe('SnsSqsPermissionConsumer', () => {
       },
       10000,
     )
+  })
+
+  describe('exponential backoff retry', () => {
+    const topicName = 'myTestTopic'
+    const queueName = 'myTestQueue'
+    let diContainer: AwilixContainer<Dependencies>
+
+    beforeEach(async () => {
+      diContainer = await registerDependencies({
+        permissionConsumer: asValue(() => undefined),
+        permissionPublisher: asValue(() => undefined),
+      })
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('should use internal field and 1 base delay', async () => {
+      const consumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          topic: { Name: topicName },
+          queue: { QueueName: queueName },
+        },
+        removeHandlerOverride: () => {
+          return Promise.resolve({ error: 'retryLater' })
+        },
+      })
+      await consumer.start()
+
+      const publisher = new SnsPermissionPublisher(diContainer.cradle, {
+        locatorConfig: { topicArn: consumer.subscriptionProps.topicArn },
+      })
+
+      const sqsSpy = vi.spyOn(diContainer.cradle.sqsClient, 'send')
+      await publisher.publish({
+        id: '10',
+        messageType: 'remove',
+      })
+
+      await waitAndRetry(
+        () => {
+          const sqsSendMessageCommands = sqsSpy.mock.calls
+            .map((call) => call[0].input)
+            .filter((input) => 'MessageBody' in input)
+
+          return sqsSendMessageCommands.length === 1
+        },
+        5,
+        100,
+      )
+
+      const sqsSendMessageCommands = sqsSpy.mock.calls
+        .map((call) => call[0].input)
+        .filter((input) => 'MessageBody' in input)
+
+      expect(sqsSendMessageCommands).toHaveLength(1)
+      expect(sqsSendMessageCommands[0]).toMatchObject({
+        MessageBody: expect.stringContaining('"_internalNumberOfRetries":1'),
+        DelaySeconds: 1,
+      })
+    })
   })
 })
