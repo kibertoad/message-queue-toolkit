@@ -614,7 +614,7 @@ describe('SqsPermissionConsumer', () => {
             .map((call) => call[0].input)
             .filter((input) => 'MessageBody' in input)
 
-          return sendMessageCommands.length === 4
+          return sendMessageCommands.length === 6
         },
         5,
         100,
@@ -624,7 +624,7 @@ describe('SqsPermissionConsumer', () => {
         .map((call) => call[0].input)
         .filter((input) => 'MessageBody' in input)
 
-      expect(sendMessageCommands).toHaveLength(4)
+      expect(sendMessageCommands).toHaveLength(6)
       expect(sendMessageCommands).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
