@@ -15,7 +15,7 @@
   "scripts": {
     "build": "del-cli dist && del-cli coverage && tsc",
     "build:release": "del-cli dist && del-cli coverage && npm run lint && tsc --project tsconfig.release.json",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint . --ext .ts && tsc --noEmit",
     "lint:fix": "prettier --write . && eslint .  --ext .ts --fix",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",

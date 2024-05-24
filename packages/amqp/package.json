@@ -18,7 +18,7 @@
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint . --ext .ts && tsc --noEmit",
     "lint:fix": "prettier --write . && eslint .  --ext .ts --fix",
     "docker:start:dev": "docker compose up -d",
     "docker:stop:dev": "docker compose down",
