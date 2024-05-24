@@ -10,7 +10,6 @@ export type TimestampGenerator = () => string
 
 export type MetadataFillerOptions = {
   serviceId: string
-  schemaVersion: string
   idGenerator?: IdGenerator
   timestampGenerator?: TimestampGenerator
   defaultVersion?: string
@@ -49,7 +48,7 @@ export class CommonMetadataFiller implements MetadataFiller {
 
   produceMetadata(
     _currentMessage: PublisherBaseEventType,
-    eventDefinition: CommonEventDefinition,
+    eventDefinition: Pick<CommonEventDefinition, 'schemaVersion'>,
     precedingMessageMetadata?: MessageMetadataType,
   ): MessageMetadataType {
     return {
