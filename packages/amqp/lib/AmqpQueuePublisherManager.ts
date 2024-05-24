@@ -113,15 +113,25 @@ export class AmqpQueuePublisherManager<
     }
   }
 
-  publish(
+  publish(): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+    throw new Error('Please use `publishSync` method for AMQP publisher managers')
+  }
+
+  publishSync(
     queue: NonNullable<SupportedEventDefinitions[number]['queueName']>,
     message: MessagePublishType<SupportedEventDefinitions[number]>,
     precedingEventMetadata?: Partial<MetadataType>,
     messageOptions?: AmqpQueueMessageOptions,
-  ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
-    // Purpose of this override is to provide better name for the first argument
-    // For AMQP Queues it is going to be queue
-    return super.publish(queue, message, precedingEventMetadata, messageOptions)
+  ): MessageSchemaType<SupportedEventDefinitions[number]> {
+    const publisher = this.targetToPublisherMap[queue]
+    if (!publisher) {
+      throw new Error(`No publisher for queue ${queue}`)
+    }
+
+    const messageDefinition = this.resolveMessageDefinition(queue, message)
+    const resolvedMessage = this.resolveMessage(messageDefinition, message, precedingEventMetadata)
+    publisher.publish(resolvedMessage, messageOptions)
+    return resolvedMessage
   }
 
   protected override resolveEventTarget(
