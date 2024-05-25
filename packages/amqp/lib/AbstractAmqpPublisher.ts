@@ -1,5 +1,5 @@
-import type { Either } from '@lokalise/node-core'
-import { InternalError } from '@lokalise/node-core'
+import type { Either } from '@lokalise/node-core';
+import { copyWithoutUndefined , InternalError } from '@lokalise/node-core'
 import type {
   BarrierResult,
   CommonCreationConfigType,
@@ -115,14 +115,14 @@ export abstract class AbstractAmqpPublisher<
         throw new InternalError({
           message: `Error while publishing to AMQP ${(err as Error).message}`,
           errorCode: 'AMQP_PUBLISH_ERROR',
-          details: {
+          details: copyWithoutUndefined({
             publisher: this.constructor.name,
             // @ts-ignore
             queueName: this.queueName,
             exchange: this.exchange,
             // @ts-ignore
             messageType: message[this.messageTypeField] ?? 'unknown',
-          },
+          }),
           cause: err as Error,
         })
       }
