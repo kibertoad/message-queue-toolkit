@@ -5,7 +5,7 @@ import { AbstractAmqpQueueConsumer } from '../../lib/AbstractAmqpQueueConsumer'
 import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService'
 import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager'
 
-export class FakeConsumer extends AbstractAmqpQueueConsumer<BaseMessageType, unknown> {
+export class FakeQueueConsumer extends AbstractAmqpQueueConsumer<BaseMessageType, unknown> {
   public static readonly QUEUE_NAME = 'dummy-queue'
   constructor(dependencies: AMQPConsumerDependencies, eventDefinition: AmqpAwareEventDefinition) {
     super(

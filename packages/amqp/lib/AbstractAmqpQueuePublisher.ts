@@ -1,6 +1,14 @@
+import type * as Buffer from 'node:buffer'
+
 import type { Options } from 'amqplib/properties'
 
+import type { AMQPPublisherOptions } from './AbstractAmqpPublisher'
 import { AbstractAmqpPublisher } from './AbstractAmqpPublisher'
+import type {
+  AMQPDependencies,
+  AMQPQueueCreationConfig,
+  AMQPQueueLocator,
+} from './AbstractAmqpService'
 import { ensureAmqpQueue } from './utils/amqpQueueUtils'
 
 export type AmqpQueueMessageOptions = {
@@ -13,7 +21,24 @@ const NO_PARAMS: AmqpQueueMessageOptions = {
 
 export abstract class AbstractAmqpQueuePublisher<
   MessagePayloadType extends object,
-> extends AbstractAmqpPublisher<MessagePayloadType, AmqpQueueMessageOptions> {
+> extends AbstractAmqpPublisher<
+  MessagePayloadType,
+  AmqpQueueMessageOptions,
+  AMQPQueueCreationConfig,
+  AMQPQueueLocator
+> {
+  protected readonly queueName: string
+
+  constructor(
+    dependencies: AMQPDependencies,
+    options: AMQPPublisherOptions<MessagePayloadType, AMQPQueueCreationConfig, AMQPQueueLocator>,
+  ) {
+    super(dependencies, options)
+    this.queueName = options.locatorConfig
+      ? options.locatorConfig.queueName
+      : options.creationConfig.queueName
+  }
+
   protected publishInternal(message: Buffer, options: AmqpQueueMessageOptions): void {
     this.channel.sendToQueue(this.queueName, message, options.publishOptions)
   }

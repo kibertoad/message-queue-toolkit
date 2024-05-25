@@ -2,27 +2,40 @@ import type { Either } from '@lokalise/node-core'
 import { InternalError } from '@lokalise/node-core'
 import type {
   BarrierResult,
+  CommonCreationConfigType,
   MessageInvalidFormatError,
   MessageValidationError,
   QueuePublisherOptions,
   SyncPublisher,
 } from '@message-queue-toolkit/core'
-import { MessageSchemaContainer, objectToBuffer } from '@message-queue-toolkit/core'
+import { objectToBuffer, MessageSchemaContainer } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
-import type { AMQPLocator, AMQPCreationConfig, AMQPDependencies } from './AbstractAmqpService'
+import type { AMQPDependencies } from './AbstractAmqpService'
 import { AbstractAmqpService } from './AbstractAmqpService'
 
-export type AMQPPublisherOptions<MessagePayloadType extends object> = QueuePublisherOptions<
-  AMQPCreationConfig,
-  AMQPLocator,
-  MessagePayloadType
-> & {
+export type AMQPPublisherOptions<
+  MessagePayloadType extends object,
+  CreationConfig extends CommonCreationConfigType,
+  LocatorConfig extends object,
+> = QueuePublisherOptions<CreationConfig, LocatorConfig, MessagePayloadType> & {
   exchange?: string
 }
 
-export abstract class AbstractAmqpPublisher<MessagePayloadType extends object, MessageOptionsType>
-  extends AbstractAmqpService<MessagePayloadType>
+export abstract class AbstractAmqpPublisher<
+    MessagePayloadType extends object,
+    MessageOptionsType,
+    CreationConfig extends CommonCreationConfigType,
+    LocatorConfig extends object,
+  >
+  extends AbstractAmqpService<
+    MessagePayloadType,
+    AMQPDependencies,
+    unknown,
+    unknown,
+    CreationConfig,
+    LocatorConfig
+  >
   implements SyncPublisher<MessagePayloadType, MessageOptionsType>
 {
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
@@ -30,7 +43,10 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object, M
 
   private initPromise?: Promise<void>
 
-  constructor(dependencies: AMQPDependencies, options: AMQPPublisherOptions<MessagePayloadType>) {
+  constructor(
+    dependencies: AMQPDependencies,
+    options: AMQPPublisherOptions<MessagePayloadType, CreationConfig, LocatorConfig>,
+  ) {
     super(dependencies, options)
 
     const messageSchemas = options.messageSchemas
@@ -101,7 +117,9 @@ export abstract class AbstractAmqpPublisher<MessagePayloadType extends object, M
           errorCode: 'AMQP_PUBLISH_ERROR',
           details: {
             publisher: this.constructor.name,
+            // @ts-ignore
             queueName: this.queueName,
+            exchange: this.exchange,
             // @ts-ignore
             messageType: message[this.messageTypeField] ?? 'unknown',
           },

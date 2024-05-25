@@ -2,9 +2,18 @@ import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 import type { Channel, Connection } from 'amqplib'
 
-import type { AMQPCreationConfig, AMQPLocator } from '../AbstractAmqpService'
+import type {
+  AMQPQueueCreationConfig,
+  AMQPQueueLocator,
+  AMQPTopicCreationConfig,
+  AMQPTopicLocator,
+  AMQPTopicPublisherConfig,
+} from '../AbstractAmqpService'
 
-export async function checkQueueExists(connection: Connection, locatorConfig: AMQPLocator) {
+export async function checkQueueExists(
+  connection: Connection,
+  locatorConfig: AMQPQueueLocator,
+): Promise<void> {
   // queue check breaks channel if not successful
   const checkChannel = await connection.createChannel()
   checkChannel.on('error', () => {
@@ -18,12 +27,29 @@ export async function checkQueueExists(connection: Connection, locatorConfig: AM
   }
 }
 
+export async function checkExchangeExists(
+  connection: Connection,
+  locatorConfig: AMQPTopicPublisherConfig,
+): Promise<void> {
+  // exchange check breaks channel if not successful
+  const checkChannel = await connection.createChannel()
+  checkChannel.on('error', () => {
+    // it's OK
+  })
+  try {
+    await checkChannel.checkExchange(locatorConfig.exchange)
+    await checkChannel.close()
+  } catch (err) {
+    throw new Error(`Exchange ${locatorConfig.exchange} does not exist.`)
+  }
+}
+
 export async function ensureAmqpQueue(
   connection: Connection,
   channel: Channel,
-  creationConfig?: AMQPCreationConfig,
-  locatorConfig?: AMQPLocator,
-) {
+  creationConfig?: AMQPQueueCreationConfig,
+  locatorConfig?: AMQPQueueLocator,
+): Promise<void> {
   if (creationConfig) {
     await channel.assertQueue(creationConfig.queueName, creationConfig.queueOptions)
   } else {
@@ -34,10 +60,49 @@ export async function ensureAmqpQueue(
   }
 }
 
+export async function ensureAmqpTopicSubscription(
+  connection: Connection,
+  channel: Channel,
+  creationConfig?: AMQPTopicCreationConfig,
+  locatorConfig?: AMQPTopicLocator,
+): Promise<void> {
+  await ensureAmqpQueue(connection, channel, creationConfig, locatorConfig)
+
+  if (creationConfig) {
+    await channel.assertExchange(creationConfig.exchange, 'topic')
+    await channel.bindQueue(
+      creationConfig.queueName,
+      creationConfig.exchange,
+      creationConfig.topicPattern,
+    )
+  } else {
+    if (!locatorConfig) {
+      throw new Error('locatorConfig is mandatory when creationConfig is not set')
+    }
+    await checkExchangeExists(connection, locatorConfig)
+  }
+}
+
+export async function ensureExchange(
+  connection: Connection,
+  channel: Channel,
+  creationConfig?: AMQPTopicPublisherConfig,
+  locatorConfig?: AMQPTopicPublisherConfig,
+): Promise<void> {
+  if (creationConfig) {
+    await channel.assertExchange(creationConfig.exchange, 'topic')
+  } else {
+    if (!locatorConfig) {
+      throw new Error('locatorConfig is mandatory when creationConfig is not set')
+    }
+    await checkExchangeExists(connection, locatorConfig)
+  }
+}
+
 export async function deleteAmqpQueue(
   channel: Channel,
   deletionConfig: DeletionConfig,
-  creationConfig: AMQPCreationConfig,
+  creationConfig: AMQPQueueCreationConfig,
 ) {
   if (!deletionConfig.deleteIfExists) {
     return

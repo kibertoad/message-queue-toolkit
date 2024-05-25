@@ -1,20 +1,27 @@
-import type { PublisherBaseEventType } from '@message-queue-toolkit/core'
+import type { CommonCreationConfigType, PublisherBaseEventType } from '@message-queue-toolkit/core'
 
-import type {
-  AmqpExchangeMessageOptions,
-  AMQPExchangePublisherOptions,
-} from './AbstractAmqpExchangePublisher'
-import { AbstractAmqpExchangePublisher } from './AbstractAmqpExchangePublisher'
 import type { AbstractAmqpPublisher, AMQPPublisherOptions } from './AbstractAmqpPublisher'
 import type { AmqpQueueMessageOptions } from './AbstractAmqpQueuePublisher'
 import { AbstractAmqpQueuePublisher } from './AbstractAmqpQueuePublisher'
-import type { AMQPDependencies } from './AbstractAmqpService'
+import type {
+  AMQPDependencies,
+  AMQPQueueCreationConfig,
+  AMQPQueueLocator,
+} from './AbstractAmqpService'
+import { AbstractAmqpTopicPublisher } from './AbstractAmqpTopicPublisher'
+import type {
+  AmqpTopicMessageOptions,
+  AMQPTopicPublisherOptions,
+} from './AbstractAmqpTopicPublisher'
 
 export type AmqpPublisherFactory<
-  T extends AbstractAmqpPublisher<M, MessageOptions>,
+  T extends AbstractAmqpPublisher<M, MessageOptions, CommonCreationConfigType, object>,
   M extends PublisherBaseEventType,
   MessageOptions,
-  PublisherOptions extends Omit<AMQPPublisherOptions<M>, 'creationConfig'>,
+  PublisherOptions extends Omit<
+    AMQPPublisherOptions<M, CommonCreationConfigType, object>,
+    'creationConfig'
+  >,
 > = {
   buildPublisher(dependencies: AMQPDependencies, options: PublisherOptions): T
 }
@@ -23,9 +30,9 @@ export class CommonAmqpQueuePublisher<
   M extends PublisherBaseEventType = PublisherBaseEventType,
 > extends AbstractAmqpQueuePublisher<M> {}
 
-export class CommonAmqpExchangePublisher<
+export class CommonAmqpTopicPublisher<
   M extends PublisherBaseEventType = PublisherBaseEventType,
-> extends AbstractAmqpExchangePublisher<M> {}
+> extends AbstractAmqpTopicPublisher<M> {}
 
 export class CommonAmqpQueuePublisherFactory<
   M extends PublisherBaseEventType = PublisherBaseEventType,
@@ -34,31 +41,31 @@ export class CommonAmqpQueuePublisherFactory<
       CommonAmqpQueuePublisher<M>,
       M,
       AmqpQueueMessageOptions,
-      AMQPPublisherOptions<M>
+      AMQPPublisherOptions<M, AMQPQueueCreationConfig, AMQPQueueLocator>
     >
 {
   buildPublisher(
     dependencies: AMQPDependencies,
-    options: AMQPPublisherOptions<M>,
+    options: AMQPPublisherOptions<M, AMQPQueueCreationConfig, AMQPQueueLocator>,
   ): CommonAmqpQueuePublisher<M> {
     return new CommonAmqpQueuePublisher(dependencies, options)
   }
 }
 
-export class CommonAmqpExchangePublisherFactory<
+export class CommonAmqpTopicPublisherFactory<
   M extends PublisherBaseEventType = PublisherBaseEventType,
 > implements
     AmqpPublisherFactory<
-      CommonAmqpExchangePublisher<M>,
+      CommonAmqpTopicPublisher<M>,
       M,
-      AmqpExchangeMessageOptions,
-      AMQPExchangePublisherOptions<M>
+      AmqpTopicMessageOptions,
+      AMQPTopicPublisherOptions<M>
     >
 {
   buildPublisher(
     dependencies: AMQPDependencies,
-    options: AMQPExchangePublisherOptions<M>,
-  ): CommonAmqpExchangePublisher<M> {
-    return new CommonAmqpExchangePublisher(dependencies, options)
+    options: AMQPTopicPublisherOptions<M>,
+  ): CommonAmqpTopicPublisher<M> {
+    return new CommonAmqpTopicPublisher(dependencies, options)
   }
 }
