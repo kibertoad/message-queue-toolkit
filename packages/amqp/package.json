@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/amqp",
-  "version": "15.1.0",
+  "version": "15.1.1",
   "private": false,
   "license": "MIT",
   "description": "AMQP adapter for message-queue-toolkit",
@@ -18,7 +18,7 @@
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
-    "lint": "eslint . --ext .ts",
+    "lint": "eslint . --ext .ts && tsc --noEmit",
     "lint:fix": "prettier --write . && eslint .  --ext .ts --fix",
     "docker:start:dev": "docker compose up -d",
     "docker:stop:dev": "docker compose down",
@@ -29,7 +29,7 @@
     "zod": "^3.23.8"
   },
   "peerDependencies": {
-    "@message-queue-toolkit/core": "^13.1.0",
+    "@message-queue-toolkit/core": "^13.3.1",
     "amqplib": "^0.10.3"
   },
   "devDependencies": {

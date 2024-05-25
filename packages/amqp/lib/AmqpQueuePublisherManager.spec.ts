@@ -18,7 +18,7 @@ describe('AmqpQueuePublisherManager', () => {
       const fakeConsumer = new FakeConsumer(diContainer.cradle, TestEvents.updated)
       await fakeConsumer.start()
 
-      const publishedMessage = await queuePublisherManager.publish(FakeConsumer.QUEUE_NAME, {
+      const publishedMessage = queuePublisherManager.publishSync(FakeConsumer.QUEUE_NAME, {
         type: 'entity.updated',
         payload: {
           updatedData: 'msg',

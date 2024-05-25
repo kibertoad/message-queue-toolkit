@@ -180,11 +180,7 @@ export abstract class AbstractPublisherManager<
     if (!publisher) {
       throw new Error(`No publisher for target ${eventTarget}`)
     }
-    // ToDo optimize the lookup
-    const messageDefinition = this.targetToEventMap[eventTarget].find(
-      (entry) => entry.consumerSchema.shape.type.value === message.type,
-    )
-
+    const messageDefinition = this.resolveMessageDefinition(eventTarget, message)
     const resolvedMessage = this.resolveMessage(messageDefinition, message, precedingEventMetadata)
 
     if (this.isAsync) {
@@ -194,6 +190,16 @@ export abstract class AbstractPublisherManager<
     }
 
     return resolvedMessage
+  }
+
+  protected resolveMessageDefinition(
+    eventTarget: EventTargets,
+    message: MessagePublishType<SupportedEventDefinitions[number]>,
+  ) {
+    // ToDo optimize the lookup
+    return this.targetToEventMap[eventTarget].find(
+      (entry) => entry.consumerSchema.shape.type.value === message.type,
+    )
   }
 
   protected resolveMessage(

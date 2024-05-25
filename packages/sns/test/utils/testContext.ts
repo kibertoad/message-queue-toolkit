@@ -121,7 +121,6 @@ export async function registerDependencies(
         return new SnsPublisherManager(dependencies, {
           metadataFiller: new CommonMetadataFiller({
             serviceId: 'service',
-            schemaVersion: '1.0.0',
           }),
           publisherFactory: new CommonSnsPublisherFactory(),
           newPublisherOptions: {
