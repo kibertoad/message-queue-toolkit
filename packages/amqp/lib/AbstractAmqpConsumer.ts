@@ -103,7 +103,6 @@ export abstract class AbstractAmqpConsumer<
   async start() {
     await this.init()
     if (!this.channel) throw new Error('Channel is not set')
-    await this.consume()
   }
 
   async init(): Promise<void> {
