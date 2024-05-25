@@ -10,7 +10,6 @@ import type {
   TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
 import {
-  isRetryDateExceeded,
   isMessageError,
   parseMessage,
   HandlerContainer,

@@ -15,7 +15,6 @@ import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import { AmqpPermissionConsumer } from './AmqpPermissionConsumer'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
-  PERMISSIONS_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
 } from './userConsumerSchemas'
 
