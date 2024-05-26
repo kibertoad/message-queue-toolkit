@@ -1,4 +1,5 @@
 import type {
+  CommonCreationConfigType,
   QueueConsumerDependencies,
   QueueDependencies,
   QueueOptions,
@@ -8,7 +9,6 @@ import type { Channel, Connection, Message } from 'amqplib'
 import type { Options } from 'amqplib/properties'
 
 import type { AmqpConnectionManager, ConnectionReceiver } from './AmqpConnectionManager'
-import { deleteAmqpQueue } from './utils/amqpQueueUtils'
 
 export type AMQPDependencies = QueueDependencies & {
   amqpConnectionManager: AmqpConnectionManager
@@ -17,19 +17,27 @@ export type AMQPDependencies = QueueDependencies & {
 export type AMQPConsumerDependencies = AMQPDependencies & QueueConsumerDependencies
 export type AMQPQueueConfig = Options.AssertQueue
 
-export type AMQPCreationConfig = {
+export type AMQPQueueCreationConfig = {
   queueOptions: AMQPQueueConfig
   queueName: string
   updateAttributesIfExists?: boolean
 }
 
-export type AMQPSubscriptionConfig = {
+export type AMQPTopicCreationConfig = AMQPQueueCreationConfig & {
   exchange: string
-  routingKey: string
+  topicPattern: string
 }
 
-export type AMQPLocator = {
+export type AMQPTopicPublisherConfig = {
+  exchange: string
+} & CommonCreationConfigType
+
+export type AMQPQueueLocator = {
   queueName: string
+}
+
+export type AMQPTopicLocator = AMQPQueueLocator & {
+  exchange: string
 }
 
 export abstract class AbstractAmqpService<
@@ -37,14 +45,16 @@ export abstract class AbstractAmqpService<
     DependenciesType extends AMQPDependencies = AMQPDependencies,
     ExecutionContext = unknown,
     PrehandlerOutput = unknown,
+    CreationConfig extends CommonCreationConfigType = AMQPQueueCreationConfig,
+    LocatorConfig extends object = AMQPQueueLocator,
   >
   extends AbstractQueueService<
     MessagePayloadType,
     Message,
     DependenciesType,
-    AMQPCreationConfig,
-    AMQPLocator,
-    QueueOptions<AMQPCreationConfig, AMQPLocator>,
+    CreationConfig,
+    LocatorConfig,
+    QueueOptions<CreationConfig, LocatorConfig>,
     ExecutionContext,
     PrehandlerOutput
   >
@@ -55,17 +65,13 @@ export abstract class AbstractAmqpService<
   // @ts-ignore
   protected channel: Channel
   private isShuttingDown: boolean
-  protected readonly queueName: string
 
   constructor(
     dependencies: DependenciesType,
-    options: QueueOptions<AMQPCreationConfig, AMQPLocator>,
+    options: QueueOptions<CreationConfig, LocatorConfig>,
   ) {
     super(dependencies, options)
 
-    this.queueName = options.locatorConfig
-      ? options.locatorConfig.queueName
-      : options.creationConfig?.queueName
     this.isShuttingDown = false
     this.connectionManager = dependencies.amqpConnectionManager
     this.connection = this.connectionManager.getConnectionSync()
@@ -96,10 +102,6 @@ export abstract class AbstractAmqpService<
         // errors are ok
       }
       this.isShuttingDown = false
-    }
-
-    if (this.deletionConfig && this.creationConfig) {
-      await deleteAmqpQueue(this.channel, this.deletionConfig, this.creationConfig)
     }
 
     this.channel.on('close', () => {

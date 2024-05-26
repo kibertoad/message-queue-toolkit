@@ -6,23 +6,22 @@ import type {
 } from '@message-queue-toolkit/core'
 import type z from 'zod'
 
+import type { AMQPDependencies, AMQPTopicPublisherConfig } from './AbstractAmqpService'
 import type {
-  AbstractAmqpExchangePublisher,
-  AmqpExchangeMessageOptions,
-  AMQPExchangePublisherOptions,
-} from './AbstractAmqpExchangePublisher'
-import type { AmqpQueueMessageOptions } from './AbstractAmqpQueuePublisher'
-import type { AMQPCreationConfig, AMQPDependencies, AMQPLocator } from './AbstractAmqpService'
+  AbstractAmqpTopicPublisher,
+  AmqpTopicMessageOptions,
+  AMQPTopicPublisherOptions,
+} from './AbstractAmqpTopicPublisher'
 import type {
   AmqpAwareEventDefinition,
   AmqpMessageSchemaType,
   AmqpPublisherManagerDependencies,
   AmqpPublisherManagerOptions,
 } from './AmqpQueuePublisherManager'
-import { CommonAmqpExchangePublisherFactory } from './CommonAmqpPublisherFactory'
+import { CommonAmqpTopicPublisherFactory } from './CommonAmqpPublisherFactory'
 
-export class AmqpExchangePublisherManager<
-  T extends AbstractAmqpExchangePublisher<
+export class AmqpTopicPublisherManager<
+  PublisherType extends AbstractAmqpTopicPublisher<
     z.infer<SupportedEventDefinitions[number]['publisherSchema']>
   >,
   SupportedEventDefinitions extends AmqpAwareEventDefinition[],
@@ -30,27 +29,29 @@ export class AmqpExchangePublisherManager<
 > extends AbstractPublisherManager<
   AmqpAwareEventDefinition,
   NonNullable<SupportedEventDefinitions[number]['exchange']>,
-  AbstractAmqpExchangePublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+  AbstractAmqpTopicPublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
   AMQPDependencies,
-  AMQPCreationConfig,
-  AMQPLocator,
+  AMQPTopicPublisherConfig,
+  AMQPTopicPublisherConfig,
   AmqpMessageSchemaType<AmqpAwareEventDefinition>,
   Omit<
-    AMQPExchangePublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+    AMQPTopicPublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
     'messageSchemas' | 'locatorConfig' | 'exchange'
   >,
   SupportedEventDefinitions,
   MetadataType,
-  AmqpExchangeMessageOptions
+  AmqpTopicMessageOptions
 > {
   constructor(
     dependencies: AmqpPublisherManagerDependencies<SupportedEventDefinitions>,
     options: AmqpPublisherManagerOptions<
-      T,
-      AmqpQueueMessageOptions,
-      AMQPExchangePublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+      PublisherType,
+      AmqpTopicMessageOptions,
+      AMQPTopicPublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
       z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
-      MetadataType
+      MetadataType,
+      AMQPTopicPublisherConfig,
+      AMQPTopicPublisherConfig
     >,
   ) {
     super({
@@ -64,7 +65,7 @@ export class AmqpExchangePublisherManager<
         logger: dependencies.logger,
         errorReporter: dependencies.errorReporter,
       },
-      publisherFactory: options.publisherFactory ?? new CommonAmqpExchangePublisherFactory(),
+      publisherFactory: options.publisherFactory ?? new CommonAmqpTopicPublisherFactory(),
     })
   }
 
@@ -72,7 +73,7 @@ export class AmqpExchangePublisherManager<
     exchange: string,
   ): Partial<
     Omit<
-      AMQPExchangePublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+      AMQPTopicPublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
       'messageSchemas' | 'locatorConfig'
     >
   > {
@@ -82,27 +83,42 @@ export class AmqpExchangePublisherManager<
   }
 
   protected override resolveCreationConfig(
-    queueName: NonNullable<SupportedEventDefinitions[number]['exchange']>,
-  ): AMQPCreationConfig {
+    exchange: NonNullable<SupportedEventDefinitions[number]['exchange']>,
+  ): AMQPTopicPublisherConfig {
     return {
       ...this.newPublisherOptions,
-      queueOptions: {},
-      queueName,
+      exchange,
+      updateAttributesIfExists: false,
     }
   }
 
-  publish(
-    eventTarget: NonNullable<SupportedEventDefinitions[number]['exchange']>,
+  /**
+   * @deprecated use `publishSync` instead.
+   */
+  publish(): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+    throw new Error('Please use `publishSync` method for AMQP publisher managers')
+  }
+
+  publishSync(
+    exchange: NonNullable<SupportedEventDefinitions[number]['exchange']>,
     message: MessagePublishType<SupportedEventDefinitions[number]>,
+    messageOptions: AmqpTopicMessageOptions,
     precedingEventMetadata?: Partial<MetadataType>,
-    messageOptions?: AmqpExchangeMessageOptions,
-  ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
-    return super.publish(eventTarget, message, precedingEventMetadata, messageOptions)
+  ): MessageSchemaType<SupportedEventDefinitions[number]> {
+    const publisher = this.targetToPublisherMap[exchange]
+    if (!publisher) {
+      throw new Error(`No publisher for exchange ${exchange}`)
+    }
+
+    const messageDefinition = this.resolveMessageDefinition(exchange, message)
+    const resolvedMessage = this.resolveMessage(messageDefinition, message, precedingEventMetadata)
+    publisher.publish(resolvedMessage, messageOptions)
+    return resolvedMessage
   }
 
   protected override resolveEventTarget(
     event: AmqpAwareEventDefinition,
   ): NonNullable<SupportedEventDefinitions[number]['exchange']> | undefined {
-    return event.queueName
+    return event.exchange
   }
 }

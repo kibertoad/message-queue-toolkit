@@ -20,8 +20,8 @@ import type { Connection, Message } from 'amqplib'
 
 import type {
   AMQPConsumerDependencies,
-  AMQPLocator,
-  AMQPCreationConfig,
+  AMQPQueueLocator,
+  AMQPQueueCreationConfig,
 } from './AbstractAmqpService'
 import { AbstractAmqpService } from './AbstractAmqpService'
 import { readAmqpMessage } from './amqpMessageReader'
@@ -33,9 +33,11 @@ export type AMQPConsumerOptions<
   MessagePayloadType extends object,
   ExecutionContext = undefined,
   PrehandlerOutput = undefined,
+  CreationConfig extends AMQPQueueCreationConfig = AMQPQueueCreationConfig,
+  LocatorConfig extends AMQPQueueLocator = AMQPQueueLocator,
 > = QueueConsumerOptions<
-  AMQPCreationConfig,
-  AMQPLocator,
+  CreationConfig,
+  LocatorConfig,
   NonNullable<unknown>, // DeadLetterQueueIntegrationOptions -> empty object for now
   MessagePayloadType,
   ExecutionContext,
@@ -46,12 +48,16 @@ export abstract class AbstractAmqpConsumer<
     MessagePayloadType extends object,
     ExecutionContext,
     PrehandlerOutput = undefined,
+    CreationConfig extends AMQPQueueCreationConfig = AMQPQueueCreationConfig,
+    LocatorConfig extends AMQPQueueLocator = AMQPQueueLocator,
   >
   extends AbstractAmqpService<
     MessagePayloadType,
     AMQPConsumerDependencies,
     ExecutionContext,
-    PrehandlerOutput
+    PrehandlerOutput,
+    CreationConfig,
+    LocatorConfig
   >
   implements QueueConsumer
 {
@@ -59,8 +65,8 @@ export abstract class AbstractAmqpConsumer<
   private readonly errorResolver: ErrorResolver
   private readonly executionContext: ExecutionContext
   private readonly deadLetterQueueOptions?: DeadLetterQueueOptions<
-    AMQPCreationConfig,
-    AMQPLocator,
+    AMQPQueueCreationConfig,
+    AMQPQueueLocator,
     NonNullable<unknown>
   >
   private readonly maxRetryDuration: number
@@ -71,10 +77,17 @@ export abstract class AbstractAmqpConsumer<
     ExecutionContext,
     PrehandlerOutput
   >
+  protected readonly queueName: string
 
   constructor(
     dependencies: AMQPConsumerDependencies,
-    options: AMQPConsumerOptions<MessagePayloadType, ExecutionContext, PrehandlerOutput>,
+    options: AMQPConsumerOptions<
+      MessagePayloadType,
+      ExecutionContext,
+      PrehandlerOutput,
+      CreationConfig,
+      LocatorConfig
+    >,
     executionContext: ExecutionContext,
   ) {
     super(dependencies, options)
@@ -83,6 +96,10 @@ export abstract class AbstractAmqpConsumer<
     this.errorResolver = dependencies.consumerErrorResolver
     this.deadLetterQueueOptions = options.deadLetterQueue
     this.maxRetryDuration = options.maxRetryDuration ?? DEFAULT_MAX_RETRY_DURATION
+
+    this.queueName = options.locatorConfig
+      ? options.locatorConfig.queueName
+      : options.creationConfig!.queueName
 
     const messageSchemas = options.handlers.map((entry) => entry.schema)
     this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({

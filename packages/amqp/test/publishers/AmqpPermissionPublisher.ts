@@ -1,6 +1,10 @@
 import type { AMQPPublisherOptions } from '../../lib/AbstractAmqpPublisher'
 import { AbstractAmqpQueuePublisher } from '../../lib/AbstractAmqpQueuePublisher'
-import type { AMQPDependencies } from '../../lib/AbstractAmqpService'
+import type {
+  AMQPDependencies,
+  AMQPQueueCreationConfig,
+  AMQPQueueLocator,
+} from '../../lib/AbstractAmqpService'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
@@ -18,7 +22,7 @@ export class AmqpPermissionPublisher extends AbstractAmqpQueuePublisher<Supporte
   constructor(
     dependencies: AMQPDependencies,
     options: Pick<
-      AMQPPublisherOptions<SupportedTypes>,
+      AMQPPublisherOptions<SupportedTypes, AMQPQueueCreationConfig, AMQPQueueLocator>,
       'creationConfig' | 'logMessages' | 'locatorConfig'
     > = {
       creationConfig: {

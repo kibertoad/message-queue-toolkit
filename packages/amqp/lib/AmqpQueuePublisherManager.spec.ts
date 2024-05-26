@@ -1,7 +1,7 @@
 import type { AwilixContainer } from 'awilix'
 import { beforeAll } from 'vitest'
 
-import { FakeConsumer } from '../test/fakes/FakeConsumer'
+import { FakeQueueConsumer } from '../test/fakes/FakeQueueConsumer'
 import { TEST_AMQP_CONFIG } from '../test/utils/testAmqpConfig'
 import { registerDependencies, TestEvents } from '../test/utils/testContext'
 import type { Dependencies } from '../test/utils/testContext'
@@ -15,10 +15,10 @@ describe('AmqpQueuePublisherManager', () => {
 
     it('publishes to the correct queue', async () => {
       const { queuePublisherManager } = diContainer.cradle
-      const fakeConsumer = new FakeConsumer(diContainer.cradle, TestEvents.updated)
+      const fakeConsumer = new FakeQueueConsumer(diContainer.cradle, TestEvents.updated)
       await fakeConsumer.start()
 
-      const publishedMessage = queuePublisherManager.publishSync(FakeConsumer.QUEUE_NAME, {
+      const publishedMessage = queuePublisherManager.publishSync(FakeQueueConsumer.QUEUE_NAME, {
         type: 'entity.updated',
         payload: {
           updatedData: 'msg',

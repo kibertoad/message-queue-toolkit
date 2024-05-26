@@ -6,6 +6,7 @@ import type {
   MessageMetadataType,
   MessagePublishType,
   MessageSchemaType,
+  CommonCreationConfigType,
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type z from 'zod'
@@ -15,7 +16,11 @@ import type {
   AbstractAmqpQueuePublisher,
   AmqpQueueMessageOptions,
 } from './AbstractAmqpQueuePublisher'
-import type { AMQPCreationConfig, AMQPDependencies, AMQPLocator } from './AbstractAmqpService'
+import type {
+  AMQPQueueCreationConfig,
+  AMQPDependencies,
+  AMQPQueueLocator,
+} from './AbstractAmqpService'
 import type { AmqpPublisherFactory } from './CommonAmqpPublisherFactory'
 import { CommonAmqpQueuePublisherFactory } from './CommonAmqpPublisherFactory'
 
@@ -30,11 +35,21 @@ export type AmqpPublisherManagerDependencies<SupportedEvents extends AmqpAwareEv
 } & AMQPDependencies
 
 export type AmqpPublisherManagerOptions<
-  PublisherType extends AbstractAmqpPublisher<EventType, MessageOptionsType>,
+  PublisherType extends AbstractAmqpPublisher<
+    EventType,
+    MessageOptionsType,
+    CreationConfig,
+    LocatorConfig
+  >,
   MessageOptionsType,
-  PublisherOptionsType extends Omit<AMQPPublisherOptions<EventType>, 'creationConfig'>,
+  PublisherOptionsType extends Omit<
+    AMQPPublisherOptions<EventType, CreationConfig, LocatorConfig>,
+    'creationConfig'
+  >,
   EventType extends PublisherBaseEventType,
   MetadataType,
+  CreationConfig extends CommonCreationConfigType = AMQPQueueCreationConfig,
+  LocatorConfig extends object = AMQPQueueLocator,
 > = {
   metadataField?: string
   publisherFactory: AmqpPublisherFactory<
@@ -45,10 +60,10 @@ export type AmqpPublisherManagerOptions<
   >
   metadataFiller: MetadataFiller<EventType, MetadataType>
   newPublisherOptions: Omit<
-    AMQPPublisherOptions<EventType>,
+    AMQPPublisherOptions<EventType, CreationConfig, LocatorConfig>,
     'messageSchemas' | 'creationConfig' | 'locatorConfig'
   > & {
-    creationConfig?: Omit<AMQPCreationConfig, 'queueName'>
+    creationConfig?: Omit<CreationConfig, 'queueName'>
   }
 }
 
@@ -67,11 +82,15 @@ export class AmqpQueuePublisherManager<
   NonNullable<SupportedEventDefinitions[number]['queueName']>,
   AbstractAmqpQueuePublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
   AMQPDependencies,
-  AMQPCreationConfig,
-  AMQPLocator,
+  AMQPQueueCreationConfig,
+  AMQPQueueLocator,
   AmqpMessageSchemaType<AmqpAwareEventDefinition>,
   Omit<
-    AMQPPublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+    AMQPPublisherOptions<
+      z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
+      AMQPQueueCreationConfig,
+      AMQPQueueLocator
+    >,
     'messageSchemas' | 'creationConfig' | 'locatorConfig'
   >,
   SupportedEventDefinitions,
@@ -83,7 +102,11 @@ export class AmqpQueuePublisherManager<
     options: AmqpPublisherManagerOptions<
       T,
       AmqpQueueMessageOptions,
-      AMQPPublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+      AMQPPublisherOptions<
+        z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
+        AMQPQueueCreationConfig,
+        AMQPQueueLocator
+      >,
       z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
       MetadataType
     >,
@@ -105,7 +128,7 @@ export class AmqpQueuePublisherManager<
 
   protected override resolveCreationConfig(
     queueName: NonNullable<SupportedEventDefinitions[number]['queueName']>,
-  ): AMQPCreationConfig {
+  ): AMQPQueueCreationConfig {
     return {
       ...this.newPublisherOptions,
       queueOptions: {},
@@ -113,6 +136,9 @@ export class AmqpQueuePublisherManager<
     }
   }
 
+  /**
+   * @deprecated use `publishSync` instead.
+   */
   publish(): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
     throw new Error('Please use `publishSync` method for AMQP publisher managers')
   }
