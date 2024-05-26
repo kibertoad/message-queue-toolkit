@@ -102,7 +102,7 @@ export class AmqpTopicPublisherManager<
   publishSync(
     exchange: NonNullable<SupportedEventDefinitions[number]['exchange']>,
     message: MessagePublishType<SupportedEventDefinitions[number]>,
-    messageOptions: AmqpTopicMessageOptions,
+    messageOptions?: AmqpTopicMessageOptions,
     precedingEventMetadata?: Partial<MetadataType>,
   ): MessageSchemaType<SupportedEventDefinitions[number]> {
     const publisher = this.targetToPublisherMap[exchange]
@@ -112,7 +112,10 @@ export class AmqpTopicPublisherManager<
 
     const messageDefinition = this.resolveMessageDefinition(exchange, message)
     const resolvedMessage = this.resolveMessage(messageDefinition, message, precedingEventMetadata)
-    publisher.publish(resolvedMessage, messageOptions)
+    publisher.publish(resolvedMessage, {
+      routingKey: messageOptions?.routingKey ?? messageDefinition?.topic ?? '',
+      publishOptions: messageOptions?.publishOptions,
+    })
     return resolvedMessage
   }
 

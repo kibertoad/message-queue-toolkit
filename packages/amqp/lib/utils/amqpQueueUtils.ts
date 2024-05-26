@@ -73,7 +73,7 @@ export async function ensureAmqpTopicSubscription(
     await channel.bindQueue(
       creationConfig.queueName,
       creationConfig.exchange,
-      creationConfig.topicPattern,
+      creationConfig.topicPattern ?? '',
     )
   } else {
     if (!locatorConfig) {

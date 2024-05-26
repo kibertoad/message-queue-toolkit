@@ -41,7 +41,7 @@ describe('AmqpPermissionConsumer', () => {
       })
 
       await expect(consumer.init()).rejects.toThrow(
-        'updateAttributesIfExists parameter is not currently supported by the Amqp adapter',
+        'updateAttributesIfExists parameter is not currently supported by the AMQP adapter',
       )
     })
 

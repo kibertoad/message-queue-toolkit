@@ -13,7 +13,7 @@ export class FakeTopicConsumer extends AbstractAmqpTopicConsumer<BaseMessageType
     eventDefinition: AmqpAwareEventDefinition,
     options: {
       queueName: string
-      topicPattern: string
+      topicPattern?: string
     },
   ) {
     if (!eventDefinition.exchange) {

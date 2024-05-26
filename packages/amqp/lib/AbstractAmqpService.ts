@@ -25,7 +25,7 @@ export type AMQPQueueCreationConfig = {
 
 export type AMQPTopicCreationConfig = AMQPQueueCreationConfig & {
   exchange: string
-  topicPattern: string
+  topicPattern?: string // defaults to '', which is accepted by RabbitMQ
 }
 
 export type AMQPTopicPublisherConfig = {
@@ -138,7 +138,7 @@ export abstract class AbstractAmqpService<
   public async init() {
     if (this.creationConfig?.updateAttributesIfExists) {
       throw new Error(
-        'updateAttributesIfExists parameter is not currently supported by the Amqp adapter',
+        'updateAttributesIfExists parameter is not currently supported by the AMQP adapter',
       )
     }
 
