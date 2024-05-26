@@ -1,6 +1,6 @@
 import { AbstractAmqpConsumer } from './AbstractAmqpConsumer'
 import type { AMQPTopicCreationConfig, AMQPTopicLocator } from './AbstractAmqpService'
-import { ensureAmqpTopicSubscription } from './utils/amqpQueueUtils'
+import { deleteAmqpQueue, ensureAmqpTopicSubscription } from './utils/amqpQueueUtils'
 
 export class AbstractAmqpTopicConsumer<
   MessagePayloadType extends object,
@@ -13,8 +13,12 @@ export class AbstractAmqpTopicConsumer<
   AMQPTopicCreationConfig,
   AMQPTopicLocator
 > {
-  protected override createMissingEntities(): Promise<void> {
-    return ensureAmqpTopicSubscription(
+  protected override async createMissingEntities(): Promise<void> {
+    if (this.deletionConfig && this.creationConfig) {
+      await deleteAmqpQueue(this.channel, this.deletionConfig, this.creationConfig)
+    }
+
+    await ensureAmqpTopicSubscription(
       this.connection!,
       this.channel,
       this.creationConfig,

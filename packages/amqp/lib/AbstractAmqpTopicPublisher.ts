@@ -20,7 +20,7 @@ export type AMQPTopicPublisherOptions<MessagePayloadType extends object> = Omit<
 }
 
 export type AmqpTopicMessageOptions = {
-  routingKey: string
+  routingKey?: string // used as topic in topic exchanges
   publishOptions?: Options.Publish
 }
 
@@ -47,7 +47,10 @@ export abstract class AbstractAmqpTopicPublisher<
     })
   }
 
-  protected publishInternal(message: Buffer, options: AmqpTopicMessageOptions): void {
+  protected publishInternal(
+    message: Buffer,
+    options: Omit<AmqpTopicMessageOptions, 'routingKey'> & { routingKey: string },
+  ): void {
     this.channel.publish(this.exchange!, options.routingKey, message, options.publishOptions)
   }
 

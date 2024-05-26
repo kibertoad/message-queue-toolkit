@@ -26,8 +26,9 @@ import { CommonAmqpQueuePublisherFactory } from './CommonAmqpPublisherFactory'
 
 export type AmqpAwareEventDefinition = {
   schemaVersion?: string
-  exchange?: string
-  queueName?: string
+  exchange?: string // optional if used with a direct exchange
+  queueName?: string // should only be specified for direct exchanges
+  topic?: string // used for topic exchanges
 } & CommonEventDefinition
 
 export type AmqpPublisherManagerDependencies<SupportedEvents extends AmqpAwareEventDefinition[]> = {

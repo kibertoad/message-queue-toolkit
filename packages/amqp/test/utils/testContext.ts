@@ -62,6 +62,18 @@ export const TestEvents = {
       }),
     ),
     exchange: 'entity',
+    topic: 'updated',
+  },
+
+  updatedPubSubV2: {
+    ...enrichMessageSchemaWithBase(
+      'entity.updated',
+      z.object({
+        updatedData: z.string(),
+      }),
+    ),
+    exchange: 'entity_v2',
+    topic: 'updated',
   },
 } as const satisfies Record<string, AmqpAwareEventDefinition>
 
