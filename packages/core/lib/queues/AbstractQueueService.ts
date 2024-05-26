@@ -43,9 +43,15 @@ export abstract class AbstractQueueService<
   ExecutionContext = undefined,
   PrehandlerOutput = undefined,
 > {
-  // Used to keep track of the number of retries performed on consumer
+  /**
+   * Used to keep track of the number of `retryLater` results received for a message to be able to
+   * calculate the delay for the next retry
+   */
   private readonly messageNumberOfRetriesField = '_internalNumberOfRetries'
-  // Used to avoid infinite retries on the same message
+  /**
+   * Used to know when the message was sent initially so we can have a max retry date and avoid
+   * a infinite `retryLater` loop
+   */
   protected readonly messageTimestampField: string
 
   protected readonly errorReporter: ErrorReporter
