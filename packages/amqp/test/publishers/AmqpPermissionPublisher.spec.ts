@@ -51,10 +51,9 @@ describe('PermissionPublisher', () => {
         return logger.loggedMessages.length === 2
       })
 
-      expect(logger.loggedMessages[2]).toEqual({
+      expect(logger.loggedMessages[1]).toEqual({
         id: '1',
         messageType: 'add',
-        timestamp: expect.any(String),
       })
     })
   })
@@ -245,6 +244,7 @@ describe('PermissionPublisher', () => {
           userIds: [1],
           permissions: ['100'],
           timestamp: message.timestamp.toISOString(),
+          _internalNumberOfRetries: 0,
         },
       })
     })
@@ -292,11 +292,12 @@ describe('PermissionPublisher', () => {
           userIds: [1],
           permissions: ['100'],
           timestamp: message.timestamp.toISOString(),
+          _internalNumberOfRetries: 0,
         },
       })
     })
 
-    it('publishes a message auto-filling timestamp', async () => {
+    it('publishes a message auto-filling internal properties', async () => {
       await permissionConsumer.close()
 
       const message = {
@@ -325,11 +326,13 @@ describe('PermissionPublisher', () => {
         parsedMessage: {
           id: '2',
           messageType: 'add',
+          timestamp: expect.any(String),
         },
         originalMessage: {
           id: '2',
           messageType: 'add',
           timestamp: expect.any(String),
+          _internalNumberOfRetries: 0,
         },
       })
     })

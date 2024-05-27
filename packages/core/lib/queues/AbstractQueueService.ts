@@ -7,6 +7,7 @@ import type { ZodSchema, ZodType } from 'zod'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
 import type { Logger, MessageProcessingResult } from '../types/MessageQueueTypes'
 import type { DeletionConfig, QueueDependencies, QueueOptions } from '../types/queueOptionsTypes'
+import { isRetryDateExceeded } from '../utils/dateUtils'
 import { toDatePreprocessor } from '../utils/toDateProcessor'
 
 import type {
@@ -42,11 +43,21 @@ export abstract class AbstractQueueService<
   ExecutionContext = undefined,
   PrehandlerOutput = undefined,
 > {
+  /**
+   * Used to keep track of the number of `retryLater` results received for a message to be able to
+   * calculate the delay for the next retry
+   */
+  private readonly messageNumberOfRetriesField = '_internalNumberOfRetries'
+  /**
+   * Used to know when the message was sent initially so we can have a max retry date and avoid
+   * a infinite `retryLater` loop
+   */
+  protected readonly messageTimestampField: string
+
   protected readonly errorReporter: ErrorReporter
   public readonly logger: Logger
   protected readonly messageIdField: string
   protected readonly messageTypeField: string
-  protected readonly messageTimestampField: string
   protected readonly logMessages: boolean
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
@@ -198,7 +209,45 @@ export abstract class AbstractQueueService<
     return await barrier(message, executionContext, preHandlerOutput)
   }
 
-  protected tryToExtractTimestamp(message: MessagePayloadSchemas): Date | undefined {
+  shouldBeRetried(message: MessagePayloadSchemas, maxRetryDuration: number): boolean {
+    const timestamp = this.tryToExtractTimestamp(message) ?? new Date()
+    return !isRetryDateExceeded(timestamp, maxRetryDuration)
+  }
+
+  protected getMessageRetryDelayInSeconds(message: MessagePayloadSchemas): number {
+    // if not defined, this is the first attempt
+    const retries = this.tryToExtractNumberOfRetries(message) ?? 0
+
+    // exponential backoff -> (2 ^ (attempts)) * delay
+    // delay = 1 second
+    return Math.pow(2, retries)
+  }
+
+  protected updateInternalProperties(message: MessagePayloadSchemas): MessagePayloadSchemas {
+    const messageCopy = { ...message } // clone the message to avoid mutation
+
+    /**
+     * If the message doesn't have a timestamp field -> add it
+     * will be used to prevent infinite retries on the same message
+     */
+    if (!this.tryToExtractTimestamp(message)) {
+      // @ts-ignore
+      messageCopy[this.messageTimestampField] = new Date().toISOString()
+      this.logger.warn(`${this.messageTimestampField} not defined, adding it automatically`)
+    }
+
+    /**
+     * add/increment the number of retries performed to exponential message delay
+     */
+    const numberOfRetries = this.tryToExtractNumberOfRetries(message)
+    // @ts-ignore
+    messageCopy[this.messageNumberOfRetriesField] =
+      numberOfRetries !== undefined ? numberOfRetries + 1 : 0
+
+    return messageCopy
+  }
+
+  private tryToExtractTimestamp(message: MessagePayloadSchemas): Date | undefined {
     // @ts-ignore
     if (this.messageTimestampField in message) {
       // @ts-ignore
@@ -208,6 +257,18 @@ export abstract class AbstractQueueService<
       }
 
       return res
+    }
+
+    return undefined
+  }
+
+  private tryToExtractNumberOfRetries(message: MessagePayloadSchemas): number | undefined {
+    if (
+      this.messageNumberOfRetriesField in message &&
+      typeof message[this.messageNumberOfRetriesField] === 'number'
+    ) {
+      // @ts-ignore
+      return message[this.messageNumberOfRetriesField]
     }
 
     return undefined

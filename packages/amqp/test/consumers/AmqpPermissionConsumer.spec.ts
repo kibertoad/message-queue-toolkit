@@ -13,7 +13,10 @@ import type { Dependencies } from '../utils/testContext'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 
 import { AmqpPermissionConsumer } from './AmqpPermissionConsumer'
-import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
+import type {
+  PERMISSIONS_ADD_MESSAGE_TYPE,
+  PERMISSIONS_REMOVE_MESSAGE_TYPE,
+} from './userConsumerSchemas'
 
 describe('AmqpPermissionConsumer', () => {
   describe('init', () => {
@@ -90,15 +93,15 @@ describe('AmqpPermissionConsumer', () => {
       expect(logger.loggedMessages.length).toBe(5)
       expect(logger.loggedMessages).toEqual([
         'Propagating new connection across 0 receivers',
+        {
+          id: '1',
+          messageType: 'add',
+        },
         'timestamp not defined, adding it automatically',
         {
           id: '1',
           messageType: 'add',
           timestamp: expect.any(String),
-        },
-        {
-          id: '1',
-          messageType: 'add',
         },
         {
           messageId: '1',
@@ -407,11 +410,9 @@ describe('AmqpPermissionConsumer', () => {
       })
       await consumer.start()
 
-      const message: PERMISSIONS_MESSAGE_TYPE = {
+      const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
         id: '1',
         messageType: 'add',
-        userIds: [1],
-        permissions: ['100'],
         timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
       }
       publisher.publish(message)
@@ -432,11 +433,9 @@ describe('AmqpPermissionConsumer', () => {
       })
       await consumer.start()
 
-      const message: PERMISSIONS_MESSAGE_TYPE = {
+      const message: PERMISSIONS_REMOVE_MESSAGE_TYPE = {
         id: '1',
         messageType: 'remove',
-        userIds: [1],
-        permissions: ['100'],
         timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
       }
       publisher.publish(message)

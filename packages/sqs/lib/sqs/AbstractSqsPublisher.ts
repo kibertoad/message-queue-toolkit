@@ -59,23 +59,15 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     }
 
     try {
-      messageSchemaResult.result.parse(message)
-
-      /**
-       * If the message doesn't have a timestamp field -> add it
-       * will be used on the consumer to prevent infinite retries on the same message
-       */
-      if (!this.tryToExtractTimestamp(message)) {
-        // @ts-ignore
-        message[this.messageTimestampField] = new Date().toISOString()
-        this.logger.warn(`${this.messageTimestampField} not defined, adding it automatically`)
-      }
+      const parsedMessage = messageSchemaResult.result.parse(message)
 
       if (this.logMessages) {
         // @ts-ignore
         const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
         this.logMessage(resolvedLogMessage)
       }
+
+      message = this.updateInternalProperties(message)
 
       const input = {
         // SendMessageRequest
@@ -85,7 +77,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       } satisfies SendMessageCommandInput
       const command = new SendMessageCommand(input)
       await this.sqsClient.send(command)
-      this.handleMessageProcessed(message, 'published')
+      this.handleMessageProcessed(parsedMessage, 'published')
     } catch (error) {
       const err = error as Error
       this.handleError(err)

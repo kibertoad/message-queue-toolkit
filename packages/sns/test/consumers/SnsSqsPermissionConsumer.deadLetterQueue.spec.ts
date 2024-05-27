@@ -17,7 +17,7 @@ import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
-import type { PERMISSIONS_MESSAGE_TYPE } from './userConsumerSchemas'
+import type { PERMISSIONS_REMOVE_MESSAGE_TYPE } from './userConsumerSchemas'
 
 // Note that dead letter queue are fully tested by sqs library - only including a few tests here to make sure the integration works
 describe('SnsSqsPermissionConsumer - dead letter queue', () => {
@@ -156,21 +156,29 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
       })
       dlqConsumer.start()
 
-      const message: PERMISSIONS_MESSAGE_TYPE = {
+      const message: PERMISSIONS_REMOVE_MESSAGE_TYPE = {
         id: '1',
         messageType: 'remove',
-        userIds: [1],
-        permissions: ['100'],
         timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
       }
       await publisher.publish(message)
 
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
       expect(spyResult.message).toEqual(message)
-      expect(counter).toBeGreaterThan(2)
+      // due to exponential backoff and timestamp, message is only retried once before being moved to DLQ
+      expect(counter).toBe(2)
 
       await waitAndRetry(async () => dlqMessage)
-      expect(JSON.parse(dlqMessage.Body)).toMatchObject({ id: '1', messageType: 'remove' })
+
+      const messageBody = JSON.parse(dlqMessage.Body)
+      expect(messageBody).toEqual({
+        id: '1',
+        messageType: 'remove',
+        timestamp: message.timestamp,
+        _internalNumberOfRetries: expect.any(Number),
+      })
+      // due to exponential backoff and timestamp, on second retry message is moved to DLQ so _internalNumberOfRetries is 1
+      expect(messageBody._internalNumberOfRetries).toBe(1)
 
       dlqConsumer.stop()
     })

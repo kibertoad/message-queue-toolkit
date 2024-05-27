@@ -13,7 +13,7 @@ import { registerDependencies } from '../utils/testContext'
 
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
 import type {
-  PERMISSIONS_MESSAGE_TYPE,
+  PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
 } from './userConsumerSchemas'
 
@@ -246,25 +246,32 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       await waitAndRetry(async () => dlqMessage, 50, 20)
 
       expect(counter).toBe(2)
-      expect(JSON.parse(dlqMessage.Body)).toMatchObject({ id: '1', messageType: 'remove' })
+      expect(JSON.parse(dlqMessage.Body)).toEqual({
+        id: '1',
+        messageType: 'remove',
+        timestamp: expect.any(String),
+        _internalNumberOfRetries: 0,
+      })
     })
 
-    it('messages with retryLater should always be retried and not go to DLQ', async () => {
+    it('messages with retryLater should be retried with exponential delay and not go to DLQ', async () => {
       const sqsMessage: PERMISSIONS_REMOVE_MESSAGE_TYPE = { id: '1', messageType: 'remove' }
 
       let counter = 0
+      const messageArrivalTime: number[] = []
       consumer = new SqsPermissionConsumer(diContainer.cradle, {
         creationConfig: { queue: { QueueName: queueName } },
         deadLetterQueue: {
           creationConfig: { queue: { QueueName: deadLetterQueueName } },
-          redrivePolicy: { maxReceiveCount: 3 },
+          redrivePolicy: { maxReceiveCount: 1 },
         },
         removeHandlerOverride: async (message) => {
           if (message.id !== sqsMessage.id) {
             throw new Error('not expected message')
           }
           counter++
-          return counter < 10 ? { error: 'retryLater' } : { result: 'success' }
+          messageArrivalTime.push(new Date().getTime())
+          return counter < 2 ? { error: 'retryLater' } : { result: 'success' }
         },
       })
       await consumer.start()
@@ -274,6 +281,12 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       const handlerSpyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
       expect(handlerSpyResult.processingResult).toBe('consumed')
       expect(handlerSpyResult.message).toMatchObject({ id: '1', messageType: 'remove' })
+
+      expect(counter).toBe(2)
+
+      // delay is 1s, but consumer can take the message
+      const secondsRetry = (messageArrivalTime[1] - messageArrivalTime[0]) / 1000
+      expect(secondsRetry).toBeGreaterThan(1)
     })
 
     it('messages with deserialization errors should go to DLQ', async () => {
@@ -319,7 +332,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           creationConfig: { queue: { QueueName: deadLetterQueueName } },
           redrivePolicy: { maxReceiveCount: 200 },
         },
-        maxRetryDuration: 3,
+        maxRetryDuration: 2,
         addPreHandlerBarrier: (_msg) => {
           counter++
           return Promise.resolve({ isPassing: false })
@@ -337,21 +350,28 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       })
       dlqConsumer.start()
 
-      const message: PERMISSIONS_MESSAGE_TYPE = {
+      const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
         id: '1',
         messageType: 'add',
-        userIds: [1],
-        permissions: ['100'],
-        timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
+        timestamp: new Date(new Date().getTime() - 1000).toISOString(),
       }
       await permissionPublisher.publish(message)
 
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
       expect(spyResult.message).toEqual(message)
-      expect(counter).toBeGreaterThan(2)
+      // due to exponential backoff and timestamp, message is only retried once before being moved to DLQ
+      expect(counter).toBe(2)
 
-      await waitAndRetry(async () => dlqMessage)
-      expect(JSON.parse(dlqMessage.Body)).toMatchObject({ id: '1', messageType: 'add' })
+      await waitAndRetry(() => dlqMessage)
+      const messageBody = JSON.parse(dlqMessage.Body)
+      expect(messageBody).toEqual({
+        id: '1',
+        messageType: 'add',
+        timestamp: message.timestamp,
+        _internalNumberOfRetries: expect.any(Number),
+      })
+      // due to exponential backoff and timestamp, on second retry message is moved to DLQ so _internalNumberOfRetries is 1
+      expect(messageBody._internalNumberOfRetries).toBe(1)
 
       dlqConsumer.stop()
     })
@@ -364,7 +384,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           creationConfig: { queue: { QueueName: deadLetterQueueName } },
           redrivePolicy: { maxReceiveCount: 200 },
         },
-        maxRetryDuration: 3,
+        maxRetryDuration: 2,
         removeHandlerOverride: async () => {
           counter++
           return Promise.resolve({ error: 'retryLater' })
@@ -382,21 +402,28 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       })
       dlqConsumer.start()
 
-      const message: PERMISSIONS_MESSAGE_TYPE = {
-        id: '1',
+      const message: PERMISSIONS_REMOVE_MESSAGE_TYPE = {
+        id: '2',
         messageType: 'remove',
-        userIds: [1],
-        permissions: ['100'],
-        timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
+        timestamp: new Date(new Date().getTime() - 1000).toISOString(),
       }
       await permissionPublisher.publish(message)
 
-      const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
+      const spyResult = await consumer.handlerSpy.waitForMessageWithId('2', 'error')
       expect(spyResult.message).toEqual(message)
-      expect(counter).toBeGreaterThan(2)
+      // due to exponential backoff and timestamp, message is only retried once before being moved to DLQ
+      expect(counter).toBe(2)
 
-      await waitAndRetry(async () => dlqMessage)
-      expect(JSON.parse(dlqMessage.Body)).toMatchObject({ id: '1', messageType: 'remove' })
+      await waitAndRetry(() => dlqMessage)
+      const messageBody = JSON.parse(dlqMessage.Body)
+      expect(messageBody).toEqual({
+        id: '2',
+        messageType: 'remove',
+        timestamp: message.timestamp,
+        _internalNumberOfRetries: expect.any(Number),
+      })
+      // due to exponential backoff and timestamp, on second retry message is moved to DLQ so _internalNumberOfRetries is 1
+      expect(messageBody._internalNumberOfRetries).toBe(1)
 
       dlqConsumer.stop()
     })

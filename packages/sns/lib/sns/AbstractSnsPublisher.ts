@@ -60,23 +60,15 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     }
 
     try {
-      messageSchemaResult.result.parse(message)
-
-      /**
-       * If the message doesn't have a timestamp field -> add it
-       * will be used on the consumer to prevent infinite retries on the same message
-       */
-      if (!this.tryToExtractTimestamp(message)) {
-        // @ts-ignore
-        message[this.messageTimestampField] = new Date().toISOString()
-        this.logger.warn(`${this.messageTimestampField} not defined, adding it automatically`)
-      }
+      const parsedMessage = messageSchemaResult.result.parse(message)
 
       if (this.logMessages) {
         // @ts-ignore
         const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
         this.logMessage(resolvedLogMessage)
       }
+
+      message = this.updateInternalProperties(message)
 
       const input = {
         Message: JSON.stringify(message),
@@ -85,7 +77,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
       } satisfies PublishCommandInput
       const command = new PublishCommand(input)
       await this.snsClient.send(command)
-      this.handleMessageProcessed(message, 'published')
+      this.handleMessageProcessed(parsedMessage, 'published')
     } catch (error) {
       const err = error as Error
       this.handleError(err)
