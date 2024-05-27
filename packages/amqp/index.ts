@@ -1,6 +1,7 @@
 export type { AMQPQueueConfig } from './lib/AbstractAmqpService'
 
 export { AbstractAmqpQueueConsumer } from './lib/AbstractAmqpQueueConsumer'
+export { AbstractAmqpTopicConsumer } from './lib/AbstractAmqpTopicConsumer'
 export { AbstractAmqpConsumer, AMQPConsumerOptions } from './lib/AbstractAmqpConsumer'
 
 export { AmqpConsumerErrorResolver } from './lib/errors/AmqpConsumerErrorResolver'
@@ -13,6 +14,7 @@ export type { ConnectionReceiver } from './lib/AmqpConnectionManager'
 export { deserializeAmqpMessage } from './lib/amqpMessageDeserializer'
 
 export * from './lib/AbstractAmqpQueuePublisher'
-export * from './lib/AbstractAmqpExchangePublisher'
-export * from './lib/AmqpExchangePublisherManager'
+export * from './lib/AbstractAmqpTopicPublisher'
+export * from './lib/AmqpTopicPublisherManager'
 export * from './lib/AmqpQueuePublisherManager'
+export * from './lib/CommonAmqpPublisherFactory'

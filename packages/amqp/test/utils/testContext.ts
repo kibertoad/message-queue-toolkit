@@ -13,12 +13,19 @@ import { z } from 'zod'
 import { AmqpConnectionManager } from '../../lib/AmqpConnectionManager'
 import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager'
 import { AmqpQueuePublisherManager } from '../../lib/AmqpQueuePublisherManager'
-import type { CommonAmqpQueuePublisher } from '../../lib/CommonAmqpPublisherFactory'
-import { CommonAmqpQueuePublisherFactory } from '../../lib/CommonAmqpPublisherFactory'
+import { AmqpTopicPublisherManager } from '../../lib/AmqpTopicPublisherManager'
+import type {
+  CommonAmqpQueuePublisher,
+  CommonAmqpTopicPublisher,
+} from '../../lib/CommonAmqpPublisherFactory'
+import {
+  CommonAmqpTopicPublisherFactory,
+  CommonAmqpQueuePublisherFactory,
+} from '../../lib/CommonAmqpPublisherFactory'
 import type { AmqpConfig } from '../../lib/amqpConnectionResolver'
 import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver'
 import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer'
-import { FakeConsumer } from '../fakes/FakeConsumer'
+import { FakeQueueConsumer } from '../fakes/FakeQueueConsumer'
 import { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublisher'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
@@ -34,7 +41,7 @@ export const TestEvents = {
       }),
     ),
     schemaVersion: '1.0.1',
-    queueName: FakeConsumer.QUEUE_NAME,
+    queueName: FakeQueueConsumer.QUEUE_NAME,
   },
 
   updated: {
@@ -44,7 +51,29 @@ export const TestEvents = {
         updatedData: z.string(),
       }),
     ),
-    queueName: FakeConsumer.QUEUE_NAME,
+    queueName: FakeQueueConsumer.QUEUE_NAME,
+  },
+
+  updatedPubSub: {
+    ...enrichMessageSchemaWithBase(
+      'entity.updated',
+      z.object({
+        updatedData: z.string(),
+      }),
+    ),
+    exchange: 'entity',
+    topic: 'updated',
+  },
+
+  updatedPubSubV2: {
+    ...enrichMessageSchemaWithBase(
+      'entity.updated',
+      z.object({
+        updatedData: z.string(),
+      }),
+    ),
+    exchange: 'entity_v2',
+    topic: 'updated',
   },
 } as const satisfies Record<string, AmqpAwareEventDefinition>
 
@@ -128,6 +157,25 @@ export async function registerDependencies(
         enabled: queuesEnabled,
       },
     ),
+    topicPublisherManager: asFunction(
+      (dependencies) => {
+        return new AmqpTopicPublisherManager(dependencies, {
+          metadataFiller: new CommonMetadataFiller({
+            serviceId: 'service',
+          }),
+          publisherFactory: new CommonAmqpTopicPublisherFactory(),
+          newPublisherOptions: {
+            handlerSpy: true,
+            messageIdField: 'id',
+            messageTypeField: 'type',
+          },
+        })
+      },
+      {
+        lifetime: Lifetime.SINGLETON,
+        enabled: queuesEnabled,
+      },
+    ),
 
     // vendor-specific dependencies
     transactionObservabilityManager: asFunction(() => {
@@ -169,6 +217,11 @@ export interface Dependencies {
   eventRegistry: EventRegistry<TestEventsType>
   queuePublisherManager: AmqpQueuePublisherManager<
     CommonAmqpQueuePublisher<TestEventPublishPayloadsType>,
+    TestEventsType
+  >
+
+  topicPublisherManager: AmqpTopicPublisherManager<
+    CommonAmqpTopicPublisher<TestEventPublishPayloadsType>,
     TestEventsType
   >
 }
