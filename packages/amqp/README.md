@@ -1,16 +1,20 @@
 # AMQP (Advanced Message Queuing Protocol)
 
+The library provides support for both direct exchanges and topic exchanges.
+
+> **_NOTE:_**  Check [README.md](../../README.md) for transport-agnostic library documentation.
+>
+
 ## Publishers
 
-The library provides support for:
-- exchange publishers: publish a message to an exchange and uses the exchange and message routing key specified to define where the message goes;
-- queue publishers, delivers a message to the specified queue, bypassing routing.
+Use `AbstractAmqpQueuePublisher` to implement direct exchange and `AbstractAmqpTopicPublisher` for topic exchange.
 
 See [test publisher](test/publishers/AmqpPermissionPublisher.ts) for an example of implementation.
 
 ## Consumers
 
-The library provides support for queue consumers. Exchange consumers to be implemented.
+Use `AbstractAmqpQueueConsumer` to implement direct exchange and `AbstractAmqpTopicConsumer` for topic exchange.
+
 See [test consumer](test/consumers/AmqpPermissionConsumer.ts) for an example of implementation.
 
 ## Automatic Reconnects
