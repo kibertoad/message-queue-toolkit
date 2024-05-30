@@ -162,14 +162,10 @@ export abstract class AbstractQueueService<
 
   protected handleError(err: unknown, context?: Record<string, unknown>) {
     const logObject = resolveGlobalErrorLogObject(err)
-    if (logObject === 'string') {
-      this.logger.error(context, logObject)
-    } else if (typeof logObject === 'object') {
-      this.logger.error({
-        ...logObject,
-        ...context,
-      })
-    }
+    this.logger.error({
+      ...logObject,
+      ...context,
+    })
     if (types.isNativeError(err)) {
       this.errorReporter.report({ error: err, context })
     }
