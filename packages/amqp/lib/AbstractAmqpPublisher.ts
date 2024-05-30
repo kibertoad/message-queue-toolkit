@@ -49,11 +49,7 @@ export abstract class AbstractAmqpPublisher<
   ) {
     super(dependencies, options)
 
-    const messageSchemas = options.messageSchemas
-    this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
-      messageSchemas,
-      messageTypeField: options.messageTypeField,
-    })
+    this.messageSchemaContainer = this.resolvePublisherMessageSchemaContainer(options)
     this.exchange = options.exchange
   }
 

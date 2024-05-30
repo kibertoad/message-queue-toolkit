@@ -4,6 +4,7 @@ import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import z from 'zod'
 
+import { SnsSqsEntityConsumer } from '../../test/consumers/SnsSqsEntityConsumer'
 import type {
   Dependencies,
   TestEventPublishPayloadsType,
@@ -13,7 +14,6 @@ import { registerDependencies, TestEvents } from '../../test/utils/testContext'
 
 import { CommonSnsPublisher } from './CommonSnsPublisherFactory'
 import type { SnsPublisherManager } from './SnsPublisherManager'
-import { FakeConsumer } from './fakes/FakeConsumer'
 
 describe('SnsPublisherManager', () => {
   let diContainer: AwilixContainer<Dependencies>
@@ -23,7 +23,7 @@ describe('SnsPublisherManager', () => {
   >
 
   beforeAll(async () => {
-    diContainer = await registerDependencies()
+    diContainer = await registerDependencies({}, false)
     publisherManager = diContainer.cradle.publisherManager
   })
 
@@ -34,13 +34,8 @@ describe('SnsPublisherManager', () => {
   describe('publish', () => {
     it('publishes to a correct publisher', async () => {
       // Given
-      const fakeConsumer = new FakeConsumer(
-        diContainer.cradle,
-        'queue',
-        TestEvents.created.snsTopic,
-        TestEvents.created.consumerSchema,
-      )
-      await fakeConsumer.start()
+      const consumer = new SnsSqsEntityConsumer(diContainer.cradle)
+      await consumer.start()
 
       // When
       const publishedMessage = await publisherManager.publish(TestEvents.created.snsTopic, {
@@ -54,7 +49,7 @@ describe('SnsPublisherManager', () => {
         .handlerSpy(TestEvents.created.snsTopic)
         .waitForMessageWithId(publishedMessage.id)
 
-      const consumerResult = await fakeConsumer.handlerSpy.waitForMessageWithId(publishedMessage.id)
+      const consumerResult = await consumer.handlerSpy.waitForMessageWithId(publishedMessage.id)
       const publishedMessageResult = await handlerSpyPromise
 
       expect(consumerResult.processingResult).toBe('consumed')
@@ -75,7 +70,7 @@ describe('SnsPublisherManager', () => {
         type: 'entity.created',
       })
 
-      await fakeConsumer.close()
+      await consumer.close()
     })
 
     it('message publishing is type-safe', async () => {

@@ -8,6 +8,10 @@ import type { CONSUMER_BASE_EVENT_SCHEMA, PUBLISHER_BASE_EVENT_SCHEMA } from './
 export type EventTypeNames<EventDefinition extends CommonEventDefinition> =
   CommonEventDefinitionConsumerSchemaType<EventDefinition>['type']
 
+export function isCommonEventDefinition(entity: unknown): entity is CommonEventDefinition {
+  return (entity as CommonEventDefinition).publisherSchema !== undefined
+}
+
 export type CommonEventDefinition = {
   consumerSchema: ZodObject<
     Omit<(typeof CONSUMER_BASE_EVENT_SCHEMA)['shape'], 'payload'> & { payload: ZodTypeAny }
@@ -16,6 +20,13 @@ export type CommonEventDefinition = {
     Omit<(typeof PUBLISHER_BASE_EVENT_SCHEMA)['shape'], 'payload'> & { payload: ZodTypeAny }
   >
   schemaVersion?: string
+
+  //
+  // Metadata used for automated documentation generation
+  //
+  producedBy?: readonly string[] // Service ids for all the producers of this event.
+  domain?: string // Domain of the event
+  tags?: readonly string[] // Free-form tags for the event
 }
 
 export type CommonEventDefinitionConsumerSchemaType<T extends CommonEventDefinition> = z.infer<

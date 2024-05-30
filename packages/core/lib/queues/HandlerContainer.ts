@@ -1,4 +1,6 @@
 import type { Either } from '@lokalise/node-core'
+import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
+import { isCommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema } from 'zod'
 
 import type { DoNotProcessMessageError } from '../errors/DoNotProcessError'
@@ -70,6 +72,7 @@ export class MessageHandlerConfig<
   const BarrierOutput = unknown,
 > {
   public readonly schema: ZodSchema<MessagePayloadSchema>
+  public readonly definition?: CommonEventDefinition
   public readonly handler: Handler<
     MessagePayloadSchema,
     ExecutionContext,
@@ -98,8 +101,10 @@ export class MessageHandlerConfig<
       PrehandlerOutput,
       BarrierOutput
     >,
+    eventDefinition?: CommonEventDefinition,
   ) {
     this.schema = schema
+    this.definition = eventDefinition
     this.handler = handler
     this.messageLogFormatter = options?.messageLogFormatter ?? defaultLogFormatter
     this.preHandlerBarrier = options?.preHandlerBarrier
@@ -125,7 +130,7 @@ export class MessageHandlerConfigBuilder<
   }
 
   addConfig<MessagePayloadSchema extends MessagePayloadSchemas, const BarrierOutput>(
-    schema: ZodSchema<MessagePayloadSchema>,
+    schema: ZodSchema<MessagePayloadSchema> | CommonEventDefinition,
     handler: Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>,
     options?: HandlerConfigOptions<
       MessagePayloadSchema,
@@ -134,6 +139,12 @@ export class MessageHandlerConfigBuilder<
       BarrierOutput
     >,
   ) {
+    const resolvedSchema: ZodSchema<MessagePayloadSchema> = isCommonEventDefinition(schema)
+      ? // @ts-ignore
+        (schema.consumerSchema as ZodSchema<MessagePayloadSchema>)
+      : schema
+    const definition = isCommonEventDefinition(schema) ? schema : undefined
+
     this.configs.push(
       // @ts-ignore
       new MessageHandlerConfig<
@@ -142,10 +153,11 @@ export class MessageHandlerConfigBuilder<
         PrehandlerOutput,
         BarrierOutput
       >(
-        schema,
+        resolvedSchema,
         // @ts-ignore
         handler,
         options,
+        definition,
       ),
     )
     return this
@@ -165,6 +177,7 @@ export type Handler<
   message: MessagePayloadSchemas,
   context: ExecutionContext,
   preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, BarrierOutput>,
+  definition?: CommonEventDefinition,
 ) => Promise<Either<'retryLater', 'success'>>
 
 export type HandlerContainerOptions<

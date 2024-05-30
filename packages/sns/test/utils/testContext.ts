@@ -54,6 +54,7 @@ export const TestEvents = {
 
 export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
 export type TestEventPublishPayloadsType = z.infer<TestEventsType[number]['publisherSchema']>
+export type TestEventConsumerPayloadsType = z.infer<TestEventsType[number]['consumerSchema']>
 
 export async function registerDependencies(
   dependencyOverrides: DependencyOverrides = {},

@@ -1,18 +1,22 @@
 import type { Either } from '@lokalise/node-core'
+import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema } from 'zod'
 
 export type MessageSchemaContainerOptions<MessagePayloadSchemas extends object> = {
+  messageDefinitions: readonly CommonEventDefinition[]
   messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
   messageTypeField: string
 }
 
 export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
+  public readonly messageDefinitions: Record<string, CommonEventDefinition>
   private readonly messageSchemas: Record<string, ZodSchema<MessagePayloadSchemas>>
   private readonly messageTypeField: string
 
   constructor(options: MessageSchemaContainerOptions<MessagePayloadSchemas>) {
     this.messageTypeField = options.messageTypeField
     this.messageSchemas = this.resolveSchemaMap(options.messageSchemas)
+    this.messageDefinitions = this.resolveDefinitionsMap(options.messageDefinitions ?? [])
   }
 
   public resolveSchema(
@@ -40,6 +44,19 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
         return acc
       },
       {} as Record<string, ZodSchema<MessagePayloadSchemas>>,
+    )
+  }
+
+  private resolveDefinitionsMap(
+    supportedDefinitions: readonly CommonEventDefinition[],
+  ): Record<string, CommonEventDefinition> {
+    return supportedDefinitions.reduce(
+      (acc, definition) => {
+        // @ts-ignore
+        acc[definition.publisherSchema.shape[this.messageTypeField].value] = definition
+        return acc
+      },
+      {} as Record<string, CommonEventDefinition>,
     )
   }
 }
