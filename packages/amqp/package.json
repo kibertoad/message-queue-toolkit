@@ -30,6 +30,7 @@
   },
   "peerDependencies": {
     "@message-queue-toolkit/core": "^13.4.0",
+    "@message-queue-toolkit/schemas": "^1.1.0",
     "amqplib": "^0.10.3"
   },
   "devDependencies": {

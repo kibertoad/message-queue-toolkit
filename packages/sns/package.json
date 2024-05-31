@@ -33,7 +33,8 @@
     "@aws-sdk/client-sns": "^3.556.0",
     "@aws-sdk/client-sqs": "^3.556.0",
     "@message-queue-toolkit/core": "^13.4.0",
-    "@message-queue-toolkit/sqs": "^15.1.0"
+    "@message-queue-toolkit/sqs": "^15.1.0",
+    "@message-queue-toolkit/schemas": "^1.1.0"
   },
   "devDependencies": {
     "@aws-sdk/client-sns": "^3.569.0",
