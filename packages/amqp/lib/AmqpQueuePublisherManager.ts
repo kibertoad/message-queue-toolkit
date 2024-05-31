@@ -1,6 +1,5 @@
 import type {
   PublisherBaseEventType,
-  CommonEventDefinition,
   EventRegistry,
   MetadataFiller,
   MessageMetadataType,
@@ -9,6 +8,7 @@ import type {
   CommonCreationConfigType,
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
+import type { AmqpAwareEventDefinition } from '@message-queue-toolkit/schemas'
 import type z from 'zod'
 
 import type { AbstractAmqpPublisher, AMQPPublisherOptions } from './AbstractAmqpPublisher'
@@ -24,12 +24,7 @@ import type {
 import type { AmqpPublisherFactory } from './CommonAmqpPublisherFactory'
 import { CommonAmqpQueuePublisherFactory } from './CommonAmqpPublisherFactory'
 
-export type AmqpAwareEventDefinition = {
-  schemaVersion?: string
-  exchange?: string // optional if used with a direct exchange
-  queueName?: string // should only be specified for direct exchanges
-  topic?: string // used for topic exchanges
-} & CommonEventDefinition
+export type { AmqpAwareEventDefinition }
 
 export type AmqpPublisherManagerDependencies<SupportedEvents extends AmqpAwareEventDefinition[]> = {
   eventRegistry: EventRegistry<SupportedEvents>

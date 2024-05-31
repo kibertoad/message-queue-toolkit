@@ -1,5 +1,4 @@
 import type {
-  CommonEventDefinition,
   EventRegistry,
   MessagePublishType,
   MessageSchemaType,
@@ -8,6 +7,7 @@ import type {
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { MessageMetadataType } from '@message-queue-toolkit/core/lib/messages/baseMessageSchemas'
+import type { SnsAwareEventDefinition } from '@message-queue-toolkit/schemas'
 import type z from 'zod'
 
 import type {
@@ -19,10 +19,7 @@ import type { SNSCreationConfig, SNSDependencies, SNSQueueLocatorType } from './
 import type { SnsPublisherFactory } from './CommonSnsPublisherFactory'
 import { CommonSnsPublisherFactory } from './CommonSnsPublisherFactory'
 
-export type SnsAwareEventDefinition = {
-  schemaVersion?: string
-  snsTopic?: string
-} & CommonEventDefinition
+export type { SnsAwareEventDefinition }
 
 export type SnsPublisherManagerDependencies<SupportedEvents extends SnsAwareEventDefinition[]> = {
   eventRegistry: EventRegistry<SupportedEvents>
