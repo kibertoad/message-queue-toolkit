@@ -8,13 +8,9 @@ import type {
   QueueConsumer,
   QueueConsumerOptions,
   TransactionObservabilityManager,
-} from '@message-queue-toolkit/core'
-import {
-  isMessageError,
-  parseMessage,
-  HandlerContainer,
   MessageSchemaContainer,
 } from '@message-queue-toolkit/core'
+import { isMessageError, parseMessage, HandlerContainer } from '@message-queue-toolkit/core'
 import type { Connection, Message } from 'amqplib'
 
 import type {
@@ -100,11 +96,8 @@ export abstract class AbstractAmqpConsumer<
       ? options.locatorConfig.queueName
       : options.creationConfig!.queueName
 
-    const messageSchemas = options.handlers.map((entry) => entry.schema)
-    this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
-      messageSchemas,
-      messageTypeField: options.messageTypeField,
-    })
+    this.messageSchemaContainer = this.resolveConsumerMessageSchemaContainer(options)
+
     this.handlerContainer = new HandlerContainer<
       MessagePayloadType,
       ExecutionContext,

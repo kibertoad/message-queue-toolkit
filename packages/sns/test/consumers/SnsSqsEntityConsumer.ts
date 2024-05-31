@@ -1,0 +1,100 @@
+import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
+
+import type {
+  SNSSQSConsumerDependencies,
+  SNSSQSConsumerOptions,
+} from '../../lib/sns/AbstractSnsSqsConsumer'
+import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer'
+import type { TestEventConsumerPayloadsType } from '../utils/testContext'
+import { TestEvents } from '../utils/testContext'
+
+import { entityCreatedHandler } from './handlers/EntityCreatedHandler'
+import { entityUpdatedHandler } from './handlers/EntityUpdatedHandler'
+
+type SupportedMessages = TestEventConsumerPayloadsType
+type ExecutionContext = {
+  incrementAmount: number
+}
+type PreHandlerOutput = {
+  preHandlerCount: number
+}
+
+type SnsSqsPermissionConsumerOptions = Pick<
+  SNSSQSConsumerOptions<SupportedMessages, ExecutionContext, PreHandlerOutput>,
+  | 'creationConfig'
+  | 'locatorConfig'
+  | 'deletionConfig'
+  | 'deadLetterQueue'
+  | 'consumerOverrides'
+  | 'maxRetryDuration'
+>
+
+export class SnsSqsEntityConsumer extends AbstractSnsSqsConsumer<
+  SupportedMessages,
+  ExecutionContext,
+  PreHandlerOutput
+> {
+  public static readonly CONSUMED_QUEUE_NAME = 'entities_queue'
+  public static readonly SUBSCRIBED_TOPIC_NAME = 'dummy'
+
+  constructor(
+    dependencies: SNSSQSConsumerDependencies,
+    options: SnsSqsPermissionConsumerOptions = {
+      creationConfig: {
+        queue: {
+          QueueName: SnsSqsEntityConsumer.CONSUMED_QUEUE_NAME,
+        },
+        topic: {
+          Name: SnsSqsEntityConsumer.SUBSCRIBED_TOPIC_NAME,
+        },
+      },
+    },
+  ) {
+    super(
+      dependencies,
+      {
+        handlerSpy: true,
+        handlers: new MessageHandlerConfigBuilder<
+          SupportedMessages,
+          ExecutionContext,
+          PreHandlerOutput
+        >()
+          .addConfig(TestEvents.created, entityCreatedHandler, {})
+          .addConfig(TestEvents.updated, entityUpdatedHandler, {})
+          .build(),
+        deletionConfig: options.deletionConfig ?? {
+          deleteIfExists: true,
+        },
+        consumerOverrides: options.consumerOverrides ?? {
+          terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
+        },
+        ...(options.locatorConfig
+          ? { locatorConfig: options.locatorConfig }
+          : {
+              creationConfig: options.creationConfig ?? {
+                queue: { QueueName: SnsSqsEntityConsumer.CONSUMED_QUEUE_NAME },
+                topic: { Name: SnsSqsEntityConsumer.SUBSCRIBED_TOPIC_NAME },
+              },
+            }),
+        messageTypeField: 'type',
+        subscriptionConfig: {
+          updateAttributesIfExists: false,
+        },
+        maxRetryDuration: options.maxRetryDuration,
+      },
+      {
+        incrementAmount: 1,
+      },
+    )
+  }
+
+  get subscriptionProps() {
+    return {
+      topicArn: this.topicArn,
+      queueUrl: this.queueUrl,
+      queueName: this.queueName,
+      subscriptionArn: this.subscriptionArn,
+      deadLetterQueueUrl: this.deadLetterQueueUrl,
+    }
+  }
+}

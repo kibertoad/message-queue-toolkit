@@ -8,8 +8,8 @@ import type {
   MessageInvalidFormatError,
   MessageValidationError,
   QueuePublisherOptions,
+  MessageSchemaContainer,
 } from '@message-queue-toolkit/core'
-import { MessageSchemaContainer } from '@message-queue-toolkit/core'
 
 import type { SNSCreationConfig, SNSDependencies, SNSQueueLocatorType } from './AbstractSnsService'
 import { AbstractSnsService } from './AbstractSnsService'
@@ -36,11 +36,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
   constructor(dependencies: SNSDependencies, options: SNSPublisherOptions<MessagePayloadType>) {
     super(dependencies, options)
 
-    const messageSchemas = options.messageSchemas
-    this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
-      messageSchemas,
-      messageTypeField: options.messageTypeField,
-    })
+    this.messageSchemaContainer = this.resolvePublisherMessageSchemaContainer(options)
   }
 
   async publish(message: MessagePayloadType, options: SNSMessageOptions = {}): Promise<void> {

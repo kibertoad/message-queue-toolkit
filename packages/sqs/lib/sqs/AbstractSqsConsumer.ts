@@ -10,13 +10,9 @@ import type {
   QueueConsumerDependencies,
   DeadLetterQueueOptions,
   ParseMessageResult,
-} from '@message-queue-toolkit/core'
-import {
-  isMessageError,
-  parseMessage,
-  HandlerContainer,
   MessageSchemaContainer,
 } from '@message-queue-toolkit/core'
+import { isMessageError, parseMessage, HandlerContainer } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
@@ -115,8 +111,9 @@ export abstract class AbstractSqsConsumer<
 
   protected deadLetterQueueUrl?: string
   protected readonly errorResolver: ErrorResolver
-  protected readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   protected readonly executionContext: ExecutionContext
+
+  public readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
 
   protected constructor(
     dependencies: SQSConsumerDependencies,
@@ -131,11 +128,7 @@ export abstract class AbstractSqsConsumer<
     this.maxRetryDuration = options.maxRetryDuration ?? DEFAULT_MAX_RETRY_DURATION
     this.executionContext = executionContext
 
-    const messageSchemas = options.handlers.map((entry) => entry.schema)
-    this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
-      messageSchemas,
-      messageTypeField: options.messageTypeField,
-    })
+    this.messageSchemaContainer = this.resolveConsumerMessageSchemaContainer(options)
     this.handlerContainer = new HandlerContainer<
       MessagePayloadType,
       ExecutionContext,

@@ -2,6 +2,7 @@ import { types } from 'node:util'
 
 import type { ErrorReporter, ErrorResolver, Either } from '@lokalise/node-core'
 import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
+import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema, ZodType } from 'zod'
 
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
@@ -13,12 +14,14 @@ import { toDatePreprocessor } from '../utils/toDateProcessor'
 import type {
   BarrierCallback,
   BarrierResult,
+  MessageHandlerConfig,
   Prehandler,
   PrehandlerResult,
   PreHandlingOutputs,
 } from './HandlerContainer'
 import type { HandlerSpy, PublicHandlerSpy } from './HandlerSpy'
 import { resolveHandlerSpy } from './HandlerSpy'
+import { MessageSchemaContainer } from './MessageSchemaContainer'
 
 export type Deserializer<MessagePayloadType extends object> = (
   message: unknown,
@@ -90,6 +93,37 @@ export abstract class AbstractQueueService<
     this.isInitted = false
   }
 
+  protected resolveConsumerMessageSchemaContainer(options: {
+    handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
+    messageTypeField: string
+  }) {
+    const messageSchemas = options.handlers.map((entry) => entry.schema)
+    // @ts-expect-error This should no longer be necessary in upcoming TypeScript updates, filter will narrow down the type
+    const messageDefinitions: CommonEventDefinition[] = options.handlers
+      .map((entry) => entry.definition)
+      .filter((entry) => entry !== undefined)
+
+    return new MessageSchemaContainer<MessagePayloadSchemas>({
+      messageSchemas,
+      messageDefinitions,
+      messageTypeField: options.messageTypeField,
+    })
+  }
+
+  protected resolvePublisherMessageSchemaContainer(options: {
+    messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
+    messageTypeField: string
+  }) {
+    const messageSchemas = options.messageSchemas
+    const messageDefinitions: readonly CommonEventDefinition[] = []
+
+    return new MessageSchemaContainer<MessagePayloadSchemas>({
+      messageSchemas,
+      messageDefinitions,
+      messageTypeField: options.messageTypeField,
+    })
+  }
+
   protected abstract resolveSchema(
     message: MessagePayloadSchemas,
   ): Either<Error, ZodSchema<MessagePayloadSchemas>>
@@ -128,14 +162,10 @@ export abstract class AbstractQueueService<
 
   protected handleError(err: unknown, context?: Record<string, unknown>) {
     const logObject = resolveGlobalErrorLogObject(err)
-    if (logObject === 'string') {
-      this.logger.error(context, logObject)
-    } else if (typeof logObject === 'object') {
-      this.logger.error({
-        ...logObject,
-        ...context,
-      })
-    }
+    this.logger.error({
+      ...logObject,
+      ...context,
+    })
     if (types.isNativeError(err)) {
       this.errorReporter.report({ error: err, context })
     }

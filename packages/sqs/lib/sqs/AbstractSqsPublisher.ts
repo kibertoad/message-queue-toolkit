@@ -8,8 +8,8 @@ import type {
   MessageValidationError,
   BarrierResult,
   QueuePublisherOptions,
+  MessageSchemaContainer,
 } from '@message-queue-toolkit/core'
-import { MessageSchemaContainer } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
 import type { SQSMessage } from '../types/MessageTypes'
@@ -35,11 +35,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
   ) {
     super(dependencies, options)
 
-    const messageSchemas = options.messageSchemas
-    this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
-      messageSchemas,
-      messageTypeField: options.messageTypeField,
-    })
+    this.messageSchemaContainer = this.resolvePublisherMessageSchemaContainer(options)
   }
 
   async publish(message: MessagePayloadType, options: SQSMessageOptions = {}): Promise<void> {

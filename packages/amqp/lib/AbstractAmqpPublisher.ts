@@ -4,11 +4,12 @@ import type {
   BarrierResult,
   CommonCreationConfigType,
   MessageInvalidFormatError,
+  MessageSchemaContainer,
   MessageValidationError,
   QueuePublisherOptions,
   SyncPublisher,
 } from '@message-queue-toolkit/core'
-import { objectToBuffer, MessageSchemaContainer } from '@message-queue-toolkit/core'
+import { objectToBuffer } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
 import type { AMQPDependencies } from './AbstractAmqpService'
@@ -49,11 +50,7 @@ export abstract class AbstractAmqpPublisher<
   ) {
     super(dependencies, options)
 
-    const messageSchemas = options.messageSchemas
-    this.messageSchemaContainer = new MessageSchemaContainer<MessagePayloadType>({
-      messageSchemas,
-      messageTypeField: options.messageTypeField,
-    })
+    this.messageSchemaContainer = this.resolvePublisherMessageSchemaContainer(options)
     this.exchange = options.exchange
   }
 
