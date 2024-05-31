@@ -8,13 +8,9 @@ import type {
   QueueConsumer,
   QueueConsumerOptions,
   TransactionObservabilityManager,
-} from '@message-queue-toolkit/core'
-import {
-  isMessageError,
-  parseMessage,
-  HandlerContainer,
   MessageSchemaContainer,
 } from '@message-queue-toolkit/core'
+import { isMessageError, parseMessage, HandlerContainer } from '@message-queue-toolkit/core'
 import type { Connection, Message } from 'amqplib'
 
 import type {
