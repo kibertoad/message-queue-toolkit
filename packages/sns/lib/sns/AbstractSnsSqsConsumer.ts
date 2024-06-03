@@ -117,6 +117,6 @@ export abstract class AbstractSnsSqsConsumer<
   }
 
   protected override resolveSchema(messagePayload: MessagePayloadSchemas) {
-    return this.messageSchemaContainer.resolveSchema(messagePayload)
+    return this._messageSchemaContainer.resolveSchema(messagePayload)
   }
 }
