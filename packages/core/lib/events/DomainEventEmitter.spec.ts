@@ -1,22 +1,20 @@
 import { randomUUID } from 'node:crypto'
 
 import { waitAndRetry } from '@lokalise/node-core'
+import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-toolkit/schemas'
 import type { AwilixContainer } from 'awilix'
 import { afterAll, beforeAll, expect } from 'vitest'
 
 import type { Dependencies } from '../../test/testContext'
 import { registerDependencies, TestEvents } from '../../test/testContext'
 
-import type { CommonEventDefinitionConsumerSchemaType } from './eventTypes'
 import { FakeListener } from './fakes/FakeListener'
 
-const createdEventPayload: CommonEventDefinitionConsumerSchemaType<typeof TestEvents.created> = {
+const createdEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.created> = {
   payload: {
     message: 'msg',
   },
   type: 'entity.created',
-  id: randomUUID(),
-  timestamp: new Date().toISOString(),
   metadata: {
     originatedFrom: 'service',
     producedBy: 'producer',
@@ -25,7 +23,7 @@ const createdEventPayload: CommonEventDefinitionConsumerSchemaType<typeof TestEv
   },
 }
 
-const updatedEventPayload: CommonEventDefinitionConsumerSchemaType<typeof TestEvents.updated> = {
+const updatedEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.updated> = {
   ...createdEventPayload,
   type: 'entity.updated',
 }
