@@ -9,6 +9,8 @@ import { z } from 'zod'
 import { DomainEventEmitter } from '../lib/events/DomainEventEmitter'
 import { EventRegistry } from '../lib/events/EventRegistry'
 import type { CommonEventDefinition } from '../lib/events/eventTypes'
+import type { MetadataFiller } from '../lib/messages/MetadataFiller'
+import { CommonMetadataFiller } from '../lib/messages/MetadataFiller'
 import { enrichMessageSchemaWithBase } from '../lib/messages/baseMessageSchemas'
 import type { TransactionObservabilityManager } from '../lib/types/MessageQueueTypes'
 
@@ -64,6 +66,11 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
     }, SINGLETON_CONFIG),
 
     eventEmitter: asClass(DomainEventEmitter, SINGLETON_CONFIG),
+    metadataFiller: asFunction(() => {
+      return new CommonMetadataFiller({
+        serviceId: 'test',
+      })
+    }, SINGLETON_CONFIG),
 
     // vendor-specific dependencies
     newRelicBackgroundTransactionManager: asFunction(() => {
@@ -99,4 +106,5 @@ export interface Dependencies {
   errorReporter: ErrorReporter
   eventRegistry: EventRegistry<TestEventsType>
   eventEmitter: DomainEventEmitter<TestEventsType>
+  metadataFiller: MetadataFiller
 }

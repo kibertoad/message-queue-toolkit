@@ -1,5 +1,6 @@
 import { InternalError } from '@lokalise/node-core'
 
+import type { MetadataFiller } from '../messages/MetadataFiller'
 import type { MessageMetadataType } from '../messages/baseMessageSchemas'
 
 import type { EventRegistry } from './EventRegistry'
@@ -21,9 +22,17 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>[]
   > = {}
   private readonly anyHandlers: AnyEventHandler<SupportedEvents>[] = []
+  private readonly metadataFiller: MetadataFiller
 
-  constructor({ eventRegistry }: { eventRegistry: EventRegistry<SupportedEvents> }) {
+  constructor({
+    eventRegistry,
+    metadataFiller,
+  }: {
+    eventRegistry: EventRegistry<SupportedEvents>
+    metadataFiller: MetadataFiller
+  }) {
     this.eventRegistry = eventRegistry
+    this.metadataFiller = metadataFiller
   }
 
   public async emit<SupportedEvent extends SupportedEvents[number]>(
@@ -31,6 +40,13 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     data: Omit<CommonEventDefinitionPublisherSchemaType<SupportedEvent>, 'type'>,
     metadata?: Partial<MessageMetadataType>,
   ) {
+    if (!data.timestamp) {
+      data.timestamp = this.metadataFiller.produceTimestamp()
+    }
+    if (!data.id) {
+      data.id = this.metadataFiller.produceId()
+    }
+
     const eventTypeName = supportedEvent.publisherSchema.shape.type.value
 
     if (!this.eventRegistry.isSupportedEvent(eventTypeName)) {
