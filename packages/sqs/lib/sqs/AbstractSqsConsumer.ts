@@ -113,7 +113,7 @@ export abstract class AbstractSqsConsumer<
   protected readonly errorResolver: ErrorResolver
   protected readonly executionContext: ExecutionContext
 
-  public readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
+  public readonly _messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
 
   protected constructor(
     dependencies: SQSConsumerDependencies,
@@ -128,7 +128,7 @@ export abstract class AbstractSqsConsumer<
     this.maxRetryDuration = options.maxRetryDuration ?? DEFAULT_MAX_RETRY_DURATION
     this.executionContext = executionContext
 
-    this.messageSchemaContainer = this.resolveConsumerMessageSchemaContainer(options)
+    this._messageSchemaContainer = this.resolveConsumerMessageSchemaContainer(options)
     this.handlerContainer = new HandlerContainer<
       MessagePayloadType,
       ExecutionContext,
@@ -316,7 +316,7 @@ export abstract class AbstractSqsConsumer<
   }
 
   protected override resolveSchema(message: MessagePayloadType) {
-    return this.messageSchemaContainer.resolveSchema(message)
+    return this._messageSchemaContainer.resolveSchema(message)
   }
 
   // eslint-disable-next-line max-params

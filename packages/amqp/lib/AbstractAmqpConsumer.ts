@@ -66,7 +66,7 @@ export abstract class AbstractAmqpConsumer<
   >
   private readonly maxRetryDuration: number
 
-  private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
+  public readonly _messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   private readonly handlerContainer: HandlerContainer<
     MessagePayloadType,
     ExecutionContext,
@@ -96,7 +96,7 @@ export abstract class AbstractAmqpConsumer<
       ? options.locatorConfig.queueName
       : options.creationConfig!.queueName
 
-    this.messageSchemaContainer = this.resolveConsumerMessageSchemaContainer(options)
+    this._messageSchemaContainer = this.resolveConsumerMessageSchemaContainer(options)
 
     this.handlerContainer = new HandlerContainer<
       MessagePayloadType,
@@ -241,7 +241,7 @@ export abstract class AbstractAmqpConsumer<
   }
 
   protected override resolveSchema(message: MessagePayloadType) {
-    return this.messageSchemaContainer.resolveSchema(message)
+    return this._messageSchemaContainer.resolveSchema(message)
   }
 
   protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
