@@ -25,7 +25,7 @@
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@lokalise/node-core": "^9.21.0",
+    "@lokalise/node-core": "^10.0.0",
     "@message-queue-toolkit/schemas": "^1.0.0",
     "fast-equals": "^5.0.1",
     "toad-cache": "^3.7.0",
