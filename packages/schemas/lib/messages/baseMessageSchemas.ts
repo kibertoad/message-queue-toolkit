@@ -76,20 +76,37 @@ type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string>
   }>
 }
 
+export type SchemaMetadata = {
+  description: string
+}
+
+export function enrichMessageSchemaWithBaseStrict<
+  T extends ZodObject<Y>,
+  Y extends ZodRawShape,
+  Z extends string,
+>(type: Z, payloadSchema: T, schemaMetadata: SchemaMetadata): ReturnType<T, Y, Z> {
+  return enrichMessageSchemaWithBase(type, payloadSchema, schemaMetadata)
+}
+
 export function enrichMessageSchemaWithBase<
   T extends ZodObject<Y>,
   Y extends ZodRawShape,
   Z extends string,
->(type: Z, payloadSchema: T): ReturnType<T, Y, Z> {
+>(type: Z, payloadSchema: T, schemaMetadata?: Partial<SchemaMetadata>): ReturnType<T, Y, Z> {
   const baseSchema = z.object({
     type: z.literal(type),
     payload: payloadSchema,
   })
 
-  const consumerSchema =
+  let consumerSchema =
     GENERATED_BASE_EVENT_SCHEMA.merge(baseSchema).extend(MESSAGE_SCHEMA_EXTENSION)
-  const publisherSchema =
+  let publisherSchema =
     OPTIONAL_GENERATED_BASE_EVENT_SCHEMA.merge(baseSchema).extend(MESSAGE_SCHEMA_EXTENSION)
+
+  if (schemaMetadata?.description) {
+    consumerSchema = consumerSchema.describe(schemaMetadata.description)
+    publisherSchema = publisherSchema.describe(schemaMetadata.description)
+  }
 
   return {
     consumerSchema: consumerSchema,
