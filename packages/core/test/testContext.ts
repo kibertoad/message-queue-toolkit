@@ -1,6 +1,6 @@
 import type { ErrorReporter } from '@lokalise/node-core'
 import type { Resolver } from 'awilix'
-import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
+import { asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import type { Logger } from 'pino'
 import pino from 'pino'
@@ -65,7 +65,17 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       return new EventRegistry(Object.values(TestEvents))
     }, SINGLETON_CONFIG),
 
-    eventEmitter: asClass(DomainEventEmitter, SINGLETON_CONFIG),
+    eventEmitter: asFunction((dependencies: Dependencies) => {
+      return new DomainEventEmitter(
+        {
+          metadataFiller: dependencies.metadataFiller,
+          eventRegistry: dependencies.eventRegistry,
+        },
+        {
+          handlerSpy: true,
+        },
+      )
+    }, SINGLETON_CONFIG),
     metadataFiller: asFunction(() => {
       return new CommonMetadataFiller({
         serviceId: 'test',

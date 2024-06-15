@@ -7,6 +7,8 @@ import type { MetadataFiller } from '../messages/MetadataFiller'
 import type { AsyncPublisher, SyncPublisher } from '../types/MessageQueueTypes'
 import type { CommonCreationConfigType, QueuePublisherOptions } from '../types/queueOptionsTypes'
 
+import type { PublicHandlerSpy } from './HandlerSpy'
+
 export type MessagePublishType<T extends CommonEventDefinition> = z.infer<T['publisherSchema']>
 
 export type MessageSchemaType<T extends CommonEventDefinition> = z.infer<T['consumerSchema']>
@@ -233,7 +235,7 @@ export abstract class AbstractPublisherManager<
   /**
    * @param eventTarget - topic or exchange
    */
-  public handlerSpy(eventTarget: EventTargets) {
+  public handlerSpy(eventTarget: EventTargets): PublicHandlerSpy<object> {
     const publisher = this.targetToPublisherMap[eventTarget]
 
     if (!publisher) {

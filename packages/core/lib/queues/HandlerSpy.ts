@@ -4,29 +4,36 @@ import { isObject } from '@lokalise/node-core'
 import { Fifo } from 'toad-cache'
 
 import type { MessageProcessingResult } from '../types/MessageQueueTypes'
-import type { CommonQueueOptions } from '../types/queueOptionsTypes'
 import { objectMatches } from '../utils/matchUtils'
 
 export type HandlerSpyParams = {
   bufferSize?: number
   messageIdField?: string
+  messageTypeField?: string
 }
 
-export type SpyResult<MessagePayloadSchemas extends object> = {
+export type SpyResultInput<MessagePayloadSchemas extends object> = {
   message: MessagePayloadSchemas | null
   processingResult: MessageProcessingResult
 }
 
+export type SpyResultOutput<MessagePayloadSchemas extends object> = {
+  message: MessagePayloadSchemas
+  processingResult: MessageProcessingResult
+}
+
 type SpyResultCacheEntry<MessagePayloadSchemas extends object> = {
-  value: SpyResult<MessagePayloadSchemas>
+  value: SpyResultInput<MessagePayloadSchemas>
 }
 
 type SpyPromiseMetadata<MessagePayloadSchemas extends object> = {
   fields: DeepPartial<MessagePayloadSchemas>
   processingResult?: MessageProcessingResult
-  promise: Promise<SpyResult<MessagePayloadSchemas>>
+  promise: Promise<SpyResultInput<MessagePayloadSchemas>>
   resolve: (
-    value: SpyResult<MessagePayloadSchemas> | PromiseLike<SpyResult<MessagePayloadSchemas>>,
+    value:
+      | SpyResultInput<MessagePayloadSchemas>
+      | PromiseLike<SpyResultInput<MessagePayloadSchemas>>,
   ) => void
 }
 
@@ -58,19 +65,22 @@ type DeepPartial<T> = T extends Function
 export class HandlerSpy<MessagePayloadSchemas extends object> {
   public name = 'HandlerSpy'
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private readonly messageBuffer: Fifo<SpyResult<any>>
+  private readonly messageBuffer: Fifo<SpyResultInput<any>>
   private readonly messageIdField: keyof MessagePayloadSchemas
+  private readonly messageTypeField: keyof MessagePayloadSchemas
   private readonly spyPromises: SpyPromiseMetadata<MessagePayloadSchemas>[]
 
   constructor(params: HandlerSpyParams = {}) {
     this.messageBuffer = new Fifo(params.bufferSize ?? 100)
     // @ts-ignore
     this.messageIdField = params.messageIdField ?? 'id'
+    // @ts-ignore
+    this.messageTypeField = params.messageTypeField ?? 'type'
     this.spyPromises = []
   }
 
   private messageMatchesFilter(
-    spyResult: SpyResult<object>,
+    spyResult: SpyResultInput<object>,
     fields: DeepPartial<MessagePayloadSchemas>,
     processingResult?: MessageProcessingResult,
   ) {
@@ -84,7 +94,7 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
   waitForMessageWithId<T extends MessagePayloadSchemas>(
     id: string,
     processingResult?: MessageProcessingResult,
-  ) {
+  ): Promise<SpyResultOutput<T>> {
     return this.waitForMessage<T>(
       // @ts-ignore
       {
@@ -97,7 +107,7 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
   waitForMessage<T extends MessagePayloadSchemas>(
     fields: DeepPartial<T>,
     processingResult?: MessageProcessingResult,
-  ): Promise<SpyResult<T>> {
+  ): Promise<SpyResultOutput<T>> {
     const processedMessageEntry = Object.values(this.messageBuffer.items).find(
       // @ts-ignore
       (spyResult: SpyResultCacheEntry<T>) => {
@@ -108,8 +118,8 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
       return Promise.resolve(processedMessageEntry.value)
     }
 
-    let resolve: (value: SpyResult<T> | PromiseLike<SpyResult<T>>) => void
-    const spyPromise = new Promise<SpyResult<T>>((_resolve) => {
+    let resolve: (value: SpyResultInput<T> | PromiseLike<SpyResultInput<T>>) => void
+    const spyPromise = new Promise<SpyResultInput<T>>((_resolve) => {
       resolve = _resolve
     })
 
@@ -121,6 +131,7 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
       resolve,
     })
 
+    // @ts-ignore
     return spyPromise
   }
 
@@ -128,17 +139,21 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     this.messageBuffer.clear()
   }
 
-  addProcessedMessage(processingResult: SpyResult<MessagePayloadSchemas>, messageId?: string) {
+  addProcessedMessage(processingResult: SpyResultInput<MessagePayloadSchemas>, messageId?: string) {
     const resolvedMessageId =
       processingResult.message?.[this.messageIdField] ?? messageId ?? randomUUID()
 
-    // If we failed to parse message, let's store id at least
+    const resolvedMessageType =
+      processingResult.message?.[this.messageTypeField] ?? 'FAILED_TO_RESOLVE'
+
+    // If we failed to parse message, let's store id and type at least
     const resolvedProcessingResult = processingResult.message
       ? processingResult
       : {
           ...processingResult,
           message: {
             [this.messageIdField]: messageId,
+            [this.messageTypeField]: resolvedMessageType,
           },
         }
 
@@ -169,7 +184,9 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
   }
 }
 
-export function resolveHandlerSpy<T extends object>(queueOptions: CommonQueueOptions) {
+export function resolveHandlerSpy<T extends object>(queueOptions: {
+  handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
+}) {
   if (isHandlerSpy(queueOptions.handlerSpy)) {
     return queueOptions.handlerSpy as unknown as HandlerSpy<T>
   }

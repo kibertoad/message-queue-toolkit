@@ -343,6 +343,7 @@ describe('HandlerSpy', () => {
 
       expect(messageResult.message).toEqual({
         id: 'abc',
+        type: 'FAILED_TO_RESOLVE',
       })
       expect(messageResult.processingResult).toBe('invalid_message')
     })
