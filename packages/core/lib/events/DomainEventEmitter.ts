@@ -2,6 +2,8 @@ import { InternalError } from '@lokalise/node-core'
 
 import type { MetadataFiller } from '../messages/MetadataFiller'
 import type { MessageMetadataType } from '../messages/baseMessageSchemas'
+import type { HandlerSpy, HandlerSpyParams, PublicHandlerSpy } from '../queues/HandlerSpy'
+import { resolveHandlerSpy } from '../queues/HandlerSpy'
 
 import type { EventRegistry } from './EventRegistry'
 import type {
@@ -23,23 +25,45 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   > = {}
   private readonly anyHandlers: AnyEventHandler<SupportedEvents>[] = []
   private readonly metadataFiller: MetadataFiller
+  private _handlerSpy:
+    | HandlerSpy<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>
+    | undefined
 
-  constructor({
-    eventRegistry,
-    metadataFiller,
-  }: {
-    eventRegistry: EventRegistry<SupportedEvents>
-    metadataFiller: MetadataFiller
-  }) {
+  constructor(
+    {
+      eventRegistry,
+      metadataFiller,
+    }: {
+      eventRegistry: EventRegistry<SupportedEvents>
+      metadataFiller: MetadataFiller
+    },
+    options: {
+      handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
+    },
+  ) {
     this.eventRegistry = eventRegistry
     this.metadataFiller = metadataFiller
+
+    this._handlerSpy =
+      resolveHandlerSpy<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>(options)
+  }
+
+  get handlerSpy(): PublicHandlerSpy<
+    CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>
+  > {
+    if (!this._handlerSpy) {
+      throw new Error(
+        'HandlerSpy was not instantiated, please pass `handlerSpy` parameter during queue service creation.',
+      )
+    }
+    return this._handlerSpy
   }
 
   public async emit<SupportedEvent extends SupportedEvents[number]>(
     supportedEvent: SupportedEvent,
     data: Omit<CommonEventDefinitionPublisherSchemaType<SupportedEvent>, 'type'>,
     metadata?: Partial<MessageMetadataType>,
-  ) {
+  ): Promise<Omit<CommonEventDefinitionConsumerSchemaType<SupportedEvent>, 'type'>> {
     if (!data.timestamp) {
       data.timestamp = this.metadataFiller.produceTimestamp()
     }
@@ -60,7 +84,8 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
     // No relevant handlers are registered, we can stop processing
     if (!eventHandlers && this.anyHandlers.length === 0) {
-      return
+      // @ts-ignore
+      return data
     }
 
     const validatedEvent = this.eventRegistry
@@ -79,6 +104,20 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     for (const handler of this.anyHandlers) {
       await handler.handleEvent(validatedEvent, metadata)
     }
+
+    if (this._handlerSpy) {
+      this._handlerSpy.addProcessedMessage(
+        {
+          // @ts-ignore
+          message: validatedEvent,
+          processingResult: 'consumed',
+        },
+        validatedEvent.id,
+      )
+    }
+
+    // @ts-ignore
+    return validatedEvent
   }
 
   /**

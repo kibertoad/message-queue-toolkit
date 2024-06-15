@@ -4,6 +4,7 @@ import { waitAndRetry } from '@lokalise/node-core'
 import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-toolkit/schemas'
 import type { AwilixContainer } from 'awilix'
 import { afterAll, beforeAll, expect } from 'vitest'
+import type { z } from 'zod'
 
 import type { Dependencies } from '../../test/testContext'
 import { registerDependencies, TestEvents } from '../../test/testContext'
@@ -63,7 +64,13 @@ describe('AutopilotEventEmitter', () => {
     const fakeListener = new FakeListener(diContainer.cradle.eventRegistry.supportedEvents)
     eventEmitter.onAny(fakeListener)
 
-    await eventEmitter.emit(TestEvents.created, createdEventPayload)
+    const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+
+    const processedEvent = await eventEmitter.handlerSpy.waitForMessageWithId<
+      z.infer<typeof TestEvents.created.consumerSchema>
+    >(emittedEvent.id)
+
+    expect(processedEvent.message.type).toBe(TestEvents.created.consumerSchema.shape.type.value)
 
     await waitAndRetry(() => {
       return fakeListener.receivedEvents.length > 0

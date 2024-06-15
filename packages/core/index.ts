@@ -41,7 +41,7 @@ export type {
   PreHandlingOutputs,
 } from './lib/queues/HandlerContainer'
 export { HandlerSpy } from './lib/queues/HandlerSpy'
-export type { SpyResult, HandlerSpyParams, PublicHandlerSpy } from './lib/queues/HandlerSpy'
+export type { SpyResultInput, HandlerSpyParams, PublicHandlerSpy } from './lib/queues/HandlerSpy'
 
 export { MessageSchemaContainer } from './lib/queues/MessageSchemaContainer'
 export type { MessageSchemaContainerOptions } from './lib/queues/MessageSchemaContainer'
