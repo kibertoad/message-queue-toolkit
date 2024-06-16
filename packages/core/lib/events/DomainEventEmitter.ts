@@ -39,7 +39,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     },
     options: {
       handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
-    },
+    } = {},
   ) {
     this.eventRegistry = eventRegistry
     this.metadataFiller = metadataFiller
@@ -109,7 +109,10 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       this._handlerSpy.addProcessedMessage(
         {
           // @ts-ignore
-          message: validatedEvent,
+          message: {
+            ...validatedEvent,
+            ...(metadata !== undefined ? { metadata } : {}),
+          },
           processingResult: 'consumed',
         },
         validatedEvent.id,
