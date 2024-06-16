@@ -76,7 +76,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
       this.handleMessageProcessed(parsedMessage, 'published')
     } catch (error) {
       const err = error as Error
-      this.handleError(err)
+      this.handleError(err, { message: JSON.stringify(message) })
       throw new InternalError({
         message: `Error while publishing to SNS: ${err.message}`,
         errorCode: 'SNS_PUBLISH_ERROR',

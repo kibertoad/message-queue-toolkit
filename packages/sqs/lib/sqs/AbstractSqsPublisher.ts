@@ -76,7 +76,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       this.handleMessageProcessed(parsedMessage, 'published')
     } catch (error) {
       const err = error as Error
-      this.handleError(err)
+      this.handleError(err, { message: JSON.stringify(message) })
       throw new InternalError({
         message: `Error while publishing to SQS: ${err.message}`,
         errorCode: 'SQS_PUBLISH_ERROR',

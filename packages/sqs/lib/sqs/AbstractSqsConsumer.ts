@@ -211,7 +211,7 @@ export abstract class AbstractSqsConsumer<
           messageType,
         )
           .catch((err) => {
-            this.handleError(err)
+            this.handleError(err, { parsedMessage: JSON.stringify(parsedMessage) })
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             return { error: err }
           })
@@ -351,7 +351,7 @@ export abstract class AbstractSqsConsumer<
   private tryToExtractId(message: SQSMessage): Either<'abort', string> {
     const resolveMessageResult = this.resolveMessage(message)
     if (isMessageError(resolveMessageResult.error)) {
-      this.handleError(resolveMessageResult.error)
+      this.handleError(resolveMessageResult.error, { message: message.Body })
       return ABORT_EARLY_EITHER
     }
     // Empty content for whatever reason
@@ -377,7 +377,7 @@ export abstract class AbstractSqsConsumer<
 
     const resolveMessageResult = this.resolveMessage(message)
     if (isMessageError(resolveMessageResult.error)) {
-      this.handleError(resolveMessageResult.error)
+      this.handleError(resolveMessageResult.error, { message: message.Body })
       return ABORT_EARLY_EITHER
     }
     // Empty content for whatever reason
@@ -389,7 +389,7 @@ export abstract class AbstractSqsConsumer<
       resolveMessageResult.result as MessagePayloadType,
     )
     if (resolveSchemaResult.error) {
-      this.handleError(resolveSchemaResult.error)
+      this.handleError(resolveSchemaResult.error, { message: message.Body })
       return ABORT_EARLY_EITHER
     }
 
@@ -399,7 +399,7 @@ export abstract class AbstractSqsConsumer<
       this.errorResolver,
     )
     if (isMessageError(deserializationResult.error)) {
-      this.handleError(deserializationResult.error)
+      this.handleError(deserializationResult.error, { message: message.Body })
       return ABORT_EARLY_EITHER
     }
 
