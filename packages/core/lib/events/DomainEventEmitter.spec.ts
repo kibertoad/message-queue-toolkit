@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-toolkit/schemas'
 import type { AwilixContainer } from 'awilix'
-import { afterAll, beforeAll, expect } from 'vitest'
+import { expect } from 'vitest'
 import type { z } from 'zod'
 
 import type { Dependencies } from '../../test/testContext'
@@ -51,11 +51,11 @@ const expectedUpdatedPayload = {
 
 describe('AutopilotEventEmitter', () => {
   let diContainer: AwilixContainer<Dependencies>
-  beforeAll(async () => {
+  beforeEach(async () => {
     diContainer = await registerDependencies()
   })
 
-  afterAll(async () => {
+  afterEach(async () => {
     await diContainer.dispose()
   })
 
@@ -89,10 +89,21 @@ describe('AutopilotEventEmitter', () => {
       correlationId: 'dummy',
     })
 
-    await waitAndRetry(() => {
-      return fakeListener.receivedEvents.length > 0
+    const emitResult = await eventEmitter.handlerSpy.waitForMessage({
+      type: 'entity.created',
     })
 
+    expect(emitResult.message).toEqual({
+      id: expect.any(String),
+      metadata: {
+        correlationId: 'dummy',
+      },
+      payload: {
+        message: 'msg',
+      },
+      timestamp: expect.any(String),
+      type: 'entity.created',
+    })
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
     expect(fakeListener.receivedMetadata).toHaveLength(1)
