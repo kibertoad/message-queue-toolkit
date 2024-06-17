@@ -383,9 +383,9 @@ export abstract class AbstractQueueService<
    */
   protected async offloadMessagePayloadIfNeeded(
     message: MessagePayloadSchemas,
-    messageSize: number,
+    messageSizeFn: () => number,
   ): Promise<MessagePayloadSchemas | OffloadedPayloadPointerPayload> {
-    if (!this.payloadStoreConfig || messageSize <= this.payloadStoreConfig.messageSizeThreshold) {
+    if (!this.payloadStoreConfig || messageSizeFn() <= this.payloadStoreConfig.messageSizeThreshold) {
       return message
     }
 
