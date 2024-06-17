@@ -1,11 +1,11 @@
 import type { S3 } from '@aws-sdk/client-s3'
-import { NoSuchBucket } from '@aws-sdk/client-s3'
+import { NotFound, NoSuchBucket } from '@aws-sdk/client-s3'
 
 export async function assertBucket(s3: S3, bucketName: string) {
   try {
     await s3.headBucket({ Bucket: bucketName })
   } catch (e) {
-    if (e instanceof NoSuchBucket) {
+    if (e instanceof NotFound) {
       await s3.createBucket({ Bucket: bucketName })
       return
     }

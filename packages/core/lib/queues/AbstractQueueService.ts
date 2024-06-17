@@ -1,17 +1,20 @@
 import { types } from 'node:util'
 
 import type { ErrorReporter, ErrorResolver, Either } from '@lokalise/node-core'
-import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
+import { FsReadableProvider, resolveGlobalErrorLogObject } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
+import { JsonStreamStringify } from 'json-stream-stringify'
 import type { ZodSchema, ZodType } from 'zod'
 
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
-import type { OffloadedPayloadPointerPayload } from '../messages/offloadedPayloadMessageSchemas'
-import { OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA } from '../messages/offloadedPayloadMessageSchemas'
+import { OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA } from '../payload-store/offloadedPayloadMessageSchemas'
+import type { OffloadedPayloadPointerPayload } from '../payload-store/offloadedPayloadMessageSchemas'
+import type { PayloadStoreConfig } from '../payload-store/payloadStore'
+import { defaultTemporaryFilePathResolver } from '../payload-store/payloadStore'
 import type { Logger, MessageProcessingResult } from '../types/MessageQueueTypes'
-import type { PayloadStoreConfig } from '../types/payloadStoreTypes'
 import type { DeletionConfig, QueueDependencies, QueueOptions } from '../types/queueOptionsTypes'
 import { isRetryDateExceeded } from '../utils/dateUtils'
+import { streamWithKnownSizeToString } from '../utils/streamUtils'
 import { toDatePreprocessor } from '../utils/toDateProcessor'
 
 import type {
@@ -385,16 +388,29 @@ export abstract class AbstractQueueService<
     message: MessagePayloadSchemas,
     messageSizeFn: () => number,
   ): Promise<MessagePayloadSchemas | OffloadedPayloadPointerPayload> {
-    if (!this.payloadStoreConfig || messageSizeFn() <= this.payloadStoreConfig.messageSizeThreshold) {
+    if (
+      !this.payloadStoreConfig ||
+      messageSizeFn() <= this.payloadStoreConfig.messageSizeThreshold
+    ) {
       return message
     }
 
-    const payload = JSON.stringify(message)
-    const offloadedPayloadPointer = await this.payloadStoreConfig.store.storePayload(payload)
+    const fsReadableProvider = await FsReadableProvider.persistReadableToFs({
+      sourceReadable: new JsonStreamStringify(message),
+      targetFile: this.payloadStoreConfig.temporaryFilePathResolver
+        ? this.payloadStoreConfig.temporaryFilePathResolver()
+        : defaultTemporaryFilePathResolver(),
+    })
+
+    const offloadedPayloadSize = await fsReadableProvider.getContentLength()
+    const offloadedPayloadPointer = await this.payloadStoreConfig.store.storePayload(
+      await fsReadableProvider.createStream(),
+      offloadedPayloadSize,
+    )
 
     return {
       offloadedPayloadPointer,
-      offloadedPayloadSize: Buffer.byteLength(payload, 'utf8'),
+      offloadedPayloadSize,
       // @ts-ignore
       [this.messageIdField]: message[this.messageIdField],
       // @ts-ignore
@@ -430,10 +446,10 @@ export abstract class AbstractQueueService<
       }
     }
 
-    const serializedOffloadedPayload = await this.payloadStoreConfig.store.retrievePayload(
+    const serializedOffloadedPayloadReadable = await this.payloadStoreConfig.store.retrievePayload(
       pointerPayloadParseResult.data.offloadedPayloadPointer,
     )
-    if (serializedOffloadedPayload === null) {
+    if (serializedOffloadedPayloadReadable === null) {
       return {
         error: new Error(
           `Payload with key ${pointerPayloadParseResult.data.offloadedPayloadPointer} was not found in the store`,
@@ -441,8 +457,12 @@ export abstract class AbstractQueueService<
       }
     }
 
+    const serializedOffloadedPayloadString = await streamWithKnownSizeToString(
+      serializedOffloadedPayloadReadable,
+      pointerPayloadParseResult.data.offloadedPayloadSize,
+    )
     try {
-      return { result: JSON.parse(serializedOffloadedPayload) }
+      return { result: JSON.parse(serializedOffloadedPayloadString) }
     } catch (e) {
       return { error: new Error('Failed to parse serialized offloaded payload', { cause: e }) }
     }

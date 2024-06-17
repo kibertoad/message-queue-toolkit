@@ -9,9 +9,9 @@ import type {
   MessageSchemaContainer,
   MessageValidationError,
   QueuePublisherOptions,
+  OffloadedPayloadPointerPayload,
 } from '@message-queue-toolkit/core'
-import type { OffloadedPayloadPointerPayload } from '@message-queue-toolkit/core/lib/messages/offloadedPayloadMessageSchemas'
-import { isOffloadedPayloadPointerPayload } from '@message-queue-toolkit/core/lib/messages/offloadedPayloadMessageSchemas'
+import { isOffloadedPayloadPointerPayload } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
 import type { SQSMessage } from '../types/MessageTypes'

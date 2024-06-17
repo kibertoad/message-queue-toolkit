@@ -1,6 +1,6 @@
 import type { Message, SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
-import type { OffloadedPayloadPointerPayload } from '@message-queue-toolkit/core/dist/lib/messages/offloadedPayloadMessageSchemas'
+import type { OffloadedPayloadPointerPayload } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -13,6 +13,7 @@ import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sq
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
 import { FakePayloadStore } from '../fakes/FakePayloadStore'
+import { streamToString } from '../utils/streamUtils'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -338,7 +339,7 @@ describe('SqsPermissionPublisher', () => {
         expect(offloadedPayload).toBeDefined()
 
         // Check that the offloaded payload is the same as the original message.
-        const parsedOffloadedPayload = JSON.parse(offloadedPayload)
+        const parsedOffloadedPayload = JSON.parse(await streamToString(offloadedPayload))
         expect(parsedOffloadedPayload).toMatchObject(message)
       })
     })

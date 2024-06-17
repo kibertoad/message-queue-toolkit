@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { Readable } from 'node:stream'
 
 import type { S3 } from '@aws-sdk/client-s3'
 import { NoSuchKey } from '@aws-sdk/client-s3'
@@ -22,13 +23,14 @@ export class S3PayloadStore implements PayloadStore {
     this.config = config
   }
 
-  async storePayload(payload: string) {
+  async storePayload(payload: Readable, payloadSize: number) {
     const id = randomUUID()
     const key = this.config?.keyPrefix?.length ? `${this.config.keyPrefix}/${id}` : id
     await this.s3.putObject({
       Bucket: this.config.bucketName,
       Key: key,
       Body: payload,
+      ContentLength: payloadSize,
     })
     return key
   }
@@ -39,7 +41,7 @@ export class S3PayloadStore implements PayloadStore {
         Bucket: this.config.bucketName,
         Key: key,
       })
-      return (await result.Body?.transformToString()) ?? null
+      return result.Body ? (result.Body as Readable) : null
     } catch (e) {
       if (e instanceof NoSuchKey) {
         return null

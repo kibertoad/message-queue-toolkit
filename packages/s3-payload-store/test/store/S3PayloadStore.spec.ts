@@ -1,3 +1,5 @@
+import { Readable } from 'node:stream'
+
 import { S3 } from '@aws-sdk/client-s3'
 import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
 
@@ -8,6 +10,7 @@ import {
   getObjectContent,
   objectExists,
 } from '../utils/s3Utils'
+import { streamToString } from '../utils/streamUtils'
 import { TEST_AWS_CONFIG } from '../utils/testS3Config'
 
 const TEST_BUCKET = 'test-bucket'
@@ -31,7 +34,7 @@ describe('S3PayloadStore', () => {
     it('stores the payload in the bucket', async () => {
       const payload = 'test'
 
-      const key = await store.storePayload(payload)
+      const key = await store.storePayload(Readable.from(payload), payload.length)
 
       expect(key).toContain('test/')
       const result = await getObjectContent(s3, TEST_BUCKET, key)
@@ -41,11 +44,12 @@ describe('S3PayloadStore', () => {
   describe('retrievePayload', () => {
     it('retrieves previously stored payload', async () => {
       const payload = 'test'
-      const key = await store.storePayload(payload)
+      const key = await store.storePayload(Readable.from(payload), payload.length)
 
       const result = await store.retrievePayload(key)
 
-      expect(result).toBe(payload)
+      expect(result).toBeInstanceOf(Readable)
+      await expect(streamToString(result!)).resolves.toBe(payload)
     })
     it('returns null if payload cannot be found', async () => {
       const result = await store.retrievePayload('non-existing-key')
@@ -54,7 +58,8 @@ describe('S3PayloadStore', () => {
   })
   describe('deletePayload', () => {
     it('successfully deletes previously stored payload', async () => {
-      const key = await store.storePayload('test')
+      const payload = 'test'
+      const key = await store.storePayload(Readable.from(payload), payload.length)
       await expect(objectExists(s3, TEST_BUCKET, key)).resolves.toBeTruthy()
 
       await store.deletePayload(key)
