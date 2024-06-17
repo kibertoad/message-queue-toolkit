@@ -12,6 +12,7 @@ export const PERMISSIONS_ADD_MESSAGE_SCHEMA = z.object({
   id: z.string(),
   messageType: z.literal('add'),
   timestamp: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 export const PERMISSIONS_REMOVE_MESSAGE_SCHEMA = z.object({

@@ -4,9 +4,6 @@ export interface PayloadStore {
 
   /** Retrieve the previously stored payload. */
   retrievePayload(key: string): Promise<string | null>
-
-  /** Delete the stored payload. */
-  deletePayload(key: string): Promise<void>
 }
 
 export type PayloadStoreConfig = {

@@ -412,7 +412,7 @@ export abstract class AbstractQueueService<
     maybeOffloadedPayloadPointerPayload: unknown,
   ): Promise<Either<Error, unknown>> {
     if (!this.payloadStoreConfig) {
-      throw {
+      return {
         error: new Error(
           'Payload store is not configured, cannot retrieve offloaded message payload',
         ),

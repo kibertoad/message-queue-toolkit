@@ -10,7 +10,10 @@ export { SqsConsumerErrorResolver } from './lib/errors/SqsConsumerErrorResolver'
 export type { SQSConsumerDependencies, SQSConsumerOptions } from './lib/sqs/AbstractSqsConsumer'
 export { AbstractSqsConsumer } from './lib/sqs/AbstractSqsConsumer'
 
-export { AbstractSqsPublisher } from './lib/sqs/AbstractSqsPublisher'
+export {
+  AbstractSqsPublisher,
+  DEFAULT_MESSAGE_SIZE_THRESHOLD,
+} from './lib/sqs/AbstractSqsPublisher'
 export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisher'
 
 export { assertQueue, deleteQueue, getQueueAttributes, getQueueUrl } from './lib/utils/sqsUtils'

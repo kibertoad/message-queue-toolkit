@@ -4,7 +4,7 @@ import { setTimeout } from 'node:timers/promises'
 import type { SendMessageCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import { SendMessageCommand, ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
-import type { BarrierResult } from '@message-queue-toolkit/core'
+import type { BarrierResult, PayloadStoreConfig } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asValue, asClass, asFunction } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
@@ -13,11 +13,13 @@ import { ZodError } from 'zod'
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import { FakeLogger } from '../fakes/FakeLogger'
+import { FakePayloadStore } from '../fakes/FakePayloadStore'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas'
 
 describe('SqsPermissionConsumer', () => {
   describe('init', () => {
@@ -482,6 +484,60 @@ describe('SqsPermissionConsumer', () => {
 
       expect(consumer.addCounter).toBe(1)
       expect(consumer.removeCounter).toBe(2)
+    })
+  })
+
+  describe('payload offloading', () => {
+    const largeMessageSizeThreshold = 300 * 1024 // 300KB, something that is larger than the max SQS message size limit (256KB)
+
+    let diContainer: AwilixContainer<Dependencies>
+
+    let publisher: SqsPermissionPublisher
+    let consumer: SqsPermissionConsumer
+
+    beforeEach(async () => {
+      const payloadStoreConfig: PayloadStoreConfig = {
+        messageSizeThreshold: largeMessageSizeThreshold,
+        store: new FakePayloadStore(),
+      }
+
+      diContainer = await registerDependencies()
+      await deleteQueue(diContainer.cradle.sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+
+      consumer = new SqsPermissionConsumer(diContainer.cradle, {
+        payloadStoreConfig,
+      })
+      await consumer.start()
+
+      publisher = new SqsPermissionPublisher(diContainer.cradle, {
+        payloadStoreConfig,
+      })
+      await publisher.init()
+    })
+
+    afterEach(async () => {
+      await publisher.close()
+      await consumer.close()
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('consumes large message with offloaded payload', async () => {
+      const message = {
+        id: '1',
+        messageType: 'add',
+        metadata: {
+          largeField: 'a'.repeat(largeMessageSizeThreshold),
+        },
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+      await publisher.publish(message)
+
+      const consumptionResult = await consumer.handlerSpy.waitForMessageWithId(
+        message.id,
+        'consumed',
+      )
+      expect(consumptionResult.message).toMatchObject(message)
     })
   })
 

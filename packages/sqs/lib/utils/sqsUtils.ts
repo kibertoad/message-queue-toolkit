@@ -6,7 +6,12 @@ import {
   SetQueueAttributesCommand,
   ListQueuesCommand,
 } from '@aws-sdk/client-sqs'
-import type { CreateQueueCommandInput, SQSClient, QueueAttributeName } from '@aws-sdk/client-sqs'
+import type {
+  CreateQueueCommandInput,
+  SQSClient,
+  QueueAttributeName,
+  SendMessageCommandInput,
+} from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
 import { isShallowSubset, waitAndRetry } from '@message-queue-toolkit/core'
 
@@ -218,4 +223,13 @@ export async function deleteQueue(
     // @ts-ignore
     console.log(`Failed to delete: ${err.message}`)
   }
+}
+
+export function calculateOutgoingMessageSize(message: unknown) {
+  const messageBody = JSON.stringify(message)
+  return calculateSqsMessageBodySize(messageBody)
+}
+
+export function calculateSqsMessageBodySize(messageBody: SendMessageCommandInput['MessageBody']) {
+  return messageBody ? Buffer.byteLength(messageBody, 'utf8') : 0
 }

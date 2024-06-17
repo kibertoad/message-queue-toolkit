@@ -1,15 +1,18 @@
-import type { SQSClient } from '@aws-sdk/client-sqs'
+import type { Message, SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
+import type { OffloadedPayloadPointerPayload } from '@message-queue-toolkit/core/dist/lib/messages/offloadedPayloadMessageSchemas'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
+import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '../../lib/sqs/AbstractSqsPublisher'
 import type { SQSMessage } from '../../lib/types/MessageTypes'
 import { deserializeSQSMessage } from '../../lib/utils/sqsMessageDeserializer'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
+import { FakePayloadStore } from '../fakes/FakePayloadStore'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -256,6 +259,88 @@ describe('SqsPermissionPublisher', () => {
       const spy = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
       expect(spy.message).toEqual(message)
       expect(spy.processingResult).toBe('published')
+    })
+
+    describe('payload offloading', () => {
+      const queueName = 'payload-offloading_test_queue'
+      const largeMessageThreshold = 1024 // Messages larger than 1KB shall be offloaded
+      let publisher: SqsPermissionPublisher
+      let consumer: Consumer
+      let receivedSqsMessages: Message[]
+      let fakePayloadStore: FakePayloadStore
+
+      beforeEach(async () => {
+        await deleteQueue(diContainer.cradle.sqsClient, queueName)
+        const { queueUrl } = await assertQueue(diContainer.cradle.sqsClient, {
+          QueueName: queueName,
+        })
+
+        receivedSqsMessages = []
+        consumer = Consumer.create({
+          queueUrl,
+          handleMessage: async (message: Message) => {
+            if (message === null) {
+              return
+            }
+            receivedSqsMessages.push(message)
+          },
+          sqs: diContainer.cradle.sqsClient,
+          messageAttributeNames: [OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE],
+        })
+        consumer.start()
+
+        fakePayloadStore = new FakePayloadStore()
+        publisher = new SqsPermissionPublisher(diContainer.cradle, {
+          creationConfig: { queue: { QueueName: queueName } },
+          payloadStoreConfig: {
+            messageSizeThreshold: largeMessageThreshold,
+            store: fakePayloadStore,
+          },
+        })
+      })
+      afterEach(async () => {
+        await publisher.close()
+        consumer.stop()
+      })
+
+      it('offloads large message payload to payload store', async () => {
+        const message = {
+          id: '1',
+          messageType: 'add',
+          metadata: { largeField: 'a'.repeat(largeMessageThreshold) },
+        } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+        await publisher.publish(message)
+
+        await expect(
+          publisher.handlerSpy.waitForMessageWithId('1', 'published'),
+        ).resolves.toBeDefined()
+        await waitAndRetry(() => receivedSqsMessages.length > 0)
+
+        // Check that the published message's body is a pointer to the offloaded payload.
+        expect(receivedSqsMessages.length).toBe(1)
+        const parsedReceivedMessageBody = JSON.parse(receivedSqsMessages[0].Body!)
+        expect(parsedReceivedMessageBody).toMatchObject({
+          offloadedPayloadPointer: expect.any(String),
+          offloadedPayloadSize: expect.any(Number), //The actual size of the offloaded message is larger than JSON.stringify(message) because of the additional metadata (timestamp, retry count) that is added internally.
+        })
+
+        // Check that the published message had offloaded payload indicator.
+        const receivedMessageAttributes = receivedSqsMessages[0].MessageAttributes
+        expect(receivedMessageAttributes).toBeDefined()
+        expect(receivedMessageAttributes![OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE]).toBeDefined()
+
+        // Check that the offloaded payload is stored in the payload store.
+        const offloadedPayloadPointer = (
+          parsedReceivedMessageBody as OffloadedPayloadPointerPayload
+        ).offloadedPayloadPointer
+        const offloadedPayload = fakePayloadStore.getAndClearPayloads()[offloadedPayloadPointer]
+        expect(offloadedPayload).toBeDefined()
+
+        // Check that the offloaded payload is the same as the original message.
+        const parsedOffloadedPayload = JSON.parse(offloadedPayload)
+        expect(parsedOffloadedPayload).toMatchObject(message)
+      })
     })
   })
 })

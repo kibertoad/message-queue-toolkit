@@ -1,26 +1,34 @@
-import type { SendMessageCommandInput } from '@aws-sdk/client-sqs'
+import type { MessageAttributeValue } from '@aws-sdk/client-sqs'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
 import { InternalError } from '@lokalise/node-core'
 import type {
   AsyncPublisher,
-  MessageInvalidFormatError,
-  MessageValidationError,
   BarrierResult,
-  QueuePublisherOptions,
+  MessageInvalidFormatError,
   MessageSchemaContainer,
+  MessageValidationError,
+  QueuePublisherOptions,
 } from '@message-queue-toolkit/core'
+import type { OffloadedPayloadPointerPayload } from '@message-queue-toolkit/core/lib/messages/offloadedPayloadMessageSchemas'
+import { isOffloadedPayloadPointerPayload } from '@message-queue-toolkit/core/lib/messages/offloadedPayloadMessageSchemas'
 import type { ZodSchema } from 'zod'
 
 import type { SQSMessage } from '../types/MessageTypes'
+import { calculateOutgoingMessageSize } from '../utils/sqsUtils'
 
+import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
-import type { SQSDependencies, SQSQueueLocatorType, SQSCreationConfig } from './AbstractSqsService'
 
 export type SQSMessageOptions = {
   MessageGroupId?: string
   MessageDeduplicationId?: string
 }
+
+export const DEFAULT_MESSAGE_SIZE_THRESHOLD = 256 * 1024 // 256KB
+
+export const PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX = 'payloadOffloading.'
+export const OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE = PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX + '.size'
 
 export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
   extends AbstractSqsService<MessagePayloadType>
@@ -64,15 +72,12 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       }
 
       message = this.updateInternalProperties(message)
+      const maybeOffloadedPayloadMessage = await this.offloadMessagePayload(
+        message,
+        calculateOutgoingMessageSize(message),
+      )
 
-      const input = {
-        // SendMessageRequest
-        QueueUrl: this.queueUrl,
-        MessageBody: JSON.stringify(message),
-        ...options,
-      } satisfies SendMessageCommandInput
-      const command = new SendMessageCommand(input)
-      await this.sqsClient.send(command)
+      await this.sendMessage(maybeOffloadedPayloadMessage, options)
       this.handleMessageProcessed(parsedMessage, 'published')
     } catch (error) {
       const err = error as Error
@@ -120,5 +125,28 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     message: MessagePayloadType,
   ): Either<Error, ZodSchema<MessagePayloadType>> {
     return this.messageSchemaContainer.resolveSchema(message)
+  }
+
+  protected async sendMessage(
+    payload: MessagePayloadType | OffloadedPayloadPointerPayload,
+    options: SQSMessageOptions = {},
+  ): Promise<void> {
+    const attributes: Record<string, MessageAttributeValue> = {}
+
+    if (isOffloadedPayloadPointerPayload(payload)) {
+      attributes[OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE] = {
+        // The SQS SDK does not provide properties to set numeric values directly, therefore, we must use string.
+        DataType: 'Number',
+        StringValue: payload.offloadedPayloadSize.toString(),
+      }
+    }
+
+    const command = new SendMessageCommand({
+      QueueUrl: this.queueUrl,
+      MessageBody: JSON.stringify(payload),
+      MessageAttributes: attributes,
+      ...options,
+    })
+    await this.sqsClient.send(command)
   }
 }
