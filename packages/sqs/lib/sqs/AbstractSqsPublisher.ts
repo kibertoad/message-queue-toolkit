@@ -135,8 +135,8 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
 
     if (isOffloadedPayloadPointerPayload(payload)) {
       attributes[OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE] = {
-        // The SQS SDK does not provide properties to set numeric values directly, therefore, we must use string.
         DataType: 'Number',
+        // The SQS SDK does not provide properties to set numeric values, we have to convert it to string
         StringValue: payload.offloadedPayloadSize.toString(),
       }
     }
