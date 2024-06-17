@@ -6,7 +6,10 @@ import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema, ZodType } from 'zod'
 
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
+import type { OffloadedPayloadPointerPayload } from '../messages/offloadedPayloadMessageSchemas'
+import { OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEME } from '../messages/offloadedPayloadMessageSchemas'
 import type { Logger, MessageProcessingResult } from '../types/MessageQueueTypes'
+import type { PayloadStoreConfig } from '../types/payloadStoreTypes'
 import type { DeletionConfig, QueueDependencies, QueueOptions } from '../types/queueOptionsTypes'
 import { isRetryDateExceeded } from '../utils/dateUtils'
 import { toDatePreprocessor } from '../utils/toDateProcessor'
@@ -65,6 +68,7 @@ export abstract class AbstractQueueService<
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
   protected readonly deletionConfig?: DeletionConfig
+  protected readonly payloadStoreConfig?: PayloadStoreConfig
   protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
   protected isInitted: boolean
 
@@ -87,6 +91,7 @@ export abstract class AbstractQueueService<
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig
+    this.payloadStoreConfig = options.payloadStoreConfig
 
     this.logMessages = options.logMessages ?? false
     this._handlerSpy = resolveHandlerSpy<MessagePayloadSchemas>(options)
@@ -370,4 +375,76 @@ export abstract class AbstractQueueService<
   ): Promise<Either<'retryLater', 'success'>>
 
   public abstract close(): Promise<unknown>
+
+  /**
+   * Offload message payload to an external store if it exceeds the threshold.
+   * Returns a special type that contains a pointer to the offloaded payload or the original payload if it was not offloaded.
+   * Requires message size as only the implementation knows how to calculate it.
+   */
+  protected async offloadMessagePayload(
+    message: MessagePayloadSchemas,
+    messageSize: number,
+  ): Promise<MessagePayloadSchemas | OffloadedPayloadPointerPayload> {
+    if (!this.payloadStoreConfig || messageSize <= this.payloadStoreConfig.messageSizeThreshold) {
+      return message
+    }
+
+    const payload = JSON.stringify(message)
+    const offloadedPayloadPointer = await this.payloadStoreConfig.store.storePayload(payload)
+
+    return {
+      offloadedPayloadPointer,
+      offloadedPayloadSize: Buffer.byteLength(payload, 'utf8'),
+      // @ts-ignore
+      [this.messageIdField]: message[this.messageIdField],
+      // @ts-ignore
+      [this.messageTypeField]: message[this.messageTypeField],
+      // @ts-ignore
+      [this.messageTimestampField]: message[this.messageTimestampField],
+    }
+  }
+
+  /**
+   * Retrieve previously offloaded message payload using provided pointer payload.
+   * Returns the original payload or an error if the payload was not found or could not be parsed.
+   */
+  protected async retrieveOffloadedMessagePayload(
+    maybeOffloadedPayloadPointerPayload: unknown,
+  ): Promise<Either<Error, unknown>> {
+    if (!this.payloadStoreConfig) {
+      throw {
+        error: new Error(
+          'Payload store is not configured, cannot retrieve offloaded message payload',
+        ),
+      }
+    }
+
+    const pointerPayloadParseResult = OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEME.safeParse(
+      maybeOffloadedPayloadPointerPayload,
+    )
+    if (!pointerPayloadParseResult.success) {
+      return {
+        error: new Error('Given payload is not a valid offloaded payload pointer payload', {
+          cause: pointerPayloadParseResult.error,
+        }),
+      }
+    }
+
+    const serializedOffloadedPayload = await this.payloadStoreConfig.store.retrievePayload(
+      pointerPayloadParseResult.data.offloadedPayloadPointer,
+    )
+    if (serializedOffloadedPayload === null) {
+      return {
+        error: new Error(
+          `Payload with key ${pointerPayloadParseResult.data.offloadedPayloadPointer} was not found in the store`,
+        ),
+      }
+    }
+
+    try {
+      return { result: JSON.parse(serializedOffloadedPayload) }
+    } catch (e) {
+      return { error: new Error('Failed to parse serialized offloaded payload', { cause: e }) }
+    }
+  }
 }
