@@ -1,0 +1,68 @@
+{
+  "name": "@message-queue-toolkit/s3-store",
+  "version": "0.1.0",
+  "private": false,
+  "license": "MIT",
+  "description": "AWS S3-based message store implementation for message-queue-toolkit",
+  "maintainers": [
+    {
+      "name": "Igor Savin",
+      "email": "kibertoad@gmail.com"
+    }
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "del-cli dist && tsc",
+    "build:release": "del-cli dist && del-cli coverage && npm run lint && tsc --project tsconfig.release.json",
+    "test": "vitest",
+    "test:coverage": "npm test -- --coverage",
+    "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
+    "lint": "eslint . --ext .ts && tsc --noEmit",
+    "lint:fix": "prettier --write . && eslint .  --ext .ts --fix",
+    "docker:start:dev": "docker compose up -d",
+    "docker:stop:dev": "docker compose down",
+    "prepublishOnly": "npm run build:release"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@aws-sdk/client-s3": "^3.596.0",
+    "@message-queue-toolkit/core": "^13.5.0"
+  },
+  "devDependencies": {
+    "@message-queue-toolkit/core": "*",
+    "@types/node": "^20.12.12",
+    "@typescript-eslint/eslint-plugin": "^7.9.0",
+    "@typescript-eslint/parser": "^7.9.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "del-cli": "^5.1.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-vitest": "0.4.1",
+    "prettier": "^3.2.5",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  },
+  "homepage": "https://github.com/kibertoad/message-queue-toolkit",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/kibertoad/message-queue-toolkit.git"
+  },
+  "keywords": [
+    "message",
+    "queue",
+    "queues",
+    "abstract",
+    "common",
+    "utils",
+    "notification",
+    "s3",
+    "store",
+    "claim-check"
+  ],
+  "files": [
+    "README.md",
+    "LICENSE",
+    "dist/*"
+  ]
+}
