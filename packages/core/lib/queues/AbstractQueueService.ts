@@ -7,7 +7,7 @@ import type { ZodSchema, ZodType } from 'zod'
 
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
 import type { OffloadedPayloadPointerPayload } from '../messages/offloadedPayloadMessageSchemas'
-import { OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEME } from '../messages/offloadedPayloadMessageSchemas'
+import { OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA } from '../messages/offloadedPayloadMessageSchemas'
 import type { Logger, MessageProcessingResult } from '../types/MessageQueueTypes'
 import type { PayloadStoreConfig } from '../types/payloadStoreTypes'
 import type { DeletionConfig, QueueDependencies, QueueOptions } from '../types/queueOptionsTypes'
@@ -419,7 +419,7 @@ export abstract class AbstractQueueService<
       }
     }
 
-    const pointerPayloadParseResult = OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEME.safeParse(
+    const pointerPayloadParseResult = OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA.safeParse(
       maybeOffloadedPayloadPointerPayload,
     )
     if (!pointerPayloadParseResult.success) {
