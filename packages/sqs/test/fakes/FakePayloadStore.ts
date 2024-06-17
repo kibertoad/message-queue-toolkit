@@ -1,14 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import { Readable } from 'node:stream'
 
-import type { PayloadStore } from '@message-queue-toolkit/core'
+import type { PayloadStoreTypes, SerializedPayload } from '@message-queue-toolkit/core'
 
-export class FakePayloadStore implements PayloadStore {
+export class FakePayloadStore implements PayloadStoreTypes {
   private storedPayloads: Record<string, Readable> = {}
 
-  storePayload(payload: Readable): Promise<string> {
+  storePayload(payload: SerializedPayload): Promise<string> {
     const key = randomUUID()
-    this.storedPayloads[key] = payload
+    this.storedPayloads[key] =
+      typeof payload.value === 'string' ? Readable.from(payload.value) : payload.value
     return Promise.resolve(key)
   }
 

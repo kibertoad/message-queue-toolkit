@@ -34,17 +34,29 @@ describe('S3PayloadStore', () => {
     it('stores the payload in the bucket', async () => {
       const payload = 'test'
 
-      const key = await store.storePayload(Readable.from(payload), payload.length)
+      const stringPayloadKey = await store.storePayload({
+        value: payload,
+        size: payload.length,
+      })
 
-      expect(key).toContain('test/')
-      const result = await getObjectContent(s3, TEST_BUCKET, key)
-      expect(result).toBe(payload)
+      const streamPayloadKey = await store.storePayload({
+        value: Readable.from(payload),
+        size: payload.length,
+      })
+
+      expect(stringPayloadKey).toContain('test/')
+      expect(streamPayloadKey).toContain('test/')
+      expect(await getObjectContent(s3, TEST_BUCKET, stringPayloadKey)).toBe(payload)
+      expect(await getObjectContent(s3, TEST_BUCKET, streamPayloadKey)).toBe(payload)
     })
   })
   describe('retrievePayload', () => {
     it('retrieves previously stored payload', async () => {
       const payload = 'test'
-      const key = await store.storePayload(Readable.from(payload), payload.length)
+      const key = await store.storePayload({
+        value: Readable.from(payload),
+        size: payload.length,
+      })
 
       const result = await store.retrievePayload(key)
 
@@ -59,7 +71,10 @@ describe('S3PayloadStore', () => {
   describe('deletePayload', () => {
     it('successfully deletes previously stored payload', async () => {
       const payload = 'test'
-      const key = await store.storePayload(Readable.from(payload), payload.length)
+      const key = await store.storePayload({
+        value: Readable.from(payload),
+        size: payload.length,
+      })
       await expect(objectExists(s3, TEST_BUCKET, key)).resolves.toBeTruthy()
 
       await store.deletePayload(key)

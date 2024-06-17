@@ -65,7 +65,12 @@ export * from './lib/messages/baseMessageSchemas'
 export * from './lib/messages/MetadataFiller'
 
 export * from './lib/queues/AbstractPublisherManager'
-export { PayloadStore, PayloadStoreConfig } from './lib/payload-store/payloadStore'
+export {
+  PayloadStoreTypes,
+  PayloadStoreConfig,
+  SerializedPayload,
+  PayloadSerializer,
+} from './lib/payload-store/payloadStoreTypes'
 export {
   OffloadedPayloadPointerPayload,
   OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA,

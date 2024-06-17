@@ -1,16 +1,15 @@
 import { types } from 'node:util'
 
 import type { ErrorReporter, ErrorResolver, Either } from '@lokalise/node-core'
-import { FsReadableProvider, resolveGlobalErrorLogObject } from '@lokalise/node-core'
+import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
-import { JsonStreamStringify } from 'json-stream-stringify'
 import type { ZodSchema, ZodType } from 'zod'
 
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
+import { jsonStringifyStreamSerializer } from '../payload-store/JsonStringifyStreamSerializer'
 import { OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA } from '../payload-store/offloadedPayloadMessageSchemas'
 import type { OffloadedPayloadPointerPayload } from '../payload-store/offloadedPayloadMessageSchemas'
-import type { PayloadStoreConfig } from '../payload-store/payloadStore'
-import { defaultTemporaryFilePathResolver } from '../payload-store/payloadStore'
+import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
 import type { Logger, MessageProcessingResult } from '../types/MessageQueueTypes'
 import type { DeletionConfig, QueueDependencies, QueueOptions } from '../types/queueOptionsTypes'
 import { isRetryDateExceeded } from '../utils/dateUtils'
@@ -71,7 +70,8 @@ export abstract class AbstractQueueService<
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
   protected readonly deletionConfig?: DeletionConfig
-  protected readonly payloadStoreConfig?: PayloadStoreConfig
+  protected readonly payloadStoreConfig?: Omit<PayloadStoreConfig, 'serializer'> &
+    Required<Pick<PayloadStoreConfig, 'serializer'>>
   protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
   protected isInitted: boolean
 
@@ -95,6 +95,11 @@ export abstract class AbstractQueueService<
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig
     this.payloadStoreConfig = options.payloadStoreConfig
+      ? {
+          serializer: jsonStringifyStreamSerializer,
+          ...options.payloadStoreConfig,
+        }
+      : undefined
 
     this.logMessages = options.logMessages ?? false
     this._handlerSpy = resolveHandlerSpy<MessagePayloadSchemas>(options)
@@ -395,22 +400,13 @@ export abstract class AbstractQueueService<
       return message
     }
 
-    const fsReadableProvider = await FsReadableProvider.persistReadableToFs({
-      sourceReadable: new JsonStreamStringify(message),
-      targetFile: this.payloadStoreConfig.temporaryFilePathResolver
-        ? this.payloadStoreConfig.temporaryFilePathResolver()
-        : defaultTemporaryFilePathResolver(),
-    })
-
-    const offloadedPayloadSize = await fsReadableProvider.getContentLength()
-    const offloadedPayloadPointer = await this.payloadStoreConfig.store.storePayload(
-      await fsReadableProvider.createStream(),
-      offloadedPayloadSize,
-    )
+    const serializedPayload = await this.payloadStoreConfig.serializer.serialize(message)
+    const offloadedPayloadPointer =
+      await this.payloadStoreConfig.store.storePayload(serializedPayload)
 
     return {
       offloadedPayloadPointer,
-      offloadedPayloadSize,
+      offloadedPayloadSize: serializedPayload.size,
       // @ts-ignore
       [this.messageIdField]: message[this.messageIdField],
       // @ts-ignore

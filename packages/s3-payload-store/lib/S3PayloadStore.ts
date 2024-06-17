@@ -3,7 +3,7 @@ import type { Readable } from 'node:stream'
 
 import type { S3 } from '@aws-sdk/client-s3'
 import { NoSuchKey } from '@aws-sdk/client-s3'
-import type { PayloadStore } from '@message-queue-toolkit/core'
+import type { PayloadStoreTypes, SerializedPayload } from '@message-queue-toolkit/core'
 
 export type S3PayloadStoreDependencies = {
   s3: S3
@@ -14,7 +14,7 @@ export type S3PayloadStoreConfiguration = {
   keyPrefix?: string
 }
 
-export class S3PayloadStore implements PayloadStore {
+export class S3PayloadStore implements PayloadStoreTypes {
   private s3: S3
   private readonly config: S3PayloadStoreConfiguration
 
@@ -23,14 +23,14 @@ export class S3PayloadStore implements PayloadStore {
     this.config = config
   }
 
-  async storePayload(payload: Readable, payloadSize: number) {
+  async storePayload(payload: SerializedPayload) {
     const id = randomUUID()
     const key = this.config?.keyPrefix?.length ? `${this.config.keyPrefix}/${id}` : id
     await this.s3.putObject({
       Bucket: this.config.bucketName,
       Key: key,
-      Body: payload,
-      ContentLength: payloadSize,
+      Body: payload.value,
+      ContentLength: payload.size,
     })
     return key
   }

@@ -1,7 +1,7 @@
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
-import type { PayloadStoreConfig } from '../payload-store/payloadStore'
+import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer'
 import type { HandlerSpy, HandlerSpyParams } from '../queues/HandlerSpy'
 
