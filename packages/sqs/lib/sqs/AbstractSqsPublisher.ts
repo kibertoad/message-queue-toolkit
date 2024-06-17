@@ -72,7 +72,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       }
 
       message = this.updateInternalProperties(message)
-      const maybeOffloadedPayloadMessage = await this.offloadMessagePayload(
+      const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(
         message,
         calculateOutgoingMessageSize(message),
       )

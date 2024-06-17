@@ -381,7 +381,7 @@ export abstract class AbstractQueueService<
    * Returns a special type that contains a pointer to the offloaded payload or the original payload if it was not offloaded.
    * Requires message size as only the implementation knows how to calculate it.
    */
-  protected async offloadMessagePayload(
+  protected async offloadMessagePayloadIfNeeded(
     message: MessagePayloadSchemas,
     messageSize: number,
   ): Promise<MessagePayloadSchemas | OffloadedPayloadPointerPayload> {
