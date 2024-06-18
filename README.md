@@ -305,21 +305,28 @@ Payload offloading allows you to manage large message payloads by storing them i
 3. **Usage:**
    Messages larger than the `messageSizeThreshold` are automatically offloaded to the configured store (S3 bucket in example). 
    The queue manages only references to these payloads, ensuring compliance with size limits.
-4. **Managing payload lifecycle:**
-   It is important to note that once messages are processed, their payloads are not automatically deleted from the external storage.
-   The management and deletion of old payloads is the responsibility of the payload store itself.
-   For example, in the case of S3, you can set up a lifecycle policy to delete old payloads:
-    ```json
+ 
+### Managing payload lifecycle
+It's important to note that once messages are processed, their payloads **are not automatically deleted** from the external storage.
+**The management and deletion of old payloads is the responsibility of the payload store itself.**
+
+The primary reason for this is simplification. Managing payloads becomes complicated with fan-out, as tracking whether 
+all consumers have read the message is challenging. 
+Additionally, you'll likely need to establish an expiration policy for unconsumed or DLQ-rerouted messages since retaining them indefinitely is impractical.
+Therefore, you will still need to implement some method to expire items.
+
+For example, in the case of S3, you can set up a lifecycle policy to delete old payloads:
+```json
+{
+  "Rules": [
     {
-      "Rules": [
-        {
-          "ID": "ExpireOldPayloads",
-          "Prefix": "optional-key-prefix/",
-          "Status": "Enabled",
-          "Expiration": {
-            "Days": 7
-          }
-        }
-      ]
+      "ID": "ExpireOldPayloads",
+      "Prefix": "optional-key-prefix/",
+      "Status": "Enabled",
+      "Expiration": {
+        "Days": 7
+      }
     }
-    ```
+  ]
+}
+```
