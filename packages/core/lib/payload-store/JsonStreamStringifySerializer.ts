@@ -5,7 +5,7 @@ import { tmpNameSync } from 'tmp'
 import type { PayloadSerializer } from './payloadStoreTypes'
 
 export type TemporaryFilePathResolver = () => string
-const defaultTemporaryFilePathResolver: TemporaryFilePathResolver = () => tmpNameSync()
+export const defaultTemporaryFilePathResolver: TemporaryFilePathResolver = () => tmpNameSync()
 
 export class JsonStreamStringifySerializer implements PayloadSerializer {
   constructor(
@@ -17,8 +17,15 @@ export class JsonStreamStringifySerializer implements PayloadSerializer {
       sourceReadable: new JsonStreamStringify(payload),
       targetFile: this.temporaryFilePathResolver(),
     })
+
+    const fsBasedStream = await fsReadableProvider.createStream()
+    // When stream is read to the end, we can destroy the file
+    fsBasedStream.on('end', () => {
+      void fsReadableProvider.destroy()
+    })
+
     return {
-      value: await fsReadableProvider.createStream(),
+      value: fsBasedStream,
       size: await fsReadableProvider.getContentLength(),
     }
   }
