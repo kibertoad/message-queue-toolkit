@@ -25,8 +25,6 @@ export type SQSMessageOptions = {
   MessageDeduplicationId?: string
 }
 
-export const DEFAULT_MESSAGE_SIZE_THRESHOLD = 256 * 1024 // 256KB
-
 export const PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX = 'payloadOffloading.'
 export const OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE = PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX + '.size'
 

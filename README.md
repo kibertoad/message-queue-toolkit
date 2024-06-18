@@ -256,9 +256,10 @@ Payload offloading allows you to manage large message payloads by storing them i
 
 2. **Configure your setup:**
     ```typescript
-    import {S3} from '@aws-sdk/client-s3'
-    import {S3PayloadStore} from '@message-queue-toolkit/s3-payload-store'
-    import {PayloadStoreConfig} from "@message-queue-toolkit/core"
+    import { S3 } from '@aws-sdk/client-s3'
+    import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
+    import { PayloadStoreConfig } from '@message-queue-toolkit/core'
+    import { SQS_MESSAGE_MAX_SIZE } from '@message-queue-toolkit/sqs'
     
     const s3Client = new S3({
         region: 'your-s3-region',
@@ -276,7 +277,7 @@ Payload offloading allows you to manage large message payloads by storing them i
                 keyPrefix: 'optional-key-prefix'
             }
         ),
-        messageSizeThreshold: 256 * 1024 // 256KB
+        messageSizeThreshold: SQS_MESSAGE_MAX_SIZE,
     }
     
     export class MyConsumer extends AbstractSqsConsumer<> {

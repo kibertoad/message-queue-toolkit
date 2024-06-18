@@ -11,6 +11,7 @@ import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 import { ZodError } from 'zod'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
+import { SQS_MESSAGE_MAX_SIZE } from '../../lib/sqs/AbstractSqsService'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import { FakeLogger } from '../fakes/FakeLogger'
 import { FakePayloadStore } from '../fakes/FakePayloadStore'
@@ -488,7 +489,7 @@ describe('SqsPermissionConsumer', () => {
   })
 
   describe('payload offloading', () => {
-    const largeMessageSizeThreshold = 300 * 1024 // 300KB, something that is larger than the max SQS message size limit (256KB)
+    const largeMessageSizeThreshold = SQS_MESSAGE_MAX_SIZE
 
     let diContainer: AwilixContainer<Dependencies>
 
@@ -523,6 +524,7 @@ describe('SqsPermissionConsumer', () => {
     })
 
     it('consumes large message with offloaded payload', async () => {
+      // Craft a message that is larger than the max message size
       const message = {
         id: '1',
         messageType: 'add',
@@ -530,6 +532,7 @@ describe('SqsPermissionConsumer', () => {
           largeField: 'a'.repeat(largeMessageSizeThreshold),
         },
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+      expect(JSON.stringify(message).length).toBeGreaterThan(largeMessageSizeThreshold)
 
       await publisher.publish(message)
 

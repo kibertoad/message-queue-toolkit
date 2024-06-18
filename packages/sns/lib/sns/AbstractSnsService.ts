@@ -5,6 +5,9 @@ import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
 import { deleteSns, initSns } from '../utils/snsInitter'
 
+// https://docs.aws.amazon.com/general/latest/gr/sns.html
+export const SNS_MESSAGE_MAX_SIZE = 256 * 1024 // 256KB
+
 export type SNSDependencies = QueueDependencies & {
   snsClient: SNSClient
 }

@@ -310,6 +310,7 @@ describe('SqsPermissionPublisher', () => {
           messageType: 'add',
           metadata: { largeField: 'a'.repeat(largeMessageThreshold) },
         } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+        expect(JSON.stringify(message).length).toBeGreaterThan(largeMessageThreshold)
 
         await publisher.publish(message)
 
