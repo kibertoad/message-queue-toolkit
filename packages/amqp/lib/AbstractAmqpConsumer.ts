@@ -317,16 +317,16 @@ export abstract class AbstractAmqpConsumer<
       this.handleError(resolveMessageResult.error)
       return ABORT_EARLY_EITHER
     }
+    const resolvedMessage = resolveMessageResult.result
+
     // Empty content for whatever reason
-    if (!resolveMessageResult.result || !resolveMessageResult.result.body) {
-      return ABORT_EARLY_EITHER
-    }
+    if (!resolvedMessage || !resolvedMessage.body) return ABORT_EARLY_EITHER
 
     // @ts-ignore
-    if (this.messageIdField in resolveMessageResult.result.body) {
+    if (this.messageIdField in resolvedMessage.body) {
       return {
         // @ts-ignore
-        result: resolveMessageResult.result.body[this.messageIdField],
+        result: resolvedMessage.body[this.messageIdField],
       }
     }
 

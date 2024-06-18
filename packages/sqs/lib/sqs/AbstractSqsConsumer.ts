@@ -394,10 +394,10 @@ export abstract class AbstractSqsConsumer<
     if (!resolvedMessage || !resolvedMessage.body) return ABORT_EARLY_EITHER
 
     // @ts-ignore
-    if (this.messageIdField in resolveMessageResult.result) {
+    if (this.messageIdField in resolvedMessage.body) {
       return {
         // @ts-ignore
-        result: resolveMessageResult.result.body[this.messageIdField],
+        result: resolvedMessage.body[this.messageIdField],
       }
     }
 
