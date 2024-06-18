@@ -8,6 +8,10 @@
     {
       "name": "Igor Savin",
       "email": "kibertoad@gmail.com"
+    },
+    {
+      "name": "eduard-fa",
+      "email": "wlkmnn@gmail.com"
     }
   ],
   "main": "dist/index.js",
