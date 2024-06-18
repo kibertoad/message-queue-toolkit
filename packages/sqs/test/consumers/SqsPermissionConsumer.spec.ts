@@ -5,6 +5,7 @@ import type { SendMessageCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import { SendMessageCommand, ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { BarrierResult, PayloadStoreConfig } from '@message-queue-toolkit/core'
+import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import type { AwilixContainer } from 'awilix'
 import { asValue, asClass, asFunction } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
@@ -14,7 +15,6 @@ import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorReso
 import { SQS_MESSAGE_MAX_SIZE } from '../../lib/sqs/AbstractSqsService'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import { FakeLogger } from '../fakes/FakeLogger'
-import { FakePayloadStore } from '../fakes/FakePayloadStore'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
@@ -497,13 +497,13 @@ describe('SqsPermissionConsumer', () => {
     let consumer: SqsPermissionConsumer
 
     beforeEach(async () => {
-      const payloadStoreConfig: PayloadStoreConfig = {
-        messageSizeThreshold: largeMessageSizeThreshold,
-        store: new FakePayloadStore(),
-      }
-
       diContainer = await registerDependencies()
       await deleteQueue(diContainer.cradle.sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+
+      const payloadStoreConfig: PayloadStoreConfig = {
+        messageSizeThreshold: largeMessageSizeThreshold,
+        store: new S3PayloadStore(diContainer.cradle, { bucketName: 'test-bucket' }),
+      }
 
       consumer = new SqsPermissionConsumer(diContainer.cradle, {
         payloadStoreConfig,

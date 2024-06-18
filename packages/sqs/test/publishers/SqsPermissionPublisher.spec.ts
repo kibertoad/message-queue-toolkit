@@ -1,6 +1,8 @@
+import type { S3 } from '@aws-sdk/client-s3'
 import type { Message, SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { OffloadedPayloadPointerPayload } from '@message-queue-toolkit/core'
+import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -12,8 +14,7 @@ import { deserializeSQSMessage } from '../../lib/utils/sqsMessageDeserializer'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
-import { FakePayloadStore } from '../fakes/FakePayloadStore'
-import { streamToString } from '../utils/streamUtils'
+import { assertEmptyBucket, getObjectContent } from '../utils/s3Utils'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -265,13 +266,17 @@ describe('SqsPermissionPublisher', () => {
     describe('payload offloading', () => {
       const queueName = 'payload-offloading_test_queue'
       const largeMessageThreshold = 1024 // Messages larger than 1KB shall be offloaded
+      const s3BucketName = 'payload-offloading-test-bucket'
+      const s3ObjectKeyPrefix = 'payload-offloading-test-key'
       let publisher: SqsPermissionPublisher
       let consumer: Consumer
       let receivedSqsMessages: Message[]
-      let fakePayloadStore: FakePayloadStore
+      let s3: S3
 
       beforeEach(async () => {
+        s3 = diContainer.cradle.s3
         await deleteQueue(diContainer.cradle.sqsClient, queueName)
+        await assertEmptyBucket(s3, s3BucketName)
         const { queueUrl } = await assertQueue(diContainer.cradle.sqsClient, {
           QueueName: queueName,
         })
@@ -290,12 +295,14 @@ describe('SqsPermissionPublisher', () => {
         })
         consumer.start()
 
-        fakePayloadStore = new FakePayloadStore()
         publisher = new SqsPermissionPublisher(diContainer.cradle, {
           creationConfig: { queue: { QueueName: queueName } },
           payloadStoreConfig: {
             messageSizeThreshold: largeMessageThreshold,
-            store: fakePayloadStore,
+            store: new S3PayloadStore(diContainer.cradle, {
+              bucketName: s3BucketName,
+              keyPrefix: s3ObjectKeyPrefix,
+            }),
           },
         })
       })
@@ -332,16 +339,13 @@ describe('SqsPermissionPublisher', () => {
         expect(receivedMessageAttributes).toBeDefined()
         expect(receivedMessageAttributes![OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE]).toBeDefined()
 
-        // Check that the offloaded payload is stored in the payload store.
+        // Make sure the payload was offloaded to the S3 bucket.
         const offloadedPayloadPointer = (
           parsedReceivedMessageBody as OffloadedPayloadPointerPayload
         ).offloadedPayloadPointer
-        const offloadedPayload = fakePayloadStore.getAndClearPayloads()[offloadedPayloadPointer]
-        expect(offloadedPayload).toBeDefined()
-
-        // Check that the offloaded payload is the same as the original message.
-        const parsedOffloadedPayload = JSON.parse(await streamToString(offloadedPayload))
-        expect(parsedOffloadedPayload).toMatchObject(message)
+        await expect(
+          getObjectContent(s3, s3BucketName, offloadedPayloadPointer),
+        ).resolves.toBeDefined()
       })
     })
   })

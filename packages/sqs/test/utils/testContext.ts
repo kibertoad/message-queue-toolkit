@@ -1,3 +1,4 @@
+import { S3 } from '@aws-sdk/client-s3'
 import { SQSClient } from '@aws-sdk/client-sqs'
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
@@ -9,7 +10,7 @@ import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResol
 import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 
-import { TEST_SQS_CONFIG } from './testSqsConfig'
+import { TEST_AWS_CONFIG } from './testAwsConfig'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -40,12 +41,15 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
     // Not disposing sqs client allows consumers to terminate correctly
     sqsClient: asFunction(
       () => {
-        return new SQSClient(TEST_SQS_CONFIG)
+        return new SQSClient(TEST_AWS_CONFIG)
       },
       {
         lifetime: Lifetime.SINGLETON,
       },
     ),
+    s3: asFunction(() => {
+      return new S3(TEST_AWS_CONFIG)
+    }),
     consumerErrorResolver: asFunction(() => {
       return new SqsConsumerErrorResolver()
     }),
@@ -90,6 +94,7 @@ type DiConfig = Record<keyof Dependencies, Resolver<any>>
 export interface Dependencies {
   logger: Logger
   sqsClient: SQSClient
+  s3: S3
   awilixManager: AwilixManager
 
   // vendor-specific dependencies

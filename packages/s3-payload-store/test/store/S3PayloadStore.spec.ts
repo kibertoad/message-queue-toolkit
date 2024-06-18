@@ -1,15 +1,10 @@
 import { Readable } from 'node:stream'
 
 import { S3 } from '@aws-sdk/client-s3'
-import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
+import { describe, beforeEach, expect, it, beforeAll } from 'vitest'
 
 import { S3PayloadStore } from '../../lib/S3PayloadStore'
-import {
-  assertBucket,
-  deleteBucketWithObjects,
-  getObjectContent,
-  objectExists,
-} from '../utils/s3Utils'
+import { assertEmptyBucket, getObjectContent, objectExists } from '../utils/s3Utils'
 import { streamToString } from '../utils/streamUtils'
 import { TEST_AWS_CONFIG } from '../utils/testS3Config'
 
@@ -24,10 +19,7 @@ describe('S3PayloadStore', () => {
     store = new S3PayloadStore({ s3 }, { bucketName: TEST_BUCKET, keyPrefix: 'test' })
   })
   beforeEach(async () => {
-    await assertBucket(s3, TEST_BUCKET)
-  })
-  afterEach(async () => {
-    await deleteBucketWithObjects(s3, TEST_BUCKET)
+    await assertEmptyBucket(s3, TEST_BUCKET)
   })
 
   describe('storePayload', () => {

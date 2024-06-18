@@ -4,7 +4,7 @@ import { NotFound } from '@aws-sdk/client-s3'
 export async function assertEmptyBucket(s3: S3, bucketName: string) {
   try {
     await s3.headBucket({ Bucket: bucketName })
-    const objects = await s3.listObjects({ Bucket: 'foobar' })
+    const objects = await s3.listObjects({ Bucket: bucketName })
     if (objects.Contents?.length) {
       await s3.deleteObjects({
         Bucket: bucketName,
@@ -22,13 +22,4 @@ export async function assertEmptyBucket(s3: S3, bucketName: string) {
 export async function getObjectContent(s3: S3, bucket: string, key: string) {
   const result = await s3.getObject({ Bucket: bucket, Key: key })
   return result.Body?.transformToString()
-}
-
-export async function objectExists(s3: S3, bucket: string, key: string) {
-  try {
-    await s3.headObject({ Bucket: bucket, Key: key })
-    return true
-  } catch (e) {
-    return false
-  }
 }
