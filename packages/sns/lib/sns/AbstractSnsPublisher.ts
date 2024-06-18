@@ -10,9 +10,9 @@ import type {
   QueuePublisherOptions,
   MessageSchemaContainer,
   OffloadedPayloadPointerPayload,
+  ResolvedMessage,
 } from '@message-queue-toolkit/core'
 import { isOffloadedPayloadPointerPayload } from '@message-queue-toolkit/core'
-import type { ResolvedMessage } from '@message-queue-toolkit/core/dist/lib/queues/AbstractQueueService'
 import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
 
 import { calculateOutgoingMessageSize } from '../utils/snsUtils'

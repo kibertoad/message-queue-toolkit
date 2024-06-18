@@ -1,7 +1,7 @@
 import type { S3 } from '@aws-sdk/client-s3'
 import type { PayloadStoreConfig } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
-import type { AwilixContainer } from 'awilix';
+import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
 

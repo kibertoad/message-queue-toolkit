@@ -12,7 +12,7 @@ import {
   assertQueue,
   deleteQueue,
 } from '@message-queue-toolkit/sqs'
-import type { AwilixContainer } from 'awilix';
+import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { describe, beforeEach, afterEach, expect, it } from 'vitest'
