@@ -1,26 +1,33 @@
-import type { SendMessageCommandInput } from '@aws-sdk/client-sqs'
+import type { MessageAttributeValue } from '@aws-sdk/client-sqs'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
 import { InternalError } from '@lokalise/node-core'
 import type {
   AsyncPublisher,
-  MessageInvalidFormatError,
-  MessageValidationError,
   BarrierResult,
-  QueuePublisherOptions,
+  MessageInvalidFormatError,
   MessageSchemaContainer,
+  MessageValidationError,
+  QueuePublisherOptions,
+  OffloadedPayloadPointerPayload,
+  ResolvedMessage,
 } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
 import type { SQSMessage } from '../types/MessageTypes'
+import { resolveOutgoingMessageAttributes } from '../utils/messageUtils'
+import { calculateOutgoingMessageSize } from '../utils/sqsUtils'
 
+import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
-import type { SQSDependencies, SQSQueueLocatorType, SQSCreationConfig } from './AbstractSqsService'
 
 export type SQSMessageOptions = {
   MessageGroupId?: string
   MessageDeduplicationId?: string
 }
+
+export const PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX = 'payloadOffloading.'
+export const OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE = PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX + 'size'
 
 export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
   extends AbstractSqsService<MessagePayloadType>
@@ -64,15 +71,11 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       }
 
       message = this.updateInternalProperties(message)
+      const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(message, () =>
+        calculateOutgoingMessageSize(message),
+      )
 
-      const input = {
-        // SendMessageRequest
-        QueueUrl: this.queueUrl,
-        MessageBody: JSON.stringify(message),
-        ...options,
-      } satisfies SendMessageCommandInput
-      const command = new SendMessageCommand(input)
-      await this.sqsClient.send(command)
+      await this.sendMessage(maybeOffloadedPayloadMessage, options)
       this.handleMessageProcessed(parsedMessage, 'published')
     } catch (error) {
       const err = error as Error
@@ -99,7 +102,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
 
   protected resolveMessage(
     _message: SQSMessage,
-  ): Either<MessageInvalidFormatError | MessageValidationError, unknown> {
+  ): Either<MessageInvalidFormatError | MessageValidationError, ResolvedMessage> {
     throw new Error('Not implemented for publisher')
   }
 
@@ -120,5 +123,19 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     message: MessagePayloadType,
   ): Either<Error, ZodSchema<MessagePayloadType>> {
     return this.messageSchemaContainer.resolveSchema(message)
+  }
+
+  protected async sendMessage(
+    payload: MessagePayloadType | OffloadedPayloadPointerPayload,
+    options: SQSMessageOptions,
+  ): Promise<void> {
+    const attributes = resolveOutgoingMessageAttributes<MessageAttributeValue>(payload)
+    const command = new SendMessageCommand({
+      QueueUrl: this.queueUrl,
+      MessageBody: JSON.stringify(payload),
+      MessageAttributes: attributes,
+      ...options,
+    })
+    await this.sqsClient.send(command)
   }
 }

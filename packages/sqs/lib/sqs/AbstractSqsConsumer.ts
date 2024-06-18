@@ -17,10 +17,12 @@ import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import type { SQSMessage } from '../types/MessageTypes'
+import { hasOffloadedPayload } from '../utils/messageUtils'
 import { deleteSqs, initSqs } from '../utils/sqsInitter'
 import { readSqsMessage } from '../utils/sqsMessageReader'
 import { getQueueAttributes } from '../utils/sqsUtils'
 
+import { PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX } from './AbstractSqsPublisher'
 import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
 
@@ -180,11 +182,12 @@ export abstract class AbstractSqsConsumer<
       sqs: this.sqsClient,
       queueUrl: this.queueUrl,
       visibilityTimeout,
+      messageAttributeNames: [PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX + '*'],
       ...this.consumerOptionsOverride,
       handleMessage: async (message: SQSMessage) => {
         if (message === null) return
 
-        const deserializedMessage = this.deserializeMessage(message)
+        const deserializedMessage = await this.deserializeMessage(message)
         if (deserializedMessage.error === 'abort') {
           await this.failProcessing(message)
 
@@ -348,45 +351,68 @@ export abstract class AbstractSqsConsumer<
     return readSqsMessage(message, this.errorResolver)
   }
 
+  protected async resolveMaybeOffloadedPayloadMessage(message: SQSMessage) {
+    const resolveMessageResult = this.resolveMessage(message)
+    if (isMessageError(resolveMessageResult.error)) {
+      this.handleError(resolveMessageResult.error)
+      return ABORT_EARLY_EITHER
+    }
+
+    // Empty content for whatever reason
+    if (!resolveMessageResult.result || !resolveMessageResult.result.body) {
+      return ABORT_EARLY_EITHER
+    }
+
+    if (hasOffloadedPayload(resolveMessageResult.result)) {
+      const retrieveOffloadedMessagePayloadResult = await this.retrieveOffloadedMessagePayload(
+        resolveMessageResult.result.body,
+      )
+      if (retrieveOffloadedMessagePayloadResult.error) {
+        this.handleError(retrieveOffloadedMessagePayloadResult.error)
+        return ABORT_EARLY_EITHER
+      }
+      resolveMessageResult.result.body = retrieveOffloadedMessagePayloadResult.result
+    }
+
+    return resolveMessageResult
+  }
+
   private tryToExtractId(message: SQSMessage): Either<'abort', string> {
     const resolveMessageResult = this.resolveMessage(message)
     if (isMessageError(resolveMessageResult.error)) {
       this.handleError(resolveMessageResult.error)
       return ABORT_EARLY_EITHER
     }
+    const resolvedMessage = resolveMessageResult.result
+
     // Empty content for whatever reason
-    if (!resolveMessageResult.result) return ABORT_EARLY_EITHER
+    if (!resolvedMessage || !resolvedMessage.body) return ABORT_EARLY_EITHER
 
     // @ts-ignore
-    if (this.messageIdField in resolveMessageResult.result) {
+    if (this.messageIdField in resolvedMessage.body) {
       return {
         // @ts-ignore
-        result: resolveMessageResult.result[this.messageIdField],
+        result: resolvedMessage.body[this.messageIdField],
       }
     }
 
     return ABORT_EARLY_EITHER
   }
 
-  private deserializeMessage(
+  private async deserializeMessage(
     message: SQSMessage,
-  ): Either<'abort', ParseMessageResult<MessagePayloadType>> {
+  ): Promise<Either<'abort', ParseMessageResult<MessagePayloadType>>> {
     if (message === null) {
       return ABORT_EARLY_EITHER
     }
 
-    const resolveMessageResult = this.resolveMessage(message)
-    if (isMessageError(resolveMessageResult.error)) {
-      this.handleError(resolveMessageResult.error)
-      return ABORT_EARLY_EITHER
-    }
-    // Empty content for whatever reason
-    if (!resolveMessageResult.result) {
+    const resolveMessageResult = await this.resolveMaybeOffloadedPayloadMessage(message)
+    if (resolveMessageResult.error) {
       return ABORT_EARLY_EITHER
     }
 
     const resolveSchemaResult = this.resolveSchema(
-      resolveMessageResult.result as MessagePayloadType,
+      resolveMessageResult.result.body as MessagePayloadType,
     )
     if (resolveSchemaResult.error) {
       this.handleError(resolveSchemaResult.error)
@@ -394,7 +420,7 @@ export abstract class AbstractSqsConsumer<
     }
 
     const deserializationResult = parseMessage(
-      resolveMessageResult.result,
+      resolveMessageResult.result.body,
       resolveSchemaResult.result,
       this.errorResolver,
     )
@@ -402,7 +428,6 @@ export abstract class AbstractSqsConsumer<
       this.handleError(deserializationResult.error)
       return ABORT_EARLY_EITHER
     }
-
     // Empty content for whatever reason
     if (!deserializationResult.result) {
       return ABORT_EARLY_EITHER

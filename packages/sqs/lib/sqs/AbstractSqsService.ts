@@ -5,6 +5,9 @@ import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { SQSMessage } from '../types/MessageTypes'
 import { deleteSqs, initSqs } from '../utils/sqsInitter'
 
+// https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html
+export const SQS_MESSAGE_MAX_SIZE = 256 * 1024 // 256KB
+
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient
 }

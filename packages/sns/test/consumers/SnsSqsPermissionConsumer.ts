@@ -38,6 +38,7 @@ type SnsSqsPermissionConsumerOptions = Pick<
   | 'deadLetterQueue'
   | 'consumerOverrides'
   | 'maxRetryDuration'
+  | 'payloadStoreConfig'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -148,6 +149,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
         deletionConfig: options.deletionConfig ?? {
           deleteIfExists: true,
         },
+        payloadStoreConfig: options.payloadStoreConfig,
         consumerOverrides: options.consumerOverrides ?? {
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
         },

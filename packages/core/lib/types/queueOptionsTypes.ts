@@ -1,6 +1,7 @@
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
+import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer'
 import type { HandlerSpy, HandlerSpyParams } from '../queues/HandlerSpy'
 
@@ -23,6 +24,7 @@ export type CommonQueueOptions = {
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
   deletionConfig?: DeletionConfig
+  payloadStoreConfig?: PayloadStoreConfig
 }
 
 export type CommonCreationConfigType = {

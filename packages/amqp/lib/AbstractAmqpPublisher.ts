@@ -7,6 +7,7 @@ import type {
   MessageSchemaContainer,
   MessageValidationError,
   QueuePublisherOptions,
+  ResolvedMessage,
   SyncPublisher,
 } from '@message-queue-toolkit/core'
 import { objectToBuffer } from '@message-queue-toolkit/core'
@@ -127,7 +128,10 @@ export abstract class AbstractAmqpPublisher<
   }
 
   /* c8 ignore start */
-  protected resolveMessage(): Either<MessageInvalidFormatError | MessageValidationError, unknown> {
+  protected resolveMessage(): Either<
+    MessageInvalidFormatError | MessageValidationError,
+    ResolvedMessage
+  > {
     throw new Error('Not implemented for publisher')
   }
 

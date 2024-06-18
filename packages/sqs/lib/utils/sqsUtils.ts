@@ -6,7 +6,12 @@ import {
   SetQueueAttributesCommand,
   ListQueuesCommand,
 } from '@aws-sdk/client-sqs'
-import type { CreateQueueCommandInput, SQSClient, QueueAttributeName } from '@aws-sdk/client-sqs'
+import type {
+  CreateQueueCommandInput,
+  SQSClient,
+  QueueAttributeName,
+  SendMessageCommandInput,
+} from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
 import { isShallowSubset, waitAndRetry } from '@message-queue-toolkit/core'
 
@@ -218,4 +223,22 @@ export async function deleteQueue(
     // @ts-ignore
     console.log(`Failed to delete: ${err.message}`)
   }
+}
+
+/**
+ * Calculates the size of an outgoing SQS message.
+ *
+ * SQS imposes a 256 KB limit on the total size of a message, which includes both the message body and any metadata (attributes).
+ * This function currently computes the size based solely on the message body, as no attributes are included at this time.
+ * For future updates, if message attributes are added, their sizes should also be considered.
+ *
+ * Reference: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-message-metadata.html#sqs-message-attributes
+ */
+export function calculateOutgoingMessageSize(message: unknown) {
+  const messageBody = JSON.stringify(message)
+  return calculateSqsMessageBodySize(messageBody)
+}
+
+export function calculateSqsMessageBodySize(messageBody: SendMessageCommandInput['MessageBody']) {
+  return messageBody ? Buffer.byteLength(messageBody, 'utf8') : 0
 }

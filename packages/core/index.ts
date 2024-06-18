@@ -9,7 +9,11 @@ export type {
   ExtraParams,
 } from './lib/types/MessageQueueTypes'
 
-export { AbstractQueueService, Deserializer } from './lib/queues/AbstractQueueService'
+export {
+  AbstractQueueService,
+  Deserializer,
+  ResolvedMessage,
+} from './lib/queues/AbstractQueueService'
 export * from './lib/types/queueOptionsTypes'
 
 export {
@@ -65,3 +69,14 @@ export * from './lib/messages/baseMessageSchemas'
 export * from './lib/messages/MetadataFiller'
 
 export * from './lib/queues/AbstractPublisherManager'
+export {
+  PayloadStoreTypes,
+  PayloadStoreConfig,
+  SerializedPayload,
+  PayloadSerializer,
+} from './lib/payload-store/payloadStoreTypes'
+export {
+  OffloadedPayloadPointerPayload,
+  OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA,
+  isOffloadedPayloadPointerPayload,
+} from './lib/payload-store/offloadedPayloadMessageSchemas'

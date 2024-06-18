@@ -16,7 +16,7 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<SupportedTypes>
 
   constructor(
     dependencies: SNSDependencies,
-    options?: Pick<SNSOptions, 'creationConfig' | 'locatorConfig'>,
+    options?: Pick<SNSOptions, 'creationConfig' | 'locatorConfig' | 'payloadStoreConfig'>,
   ) {
     super(dependencies, {
       ...(options?.locatorConfig
@@ -29,6 +29,7 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<SupportedTypes>
       deletionConfig: {
         deleteIfExists: false,
       },
+      payloadStoreConfig: options?.payloadStoreConfig,
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
       handlerSpy: true,
       messageTypeField: 'messageType',

@@ -9,6 +9,7 @@ import {
   UnsubscribeCommand,
 } from '@aws-sdk/client-sns'
 import type { Either } from '@lokalise/node-core'
+import { calculateOutgoingMessageSize as sqsCalculateOutgoingMessageSize } from '@message-queue-toolkit/sqs'
 
 import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
 
@@ -142,3 +143,17 @@ export async function findSubscriptionByTopicAndQueue(
     return entry.Endpoint === queueArn
   })
 }
+
+/**
+ * Calculates the size of an outgoing SNS message.
+ *
+ * SNS imposes a 256 KB limit on the total size of a message, which includes both the message body and any metadata (attributes).
+ * This function currently computes the size based solely on the message body, as no attributes are included at this time.
+ * For future updates, if message attributes are added, their sizes should also be considered.
+ *
+ * Reference: https://docs.aws.amazon.com/sns/latest/dg/sns-message-attributes.html
+ *
+ * A wrapper around the equivalent function in the SQS package.
+ */
+export const calculateOutgoingMessageSize = (message: unknown) =>
+  sqsCalculateOutgoingMessageSize(message)

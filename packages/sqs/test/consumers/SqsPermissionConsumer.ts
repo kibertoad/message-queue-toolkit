@@ -25,6 +25,7 @@ type SqsPermissionConsumerOptions = Pick<
   | 'deadLetterQueue'
   | 'consumerOverrides'
   | 'maxRetryDuration'
+  | 'payloadStoreConfig'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -97,6 +98,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
         },
         maxRetryDuration: options.maxRetryDuration,
+        payloadStoreConfig: options.payloadStoreConfig,
         handlers: new MessageHandlerConfigBuilder<
           SupportedMessages,
           ExecutionContext,

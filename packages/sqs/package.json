@@ -13,7 +13,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "del-cli dist && tsc",
     "build:release": "del-cli dist && del-cli coverage && npm run lint && tsc --project tsconfig.release.json",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
@@ -34,8 +34,10 @@
     "@message-queue-toolkit/core": "^13.5.0"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.598.0",
     "@aws-sdk/client-sqs": "^3.569.0",
     "@message-queue-toolkit/core": "*",
+    "@message-queue-toolkit/s3-payload-store": "^0.1.0",
     "@types/node": "^20.12.8",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
     "@typescript-eslint/parser": "^7.1.1",

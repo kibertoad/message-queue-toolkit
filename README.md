@@ -35,6 +35,7 @@ They implement the following public methods:
         * `deletionConfig` - automatic cleanup of resources;
         * `handlerSpy` - allow awaiting certain messages to be published (see [Handler Spies](#handler-spies) for more information);
         * `logMessages` - add logs for processed messages.
+        * `payloadStoreConfig` - configuration for payload offloading. This option enables the external storage of large message payloads to comply with message size limitations of the queue system. For more details on setting this up, see [Payload Offloading](#payload-offloading).
 * `init()`, prepare publisher for use (e. g. establish all necessary connections);
 * `close()`, stop publisher use (e. g. disconnect);
 * `publish()`, send a message to a queue or topic. It accepts the following parameters:
@@ -66,6 +67,7 @@ Multi-schema consumers support multiple message types via handler configs. They 
         * `deadLetterQueue` - available only for SQS and SNS consumers (see [Dead Letter Queue](#dead-letter-queue) for more information);
         * `handlerSpy` - allow awaiting certain messages to be published (see [Handler Spies](#handler-spies) for more information);
         * `logMessages` - add logs for processed messages.
+        * `payloadStoreConfig` - configuration for payload offloading. This option enables the external storage of large message payloads to comply with message size limitations of the queue system. For more details on setting this up, see [Payload Offloading](#payload-offloading).
 * `init()`, prepare consumer for use (e. g. establish all necessary connections);
 * `close()`, stop listening for messages and disconnect;
 * `start()`, which invokes `init()`.
@@ -242,3 +244,89 @@ const result = await myConsumer.handlerSpy.waitForMessageWithId('1')
 expect(result.processingResult).toEqual('consumed')
 ```
 
+## Payload Offloading
+Payload offloading allows you to manage large message payloads by storing them in external storage, bypassing any message size restrictions imposed by queue systems.
+
+### Configuration
+
+1. **Install a payload store implementation (S3 in example):**
+   ```bash
+   npm install @message-queue-toolkit/s3-payload-store
+   ```
+
+2. **Configure your setup:**
+    ```typescript
+    import { S3 } from '@aws-sdk/client-s3'
+    import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
+    import { PayloadStoreConfig } from '@message-queue-toolkit/core'
+    import { SQS_MESSAGE_MAX_SIZE } from '@message-queue-toolkit/sqs'
+    
+    const s3Client = new S3({
+        region: 'your-s3-region',
+        credentials: {
+            accessKeyId: 'your-access-key-id',
+            secretAccessKey: 'your-secret-access-key'
+        }
+    })
+    
+    const payloadStoreConfig = {
+        store: new S3PayloadStore(
+            {s3: s3Client},
+            {
+                bucketName: 'your-s3-bucket-name',
+                keyPrefix: 'optional-key-prefix'
+            }
+        ),
+        messageSizeThreshold: SQS_MESSAGE_MAX_SIZE,
+    }
+    
+    export class MyConsumer extends AbstractSqsConsumer<> {
+        constructor(
+            // dependencies and options
+        ) {
+            super(dependencies, {
+                // rest of the configuration
+                payloadStoreConfig,
+            })
+        }
+    }
+    
+    export class MyPublisher extends AbstractSqsPublisher<> {
+        constructor(
+            // dependencies and options
+        ) {
+            super(dependencies, {
+                // rest of the configuration
+                payloadStoreConfig,
+            })
+        }
+    }
+    ```
+3. **Usage:**
+   Messages larger than the `messageSizeThreshold` are automatically offloaded to the configured store (S3 bucket in example). 
+   The queue manages only references to these payloads, ensuring compliance with size limits.
+ 
+### Managing payload lifecycle
+It's important to note that once messages are processed, their payloads **are not automatically deleted** from the external storage.
+**The management and deletion of old payloads is the responsibility of the payload store itself.**
+
+The primary reason for this is simplification. Managing payloads becomes complicated with fan-out, as tracking whether 
+all consumers have read the message is challenging. 
+Additionally, you'll likely need to establish an expiration policy for unconsumed or DLQ-rerouted messages since retaining them indefinitely is impractical.
+Therefore, you will still need to implement some method to expire items.
+
+For example, in the case of S3, you can set up a lifecycle policy to delete old payloads:
+```json
+{
+  "Rules": [
+    {
+      "ID": "ExpireOldPayloads",
+      "Prefix": "optional-key-prefix/",
+      "Status": "Enabled",
+      "Expiration": {
+        "Days": 7
+      }
+    }
+  ]
+}
+```
