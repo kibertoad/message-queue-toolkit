@@ -13,8 +13,16 @@ export type SerializedPayload = {
   size: number
 }
 
+export type Destroyable<T> = T & {
+  destroy(): Promise<void>
+}
+
+export function isDestroyable(value: unknown): value is Destroyable<unknown> {
+  return typeof value === 'object' && value !== null && 'destroy' in value
+}
+
 export interface PayloadSerializer {
-  serialize(payload: unknown): Promise<SerializedPayload>
+  serialize(payload: unknown): Promise<SerializedPayload | Destroyable<SerializedPayload>>
 }
 
 export type PayloadStoreConfig = {

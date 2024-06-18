@@ -18,15 +18,12 @@ export class JsonStreamStringifySerializer implements PayloadSerializer {
       targetFile: this.temporaryFilePathResolver(),
     })
 
-    const fsBasedStream = await fsReadableProvider.createStream()
-    // When stream is read to the end, we can destroy the file
-    fsBasedStream.on('end', () => {
-      void fsReadableProvider.destroy()
-    })
-
     return {
-      value: fsBasedStream,
+      value: await fsReadableProvider.createStream(),
       size: await fsReadableProvider.getContentLength(),
+      destroy: async () => {
+        await fsReadableProvider.destroy()
+      },
     }
   }
 }

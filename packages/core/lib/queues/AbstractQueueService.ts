@@ -10,6 +10,7 @@ import { jsonStreamStringifySerializer } from '../payload-store/JsonStreamString
 import { OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA } from '../payload-store/offloadedPayloadMessageSchemas'
 import type { OffloadedPayloadPointerPayload } from '../payload-store/offloadedPayloadMessageSchemas'
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
+import { isDestroyable } from '../payload-store/payloadStoreTypes'
 import type { Logger, MessageProcessingResult } from '../types/MessageQueueTypes'
 import type { DeletionConfig, QueueDependencies, QueueOptions } from '../types/queueOptionsTypes'
 import { isRetryDateExceeded } from '../utils/dateUtils'
@@ -405,9 +406,15 @@ export abstract class AbstractQueueService<
       return message
     }
 
+    let offloadedPayloadPointer: string
     const serializedPayload = await this.payloadStoreConfig.serializer.serialize(message)
-    const offloadedPayloadPointer =
-      await this.payloadStoreConfig.store.storePayload(serializedPayload)
+    try {
+      offloadedPayloadPointer = await this.payloadStoreConfig.store.storePayload(serializedPayload)
+    } finally {
+      if (isDestroyable(serializedPayload)) {
+        await serializedPayload.destroy()
+      }
+    }
 
     return {
       offloadedPayloadPointer,
