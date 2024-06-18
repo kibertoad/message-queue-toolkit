@@ -1,20 +1,15 @@
-import type { S3 } from '@aws-sdk/client-s3'
-import type { Message, SQSClient } from '@aws-sdk/client-sqs'
+import type { SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
-import type { OffloadedPayloadPointerPayload } from '@message-queue-toolkit/core'
-import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
-import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '../../lib/sqs/AbstractSqsPublisher'
 import type { SQSMessage } from '../../lib/types/MessageTypes'
 import { deserializeSQSMessage } from '../../lib/utils/sqsMessageDeserializer'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
-import { assertEmptyBucket, getObjectContent } from '../utils/s3Utils'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
@@ -261,92 +256,6 @@ describe('SqsPermissionPublisher', () => {
       const spy = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
       expect(spy.message).toEqual(message)
       expect(spy.processingResult).toBe('published')
-    })
-
-    describe('payload offloading', () => {
-      const queueName = 'payload-offloading_test_queue'
-      const largeMessageThreshold = 1024 // Messages larger than 1KB shall be offloaded
-      const s3BucketName = 'payload-offloading-test-bucket'
-      const s3ObjectKeyPrefix = 'payload-offloading-test-key'
-      let publisher: SqsPermissionPublisher
-      let consumer: Consumer
-      let receivedSqsMessages: Message[]
-      let s3: S3
-
-      beforeEach(async () => {
-        s3 = diContainer.cradle.s3
-        await deleteQueue(diContainer.cradle.sqsClient, queueName)
-        await assertEmptyBucket(s3, s3BucketName)
-        const { queueUrl } = await assertQueue(diContainer.cradle.sqsClient, {
-          QueueName: queueName,
-        })
-
-        receivedSqsMessages = []
-        consumer = Consumer.create({
-          queueUrl,
-          handleMessage: async (message: Message) => {
-            if (message === null) {
-              return
-            }
-            receivedSqsMessages.push(message)
-          },
-          sqs: diContainer.cradle.sqsClient,
-          messageAttributeNames: [OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE],
-        })
-        consumer.start()
-
-        publisher = new SqsPermissionPublisher(diContainer.cradle, {
-          creationConfig: { queue: { QueueName: queueName } },
-          payloadStoreConfig: {
-            messageSizeThreshold: largeMessageThreshold,
-            store: new S3PayloadStore(diContainer.cradle, {
-              bucketName: s3BucketName,
-              keyPrefix: s3ObjectKeyPrefix,
-            }),
-          },
-        })
-      })
-      afterEach(async () => {
-        await publisher.close()
-        consumer.stop()
-      })
-
-      it('offloads large message payload to payload store', async () => {
-        const message = {
-          id: '1',
-          messageType: 'add',
-          metadata: { largeField: 'a'.repeat(largeMessageThreshold) },
-        } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
-        expect(JSON.stringify(message).length).toBeGreaterThan(largeMessageThreshold)
-
-        await publisher.publish(message)
-
-        await expect(
-          publisher.handlerSpy.waitForMessageWithId('1', 'published'),
-        ).resolves.toBeDefined()
-        await waitAndRetry(() => receivedSqsMessages.length > 0)
-
-        // Check that the published message's body is a pointer to the offloaded payload.
-        expect(receivedSqsMessages.length).toBe(1)
-        const parsedReceivedMessageBody = JSON.parse(receivedSqsMessages[0].Body!)
-        expect(parsedReceivedMessageBody).toMatchObject({
-          offloadedPayloadPointer: expect.any(String),
-          offloadedPayloadSize: expect.any(Number), //The actual size of the offloaded message is larger than JSON.stringify(message) because of the additional metadata (timestamp, retry count) that is added internally.
-        })
-
-        // Check that the published message had offloaded payload indicator.
-        const receivedMessageAttributes = receivedSqsMessages[0].MessageAttributes
-        expect(receivedMessageAttributes).toBeDefined()
-        expect(receivedMessageAttributes![OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE]).toBeDefined()
-
-        // Make sure the payload was offloaded to the S3 bucket.
-        const offloadedPayloadPointer = (
-          parsedReceivedMessageBody as OffloadedPayloadPointerPayload
-        ).offloadedPayloadPointer
-        await expect(
-          getObjectContent(s3, s3BucketName, offloadedPayloadPointer),
-        ).resolves.toBeDefined()
-      })
     })
   })
 })

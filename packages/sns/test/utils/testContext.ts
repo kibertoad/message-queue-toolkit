@@ -1,3 +1,4 @@
+import { S3 } from '@aws-sdk/client-s3'
 import { SNSClient } from '@aws-sdk/client-sns'
 import { SQSClient } from '@aws-sdk/client-sqs'
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
@@ -95,6 +96,9 @@ export async function registerDependencies(
         lifetime: Lifetime.SINGLETON,
       },
     ),
+    s3: asFunction(() => {
+      return new S3(TEST_AWS_CONFIG)
+    }),
 
     consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
 
@@ -168,6 +172,7 @@ export interface Dependencies {
   logger: Logger
   sqsClient: SQSClient
   snsClient: SNSClient
+  s3: S3
   awilixManager: AwilixManager
 
   // vendor-specific dependencies

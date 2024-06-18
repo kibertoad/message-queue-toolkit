@@ -354,25 +354,29 @@ export abstract class AbstractSqsConsumer<
   }
 
   protected async resolveMaybeOffloadedPayloadMessage(message: SQSMessage) {
-    let resolveMessageResult = this.resolveMessage(message)
+    const resolveMessageResult = this.resolveMessage(message)
     if (isMessageError(resolveMessageResult.error)) {
       this.handleError(resolveMessageResult.error)
       return ABORT_EARLY_EITHER
     }
+
     // Empty content for whatever reason
-    if (!resolveMessageResult.result) {
+    if (!resolveMessageResult.result || !resolveMessageResult.result.body) {
       return ABORT_EARLY_EITHER
     }
 
-    if (message.MessageAttributes && message.MessageAttributes[OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE]) {
+    if (
+      resolveMessageResult.result.attributes &&
+      resolveMessageResult.result.attributes[OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE]
+    ) {
       const retrieveOffloadedMessagePayloadResult = await this.retrieveOffloadedMessagePayload(
-        resolveMessageResult.result,
+        resolveMessageResult.result.body,
       )
       if (retrieveOffloadedMessagePayloadResult.error) {
         this.handleError(retrieveOffloadedMessagePayloadResult.error)
         return ABORT_EARLY_EITHER
       }
-      resolveMessageResult = retrieveOffloadedMessagePayloadResult
+      resolveMessageResult.result.body = retrieveOffloadedMessagePayloadResult.result
     }
 
     return resolveMessageResult
@@ -384,14 +388,16 @@ export abstract class AbstractSqsConsumer<
       this.handleError(resolveMessageResult.error)
       return ABORT_EARLY_EITHER
     }
+    const resolvedMessage = resolveMessageResult.result
+
     // Empty content for whatever reason
-    if (!resolveMessageResult.result) return ABORT_EARLY_EITHER
+    if (!resolvedMessage || !resolvedMessage.body) return ABORT_EARLY_EITHER
 
     // @ts-ignore
     if (this.messageIdField in resolveMessageResult.result) {
       return {
         // @ts-ignore
-        result: resolveMessageResult.result[this.messageIdField],
+        result: resolveMessageResult.result.body[this.messageIdField],
       }
     }
 
@@ -411,7 +417,7 @@ export abstract class AbstractSqsConsumer<
     }
 
     const resolveSchemaResult = this.resolveSchema(
-      resolveMessageResult.result as MessagePayloadType,
+      resolveMessageResult.result.body as MessagePayloadType,
     )
     if (resolveSchemaResult.error) {
       this.handleError(resolveSchemaResult.error)
@@ -419,7 +425,7 @@ export abstract class AbstractSqsConsumer<
     }
 
     const deserializationResult = parseMessage(
-      resolveMessageResult.result,
+      resolveMessageResult.result.body,
       resolveSchemaResult.result,
       this.errorResolver,
     )

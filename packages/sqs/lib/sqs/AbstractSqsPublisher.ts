@@ -10,6 +10,7 @@ import type {
   MessageValidationError,
   QueuePublisherOptions,
   OffloadedPayloadPointerPayload,
+  ResolvedMessage,
 } from '@message-queue-toolkit/core'
 import { isOffloadedPayloadPointerPayload } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
@@ -26,7 +27,7 @@ export type SQSMessageOptions = {
 }
 
 export const PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX = 'payloadOffloading.'
-export const OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE = PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX + '.size'
+export const OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE = PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX + 'size'
 
 export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
   extends AbstractSqsService<MessagePayloadType>
@@ -101,7 +102,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
 
   protected resolveMessage(
     _message: SQSMessage,
-  ): Either<MessageInvalidFormatError | MessageValidationError, unknown> {
+  ): Either<MessageInvalidFormatError | MessageValidationError, ResolvedMessage> {
     throw new Error('Not implemented for publisher')
   }
 

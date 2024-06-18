@@ -1,5 +1,5 @@
+import type { MessageAttributeValue } from '@aws-sdk/client-sns'
 import { PublishCommand } from '@aws-sdk/client-sns'
-import type { PublishCommandInput } from '@aws-sdk/client-sns/dist-types/commands/PublishCommand'
 import type { Either } from '@lokalise/node-core'
 import { InternalError } from '@lokalise/node-core'
 import type {
@@ -9,7 +9,13 @@ import type {
   MessageValidationError,
   QueuePublisherOptions,
   MessageSchemaContainer,
+  OffloadedPayloadPointerPayload,
 } from '@message-queue-toolkit/core'
+import { isOffloadedPayloadPointerPayload } from '@message-queue-toolkit/core'
+import type { ResolvedMessage } from '@message-queue-toolkit/core/dist/lib/queues/AbstractQueueService'
+import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
+
+import { calculateOutgoingMessageSize } from '../utils/snsUtils'
 
 import type { SNSCreationConfig, SNSDependencies, SNSQueueLocatorType } from './AbstractSnsService'
 import { AbstractSnsService } from './AbstractSnsService'
@@ -65,14 +71,11 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
       }
 
       message = this.updateInternalProperties(message)
+      const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(message, () =>
+        calculateOutgoingMessageSize(message),
+      )
 
-      const input = {
-        Message: JSON.stringify(message),
-        TopicArn: this.topicArn,
-        ...options,
-      } satisfies PublishCommandInput
-      const command = new PublishCommand(input)
-      await this.snsClient.send(command)
+      await this.sendMessage(maybeOffloadedPayloadMessage, options)
       this.handleMessageProcessed(parsedMessage, 'published')
     } catch (error) {
       const err = error as Error
@@ -93,7 +96,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
 
   protected override resolveMessage(): Either<
     MessageInvalidFormatError | MessageValidationError,
-    unknown
+    ResolvedMessage
   > {
     throw new Error('Not implemented for publisher')
   }
@@ -118,5 +121,29 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
   override processMessage(): Promise<Either<'retryLater', 'success'>> {
     throw new Error('Not implemented for publisher')
   }
+
+  protected async sendMessage(
+    payload: MessagePayloadType | OffloadedPayloadPointerPayload,
+    options: SNSMessageOptions,
+  ): Promise<void> {
+    const attributes: Record<string, MessageAttributeValue> = {}
+
+    if (isOffloadedPayloadPointerPayload(payload)) {
+      attributes[OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE] = {
+        DataType: 'Number',
+        // The SQS SDK does not provide properties to set numeric values, we have to convert it to string
+        StringValue: payload.offloadedPayloadSize.toString(),
+      }
+    }
+
+    const command = new PublishCommand({
+      Message: JSON.stringify(payload),
+      MessageAttributes: attributes,
+      TopicArn: this.topicArn,
+      ...options,
+    })
+    await this.snsClient.send(command)
+  }
+
   /* c8 ignore stop */
 }

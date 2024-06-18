@@ -38,6 +38,11 @@ type CommonQueueLocator = {
   queueName: string
 }
 
+export type ResolvedMessage = {
+  body: unknown
+  attributes?: Record<string, unknown>
+}
+
 export abstract class AbstractQueueService<
   MessagePayloadSchemas extends object,
   MessageEnvelopeType extends object,
@@ -143,7 +148,7 @@ export abstract class AbstractQueueService<
 
   protected abstract resolveMessage(
     message: MessageEnvelopeType,
-  ): Either<MessageInvalidFormatError | MessageValidationError, unknown>
+  ): Either<MessageInvalidFormatError | MessageValidationError, ResolvedMessage>
 
   /**
    * Format message for logging

@@ -9,7 +9,11 @@ export type {
   ExtraParams,
 } from './lib/types/MessageQueueTypes'
 
-export { AbstractQueueService, Deserializer } from './lib/queues/AbstractQueueService'
+export {
+  AbstractQueueService,
+  Deserializer,
+  ResolvedMessage,
+} from './lib/queues/AbstractQueueService'
 export * from './lib/types/queueOptionsTypes'
 
 export {

@@ -9,6 +9,15 @@ export const SNS_MESSAGE_BODY_SCHEMA = z.object({
   MessageId: z.string(),
   TopicArn: z.string(),
   Message: z.string(),
+  MessageAttributes: z
+    .record(
+      z.string(),
+      z.object({
+        Type: z.string(),
+        Value: z.unknown(),
+      }),
+    )
+    .optional(),
   Timestamp: z.string(),
   SignatureVersion: z.string(),
   Signature: z.string(),

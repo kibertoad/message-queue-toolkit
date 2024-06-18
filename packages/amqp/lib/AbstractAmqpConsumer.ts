@@ -279,12 +279,12 @@ export abstract class AbstractAmqpConsumer<
     }
 
     // Empty content for whatever reason
-    if (!resolveMessageResult.result) {
+    if (!resolveMessageResult.result || !resolveMessageResult.result.body) {
       return ABORT_EARLY_EITHER
     }
 
     const resolveSchemaResult = this.resolveSchema(
-      resolveMessageResult.result as MessagePayloadType,
+      resolveMessageResult.result.body as MessagePayloadType,
     )
     if (resolveSchemaResult.error) {
       this.handleError(resolveSchemaResult.error)
@@ -292,7 +292,7 @@ export abstract class AbstractAmqpConsumer<
     }
 
     const deserializationResult = parseMessage(
-      resolveMessageResult.result,
+      resolveMessageResult.result.body,
       resolveSchemaResult.result,
       this.errorResolver,
     )
@@ -318,15 +318,15 @@ export abstract class AbstractAmqpConsumer<
       return ABORT_EARLY_EITHER
     }
     // Empty content for whatever reason
-    if (!resolveMessageResult.result) {
+    if (!resolveMessageResult.result || !resolveMessageResult.result.body) {
       return ABORT_EARLY_EITHER
     }
 
     // @ts-ignore
-    if (this.messageIdField in resolveMessageResult.result) {
+    if (this.messageIdField in resolveMessageResult.result.body) {
       return {
         // @ts-ignore
-        result: resolveMessageResult.result[this.messageIdField],
+        result: resolveMessageResult.result.body[this.messageIdField],
       }
     }
 
