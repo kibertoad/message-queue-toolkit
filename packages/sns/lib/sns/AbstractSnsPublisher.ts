@@ -12,8 +12,7 @@ import type {
   OffloadedPayloadPointerPayload,
   ResolvedMessage,
 } from '@message-queue-toolkit/core'
-import { isOffloadedPayloadPointerPayload } from '@message-queue-toolkit/core'
-import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
+import { resolveOutgoingMessageAttributes } from '@message-queue-toolkit/sqs'
 
 import { calculateOutgoingMessageSize } from '../utils/snsUtils'
 
@@ -126,16 +125,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     payload: MessagePayloadType | OffloadedPayloadPointerPayload,
     options: SNSMessageOptions,
   ): Promise<void> {
-    const attributes: Record<string, MessageAttributeValue> = {}
-
-    if (isOffloadedPayloadPointerPayload(payload)) {
-      attributes[OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE] = {
-        DataType: 'Number',
-        // The SQS SDK does not provide properties to set numeric values, we have to convert it to string
-        StringValue: payload.offloadedPayloadSize.toString(),
-      }
-    }
-
+    const attributes = resolveOutgoingMessageAttributes<MessageAttributeValue>(payload)
     const command = new PublishCommand({
       Message: JSON.stringify(payload),
       MessageAttributes: attributes,

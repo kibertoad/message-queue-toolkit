@@ -12,10 +12,10 @@ import type {
   OffloadedPayloadPointerPayload,
   ResolvedMessage,
 } from '@message-queue-toolkit/core'
-import { isOffloadedPayloadPointerPayload } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
 import type { SQSMessage } from '../types/MessageTypes'
+import { resolveOutgoingMessageAttributes } from '../utils/messageUtils'
 import { calculateOutgoingMessageSize } from '../utils/sqsUtils'
 
 import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
@@ -127,18 +127,9 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
 
   protected async sendMessage(
     payload: MessagePayloadType | OffloadedPayloadPointerPayload,
-    options: SQSMessageOptions = {},
+    options: SQSMessageOptions,
   ): Promise<void> {
-    const attributes: Record<string, MessageAttributeValue> = {}
-
-    if (isOffloadedPayloadPointerPayload(payload)) {
-      attributes[OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE] = {
-        DataType: 'Number',
-        // The SQS SDK does not provide properties to set numeric values, we have to convert it to string
-        StringValue: payload.offloadedPayloadSize.toString(),
-      }
-    }
-
+    const attributes = resolveOutgoingMessageAttributes<MessageAttributeValue>(payload)
     const command = new SendMessageCommand({
       QueueUrl: this.queueUrl,
       MessageBody: JSON.stringify(payload),

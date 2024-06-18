@@ -30,3 +30,4 @@ export type { CommonMessage, SQSMessage } from './lib/types/MessageTypes'
 export { FakeConsumerErrorResolver } from './lib/fakes/FakeConsumerErrorResolver'
 
 export { calculateOutgoingMessageSize } from './lib/utils/sqsUtils'
+export { resolveOutgoingMessageAttributes } from './lib/utils/messageUtils'

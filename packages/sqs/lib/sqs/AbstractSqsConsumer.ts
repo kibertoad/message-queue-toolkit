@@ -17,14 +17,12 @@ import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
 import type { SQSMessage } from '../types/MessageTypes'
+import { hasOffloadedPayload } from '../utils/messageUtils'
 import { deleteSqs, initSqs } from '../utils/sqsInitter'
 import { readSqsMessage } from '../utils/sqsMessageReader'
 import { getQueueAttributes } from '../utils/sqsUtils'
 
-import {
-  OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE,
-  PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX,
-} from './AbstractSqsPublisher'
+import { PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX } from './AbstractSqsPublisher'
 import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
 
@@ -365,10 +363,7 @@ export abstract class AbstractSqsConsumer<
       return ABORT_EARLY_EITHER
     }
 
-    if (
-      resolveMessageResult.result.attributes &&
-      resolveMessageResult.result.attributes[OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE]
-    ) {
+    if (hasOffloadedPayload(resolveMessageResult.result)) {
       const retrieveOffloadedMessagePayloadResult = await this.retrieveOffloadedMessagePayload(
         resolveMessageResult.result.body,
       )
