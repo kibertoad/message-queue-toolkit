@@ -6,7 +6,7 @@ import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema, ZodType } from 'zod'
 
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
-import { jsonStringifyStreamSerializer } from '../payload-store/JsonStringifyStreamSerializer'
+import { jsonStreamStringifySerializer } from '../payload-store/JsonStreamStringifySerializer'
 import { OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA } from '../payload-store/offloadedPayloadMessageSchemas'
 import type { OffloadedPayloadPointerPayload } from '../payload-store/offloadedPayloadMessageSchemas'
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
@@ -96,7 +96,7 @@ export abstract class AbstractQueueService<
     this.deletionConfig = options.deletionConfig
     this.payloadStoreConfig = options.payloadStoreConfig
       ? {
-          serializer: jsonStringifyStreamSerializer,
+          serializer: jsonStreamStringifySerializer,
           ...options.payloadStoreConfig,
         }
       : undefined

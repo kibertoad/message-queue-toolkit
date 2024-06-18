@@ -7,7 +7,7 @@ import type { PayloadSerializer } from './payloadStoreTypes'
 export type TemporaryFilePathResolver = () => string
 const defaultTemporaryFilePathResolver: TemporaryFilePathResolver = () => tmpNameSync()
 
-export class JsonStringifyStreamSerializer implements PayloadSerializer {
+export class JsonStreamStringifySerializer implements PayloadSerializer {
   constructor(
     private readonly temporaryFilePathResolver: TemporaryFilePathResolver = defaultTemporaryFilePathResolver,
   ) {}
@@ -24,4 +24,4 @@ export class JsonStringifyStreamSerializer implements PayloadSerializer {
   }
 }
 
-export const jsonStringifyStreamSerializer: PayloadSerializer = new JsonStringifyStreamSerializer()
+export const jsonStreamStringifySerializer: PayloadSerializer = new JsonStreamStringifySerializer()
