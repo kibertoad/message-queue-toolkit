@@ -16,7 +16,7 @@ describe('S3PayloadStore', () => {
 
   beforeAll(async () => {
     s3 = new S3(TEST_AWS_CONFIG)
-    store = new S3PayloadStore({ s3 }, { bucketName: TEST_BUCKET, keyPrefix: 'test' })
+    store = new S3PayloadStore({ s3 }, { bucketName: TEST_BUCKET })
   })
   beforeEach(async () => {
     await assertEmptyBucket(s3, TEST_BUCKET)
@@ -35,11 +35,18 @@ describe('S3PayloadStore', () => {
         value: Readable.from(payload),
         size: payload.length,
       })
-
-      expect(stringPayloadKey).toContain('test/')
-      expect(streamPayloadKey).toContain('test/')
       expect(await getObjectContent(s3, TEST_BUCKET, stringPayloadKey)).toBe(payload)
       expect(await getObjectContent(s3, TEST_BUCKET, streamPayloadKey)).toBe(payload)
+    })
+    it('uses key prefix if provided', async () => {
+      const store = new S3PayloadStore({ s3 }, { bucketName: TEST_BUCKET, keyPrefix: 'prefix' })
+      const payload = 'test'
+      const stringPayloadKey = await store.storePayload({
+        value: payload,
+        size: payload.length,
+      })
+
+      expect(stringPayloadKey).toContain('prefix/')
     })
   })
   describe('retrievePayload', () => {
@@ -58,6 +65,10 @@ describe('S3PayloadStore', () => {
     it('returns null if payload cannot be found', async () => {
       const result = await store.retrievePayload('non-existing-key')
       expect(result).toBe(null)
+    })
+    it('throws, if other than not-found error occurs', async () => {
+      const store = new S3PayloadStore({ s3 }, { bucketName: 'non-existing-bucket' })
+      await expect(store.retrievePayload('non-existing-key')).rejects.toThrow()
     })
   })
   describe('deletePayload', () => {
