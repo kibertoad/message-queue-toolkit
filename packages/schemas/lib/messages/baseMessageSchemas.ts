@@ -113,3 +113,9 @@ export function enrichMessageSchemaWithBase<
     publisherSchema: publisherSchema,
   }
 }
+
+export function getMessageType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string>(
+  richMessageSchema: ReturnType<T, Y, Z>,
+): Z {
+  return richMessageSchema.consumerSchema.shape.type.value
+}
