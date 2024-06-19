@@ -37,7 +37,7 @@
     "@aws-sdk/client-s3": "^3.598.0",
     "@aws-sdk/client-sqs": "^3.569.0",
     "@message-queue-toolkit/core": "*",
-    "@message-queue-toolkit/s3-payload-store": "^1.0.0",
+    "@message-queue-toolkit/s3-payload-store": "*",
     "@types/node": "^20.12.8",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
     "@typescript-eslint/parser": "^7.1.1",
