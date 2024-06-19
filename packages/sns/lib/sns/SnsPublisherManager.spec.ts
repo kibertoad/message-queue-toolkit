@@ -96,6 +96,20 @@ describe('SnsPublisherManager', () => {
         }),
       ).rejects.toThrow('No publisher for target non-existing-topic')
     })
+
+    it('publish to an incorrect topic/message combination will throw error', async () => {
+      await expect(
+        publisherManager.publish(TestEvents.created.snsTopic, {
+          // @ts-expect-error Testing error scenario
+          type: 'dummy.type',
+          payload: {
+            newData: 'msg',
+          },
+        }),
+      ).rejects.toThrow(
+        'MessageDefinition for target "dummy" and type "dummy.type" not found in EventRegistry',
+      )
+    })
   })
 
   describe('handlerSpy', () => {

@@ -5,7 +5,7 @@ const TEST_MESSAGE = {
 }
 
 const EVENT_DEFINITION = {
-  schemaVersion: '0.0.0'
+  schemaVersion: '0.0.0',
 }
 
 const SERVICE_ID = 'myServiceId'
