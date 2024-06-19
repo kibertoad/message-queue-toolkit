@@ -52,9 +52,11 @@ export class CommonMetadataFiller implements MetadataFiller {
     precedingMessageMetadata?: MessageMetadataType,
   ): MessageMetadataType {
     return {
-      producedBy: this.serviceId,
+      producedBy: precedingMessageMetadata?.producedBy ?? this.serviceId,
       originatedFrom: precedingMessageMetadata?.originatedFrom ?? this.serviceId,
-      schemaVersion: eventDefinition.schemaVersion ?? this.defaultVersion,
+      schemaVersion: precedingMessageMetadata?.schemaVersion
+        ?? eventDefinition.schemaVersion
+        ?? this.defaultVersion,
       correlationId: precedingMessageMetadata?.correlationId ?? this.produceId(),
     }
   }
