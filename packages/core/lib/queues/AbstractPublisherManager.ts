@@ -183,6 +183,11 @@ export abstract class AbstractPublisherManager<
       throw new Error(`No publisher for target ${eventTarget}`)
     }
     const messageDefinition = this.resolveMessageDefinition(eventTarget, message)
+    if (!messageDefinition) {
+      throw new Error(
+        `MessageDefinition for target "${eventTarget}" and type "${message.type}" not found in EventRegistry`,
+      )
+    }
     const resolvedMessage = this.resolveMessage(messageDefinition, message, precedingEventMetadata)
 
     if (this.isAsync) {
