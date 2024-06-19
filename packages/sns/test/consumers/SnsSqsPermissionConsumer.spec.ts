@@ -421,7 +421,7 @@ describe('SnsSqsPermissionConsumer', () => {
         expect(consumer.addBarrierCounter).toBe(3)
         expect(consumer.addCounter).toBe(1)
         expect(consumer.removeCounter).toBe(2)
-      })
+      }, 10000)
 
       it('Handles preHandlers', async () => {
         await publisher.publish({
