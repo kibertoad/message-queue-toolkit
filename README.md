@@ -44,6 +44,75 @@ They implement the following public methods:
 
 > **_NOTE:_**  See [SqsPermissionPublisher.ts](./packages/sqs/test/publishers/SqsPermissionPublisher.ts) for a practical example.
 
+#### PublisherManager
+
+PublisherManager is a wrapper to automatically spawn publishers on demand and reduce the amount of boilerplate needed to write them, while guaranteeing type-safety and autocompletion. It also automatically fills metadata fields.
+
+You can create an instance of PublisherManager as shown in this example:
+
+```typescript
+const diConfig: DiConfig = {
+  publisherManager: asFunction(
+    (dependencies) => {
+      return new SnsPublisherManager(dependencies, {
+        metadataFiller: new CommonMetadataFiller({
+          serviceId: 'service',
+        }),
+        publisherFactory: new CommonSnsPublisherFactory(),
+        newPublisherOptions: {
+          handlerSpy: true,
+          messageIdField: 'id',
+          messageTypeField: 'type',
+          creationConfig: {
+            updateAttributesIfExists: true,
+          },
+        },
+      })
+    },
+    {
+      lifetime: Lifetime.SINGLETON,
+      enabled: queuesEnabled,
+    },
+  )
+}
+
+export interface Dependencies {
+  publisherManager: SnsPublisherManager<
+    CommonSnsPublisher<TestEventPublishPayloadsType>,
+    TestEventsType
+  >
+}
+```
+
+When instantiating the PublisherManager, you can define the following arguments:
+* `publisherFactory`;
+* `newPublisherOptions`;
+* `publisherDependencies`;
+* `metadataFiller`;
+* `eventRegistry`;
+* `metadataField`;
+* `isAsync`.
+
+Once your PublisherManager is ready, you have access to the following methods:
+
+* `publish()` (SNS), sends a message to a topic. Attempts to publish to a non-existing topic will throw an error. It accepts the following parameters:
+  * `topic` – the topic to publish to;
+  * `message` – the message to be published;
+  * `precedingEventMetadata` – (optional) ;
+  * `messageOptions` – (optional) a protocol-dependent set of message parameters. For more information please check documentation for options for [AMQP](https://amqp-node.github.io/amqplib/channel_api.html#channel_sendToQueue).
+* `publishSync()` (AMQP), sends a message to a queue or topic. Attempts to publish to  It accepts the following parameters:
+  * `queue` or `topic` – the queue or topic to publish to;
+  * `message` – the message to be published;
+  * `precedingEventMetadata` – (optional) metadata that describes the context in which the message was created. If not provided, each field will resolve to its default value. Available fields are:
+    * `schemaVersion` – message schema version, defaults to 1.0.0;
+    * `producedBy` – service that produced the message, defaults to the service ID provided in `CommonMetadataFiller`;
+    * `originatedFrom` – service that initiated the entire workflow that led to this message, defaults to the service ID provided in `CommonMetadataFiller`;
+    * `correlationId` – unique identifier passed to all events in the workflow chain, defaults to a randomly generated UUID.
+  * `messageOptions` – (optional) a protocol-dependent set of message parameters. For more information please check documentation for options for [SNS](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sns/interfaces/publishcommandinput.html).
+* `handlerSpy()` – spy feature that allows waiting for the moment a particular event gets published (see [Handler Spies](#handler-spies) for more information);
+* `injectPublisher()` – injects a new publisher for a given event;
+* `injectEventDefinition()` – injects a new event definition.
+
 ### Consumers
 
 `message-queue-toolkit` provides base classes for implementing consumers for each of the supported protocols.
