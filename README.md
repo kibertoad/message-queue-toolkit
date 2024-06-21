@@ -48,42 +48,6 @@ They implement the following public methods:
 
 PublisherManager is a wrapper to automatically spawn publishers on demand and reduce the amount of boilerplate needed to write them, while guaranteeing type-safety and autocompletion. It also automatically fills metadata fields.
 
-You can create an instance of PublisherManager as shown in this example:
-
-```typescript
-const diConfig: DiConfig = {
-  publisherManager: asFunction(
-    (dependencies) => {
-      return new SnsPublisherManager(dependencies, {
-        metadataFiller: new CommonMetadataFiller({
-          serviceId: 'service',
-        }),
-        publisherFactory: new CommonSnsPublisherFactory(),
-        newPublisherOptions: {
-          handlerSpy: true,
-          messageIdField: 'id',
-          messageTypeField: 'type',
-          creationConfig: {
-            updateAttributesIfExists: true,
-          },
-        },
-      })
-    },
-    {
-      lifetime: Lifetime.SINGLETON,
-      enabled: queuesEnabled,
-    },
-  )
-}
-
-export interface Dependencies {
-  publisherManager: SnsPublisherManager<
-    CommonSnsPublisher<TestEventPublishPayloadsType>,
-    TestEventsType
-  >
-}
-```
-
 When instantiating the PublisherManager, you can define the following arguments:
 * `publisherFactory`;
 * `newPublisherOptions`;
