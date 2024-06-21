@@ -67,9 +67,8 @@ Once your PublisherManager is ready, you have access to the following methods:
 * `publishSync()` (AMQP), sends a message to a queue or topic. Attempts to publish to  It accepts the following parameters:
   * `queue` or `topic` – the queue or topic to publish to;
   * `message` – the message to be published;
-  * `precedingEventMetadata` – (optional) metadata that describes the context in which the message was created. If not provided, each field will resolve to its default value. Available fields are:
+  * `precedingEventMetadata` – (optional) additional metadata that describes the context in which the message was created. If not provided, each field will resolve to its default value. Available fields are:
     * `schemaVersion` – message schema version, defaults to 1.0.0;
-    * `producedBy` – service that produced the message, defaults to the service ID provided in `CommonMetadataFiller`;
     * `originatedFrom` – service that initiated the entire workflow that led to this message, defaults to the service ID provided in `CommonMetadataFiller`;
     * `correlationId` – unique identifier passed to all events in the workflow chain, defaults to a randomly generated UUID.
   * `messageOptions` – (optional) a protocol-dependent set of message parameters. For more information please check documentation for options for [SNS](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sns/interfaces/publishcommandinput.html).
