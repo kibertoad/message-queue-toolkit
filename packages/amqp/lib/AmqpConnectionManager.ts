@@ -29,7 +29,6 @@ export class AmqpConnectionManager {
   private async createConnection() {
     const connection = await resolveAmqpConnection(this.config)
     connection.on('error', (err) => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       this.logger.error(`AmqpConnectionManager: Connection error: ${err.message}`)
       this.connection = undefined
       if (this.reconnectsActive && !this.isReconnecting) {

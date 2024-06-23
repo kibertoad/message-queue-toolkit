@@ -147,7 +147,6 @@ export abstract class AbstractAmqpConsumer<
       const messageType = parsedMessage[this.messageTypeField]
       const transactionSpanId = `queue_${this.queueName}:${
         // @ts-ignore
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         parsedMessage[this.messageTypeField]
       }`
 

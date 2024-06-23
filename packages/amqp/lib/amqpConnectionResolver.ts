@@ -18,7 +18,6 @@ export type AmqpConfig = {
 export async function resolveAmqpConnection(config: AmqpConfig) {
   const protocol = config.useTls ? 'amqps' : 'amqp'
   let counter = 0
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const url = `${protocol}://${config.username}:${config.password}@${config.hostname}:${config.port}/${config.vhost}`
 
