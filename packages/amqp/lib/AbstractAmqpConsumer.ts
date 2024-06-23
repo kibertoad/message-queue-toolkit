@@ -209,7 +209,7 @@ export abstract class AbstractAmqpConsumer<
   protected override processMessage(
     message: MessagePayloadType,
     messageType: string,
-    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+    // biome-ignore lint/suspicious/noExplicitAny: We neither know, nor care about the type here
     preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, any>,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler<PrehandlerOutput>(messageType)
