@@ -1,5 +1,3 @@
-import type * as Buffer from 'node:buffer'
-
 import type { Options } from 'amqplib/properties'
 
 import type { AMQPPublisherOptions } from './AbstractAmqpPublisher'

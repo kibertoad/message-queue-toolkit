@@ -1,6 +1,6 @@
 import type { CommonCreationConfigType, PublisherBaseEventType } from '@message-queue-toolkit/core'
 
-import type { AbstractAmqpPublisher, AMQPPublisherOptions } from './AbstractAmqpPublisher'
+import type { AMQPPublisherOptions, AbstractAmqpPublisher } from './AbstractAmqpPublisher'
 import type { AmqpQueueMessageOptions } from './AbstractAmqpQueuePublisher'
 import { AbstractAmqpQueuePublisher } from './AbstractAmqpQueuePublisher'
 import type {
@@ -10,8 +10,8 @@ import type {
 } from './AbstractAmqpService'
 import { AbstractAmqpTopicPublisher } from './AbstractAmqpTopicPublisher'
 import type {
-  AmqpTopicMessageOptions,
   AMQPTopicPublisherOptions,
+  AmqpTopicMessageOptions,
 } from './AbstractAmqpTopicPublisher'
 
 export type AmqpPublisherFactory<

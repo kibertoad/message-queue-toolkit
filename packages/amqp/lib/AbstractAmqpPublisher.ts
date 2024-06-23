@@ -1,5 +1,5 @@
 import type { Either } from '@lokalise/node-core'
-import { copyWithoutUndefined, InternalError } from '@lokalise/node-core'
+import { InternalError, copyWithoutUndefined } from '@lokalise/node-core'
 import type {
   BarrierResult,
   CommonCreationConfigType,

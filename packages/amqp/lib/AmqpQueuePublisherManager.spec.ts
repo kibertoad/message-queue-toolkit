@@ -3,7 +3,7 @@ import { beforeAll } from 'vitest'
 
 import { FakeQueueConsumer } from '../test/fakes/FakeQueueConsumer'
 import { TEST_AMQP_CONFIG } from '../test/utils/testAmqpConfig'
-import { registerDependencies, TestEvents } from '../test/utils/testContext'
+import { TestEvents, registerDependencies } from '../test/utils/testContext'
 import type { Dependencies } from '../test/utils/testContext'
 
 describe('AmqpQueuePublisherManager', () => {

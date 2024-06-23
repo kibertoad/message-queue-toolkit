@@ -1,24 +1,24 @@
 import type {
-  PublisherBaseEventType,
+  CommonCreationConfigType,
   EventRegistry,
-  MetadataFiller,
   MessageMetadataType,
   MessagePublishType,
   MessageSchemaType,
-  CommonCreationConfigType,
+  MetadataFiller,
+  PublisherBaseEventType,
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { AmqpAwareEventDefinition } from '@message-queue-toolkit/schemas'
 import type z from 'zod'
 
-import type { AbstractAmqpPublisher, AMQPPublisherOptions } from './AbstractAmqpPublisher'
+import type { AMQPPublisherOptions, AbstractAmqpPublisher } from './AbstractAmqpPublisher'
 import type {
   AbstractAmqpQueuePublisher,
   AmqpQueueMessageOptions,
 } from './AbstractAmqpQueuePublisher'
 import type {
-  AMQPQueueCreationConfig,
   AMQPDependencies,
+  AMQPQueueCreationConfig,
   AMQPQueueLocator,
 } from './AbstractAmqpService'
 import type { AmqpPublisherFactory } from './CommonAmqpPublisherFactory'

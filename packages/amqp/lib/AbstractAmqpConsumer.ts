@@ -2,21 +2,21 @@ import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   BarrierResult,
   DeadLetterQueueOptions,
+  MessageSchemaContainer,
   ParseMessageResult,
-  Prehandler,
   PreHandlingOutputs,
+  Prehandler,
   QueueConsumer,
   QueueConsumerOptions,
   TransactionObservabilityManager,
-  MessageSchemaContainer,
 } from '@message-queue-toolkit/core'
-import { isMessageError, parseMessage, HandlerContainer } from '@message-queue-toolkit/core'
+import { HandlerContainer, isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import type { Connection, Message } from 'amqplib'
 
 import type {
   AMQPConsumerDependencies,
-  AMQPQueueLocator,
   AMQPQueueCreationConfig,
+  AMQPQueueLocator,
 } from './AbstractAmqpService'
 import { AbstractAmqpService } from './AbstractAmqpService'
 import { readAmqpMessage } from './amqpMessageReader'
