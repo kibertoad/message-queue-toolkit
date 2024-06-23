@@ -1,4 +1,4 @@
-import { setTimeout } from 'timers/promises'
+import { setTimeout } from 'node:timers/promises'
 
 import { globalLogger } from '@lokalise/node-core'
 import { connect } from 'amqplib'
@@ -26,7 +26,7 @@ export async function resolveAmqpConnection(config: AmqpConfig) {
     try {
       const connection = await connect(url)
       return connection
-    } catch (e) {
+    } catch (_e) {
       globalLogger.error(
         `Failed to connect to AMQP broker at ${config.hostname}:${config.port}. Retrying in ${
           retryTime / 1000

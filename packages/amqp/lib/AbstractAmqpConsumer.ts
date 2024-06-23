@@ -207,10 +207,10 @@ export abstract class AbstractAmqpConsumer<
     return { error: 'retryLater' }
   }
 
-  protected override async processMessage(
+  protected override processMessage(
     message: MessagePayloadType,
     messageType: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, any>,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler<PrehandlerOutput>(messageType)
@@ -223,7 +223,7 @@ export abstract class AbstractAmqpConsumer<
     return this.processPrehandlersInternal(handlerConfig.preHandlers, message)
   }
 
-  protected override async preHandlerBarrier<BarrierOutput>(
+  protected override preHandlerBarrier<BarrierOutput>(
     message: MessagePayloadType,
     messageType: string,
     preHandlerOutput: PrehandlerOutput,

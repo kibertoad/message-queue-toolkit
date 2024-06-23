@@ -1,5 +1,5 @@
 import type { AwilixContainer } from 'awilix'
-import { beforeAll } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import { FakeTopicConsumer } from '../test/fakes/FakeTopicConsumer'
 import { TEST_AMQP_CONFIG } from '../test/utils/testAmqpConfig'
