@@ -2,21 +2,21 @@ import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
   BarrierResult,
   DeadLetterQueueOptions,
+  MessageSchemaContainer,
   ParseMessageResult,
-  Prehandler,
   PreHandlingOutputs,
+  Prehandler,
   QueueConsumer,
   QueueConsumerOptions,
   TransactionObservabilityManager,
-  MessageSchemaContainer,
 } from '@message-queue-toolkit/core'
-import { isMessageError, parseMessage, HandlerContainer } from '@message-queue-toolkit/core'
+import { HandlerContainer, isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import type { Connection, Message } from 'amqplib'
 
 import type {
   AMQPConsumerDependencies,
-  AMQPQueueLocator,
   AMQPQueueCreationConfig,
+  AMQPQueueLocator,
 } from './AbstractAmqpService'
 import { AbstractAmqpService } from './AbstractAmqpService'
 import { readAmqpMessage } from './amqpMessageReader'
@@ -147,7 +147,6 @@ export abstract class AbstractAmqpConsumer<
       const messageType = parsedMessage[this.messageTypeField]
       const transactionSpanId = `queue_${this.queueName}:${
         // @ts-ignore
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         parsedMessage[this.messageTypeField]
       }`
 
@@ -207,10 +206,10 @@ export abstract class AbstractAmqpConsumer<
     return { error: 'retryLater' }
   }
 
-  protected override async processMessage(
+  protected override processMessage(
     message: MessagePayloadType,
     messageType: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: We neither know, nor care about the type here
     preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, any>,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler<PrehandlerOutput>(messageType)
@@ -223,7 +222,7 @@ export abstract class AbstractAmqpConsumer<
     return this.processPrehandlersInternal(handlerConfig.preHandlers, message)
   }
 
-  protected override async preHandlerBarrier<BarrierOutput>(
+  protected override preHandlerBarrier<BarrierOutput>(
     message: MessagePayloadType,
     messageType: string,
     preHandlerOutput: PrehandlerOutput,

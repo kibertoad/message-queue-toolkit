@@ -1,4 +1,4 @@
-import { setTimeout } from 'timers/promises'
+import { setTimeout } from 'node:timers/promises'
 
 import { globalLogger } from '@lokalise/node-core'
 import { connect } from 'amqplib'
@@ -18,7 +18,6 @@ export type AmqpConfig = {
 export async function resolveAmqpConnection(config: AmqpConfig) {
   const protocol = config.useTls ? 'amqps' : 'amqp'
   let counter = 0
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const url = `${protocol}://${config.username}:${config.password}@${config.hostname}:${config.port}/${config.vhost}`
 
@@ -26,7 +25,7 @@ export async function resolveAmqpConnection(config: AmqpConfig) {
     try {
       const connection = await connect(url)
       return connection
-    } catch (e) {
+    } catch (_e) {
       globalLogger.error(
         `Failed to connect to AMQP broker at ${config.hostname}:${config.port}. Retrying in ${
           retryTime / 1000

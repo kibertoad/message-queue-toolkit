@@ -126,7 +126,7 @@ export abstract class AbstractAmqpService<
     if (this.channel) {
       try {
         await this.channel.close()
-      } catch (err) {
+      } catch (_err) {
         // We don't care about connection closing errors
       } finally {
         // @ts-ignore

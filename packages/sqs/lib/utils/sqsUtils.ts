@@ -12,7 +12,7 @@ import type {
   QueueAttributeName,
   SendMessageCommandInput,
 } from '@aws-sdk/client-sqs'
-import type { Either } from '@lokalise/node-core'
+import {Either, globalLogger} from '@lokalise/node-core'
 import { isShallowSubset, waitAndRetry } from '@message-queue-toolkit/core'
 
 import type { ExtraSQSCreationParams, SQSQueueLocatorType } from '../sqs/AbstractSqsService'
@@ -221,7 +221,7 @@ export async function deleteQueue(
     }
 
     // @ts-ignore
-    console.log(`Failed to delete: ${err.message}`)
+    globalLogger.error(`Failed to delete: ${err.message}`)
   }
 }
 

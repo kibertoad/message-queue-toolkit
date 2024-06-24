@@ -1,16 +1,16 @@
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type {
+  MessageMetadataType,
   MessagePublishType,
   MessageSchemaType,
-  MessageMetadataType,
 } from '@message-queue-toolkit/core'
 import type z from 'zod'
 
 import type { AMQPDependencies, AMQPTopicPublisherConfig } from './AbstractAmqpService'
 import type {
+  AMQPTopicPublisherOptions,
   AbstractAmqpTopicPublisher,
   AmqpTopicMessageOptions,
-  AMQPTopicPublisherOptions,
 } from './AbstractAmqpTopicPublisher'
 import type {
   AmqpAwareEventDefinition,

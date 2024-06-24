@@ -1,12 +1,12 @@
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
 import {
-  enrichMessageSchemaWithBase,
   CommonMetadataFiller,
   EventRegistry,
+  enrichMessageSchemaWithBase,
 } from '@message-queue-toolkit/core'
-import type { Resolver } from 'awilix'
-import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
+import type { NameAndRegistrationPair } from 'awilix'
+import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import { z } from 'zod'
 
@@ -19,8 +19,8 @@ import type {
   CommonAmqpTopicPublisher,
 } from '../../lib/CommonAmqpPublisherFactory'
 import {
-  CommonAmqpTopicPublisherFactory,
   CommonAmqpQueuePublisherFactory,
+  CommonAmqpTopicPublisherFactory,
 } from '../../lib/CommonAmqpPublisherFactory'
 import type { AmqpConfig } from '../../lib/amqpConnectionResolver'
 import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver'
@@ -179,7 +179,7 @@ export async function registerDependencies(
 
     // vendor-specific dependencies
     transactionObservabilityManager: asFunction(() => {
-      return undefined
+      return undefined as unknown as TransactionObservabilityManager
     }, SINGLETON_CONFIG),
     errorReporter: asFunction(() => {
       return {
@@ -190,6 +190,7 @@ export async function registerDependencies(
   diContainer.register(diConfig)
 
   for (const [dependencyKey, dependencyValue] of Object.entries(dependencyOverrides)) {
+    // @ts-ignore
     diContainer.register(dependencyKey, dependencyValue)
   }
 
@@ -198,8 +199,7 @@ export async function registerDependencies(
   return diContainer
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type DiConfig = Record<keyof Dependencies, Resolver<any>>
+type DiConfig = NameAndRegistrationPair<Dependencies>
 
 export interface Dependencies {
   logger: Logger

@@ -2,8 +2,8 @@ import type { InternalError } from '@lokalise/node-core'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
-import { asClass, asFunction, Lifetime } from 'awilix'
-import { describe, beforeAll, beforeEach, afterAll, afterEach, expect, it } from 'vitest'
+import { Lifetime, asClass, asFunction } from 'awilix'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { ZodError } from 'zod'
 
 import { deserializeAmqpMessage } from '../../lib/amqpMessageDeserializer'
@@ -13,16 +13,17 @@ import type {
   PERMISSIONS_MESSAGE_TYPE,
 } from '../consumers/userConsumerSchemas'
 import {
-  PERMISSIONS_MESSAGE_SCHEMA,
   PERMISSIONS_ADD_MESSAGE_SCHEMA,
+  PERMISSIONS_MESSAGE_SCHEMA,
 } from '../consumers/userConsumerSchemas'
 import { CustomFakeConsumer } from '../fakes/CustomFakeConsumer'
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
 import { FakeLogger } from '../fakes/FakeLogger'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
 import type { Dependencies } from '../utils/testContext'
-import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
+import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext'
 
+import { asMockFunction } from 'awilix-manager'
 import { AmqpPermissionPublisher } from './AmqpPermissionPublisher'
 
 describe('PermissionPublisher', () => {
@@ -64,7 +65,7 @@ describe('PermissionPublisher', () => {
     beforeAll(async () => {
       diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
         consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
-        permissionConsumer: asFunction(
+        permissionConsumer: asMockFunction(
           (dependencies) => {
             return new CustomFakeConsumer(dependencies, PERMISSIONS_MESSAGE_SCHEMA)
           },
@@ -145,13 +146,12 @@ describe('PermissionPublisher', () => {
       await diContainer.dispose()
     })
 
-    it('publish unexpected message', async () => {
+    it('publish unexpected message', () => {
       expect.assertions(3)
       try {
         permissionPublisher.publish({
           hello: 'world',
           messageType: 'add',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
       } catch (error) {
         expect(error).toBeDefined()
@@ -185,18 +185,16 @@ describe('PermissionPublisher', () => {
       await diContainer.cradle.amqpConnectionManager.reconnect()
     })
 
-    it('publish message with unsupported message type', async () => {
+    it('publish message with unsupported message type', () => {
       let error: unknown
       try {
         permissionPublisher.publish({
           id: '124',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           messageType: 'bad' as any,
         })
       } catch (e) {
         error = e
       }
-      console.log(error)
       expect(error).toBeDefined()
       expect(error).toBeInstanceOf(Error)
       expect((error as Error).message).toBe('Unsupported message type: bad')

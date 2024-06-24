@@ -2,7 +2,7 @@ import { objectToBuffer, waitAndRetry } from '@message-queue-toolkit/core'
 import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ZodError } from 'zod'
 
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
@@ -10,7 +10,7 @@ import { FakeLogger } from '../fakes/FakeLogger'
 import type { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublisher'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
 import type { Dependencies } from '../utils/testContext'
-import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
+import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext'
 
 import { AmqpPermissionConsumer } from './AmqpPermissionConsumer'
 import type {
@@ -199,14 +199,14 @@ describe('AmqpPermissionConsumer', () => {
       expect.assertions(1)
 
       const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
-        removeHandlerOverride: async (message, _context, preHandlerOutputs) => {
+        removeHandlerOverride: (_message, _context, preHandlerOutputs) => {
           expect(preHandlerOutputs.preHandlerOutput.preHandlerCount).toBe(1)
-          return {
+          return Promise.resolve({
             result: 'success',
-          }
+          })
         },
         removePreHandlers: [
-          (message, context, preHandlerOutput, next) => {
+          (_message, _context, preHandlerOutput, next) => {
             preHandlerOutput.preHandlerCount = preHandlerOutput.preHandlerCount
               ? preHandlerOutput.preHandlerCount + 1
               : 1
@@ -232,14 +232,14 @@ describe('AmqpPermissionConsumer', () => {
       expect.assertions(1)
 
       const newConsumer = new AmqpPermissionConsumer(diContainer.cradle, {
-        removeHandlerOverride: async (message, _context, preHandlerOutputs) => {
+        removeHandlerOverride: (_message, _context, preHandlerOutputs) => {
           expect(preHandlerOutputs.preHandlerOutput.preHandlerCount).toBe(11)
-          return {
+          return Promise.resolve({
             result: 'success',
-          }
+          })
         },
         removePreHandlers: [
-          (message, context, preHandlerOutput, next) => {
+          (_message, _context, preHandlerOutput, next) => {
             preHandlerOutput.preHandlerCount = preHandlerOutput.preHandlerCount
               ? preHandlerOutput.preHandlerCount + 10
               : 10
@@ -248,7 +248,7 @@ describe('AmqpPermissionConsumer', () => {
             })
           },
 
-          (message, context, preHandlerOutput, next) => {
+          (_message, _context, preHandlerOutput, next) => {
             preHandlerOutput.preHandlerCount = preHandlerOutput.preHandlerCount
               ? preHandlerOutput.preHandlerCount + 1
               : 1
@@ -402,9 +402,9 @@ describe('AmqpPermissionConsumer', () => {
     it('stuck on barrier', async () => {
       let counter = 0
       const consumer = new AmqpPermissionConsumer(diContainer.cradle, {
-        addPreHandlerBarrier: async () => {
+        addPreHandlerBarrier: () => {
           counter++
-          return { isPassing: false }
+          return Promise.resolve({ isPassing: false })
         },
         maxRetryDuration: 3,
       })
@@ -425,9 +425,9 @@ describe('AmqpPermissionConsumer', () => {
     it('stuck on handler', async () => {
       let counter = 0
       const consumer = new AmqpPermissionConsumer(diContainer.cradle, {
-        removeHandlerOverride: async () => {
+        removeHandlerOverride: () => {
           counter++
-          return { error: 'retryLater' }
+          return Promise.resolve({ error: 'retryLater' })
         },
         maxRetryDuration: 3,
       })

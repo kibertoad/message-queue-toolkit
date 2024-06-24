@@ -22,7 +22,7 @@ export async function checkQueueExists(
   try {
     await checkChannel.checkQueue(locatorConfig.queueName)
     await checkChannel.close()
-  } catch (err) {
+  } catch (_err) {
     throw new Error(`Queue with queueName ${locatorConfig.queueName} does not exist.`)
   }
 }
@@ -39,7 +39,7 @@ export async function checkExchangeExists(
   try {
     await checkChannel.checkExchange(locatorConfig.exchange)
     await checkChannel.close()
-  } catch (err) {
+  } catch (_err) {
     throw new Error(`Exchange ${locatorConfig.exchange} does not exist.`)
   }
 }

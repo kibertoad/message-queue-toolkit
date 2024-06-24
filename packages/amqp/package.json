@@ -18,14 +18,14 @@
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
-    "lint": "eslint . --ext .ts && tsc --noEmit",
-    "lint:fix": "prettier --write . && eslint .  --ext .ts --fix",
+    "lint": "biome check . && tsc --project tsconfig.json --noEmit",
+    "lint:fix": "biome check --write .",
     "docker:start:dev": "docker compose up -d",
     "docker:stop:dev": "docker compose down",
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@lokalise/node-core": "^10.0.0",
+    "@lokalise/node-core": "^10.0.1",
     "zod": "^3.23.8"
   },
   "peerDependencies": {
@@ -34,21 +34,17 @@
     "amqplib": "^0.10.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.8.2",
+    "@kibertoad/biome-config": "^1.2.0",
     "@message-queue-toolkit/core": "*",
     "@types/amqplib": "^0.10.5",
     "@types/node": "^20.12.12",
-    "@typescript-eslint/eslint-plugin": "^7.9.0",
-    "@typescript-eslint/parser": "^7.9.0",
     "@vitest/coverage-v8": "^1.6.0",
     "amqplib": "^0.10.4",
     "awilix": "^10.0.2",
-    "awilix-manager": "^5.2.1",
+    "awilix-manager": "^5.4.0",
     "del-cli": "^5.1.0",
-    "eslint": "^8.57.0",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-vitest": "0.4.1",
-    "prettier": "^3.2.5",
-    "typescript": "^5.4.5",
+    "typescript": "^5.5.2",
     "vitest": "^1.6.0"
   },
   "homepage": "https://github.com/kibertoad/message-queue-toolkit",
@@ -67,9 +63,5 @@
     "rabbitmq",
     "rabbit"
   ],
-  "files": [
-    "README.md",
-    "LICENSE",
-    "dist/*"
-  ]
+  "files": ["README.md", "LICENSE", "dist/*"]
 }
