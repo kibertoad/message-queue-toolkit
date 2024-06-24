@@ -6,3 +6,4 @@ export * from './lib/messages/baseMessageSchemas'
 
 export * from './lib/vendors/amqpSchemas'
 export * from './lib/vendors/snsSchemas'
+export * from './lib/utils/messageTypeUtils'
