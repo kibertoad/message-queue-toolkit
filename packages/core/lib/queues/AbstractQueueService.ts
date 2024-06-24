@@ -117,7 +117,6 @@ export abstract class AbstractQueueService<
     messageTypeField: string
   }) {
     const messageSchemas = options.handlers.map((entry) => entry.schema)
-    // @ts-expect-error This should no longer be necessary in upcoming TypeScript updates, filter will narrow down the type
     const messageDefinitions: CommonEventDefinition[] = options.handlers
       .map((entry) => entry.definition)
       .filter((entry) => entry !== undefined)
