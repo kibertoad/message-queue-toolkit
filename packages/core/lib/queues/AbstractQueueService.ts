@@ -1,6 +1,6 @@
 import { types } from 'node:util'
 
-import type { ErrorReporter, ErrorResolver, Either } from '@lokalise/node-core'
+import type { Either, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema, ZodType } from 'zod'
@@ -21,9 +21,9 @@ import type {
   BarrierCallback,
   BarrierResult,
   MessageHandlerConfig,
+  PreHandlingOutputs,
   Prehandler,
   PrehandlerResult,
-  PreHandlingOutputs,
 } from './HandlerContainer'
 import type { HandlerSpy, PublicHandlerSpy } from './HandlerSpy'
 import { resolveHandlerSpy } from './HandlerSpy'
@@ -383,7 +383,7 @@ export abstract class AbstractQueueService<
   protected abstract processMessage(
     message: MessagePayloadSchemas,
     messageType: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: This is expected
     preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, any>,
   ): Promise<Either<'retryLater', 'success'>>
 

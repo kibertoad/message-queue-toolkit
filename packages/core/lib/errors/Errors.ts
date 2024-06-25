@@ -1,6 +1,6 @@
 import { InternalError } from '@lokalise/node-core'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: This is expected
 export type FreeformRecord = Record<string, any>
 
 export type CommonErrorParams = {

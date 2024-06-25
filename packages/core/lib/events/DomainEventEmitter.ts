@@ -7,13 +7,13 @@ import { resolveHandlerSpy } from '../queues/HandlerSpy'
 
 import type { EventRegistry } from './EventRegistry'
 import type {
-  EventHandler,
   AnyEventHandler,
-  SingleEventHandler,
   CommonEventDefinition,
   CommonEventDefinitionConsumerSchemaType,
-  EventTypeNames,
   CommonEventDefinitionPublisherSchemaType,
+  EventHandler,
+  EventTypeNames,
+  SingleEventHandler,
 } from './eventTypes'
 
 export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]> {

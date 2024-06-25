@@ -1,6 +1,6 @@
 import type { ErrorReporter } from '@lokalise/node-core'
 import type { Resolver } from 'awilix'
-import { asFunction, createContainer, Lifetime } from 'awilix'
+import { Lifetime, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import type { Logger } from 'pino'
 import pino from 'pino'
@@ -103,7 +103,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
   return diContainer
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 type DiConfig = Record<keyof Dependencies, Resolver<any>>
 
 export interface Dependencies {

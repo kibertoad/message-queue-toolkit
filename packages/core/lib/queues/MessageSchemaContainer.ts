@@ -20,7 +20,7 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
   }
 
   public resolveSchema(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: This is expected
     message: Record<string, any>,
   ): Either<Error, ZodSchema<MessagePayloadSchemas>> {
     const schema = this.messageSchemas[message[this.messageTypeField]]
