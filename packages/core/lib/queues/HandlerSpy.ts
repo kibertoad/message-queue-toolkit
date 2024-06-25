@@ -64,7 +64,7 @@ type DeepPartial<T> = T extends Function
 
 export class HandlerSpy<MessagePayloadSchemas extends object> {
   public name = 'HandlerSpy'
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: This is expected
   private readonly messageBuffer: Fifo<SpyResultInput<any>>
   private readonly messageIdField: keyof MessagePayloadSchemas
   private readonly messageTypeField: keyof MessagePayloadSchemas

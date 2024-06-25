@@ -1,4 +1,4 @@
-import { expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { HandlerSpy, isHandlerSpy } from '../../lib/queues/HandlerSpy'
 
@@ -350,13 +350,13 @@ describe('HandlerSpy', () => {
   })
 
   describe('isHandlerSpy', () => {
-    it('HandlerSpy returns true', async () => {
+    it('HandlerSpy returns true', () => {
       const spy = new HandlerSpy<Message>()
 
       expect(isHandlerSpy(spy)).toBe(true)
     })
 
-    it('Not a HandlerSpy returns false', async () => {
+    it('Not a HandlerSpy returns false', () => {
       expect(isHandlerSpy({})).toBe(false)
       expect(isHandlerSpy('abc')).toBe(false)
       expect(isHandlerSpy(null)).toBe(false)

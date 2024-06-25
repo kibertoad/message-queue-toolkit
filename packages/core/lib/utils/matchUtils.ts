@@ -23,7 +23,7 @@ export function isShallowSubset(
   }
 
   // eslint-disable-next-line prefer-const
-  for (let key of keysSubset) {
+  for (const key of keysSubset) {
     // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
     if (maybeSubset[key] !== maybeSuperset![key]) {
       return false
@@ -36,10 +36,11 @@ export function isShallowSubset(
 /**
  * Returns true if `validatedObject` contains all of the fields included on `matcher`, and their values are deeply equal
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
 export function objectMatches(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: This is expected
   matcher: Record<string, any>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: This is expected
   validatedObject: Record<string, any>,
 ): boolean {
   for (const key in matcher) {

@@ -1,3 +1,4 @@
+import { beforeAll, describe, expect, it } from 'vitest'
 import { CommonMetadataFiller } from './MetadataFiller'
 
 const TEST_MESSAGE = {

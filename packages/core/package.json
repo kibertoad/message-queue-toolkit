@@ -15,8 +15,8 @@
   "scripts": {
     "build": "del-cli dist && del-cli coverage && tsc",
     "build:release": "del-cli dist && del-cli coverage && npm run lint && tsc --project tsconfig.release.json",
-    "lint": "eslint . --ext .ts && tsc --noEmit",
-    "lint:fix": "prettier --write . && eslint .  --ext .ts --fix",
+    "lint": "biome check . && tsc --project tsconfig.json --noEmit",
+    "lint:fix": "biome check --write .",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
@@ -34,18 +34,14 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.8.2",
+    "@kibertoad/biome-config": "^1.2.1",
     "@types/node": "^20.12.8",
     "@types/tmp": "^0.2.6",
-    "@typescript-eslint/eslint-plugin": "^7.7.1",
-    "@typescript-eslint/parser": "^7.7.1",
     "@vitest/coverage-v8": "^1.6.0",
     "awilix": "^10.0.2",
     "awilix-manager": "^5.2.1",
     "del-cli": "^5.1.0",
-    "eslint": "^8.57.0",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-vitest": "0.4.1",
-    "prettier": "^3.2.5",
     "typescript": "^5.5.2",
     "vitest": "^1.6.0"
   },
@@ -66,9 +62,5 @@
     "rabbitmq",
     "rabbit"
   ],
-  "files": [
-    "README.md",
-    "LICENSE",
-    "dist/*"
-  ]
+  "files": ["README.md", "LICENSE", "dist/*"]
 }

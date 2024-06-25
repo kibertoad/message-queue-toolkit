@@ -121,7 +121,7 @@ export class MessageHandlerConfigBuilder<
     MessagePayloadSchemas,
     ExecutionContext,
     PrehandlerOutput,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: This is expected
     any
   >[]
 

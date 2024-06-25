@@ -3,11 +3,11 @@ import { randomUUID } from 'node:crypto'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-toolkit/schemas'
 import type { AwilixContainer } from 'awilix'
-import { expect } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { z } from 'zod'
 
 import type { Dependencies } from '../../test/testContext'
-import { registerDependencies, TestEvents } from '../../test/testContext'
+import { TestEvents, registerDependencies } from '../../test/testContext'
 
 import { FakeListener } from './fakes/FakeListener'
 

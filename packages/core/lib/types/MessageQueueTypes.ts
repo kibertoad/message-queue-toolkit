@@ -25,14 +25,14 @@ export interface AsyncPublisher<MessagePayloadType extends object, MessageOption
   publish(message: MessagePayloadType, options: MessageOptions): Promise<unknown>
 }
 
-export { TransactionObservabilityManager }
+export type { TransactionObservabilityManager }
 
 export type LogFn = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: This is expected
   <T extends object>(obj: T, msg?: string, ...args: any[]): void
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: This is expected
   (obj: unknown, msg?: string, ...args: any[]): void
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: This is expected
   (msg: string, ...args: any[]): void
 }
 
@@ -51,6 +51,6 @@ export type Logger = {
 
 export type SchemaMap<SupportedMessageTypes extends string> = Record<
   SupportedMessageTypes,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   ZodSchema<any>
 >
