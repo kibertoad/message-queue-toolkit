@@ -80,6 +80,21 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       })
     }
 
+    if (this._handlerSpy) {
+      this._handlerSpy.addProcessedMessage(
+        {
+          // @ts-ignore
+          message: {
+            type: eventTypeName,
+            ...data,
+            ...(metadata !== undefined ? { metadata } : {}),
+          },
+          processingResult: 'published',
+        },
+        data.id,
+      )
+    }
+
     const eventHandlers = this.eventHandlerMap[eventTypeName]
 
     // No relevant handlers are registered, we can stop processing
