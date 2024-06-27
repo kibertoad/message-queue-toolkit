@@ -299,12 +299,33 @@ describe('AmqpPermissionConsumer', () => {
     })
 
     it('Invalid message in the queue', async () => {
+      const invalidMessage = {
+        id: 1, // invalid type
+        messageType: 'add',
+      }
+
+      expect(() =>
+        // @ts-ignore
+        publisher.publish(invalidMessage),
+      ).toThrowErrorMatchingInlineSnapshot(
+          `
+        [ZodError: [
+          {
+            "code": "invalid_type",
+            "expected": "string",
+            "received": "number",
+            "path": [
+              "id"
+            ],
+            "message": "Expected string, received number"
+          }
+        ]]
+      `,
+      )
+
       channel.sendToQueue(
         AmqpPermissionConsumer.QUEUE_NAME,
-        objectToBuffer({
-          id: 1, // invalid type
-          messageType: 'add',
-        }),
+        objectToBuffer(invalidMessage),
       )
 
       await waitAndRetry(() => consumerErrorResolver.errors.length > 0)
