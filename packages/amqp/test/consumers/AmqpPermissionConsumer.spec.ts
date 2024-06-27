@@ -308,7 +308,7 @@ describe('AmqpPermissionConsumer', () => {
         // @ts-ignore
         publisher.publish(invalidMessage),
       ).toThrowErrorMatchingInlineSnapshot(
-          `
+        `
         [ZodError: [
           {
             "code": "invalid_type",
@@ -323,10 +323,7 @@ describe('AmqpPermissionConsumer', () => {
       `,
       )
 
-      channel.sendToQueue(
-        AmqpPermissionConsumer.QUEUE_NAME,
-        objectToBuffer(invalidMessage),
-      )
+      channel.sendToQueue(AmqpPermissionConsumer.QUEUE_NAME, objectToBuffer(invalidMessage))
 
       await waitAndRetry(() => consumerErrorResolver.errors.length > 0)
 
