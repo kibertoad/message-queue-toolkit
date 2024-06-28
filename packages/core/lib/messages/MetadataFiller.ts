@@ -49,10 +49,10 @@ export class CommonMetadataFiller implements MetadataFiller {
   produceMetadata(
     _currentMessage: PublisherBaseEventType,
     eventDefinition: Pick<CommonEventDefinition, 'schemaVersion'>,
-    precedingMessageMetadata?: MessageMetadataType,
+    precedingMessageMetadata?: Omit<MessageMetadataType, 'producedBy'>,
   ): MessageMetadataType {
     return {
-      producedBy: precedingMessageMetadata?.producedBy ?? this.serviceId,
+      producedBy: this.serviceId,
       originatedFrom: precedingMessageMetadata?.originatedFrom ?? this.serviceId,
       schemaVersion:
         precedingMessageMetadata?.schemaVersion ??
