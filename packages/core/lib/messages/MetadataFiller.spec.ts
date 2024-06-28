@@ -53,7 +53,7 @@ describe('MetadataFiller', () => {
       const metadata = filler.produceMetadata(TEST_MESSAGE, EVENT_DEFINITION, providedMetadata)
 
       // Then
-      expect(metadata).toEqual({...providedMetadata, producedBy: SERVICE_ID})
+      expect(metadata).toEqual({ ...providedMetadata, producedBy: SERVICE_ID })
     })
   })
 })
