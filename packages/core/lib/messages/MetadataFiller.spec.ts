@@ -45,7 +45,6 @@ describe('MetadataFiller', () => {
       // Given
       const providedMetadata = {
         schemaVersion: '2.0.0',
-        producedBy: 'producer',
         originatedFrom: 'source',
         correlationId: 'myCorrelationId',
       }
@@ -54,7 +53,7 @@ describe('MetadataFiller', () => {
       const metadata = filler.produceMetadata(TEST_MESSAGE, EVENT_DEFINITION, providedMetadata)
 
       // Then
-      expect(metadata).toEqual(providedMetadata)
+      expect(metadata).toEqual({ ...providedMetadata, producedBy: SERVICE_ID })
     })
   })
 })
