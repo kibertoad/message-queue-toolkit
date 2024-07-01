@@ -34,7 +34,7 @@
     "amqplib": "^0.10.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.8.2",
+    "@biomejs/biome": "1.8.3",
     "@kibertoad/biome-config": "^1.2.1",
     "@message-queue-toolkit/core": "*",
     "@types/amqplib": "^0.10.5",
