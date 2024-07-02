@@ -8,3 +8,10 @@ import type { CommonEventDefinition } from '../events/eventTypes'
 export type ConsumerMessageSchema<MessageDefinitionType extends CommonEventDefinition> = z.infer<
   MessageDefinitionType['consumerSchema']
 >
+
+/**
+ * Resolves schema of a publishder message for a given event definition
+ */
+export type PublisherMessageSchema<MessageDefinitionType extends CommonEventDefinition> = z.infer<
+  MessageDefinitionType['publisherSchema']
+>
