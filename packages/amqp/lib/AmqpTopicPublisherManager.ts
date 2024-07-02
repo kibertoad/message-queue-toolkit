@@ -1,8 +1,8 @@
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type {
-  MessageMetadataType,
   MessagePublishType,
   MessageSchemaType,
+  PublisherMessageMetadataType,
 } from '@message-queue-toolkit/core'
 import type z from 'zod'
 
@@ -25,7 +25,7 @@ export class AmqpTopicPublisherManager<
     z.infer<SupportedEventDefinitions[number]['publisherSchema']>
   >,
   SupportedEventDefinitions extends AmqpAwareEventDefinition[],
-  MetadataType = MessageMetadataType,
+  MetadataType = PublisherMessageMetadataType,
 > extends AbstractPublisherManager<
   AmqpAwareEventDefinition,
   NonNullable<SupportedEventDefinitions[number]['exchange']>,

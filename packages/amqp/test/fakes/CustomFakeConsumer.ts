@@ -1,11 +1,14 @@
-import type { BaseMessageType } from '@message-queue-toolkit/core'
+import type { PublisherBaseMessageType } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
 import { AbstractAmqpQueueConsumer } from '../../lib/AbstractAmqpQueueConsumer'
 import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService'
 
-export class CustomFakeConsumer extends AbstractAmqpQueueConsumer<BaseMessageType, unknown> {
+export class CustomFakeConsumer extends AbstractAmqpQueueConsumer<
+  PublisherBaseMessageType,
+  unknown
+> {
   public static readonly QUEUE_NAME = 'dummy-queue'
   constructor(dependencies: AMQPConsumerDependencies, schema: ZodSchema) {
     super(
@@ -20,7 +23,7 @@ export class CustomFakeConsumer extends AbstractAmqpQueueConsumer<BaseMessageTyp
         },
         handlerSpy: true,
         messageTypeField: 'messageType',
-        handlers: new MessageHandlerConfigBuilder<BaseMessageType, unknown>()
+        handlers: new MessageHandlerConfigBuilder<PublisherBaseMessageType, unknown>()
           .addConfig(schema, () => Promise.resolve({ result: 'success' }))
           .build(),
       },

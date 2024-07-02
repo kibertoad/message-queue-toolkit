@@ -6,7 +6,7 @@ import type {
   PublisherBaseEventType,
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
-import type { MessageMetadataType } from '@message-queue-toolkit/core/lib/messages/baseMessageSchemas'
+import type { PublisherMessageMetadataType } from '@message-queue-toolkit/core/lib/messages/baseMessageSchemas'
 import type { SnsAwareEventDefinition } from '@message-queue-toolkit/schemas'
 import type z from 'zod'
 
@@ -46,7 +46,7 @@ export type SnsMessageSchemaType<T extends SnsAwareEventDefinition> = z.infer<T[
 export class SnsPublisherManager<
   T extends AbstractSnsPublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
   SupportedEventDefinitions extends SnsAwareEventDefinition[],
-  MetadataType = MessageMetadataType,
+  MetadataType = PublisherMessageMetadataType,
 > extends AbstractPublisherManager<
   SnsAwareEventDefinition,
   NonNullable<SupportedEventDefinitions[number]['snsTopic']>,

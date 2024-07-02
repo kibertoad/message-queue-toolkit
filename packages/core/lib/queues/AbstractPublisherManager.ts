@@ -214,12 +214,22 @@ export abstract class AbstractPublisherManager<
     message: MessagePublishType<SupportedEventDefinitions[number]>,
     precedingEventMetadata?: Partial<MetadataType>,
   ): MessageSchemaType<SupportedEventDefinitions[number]> {
+    const producedMetadata = this.metadataFiller.produceMetadata(
+      // @ts-ignore
+      message,
+      messageDefinition,
+      precedingEventMetadata,
+    )
+
     // @ts-ignore
     const resolvedMetadata = message[this.metadataField]
-      ? // @ts-ignore
-        message[this.metadataField]
+      ? {
+          ...producedMetadata,
+          // @ts-ignore
+          ...message[this.metadataField],
+        }
       : // @ts-ignore
-        this.metadataFiller.produceMetadata(message, messageDefinition, precedingEventMetadata)
+        producedMetadata
 
     // @ts-ignore
     return {

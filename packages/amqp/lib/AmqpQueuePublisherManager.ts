@@ -1,11 +1,11 @@
 import type {
   CommonCreationConfigType,
   EventRegistry,
-  MessageMetadataType,
   MessagePublishType,
   MessageSchemaType,
   MetadataFiller,
   PublisherBaseEventType,
+  PublisherMessageMetadataType,
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { AmqpAwareEventDefinition } from '@message-queue-toolkit/schemas'
@@ -72,7 +72,7 @@ export class AmqpQueuePublisherManager<
     z.infer<SupportedEventDefinitions[number]['publisherSchema']>
   >,
   SupportedEventDefinitions extends AmqpAwareEventDefinition[],
-  MetadataType = MessageMetadataType,
+  MetadataType = PublisherMessageMetadataType,
 > extends AbstractPublisherManager<
   AmqpAwareEventDefinition,
   NonNullable<SupportedEventDefinitions[number]['queueName']>,
