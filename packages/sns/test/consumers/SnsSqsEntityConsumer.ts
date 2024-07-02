@@ -1,17 +1,20 @@
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
+import type { ConsumerMessageSchema } from '@message-queue-toolkit/schemas'
 
 import type {
   SNSSQSConsumerDependencies,
   SNSSQSConsumerOptions,
 } from '../../lib/sns/AbstractSnsSqsConsumer'
 import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer'
-import type { TestEventConsumerPayloadsType } from '../utils/testContext'
 import { TestEvents } from '../utils/testContext'
 
 import { entityCreatedHandler } from './handlers/EntityCreatedHandler'
 import { entityUpdatedHandler } from './handlers/EntityUpdatedHandler'
 
-type SupportedMessages = TestEventConsumerPayloadsType
+type SupportedMessages = ConsumerMessageSchema<
+  typeof TestEvents.created | typeof TestEvents.updated
+>
+
 type ExecutionContext = {
   incrementAmount: number
 }

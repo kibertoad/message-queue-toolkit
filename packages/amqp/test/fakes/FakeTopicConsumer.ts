@@ -1,11 +1,14 @@
-import type { BaseMessageType } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 
+import type { PublisherBaseMessageType } from '@message-queue-toolkit/schemas'
 import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService'
 import { AbstractAmqpTopicConsumer } from '../../lib/AbstractAmqpTopicConsumer'
 import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager'
 
-export class FakeTopicConsumer extends AbstractAmqpTopicConsumer<BaseMessageType, unknown> {
+export class FakeTopicConsumer extends AbstractAmqpTopicConsumer<
+  PublisherBaseMessageType,
+  unknown
+> {
   public messageCounter = 0
 
   constructor(
@@ -39,7 +42,7 @@ export class FakeTopicConsumer extends AbstractAmqpTopicConsumer<BaseMessageType
         },
         handlerSpy: true,
         messageTypeField: 'type',
-        handlers: new MessageHandlerConfigBuilder<BaseMessageType, unknown>()
+        handlers: new MessageHandlerConfigBuilder<PublisherBaseMessageType, unknown>()
           .addConfig(eventDefinition.consumerSchema, () => {
             this.messageCounter++
             return Promise.resolve({ result: 'success' })

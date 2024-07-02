@@ -29,5 +29,33 @@ describe('AmqpQueuePublisherManager', () => {
 
       expect(result.processingResult).toBe('consumed')
     })
+
+    it('fills incomplete metadata', async () => {
+      const { queuePublisherManager } = diContainer.cradle
+      const fakeConsumer = new FakeQueueConsumer(diContainer.cradle, TestEvents.updated)
+      await fakeConsumer.start()
+
+      const publishedMessage = queuePublisherManager.publishSync(FakeQueueConsumer.QUEUE_NAME, {
+        type: 'entity.updated',
+        payload: {
+          updatedData: 'msg',
+        },
+        metadata: {
+          correlationId: 'some-id',
+        },
+      })
+
+      const result = await fakeConsumer.handlerSpy.waitForMessageWithId(publishedMessage.id)
+
+      expect(result.processingResult).toBe('consumed')
+      expect(result.message.metadata).toMatchInlineSnapshot(`
+        {
+          "correlationId": "some-id",
+          "originatedFrom": "service",
+          "producedBy": "service",
+          "schemaVersion": "1.0.0",
+        }
+      `)
+    })
   })
 })

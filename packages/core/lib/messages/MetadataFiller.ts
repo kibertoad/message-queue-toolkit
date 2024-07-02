@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import type { PublisherBaseEventType } from '../events/baseEventSchemas'
 import type { CommonEventDefinition } from '../events/eventTypes'
 
-import type { MessageMetadataType } from './baseMessageSchemas'
+import type { PublisherMessageMetadataType } from './baseMessageSchemas'
 
 export type IdGenerator = () => string
 export type TimestampGenerator = () => string
@@ -18,7 +18,7 @@ export type MetadataFillerOptions = {
 export type MetadataFiller<
   T extends PublisherBaseEventType = PublisherBaseEventType,
   D = CommonEventDefinition,
-  M = MessageMetadataType,
+  M = PublisherMessageMetadataType,
 > = {
   produceMetadata(currentMessage: T, eventDefinition: D, precedingMessageMetadata?: M): M
   produceId(): string
@@ -49,8 +49,8 @@ export class CommonMetadataFiller implements MetadataFiller {
   produceMetadata(
     _currentMessage: PublisherBaseEventType,
     eventDefinition: Pick<CommonEventDefinition, 'schemaVersion'>,
-    precedingMessageMetadata?: Omit<MessageMetadataType, 'producedBy'>,
-  ): MessageMetadataType {
+    precedingMessageMetadata?: Omit<PublisherMessageMetadataType, 'producedBy'>,
+  ): PublisherMessageMetadataType {
     return {
       producedBy: this.serviceId,
       originatedFrom: precedingMessageMetadata?.originatedFrom ?? this.serviceId,

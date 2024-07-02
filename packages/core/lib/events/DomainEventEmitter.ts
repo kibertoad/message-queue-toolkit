@@ -1,10 +1,10 @@
 import { InternalError } from '@lokalise/node-core'
 
 import type { MetadataFiller } from '../messages/MetadataFiller'
-import type { MessageMetadataType } from '../messages/baseMessageSchemas'
 import type { HandlerSpy, HandlerSpyParams, PublicHandlerSpy } from '../queues/HandlerSpy'
 import { resolveHandlerSpy } from '../queues/HandlerSpy'
 
+import type { PublisherMessageMetadataType } from '@message-queue-toolkit/schemas'
 import type { EventRegistry } from './EventRegistry'
 import type {
   AnyEventHandler,
@@ -62,7 +62,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   public async emit<SupportedEvent extends SupportedEvents[number]>(
     supportedEvent: SupportedEvent,
     data: Omit<CommonEventDefinitionPublisherSchemaType<SupportedEvent>, 'type'>,
-    metadata?: Partial<MessageMetadataType>,
+    metadata?: PublisherMessageMetadataType,
   ): Promise<Omit<CommonEventDefinitionConsumerSchemaType<SupportedEvent>, 'type'>> {
     if (!data.timestamp) {
       data.timestamp = this.metadataFiller.produceTimestamp()

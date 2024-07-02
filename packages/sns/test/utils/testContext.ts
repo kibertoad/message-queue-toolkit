@@ -166,6 +166,7 @@ export async function registerDependencies(
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 type DiConfig = Record<keyof Dependencies, Resolver<any>>
 
 export interface Dependencies {
