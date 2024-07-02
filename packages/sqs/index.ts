@@ -3,8 +3,9 @@ export type {
   SQSDependencies,
   SQSCreationConfig,
   SQSQueueLocatorType,
-  SQS_MESSAGE_MAX_SIZE,
 } from './lib/sqs/AbstractSqsService'
+
+export { SQS_MESSAGE_MAX_SIZE } from './lib/sqs/AbstractSqsService'
 
 export { SqsConsumerErrorResolver } from './lib/errors/SqsConsumerErrorResolver'
 

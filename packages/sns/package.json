@@ -30,16 +30,16 @@
     "zod": "^3.23.8"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sns": "^3.556.0",
-    "@aws-sdk/client-sqs": "^3.556.0",
-    "@message-queue-toolkit/core": "^14.0.0",
-    "@message-queue-toolkit/schemas": "^1.2.0",
-    "@message-queue-toolkit/sqs": "^16.0.0"
+    "@aws-sdk/client-sns": "^3.606.0",
+    "@aws-sdk/client-sqs": "^3.606.0",
+    "@message-queue-toolkit/core": "^15.0.0",
+    "@message-queue-toolkit/schemas": "^2.0.0",
+    "@message-queue-toolkit/sqs": "^17.0.0"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.598.0",
-    "@aws-sdk/client-sns": "^3.569.0",
-    "@aws-sdk/client-sqs": "^3.569.0",
+    "@aws-sdk/client-s3": "^3.608.0",
+    "@aws-sdk/client-sns": "^3.606.0",
+    "@aws-sdk/client-sqs": "^3.606.0",
     "@message-queue-toolkit/core": "*",
     "@message-queue-toolkit/s3-payload-store": "*",
     "@message-queue-toolkit/sqs": "*",

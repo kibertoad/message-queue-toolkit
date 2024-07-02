@@ -4,8 +4,9 @@ export type {
   SNSQueueLocatorType,
   SNSCreationConfig,
   SNSDependencies,
-  SNS_MESSAGE_MAX_SIZE,
 } from './lib/sns/AbstractSnsService'
+
+export { SNS_MESSAGE_MAX_SIZE } from './lib/sns/AbstractSnsService'
 
 export { AbstractSnsService } from './lib/sns/AbstractSnsService'
 

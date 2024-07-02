@@ -29,8 +29,8 @@
     "zod": "^3.23.8"
   },
   "peerDependencies": {
-    "@message-queue-toolkit/core": "^13.5.0",
-    "@message-queue-toolkit/schemas": "^1.1.0",
+    "@message-queue-toolkit/core": "^15.0.0",
+    "@message-queue-toolkit/schemas": "^2.0.0",
     "amqplib": "^0.10.3"
   },
   "devDependencies": {
