@@ -269,6 +269,14 @@ await myPublisher.handlerSpy.waitForMessage({
 }, 'published')
 ```
 
+In case you do not want to await for message to be published, but want to merely check whether or not it was published by this moment, you can use `checkForMessage` method:
+
+```ts
+const notEmittedMessage = myPublisher.handlerSpy.checkForMessage({
+    type: 'entity.created',
+}) // this will resolve to undefined if such message wasn't published up to this moment
+```
+
 You can also check details of the message processing outcome:
 
 ```ts

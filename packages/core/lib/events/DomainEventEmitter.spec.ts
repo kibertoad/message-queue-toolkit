@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto'
 
 import { waitAndRetry } from '@lokalise/node-core'
-import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-toolkit/schemas'
+import type {
+  CommonEventDefinitionPublisherSchemaType,
+  ConsumerMessageSchema,
+} from '@message-queue-toolkit/schemas'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { z } from 'zod'
 
 import type { Dependencies } from '../../test/testContext'
 import { TestEvents, registerDependencies } from '../../test/testContext'
@@ -67,7 +69,7 @@ describe('AutopilotEventEmitter', () => {
     const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
 
     const processedEvent = await eventEmitter.handlerSpy.waitForMessageWithId<
-      z.infer<typeof TestEvents.created.consumerSchema>
+      ConsumerMessageSchema<typeof TestEvents.created>
     >(emittedEvent.id)
 
     expect(processedEvent.message.type).toBe(TestEvents.created.consumerSchema.shape.type.value)
@@ -78,6 +80,28 @@ describe('AutopilotEventEmitter', () => {
 
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+  })
+
+  it('can check spy for messages not being sent', async () => {
+    const { eventEmitter } = diContainer.cradle
+    const fakeListener = new FakeListener(diContainer.cradle.eventRegistry.supportedEvents)
+    eventEmitter.onAny(fakeListener)
+
+    await eventEmitter.emit(TestEvents.created, createdEventPayload)
+
+    const notEmittedEvent = eventEmitter.handlerSpy.checkForMessage<
+      ConsumerMessageSchema<typeof TestEvents.updated>
+    >({
+      type: 'entity.updated',
+    })
+    const emittedEvent = eventEmitter.handlerSpy.checkForMessage<
+      ConsumerMessageSchema<typeof TestEvents.created>
+    >({
+      type: 'entity.created',
+    })
+
+    expect(notEmittedEvent).toBeUndefined()
+    expect(emittedEvent).toBeDefined()
   })
 
   it('emits event to anyListener with metadata', async () => {

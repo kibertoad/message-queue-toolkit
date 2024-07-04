@@ -22,18 +22,14 @@ export type SpyResultOutput<MessagePayloadSchemas extends object> = {
   processingResult: MessageProcessingResult
 }
 
-type SpyResultCacheEntry<MessagePayloadSchemas extends object> = {
-  value: SpyResultInput<MessagePayloadSchemas>
-}
-
 type SpyPromiseMetadata<MessagePayloadSchemas extends object> = {
   fields: DeepPartial<MessagePayloadSchemas>
   processingResult?: MessageProcessingResult
-  promise: Promise<SpyResultInput<MessagePayloadSchemas>>
+  promise: Promise<SpyResultOutput<MessagePayloadSchemas>>
   resolve: (
     value:
       | SpyResultInput<MessagePayloadSchemas>
-      | PromiseLike<SpyResultInput<MessagePayloadSchemas>>,
+      | PromiseLike<SpyResultOutput<MessagePayloadSchemas>>,
   ) => void
 }
 
@@ -79,13 +75,12 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     this.spyPromises = []
   }
 
-  private messageMatchesFilter(
-    spyResult: SpyResultInput<object>,
+  private messageMatchesFilter<T extends object>(
+    spyResult: SpyResultOutput<T>,
     fields: DeepPartial<MessagePayloadSchemas>,
     processingResult?: MessageProcessingResult,
-  ) {
+  ): boolean {
     return (
-      // @ts-ignore
       objectMatches(fields, spyResult.message) &&
       (!processingResult || spyResult.processingResult === processingResult)
     )
@@ -104,29 +99,33 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     )
   }
 
+  checkForMessage<T extends MessagePayloadSchemas>(
+    expectedFields: DeepPartial<T>,
+    expectedProcessingResult?: MessageProcessingResult,
+  ): SpyResultOutput<T> | undefined {
+    return Object.values(this.messageBuffer.items).find((spyResult) => {
+      return this.messageMatchesFilter(spyResult.value, expectedFields, expectedProcessingResult)
+    })?.value
+  }
+
   waitForMessage<T extends MessagePayloadSchemas>(
-    fields: DeepPartial<T>,
-    processingResult?: MessageProcessingResult,
+    expectedFields: DeepPartial<T>,
+    expectedProcessingResult?: MessageProcessingResult,
   ): Promise<SpyResultOutput<T>> {
-    const processedMessageEntry = Object.values(this.messageBuffer.items).find(
-      // @ts-ignore
-      (spyResult: SpyResultCacheEntry<T>) => {
-        return this.messageMatchesFilter(spyResult.value, fields, processingResult)
-      },
-    )
+    const processedMessageEntry = this.checkForMessage(expectedFields, expectedProcessingResult)
     if (processedMessageEntry) {
-      return Promise.resolve(processedMessageEntry.value)
+      return Promise.resolve(processedMessageEntry)
     }
 
-    let resolve: (value: SpyResultInput<T> | PromiseLike<SpyResultInput<T>>) => void
-    const spyPromise = new Promise<SpyResultInput<T>>((_resolve) => {
+    let resolve: (value: SpyResultOutput<T> | PromiseLike<SpyResultOutput<T>>) => void
+    const spyPromise = new Promise<SpyResultOutput<T>>((_resolve) => {
       resolve = _resolve
     })
 
     this.spyPromises.push({
       promise: spyPromise,
-      processingResult,
-      fields,
+      processingResult: expectedProcessingResult,
+      fields: expectedFields,
       // @ts-ignore
       resolve,
     })
@@ -148,14 +147,14 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
 
     // If we failed to parse message, let's store id and type at least
     const resolvedProcessingResult = processingResult.message
-      ? processingResult
-      : {
+      ? (processingResult as SpyResultOutput<MessagePayloadSchemas>)
+      : ({
           ...processingResult,
           message: {
             [this.messageIdField]: messageId,
             [this.messageTypeField]: resolvedMessageType,
           },
-        }
+        } as SpyResultOutput<MessagePayloadSchemas>)
 
     // @ts-ignore
     const cacheId = `${resolvedMessageId}-${Date.now()}-${(Math.random() + 1)
