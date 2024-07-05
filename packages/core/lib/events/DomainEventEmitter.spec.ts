@@ -109,7 +109,14 @@ describe('AutopilotEventEmitter', () => {
     const fakeListener = new FakeListener(diContainer.cradle.eventRegistry.supportedEvents)
     eventEmitter.onAny(fakeListener)
 
-    await eventEmitter.emit(TestEvents.created, createdEventPayload, {
+    const partialCreatedEventPayload = {
+      ...createdEventPayload,
+      metadata: {
+        ...createdEventPayload.metadata,
+        producedBy: undefined,
+      },
+    }
+    await eventEmitter.emit(TestEvents.created, partialCreatedEventPayload, {
       correlationId: 'dummy',
     })
 
@@ -129,7 +136,20 @@ describe('AutopilotEventEmitter', () => {
       type: 'entity.created',
     })
     expect(fakeListener.receivedEvents).toHaveLength(1)
-    expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+    expect(fakeListener.receivedEvents[0]).toMatchObject({
+      id: expect.any(String),
+      metadata: {
+        correlationId: expect.any(String),
+        originatedFrom: 'service',
+        producedBy: undefined,
+        schemaVersion: '1',
+      },
+      payload: {
+        message: 'msg',
+      },
+      timestamp: expect.any(String),
+      type: 'entity.created',
+    })
     expect(fakeListener.receivedMetadata).toHaveLength(1)
     expect(fakeListener.receivedMetadata[0]).toMatchObject({
       correlationId: 'dummy',
