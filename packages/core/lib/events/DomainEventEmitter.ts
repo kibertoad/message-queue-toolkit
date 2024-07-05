@@ -21,7 +21,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   private readonly eventHandlerMap: Record<
     string,
-    EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>[]
+    EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvents[number]>>[]
   > = {}
   private readonly anyHandlers: AnyEventHandler<SupportedEvents>[] = []
   private readonly metadataFiller: MetadataFiller
@@ -49,7 +49,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   }
 
   get handlerSpy(): PublicHandlerSpy<
-    CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>
+    CommonEventDefinitionPublisherSchemaType<SupportedEvents[number]>
   > {
     if (!this._handlerSpy) {
       throw new Error(
@@ -90,7 +90,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
     const validatedEvent = this.eventRegistry
       .getEventDefinitionByTypeName(eventTypeName)
-      .consumerSchema.parse({
+      .publisherSchema.parse({
         type: eventTypeName,
         ...data,
       })

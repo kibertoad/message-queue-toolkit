@@ -39,7 +39,7 @@ export type CommonEventDefinitionPublisherSchemaType<T extends CommonEventDefini
 
 export type EventHandler<
   EventDefinitionSchema extends
-    CommonEventDefinitionConsumerSchemaType<CommonEventDefinition> = CommonEventDefinitionConsumerSchemaType<CommonEventDefinition>,
+    CommonEventDefinitionPublisherSchemaType<CommonEventDefinition> = CommonEventDefinitionPublisherSchemaType<CommonEventDefinition>,
   MetadataDefinitionSchema extends
     Partial<PublisherMessageMetadataType> = Partial<PublisherMessageMetadataType>,
 > = {
@@ -50,7 +50,7 @@ export type EventHandler<
 }
 
 export type AnyEventHandler<EventDefinitions extends CommonEventDefinition[]> = EventHandler<
-  CommonEventDefinitionConsumerSchemaType<EventDefinitions[number]>
+  CommonEventDefinitionPublisherSchemaType<EventDefinitions[number]>
 >
 
 export type SingleEventHandler<
@@ -62,6 +62,6 @@ type EventFromArrayByTypeName<
   EventDefinition extends CommonEventDefinition[],
   EventTypeName extends EventTypeNames<EventDefinition[number]>,
 > = Extract<
-  CommonEventDefinitionConsumerSchemaType<EventDefinition[number]>,
+  CommonEventDefinitionPublisherSchemaType<EventDefinition[number]>,
   { type: EventTypeName }
 >
