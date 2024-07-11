@@ -26,11 +26,11 @@
   },
   "dependencies": {
     "@lokalise/node-core": "^10.0.1",
-    "sqs-consumer": "^11.0.0",
+    "sqs-consumer": "^10.3.0",
     "zod": "^3.23.8"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.609.0",
+    "@aws-sdk/client-sqs": "^3.598.0",
     "@message-queue-toolkit/core": "^15.0.0"
   },
   "devDependencies": {
