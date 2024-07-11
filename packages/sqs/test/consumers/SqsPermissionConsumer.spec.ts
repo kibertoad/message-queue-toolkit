@@ -1,20 +1,19 @@
-/* eslint-disable max-lines */
 import { setTimeout } from 'node:timers/promises'
 
-import type { SendMessageCommandInput, SQSClient } from '@aws-sdk/client-sqs'
-import { SendMessageCommand, ReceiveMessageCommand } from '@aws-sdk/client-sqs'
+import type { SQSClient, SendMessageCommandInput } from '@aws-sdk/client-sqs'
+import { ReceiveMessageCommand, SendMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { BarrierResult } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
-import { asValue, asClass, asFunction } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it } from 'vitest'
+import { asClass, asFunction, asValue } from 'awilix'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ZodError } from 'zod'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
 import { FakeLogger } from '../fakes/FakeLogger'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
-import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext'
+import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
@@ -230,15 +229,15 @@ describe('SqsPermissionConsumer', () => {
             QueueName: publisher.queueProps.name,
           },
         },
-        addPreHandlerBarrier: async (_msg): Promise<BarrierResult<number>> => {
+        addPreHandlerBarrier: (_msg): Promise<BarrierResult<number>> => {
           barrierCounter++
           if (barrierCounter < 2) {
-            return {
+            return Promise.resolve({
               isPassing: false,
-            }
+            })
           }
 
-          return { isPassing: true, output: barrierCounter }
+          return Promise.resolve({ isPassing: true, output: barrierCounter })
         },
       })
       await newConsumer.start()
@@ -263,14 +262,14 @@ describe('SqsPermissionConsumer', () => {
             QueueName: publisher.queueProps.name,
           },
         },
-        addPreHandlerBarrier: async (
+        addPreHandlerBarrier: (
           message,
-          executionContext,
+          _executionContext,
           preHandlerOutput,
         ): Promise<BarrierResult<number>> => {
           expect(preHandlerOutput.messageId).toBe(message.id)
 
-          return { isPassing: true, output: 1 }
+          return Promise.resolve({ isPassing: true, output: 1 })
         },
       })
       await newConsumer.start()
@@ -338,14 +337,14 @@ describe('SqsPermissionConsumer', () => {
             QueueName: publisher.queueProps.name,
           },
         },
-        removeHandlerOverride: async (message, _context, preHandlerOutputs) => {
+        removeHandlerOverride: (message, _context, preHandlerOutputs) => {
           expect(preHandlerOutputs.preHandlerOutput.messageId).toEqual(message.id)
-          return {
+          return Promise.resolve({
             result: 'success',
-          }
+          })
         },
         removePreHandlers: [
-          (message, context, preHandlerOutput, next) => {
+          (message, _context, preHandlerOutput, next) => {
             preHandlerOutput.messageId = message.id
             next({
               result: 'success',
@@ -374,21 +373,21 @@ describe('SqsPermissionConsumer', () => {
             QueueName: publisher.queueProps.name,
           },
         },
-        removeHandlerOverride: async (message, _context, preHandlerOutputs) => {
-          expect(preHandlerOutputs.preHandlerOutput.messageId).toEqual(message.id + ' adjusted')
-          return {
+        removeHandlerOverride: (message, _context, preHandlerOutputs) => {
+          expect(preHandlerOutputs.preHandlerOutput.messageId).toEqual(`${message.id} adjusted`)
+          return Promise.resolve({
             result: 'success',
-          }
+          })
         },
         removePreHandlers: [
-          (message, context, preHandlerOutput, next) => {
+          (message, _context, preHandlerOutput, next) => {
             preHandlerOutput.messageId = message.id
             next({
               result: 'success',
             })
           },
 
-          (message, context, preHandlerOutput, next) => {
+          (_message, _context, preHandlerOutput, next) => {
             preHandlerOutput.messageId += ' adjusted'
             next({
               result: 'success',
@@ -535,9 +534,9 @@ describe('SqsPermissionConsumer', () => {
 
         const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
           locatorConfig: { queueUrl: consumer1.queueProps.url },
-          removeHandlerOverride: async () => {
+          removeHandlerOverride: () => {
             consumer2Counter++
-            return { result: 'success' }
+            return Promise.resolve({ result: 'success' })
           },
         })
         const publisher = new SqsPermissionPublisher(diContainer.cradle, {

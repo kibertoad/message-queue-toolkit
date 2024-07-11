@@ -3,7 +3,7 @@ import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import type { SQSMessage } from '../../lib/types/MessageTypes'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
@@ -224,7 +224,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           creationConfig: { queue: { QueueName: deadLetterQueueName } },
           redrivePolicy: { maxReceiveCount: 2 },
         },
-        removeHandlerOverride: async () => {
+        removeHandlerOverride: () => {
           counter++
           throw new Error('Error')
         },
@@ -235,15 +235,16 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       const dlqConsumer = Consumer.create({
         sqs: diContainer.cradle.sqsClient,
         queueUrl: consumer.dlqUrl,
-        handleMessage: async (message: SQSMessage) => {
+        handleMessage: (message: SQSMessage) => {
           dlqMessage = message
+          return Promise.resolve()
         },
       })
       dlqConsumer.start()
 
       await permissionPublisher.publish({ id: '1', messageType: 'remove' })
 
-      await waitAndRetry(async () => dlqMessage, 50, 20)
+      await waitAndRetry(() => dlqMessage, 50, 20)
 
       expect(counter).toBe(2)
       expect(JSON.parse(dlqMessage.Body)).toEqual({
@@ -265,13 +266,15 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           creationConfig: { queue: { QueueName: deadLetterQueueName } },
           redrivePolicy: { maxReceiveCount: 1 },
         },
-        removeHandlerOverride: async (message) => {
+        removeHandlerOverride: (message) => {
           if (message.id !== sqsMessage.id) {
             throw new Error('not expected message')
           }
           counter++
           messageArrivalTime.push(new Date().getTime())
-          return counter < 2 ? { error: 'retryLater' } : { result: 'success' }
+          return counter < 2
+            ? Promise.resolve({ error: 'retryLater' })
+            : Promise.resolve({ result: 'success' })
         },
       })
       await consumer.start()
@@ -303,8 +306,9 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       const dlqConsumer = Consumer.create({
         sqs: diContainer.cradle.sqsClient,
         queueUrl: consumer.dlqUrl,
-        handleMessage: async (message: SQSMessage) => {
+        handleMessage: (message: SQSMessage) => {
           dlqMessage = message
+          return Promise.resolve()
         },
       })
       dlqConsumer.start()
@@ -344,8 +348,9 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       const dlqConsumer = Consumer.create({
         sqs: diContainer.cradle.sqsClient,
         queueUrl: consumer.dlqUrl,
-        handleMessage: async (message: SQSMessage) => {
+        handleMessage: (message: SQSMessage) => {
           dlqMessage = message
+          return Promise.resolve()
         },
       })
       dlqConsumer.start()
@@ -385,7 +390,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           redrivePolicy: { maxReceiveCount: 200 },
         },
         maxRetryDuration: 2,
-        removeHandlerOverride: async () => {
+        removeHandlerOverride: () => {
           counter++
           return Promise.resolve({ error: 'retryLater' })
         },
@@ -396,8 +401,9 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       const dlqConsumer = Consumer.create({
         sqs: diContainer.cradle.sqsClient,
         queueUrl: consumer.dlqUrl,
-        handleMessage: async (message: SQSMessage) => {
+        handleMessage: (message: SQSMessage) => {
           dlqMessage = message
+          return Promise.resolve()
         },
       })
       dlqConsumer.start()

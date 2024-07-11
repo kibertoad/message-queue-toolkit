@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest'
 import { SqsConsumerErrorResolver } from './SqsConsumerErrorResolver'
 
 describe('SqsConsumerErrorResolver', () => {

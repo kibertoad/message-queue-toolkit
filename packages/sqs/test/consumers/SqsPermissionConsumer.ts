@@ -1,6 +1,6 @@
 import type { Either } from '@lokalise/node-core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
-import type { BarrierResult, Prehandler, PreHandlingOutputs } from '@message-queue-toolkit/core'
+import type { BarrierResult, PreHandlingOutputs, Prehandler } from '@message-queue-toolkit/core'
 
 import type { SQSConsumerDependencies, SQSConsumerOptions } from '../../lib/sqs/AbstractSqsConsumer'
 import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer'
@@ -66,15 +66,15 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
       },
     },
   ) {
-    const defaultRemoveHandler = async (
+    const defaultRemoveHandler = (
       _message: SupportedMessages,
       context: ExecutionContext,
       _preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, number>,
     ): Promise<Either<'retryLater', 'success'>> => {
       this.removeCounter += context.incrementAmount
-      return {
+      return Promise.resolve({
         result: 'success',
-      }
+      })
     }
 
     super(
@@ -106,14 +106,14 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
         >()
           .addConfig(
             PERMISSIONS_ADD_MESSAGE_SCHEMA,
-            async (_message, context, barrierOutput) => {
+            (_message, context, barrierOutput) => {
               if (options.addPreHandlerBarrier && !barrierOutput) {
-                return { error: 'retryLater' }
+                return Promise.resolve({ error: 'retryLater' })
               }
               this.addCounter += context.incrementAmount
-              return {
+              return Promise.resolve({
                 result: 'success',
-              }
+              })
             },
             {
               preHandlerBarrier: options.addPreHandlerBarrier,
