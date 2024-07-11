@@ -1,18 +1,18 @@
 import { SendMessageCommand, SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type {
-  QueueConsumer,
-  TransactionObservabilityManager,
-  QueueConsumerOptions,
+  BarrierResult,
+  DeadLetterQueueOptions,
+  MessageSchemaContainer,
+  ParseMessageResult,
   PreHandlingOutputs,
   Prehandler,
-  BarrierResult,
+  QueueConsumer,
   QueueConsumerDependencies,
-  DeadLetterQueueOptions,
-  ParseMessageResult,
-  MessageSchemaContainer,
+  QueueConsumerOptions,
+  TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
-import { isMessageError, parseMessage, HandlerContainer } from '@message-queue-toolkit/core'
+import { HandlerContainer, isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
@@ -182,7 +182,7 @@ export abstract class AbstractSqsConsumer<
       sqs: this.sqsClient,
       queueUrl: this.queueUrl,
       visibilityTimeout,
-      messageAttributeNames: [PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX + '*'],
+      messageAttributeNames: [`${PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX}*`],
       ...this.consumerOptionsOverride,
       handleMessage: async (message: SQSMessage) => {
         if (message === null) return
@@ -284,10 +284,10 @@ export abstract class AbstractSqsConsumer<
     return { error: 'retryLater' }
   }
 
-  protected override async processMessage(
+  protected override processMessage(
     message: MessagePayloadType,
     messageType: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, any>,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler<PrehandlerOutput>(messageType)
@@ -301,7 +301,7 @@ export abstract class AbstractSqsConsumer<
     return this.processPrehandlersInternal(handlerConfig.preHandlers, message)
   }
 
-  protected override async preHandlerBarrier<BarrierOutput>(
+  protected override preHandlerBarrier<BarrierOutput>(
     message: MessagePayloadType,
     messageType: string,
     preHandlerOutput: PrehandlerOutput,
@@ -449,7 +449,7 @@ export abstract class AbstractSqsConsumer<
   }
 
   private async getQueueVisibilityTimeout(): Promise<number | undefined> {
-    let visibilityTimeoutString
+    let visibilityTimeoutString: string | undefined
     if (this.creationConfig) {
       visibilityTimeoutString = this.creationConfig.queue.Attributes?.VisibilityTimeout
     } else {
@@ -463,6 +463,6 @@ export abstract class AbstractSqsConsumer<
     }
 
     // parseInt is safe because if the value is not a number process should have failed on init
-    return visibilityTimeoutString ? parseInt(visibilityTimeoutString) : undefined
+    return visibilityTimeoutString ? Number.parseInt(visibilityTimeoutString) : undefined
   }
 }

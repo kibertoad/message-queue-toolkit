@@ -14,7 +14,7 @@ import {
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { describe, beforeEach, afterEach, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
 import { assertBucket, getObjectContent } from '../utils/s3Utils'
@@ -60,11 +60,12 @@ describe('SqsPermissionPublisher', () => {
       receivedSqsMessages = []
       consumer = Consumer.create({
         queueUrl,
-        handleMessage: async (message: Message) => {
+        handleMessage: (message: Message) => {
           if (message === null) {
-            return
+            return Promise.resolve()
           }
           receivedSqsMessages.push(message)
+          return Promise.resolve()
         },
         sqs: sqsClient,
         messageAttributeNames: [OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE],

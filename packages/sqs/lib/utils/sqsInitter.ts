@@ -1,5 +1,5 @@
 import { SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
-import type { SQSClient, QueueAttributeName } from '@aws-sdk/client-sqs'
+import type { QueueAttributeName, SQSClient } from '@aws-sdk/client-sqs'
 import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 

@@ -3,7 +3,7 @@ import type { PayloadStoreConfig } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { SQS_MESSAGE_MAX_SIZE } from '../../lib/sqs/AbstractSqsService'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'

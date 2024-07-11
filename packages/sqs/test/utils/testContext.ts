@@ -3,7 +3,7 @@ import { SQSClient } from '@aws-sdk/client-sqs'
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
 import type { Resolver } from 'awilix'
-import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
+import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
 import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver'
@@ -88,7 +88,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
   return diContainer
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: This is expected
 type DiConfig = Record<keyof Dependencies, Resolver<any>>
 
 export interface Dependencies {

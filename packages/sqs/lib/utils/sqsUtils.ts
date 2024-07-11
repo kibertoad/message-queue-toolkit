@@ -1,15 +1,15 @@
 import {
   CreateQueueCommand,
-  GetQueueUrlCommand,
   DeleteQueueCommand,
   GetQueueAttributesCommand,
-  SetQueueAttributesCommand,
+  GetQueueUrlCommand,
   ListQueuesCommand,
+  SetQueueAttributesCommand,
 } from '@aws-sdk/client-sqs'
 import type {
   CreateQueueCommandInput,
-  SQSClient,
   QueueAttributeName,
+  SQSClient,
   SendMessageCommandInput,
 } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'

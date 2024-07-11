@@ -2,7 +2,7 @@ import type { SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
 import type { SQSMessage } from '../../lib/types/MessageTypes'
@@ -202,9 +202,9 @@ describe('SqsPermissionPublisher', () => {
       let receivedMessage: unknown
       const consumer = Consumer.create({
         queueUrl: queueUrl,
-        handleMessage: async (message: SQSMessage) => {
+        handleMessage: (message: SQSMessage) => {
           if (message === null) {
-            return
+            return Promise.resolve()
           }
           const decodedMessage = deserializeSQSMessage(
             message as any,
@@ -212,6 +212,7 @@ describe('SqsPermissionPublisher', () => {
             new FakeConsumerErrorResolver(),
           )
           receivedMessage = decodedMessage.result!
+          return Promise.resolve()
         },
         sqs: diContainer.cradle.sqsClient,
       })
