@@ -44,7 +44,7 @@
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-vitest": "0.4.1",
     "prettier": "^3.2.5",
-    "typescript": "^5.4.5",
+    "typescript": "^5.5.3",
     "vitest": "^1.6.0"
   },
   "homepage": "https://github.com/kibertoad/message-queue-toolkit",
