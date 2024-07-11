@@ -193,7 +193,7 @@ export abstract class AbstractPublisherManager<
     if (this.isAsync) {
       await (publisher as AsyncPublisher<object, unknown>).publish(resolvedMessage, messageOptions)
     } else {
-      ;(publisher as SyncPublisher<object, unknown>).publish(resolvedMessage, messageOptions)
+      publisher.publish(resolvedMessage, messageOptions)
     }
 
     return resolvedMessage

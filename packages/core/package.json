@@ -42,7 +42,7 @@
     "awilix": "^10.0.2",
     "awilix-manager": "^5.2.1",
     "del-cli": "^5.1.0",
-    "typescript": "^5.5.2",
+    "typescript": "^5.5.3",
     "vitest": "^1.6.0"
   },
   "homepage": "https://github.com/kibertoad/message-queue-toolkit",
