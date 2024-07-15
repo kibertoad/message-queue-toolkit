@@ -25,7 +25,7 @@
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@lokalise/node-core": "^10.0.1",
+    "@lokalise/node-core": "^11.1.0",
     "@message-queue-toolkit/schemas": "^2.1.1",
     "fast-equals": "^5.0.1",
     "json-stream-stringify": "^3.1.4",
