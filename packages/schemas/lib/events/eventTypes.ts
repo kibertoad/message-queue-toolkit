@@ -1,8 +1,6 @@
 import type { ZodObject, ZodTypeAny } from 'zod'
 import type z from 'zod'
 
-import type { PublisherMessageMetadataType } from '../messages/baseMessageSchemas'
-
 import type { CONSUMER_BASE_EVENT_SCHEMA, PUBLISHER_BASE_EVENT_SCHEMA } from './baseEventSchemas'
 
 export type EventTypeNames<EventDefinition extends CommonEventDefinition> =
@@ -40,13 +38,8 @@ export type CommonEventDefinitionPublisherSchemaType<T extends CommonEventDefini
 export type EventHandler<
   EventDefinitionSchema extends
     CommonEventDefinitionPublisherSchemaType<CommonEventDefinition> = CommonEventDefinitionPublisherSchemaType<CommonEventDefinition>,
-  MetadataDefinitionSchema extends
-    Partial<PublisherMessageMetadataType> = Partial<PublisherMessageMetadataType>,
 > = {
-  handleEvent(
-    event: EventDefinitionSchema,
-    metadata?: MetadataDefinitionSchema,
-  ): void | Promise<void>
+  handleEvent(event: EventDefinitionSchema): void | Promise<void>
 }
 
 export type AnyEventHandler<EventDefinitions extends CommonEventDefinition[]> = EventHandler<

@@ -23,6 +23,7 @@ export type MetadataFiller<
   produceMetadata(currentMessage: T, eventDefinition: D, precedingMessageMetadata?: M): M
   produceId(): string
   produceTimestamp(): string
+  produceCurrentServiceId(): string
 }
 
 export class CommonMetadataFiller implements MetadataFiller {
@@ -46,6 +47,10 @@ export class CommonMetadataFiller implements MetadataFiller {
       })
   }
 
+  produceCurrentServiceId(): string {
+    return this.serviceId
+  }
+
   produceMetadata(
     _currentMessage: PublisherBaseEventType,
     eventDefinition: Pick<CommonEventDefinition, 'schemaVersion'>,
@@ -54,10 +59,7 @@ export class CommonMetadataFiller implements MetadataFiller {
     return {
       producedBy: this.serviceId,
       originatedFrom: precedingMessageMetadata?.originatedFrom ?? this.serviceId,
-      schemaVersion:
-        precedingMessageMetadata?.schemaVersion ??
-        eventDefinition.schemaVersion ??
-        this.defaultVersion,
+      schemaVersion: eventDefinition.schemaVersion ?? this.defaultVersion,
       correlationId: precedingMessageMetadata?.correlationId ?? this.produceId(),
     }
   }

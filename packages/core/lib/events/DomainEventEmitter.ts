@@ -4,7 +4,7 @@ import type { MetadataFiller } from '../messages/MetadataFiller'
 import type { HandlerSpy, HandlerSpyParams, PublicHandlerSpy } from '../queues/HandlerSpy'
 import { resolveHandlerSpy } from '../queues/HandlerSpy'
 
-import type { PublisherMessageMetadataType } from '@message-queue-toolkit/schemas'
+import type { ConsumerMessageMetadataType } from '@message-queue-toolkit/schemas'
 import type { EventRegistry } from './EventRegistry'
 import type {
   AnyEventHandler,
@@ -62,13 +62,29 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   public async emit<SupportedEvent extends SupportedEvents[number]>(
     supportedEvent: SupportedEvent,
     data: Omit<CommonEventDefinitionPublisherSchemaType<SupportedEvent>, 'type'>,
-    metadata?: PublisherMessageMetadataType,
+    precedingMessageMetadata?: Partial<ConsumerMessageMetadataType>,
   ): Promise<Omit<CommonEventDefinitionConsumerSchemaType<SupportedEvent>, 'type'>> {
     if (!data.timestamp) {
       data.timestamp = this.metadataFiller.produceTimestamp()
     }
     if (!data.id) {
       data.id = this.metadataFiller.produceId()
+    }
+
+    if (!data.metadata) {
+      data.metadata = precedingMessageMetadata
+        ? // @ts-ignore
+          this.metadataFiller.produceMetadata(data, supportedEvent, precedingMessageMetadata)
+        : {
+            correlationId: this.metadataFiller.produceId(),
+            schemaVersion: supportedEvent.schemaVersion,
+            producedBy: this.metadataFiller.produceCurrentServiceId(),
+            originatedFrom: this.metadataFiller.produceCurrentServiceId(),
+          }
+    }
+
+    if (!data.metadata.correlationId) {
+      data.metadata.correlationId = this.metadataFiller.produceId()
     }
 
     const eventTypeName = supportedEvent.publisherSchema.shape.type.value
@@ -97,12 +113,12 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
     if (eventHandlers) {
       for (const handler of eventHandlers) {
-        await handler.handleEvent(validatedEvent, metadata)
+        await handler.handleEvent(validatedEvent)
       }
     }
 
     for (const handler of this.anyHandlers) {
-      await handler.handleEvent(validatedEvent, metadata)
+      await handler.handleEvent(validatedEvent)
     }
 
     if (this._handlerSpy) {
@@ -111,7 +127,6 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
           // @ts-ignore
           message: {
             ...validatedEvent,
-            ...(metadata !== undefined ? { metadata } : {}),
           },
           processingResult: 'consumed',
         },
