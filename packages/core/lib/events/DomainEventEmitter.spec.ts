@@ -82,6 +82,41 @@ describe('AutopilotEventEmitter', () => {
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
   })
 
+  it('emits event to anyListener and populates metadata', async () => {
+    const { eventEmitter } = diContainer.cradle
+    const fakeListener = new FakeListener(diContainer.cradle.eventRegistry.supportedEvents)
+    eventEmitter.onAny(fakeListener)
+
+    const emittedEvent = await eventEmitter.emit(TestEvents.created, {
+      payload: {
+        message: 'msg',
+      },
+    })
+
+    const processedEvent = await eventEmitter.handlerSpy.waitForMessageWithId<
+      ConsumerMessageSchema<typeof TestEvents.created>
+    >(emittedEvent.id)
+
+    expect(processedEvent.message.type).toBe(TestEvents.created.consumerSchema.shape.type.value)
+
+    await waitAndRetry(() => {
+      return fakeListener.receivedEvents.length > 0
+    })
+
+    expect(fakeListener.receivedEvents).toHaveLength(1)
+    expect(fakeListener.receivedEvents[0]).toMatchObject({
+      id: expect.any(String),
+      payload: {
+        message: 'msg',
+      },
+      timestamp: expect.any(String),
+      type: 'entity.created',
+    })
+    expect(fakeListener.receivedEvents[0].metadata).toMatchObject({
+      correlationId: expect.any(String),
+    })
+  })
+
   it('can check spy for messages not being sent', async () => {
     const { eventEmitter } = diContainer.cradle
     const fakeListener = new FakeListener(diContainer.cradle.eventRegistry.supportedEvents)
@@ -127,7 +162,10 @@ describe('AutopilotEventEmitter', () => {
     expect(emitResult.message).toEqual({
       id: expect.any(String),
       metadata: {
-        correlationId: 'dummy',
+        "correlationId": createdEventPayload.metadata!.correlationId!,
+        "originatedFrom": "service",
+        "producedBy": undefined,
+        "schemaVersion": "1",
       },
       payload: {
         message: 'msg',
@@ -149,10 +187,6 @@ describe('AutopilotEventEmitter', () => {
       },
       timestamp: expect.any(String),
       type: 'entity.created',
-    })
-    expect(fakeListener.receivedMetadata).toHaveLength(1)
-    expect(fakeListener.receivedMetadata[0]).toMatchObject({
-      correlationId: 'dummy',
     })
   })
 
