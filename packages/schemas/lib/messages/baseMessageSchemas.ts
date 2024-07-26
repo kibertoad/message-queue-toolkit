@@ -7,10 +7,12 @@ import z, {
 } from 'zod'
 
 import {
-    CONSUMER_BASE_EVENT_SCHEMA, CONSUMER_MESSAGE_METADATA_SCHEMA,
-    GENERATED_BASE_EVENT_SCHEMA,
-    OPTIONAL_GENERATED_BASE_EVENT_SCHEMA,
-    PUBLISHER_BASE_EVENT_SCHEMA, PUBLISHER_MESSAGE_METADATA_SCHEMA,
+  CONSUMER_BASE_EVENT_SCHEMA,
+  type CONSUMER_MESSAGE_METADATA_SCHEMA,
+  GENERATED_BASE_EVENT_SCHEMA,
+  OPTIONAL_GENERATED_BASE_EVENT_SCHEMA,
+  PUBLISHER_BASE_EVENT_SCHEMA,
+  type PUBLISHER_MESSAGE_METADATA_SCHEMA,
 } from '../events/baseEventSchemas'
 import type { CommonEventDefinition } from '../events/eventTypes'
 
@@ -28,33 +30,45 @@ export type CommonMessageDefinitionSchemaType<T extends CommonEventDefinition> =
 >
 
 type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string> = {
-  consumerSchema: ZodObject<{
-    id: ZodString
-    timestamp: ZodString
-    type: ZodLiteral<Z>
-    payload: T
-    metadata: ZodObject<{
-      schemaVersion: ZodString
-      producedBy: ZodString
-      originatedFrom: ZodString
-      correlationId: ZodString
-    }>
-  }>
+  consumerSchema: ZodObject<
+    {
+      id: ZodString
+      timestamp: ZodString
+      type: ZodLiteral<Z>
+      payload: T
+      metadata: ZodObject<
+        {
+          schemaVersion: ZodString
+          producedBy: ZodString
+          originatedFrom: ZodString
+          correlationId: ZodString
+        },
+        'strip'
+      >
+    },
+    'strip'
+  >
 
-  publisherSchema: ZodObject<{
-    id: ZodOptional<ZodString>
-    timestamp: ZodOptional<ZodString>
-    type: ZodLiteral<Z>
-    payload: T
-    metadata: ZodOptional<
-      ZodObject<{
-        schemaVersion: ZodOptional<ZodString>
-        producedBy: ZodOptional<ZodString>
-        originatedFrom: ZodOptional<ZodString>
-        correlationId: ZodOptional<ZodString>
-      }>
-    >
-  }>
+  publisherSchema: ZodObject<
+    {
+      id: ZodOptional<ZodString>
+      timestamp: ZodOptional<ZodString>
+      type: ZodLiteral<Z>
+      payload: T
+      metadata: ZodOptional<
+        ZodObject<
+          {
+            schemaVersion: ZodOptional<ZodString>
+            producedBy: ZodOptional<ZodString>
+            originatedFrom: ZodOptional<ZodString>
+            correlationId: ZodOptional<ZodString>
+          },
+          'strip'
+        >
+      >
+    },
+    'strip'
+  >
 }
 
 export type SchemaMetadata = {
