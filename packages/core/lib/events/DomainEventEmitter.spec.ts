@@ -162,10 +162,10 @@ describe('AutopilotEventEmitter', () => {
     expect(emitResult.message).toEqual({
       id: expect.any(String),
       metadata: {
-        "correlationId": createdEventPayload.metadata!.correlationId!,
-        "originatedFrom": "service",
-        "producedBy": undefined,
-        "schemaVersion": "1",
+        correlationId: createdEventPayload.metadata!.correlationId!,
+        originatedFrom: 'service',
+        producedBy: undefined,
+        schemaVersion: '1',
       },
       payload: {
         message: 'msg',

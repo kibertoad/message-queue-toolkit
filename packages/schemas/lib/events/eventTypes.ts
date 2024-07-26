@@ -39,9 +39,7 @@ export type EventHandler<
   EventDefinitionSchema extends
     CommonEventDefinitionPublisherSchemaType<CommonEventDefinition> = CommonEventDefinitionPublisherSchemaType<CommonEventDefinition>,
 > = {
-  handleEvent(
-    event: EventDefinitionSchema
-  ): void | Promise<void>
+  handleEvent(event: EventDefinitionSchema): void | Promise<void>
 }
 
 export type AnyEventHandler<EventDefinitions extends CommonEventDefinition[]> = EventHandler<

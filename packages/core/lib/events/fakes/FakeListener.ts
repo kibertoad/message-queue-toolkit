@@ -9,9 +9,7 @@ export class FakeListener<SupportedEvents extends CommonEventDefinition[]>
     this.receivedEvents = []
   }
 
-  handleEvent(
-    event: SupportedEvents[number]['publisherSchema']['_output'],
-  ): void | Promise<void> {
+  handleEvent(event: SupportedEvents[number]['publisherSchema']['_output']): void | Promise<void> {
     this.receivedEvents.push(event)
   }
 }

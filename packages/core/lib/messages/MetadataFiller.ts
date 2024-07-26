@@ -59,9 +59,7 @@ export class CommonMetadataFiller implements MetadataFiller {
     return {
       producedBy: this.serviceId,
       originatedFrom: precedingMessageMetadata?.originatedFrom ?? this.serviceId,
-      schemaVersion:
-        eventDefinition.schemaVersion ??
-        this.defaultVersion,
+      schemaVersion: eventDefinition.schemaVersion ?? this.defaultVersion,
       correlationId: precedingMessageMetadata?.correlationId ?? this.produceId(),
     }
   }
