@@ -114,6 +114,9 @@ describe('AutopilotEventEmitter', () => {
     })
     expect(fakeListener.receivedEvents[0].metadata).toMatchObject({
       correlationId: expect.any(String),
+      schemaVersion: '1.0.0',
+      producedBy: 'test',
+      originatedFrom: 'test',
     })
   })
 
