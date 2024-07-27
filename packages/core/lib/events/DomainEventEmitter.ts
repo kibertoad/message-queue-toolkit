@@ -72,15 +72,12 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     }
 
     if (!data.metadata) {
-      data.metadata = precedingMessageMetadata
-        ? // @ts-ignore
-          this.metadataFiller.produceMetadata(data, supportedEvent, precedingMessageMetadata)
-        : {
-            correlationId: this.metadataFiller.produceId(),
-            schemaVersion: supportedEvent.schemaVersion,
-            producedBy: this.metadataFiller.produceCurrentServiceId(),
-            originatedFrom: this.metadataFiller.produceCurrentServiceId(),
-          }
+      data.metadata = this.metadataFiller.produceMetadata(
+        // @ts-ignore
+        data,
+        supportedEvent,
+        precedingMessageMetadata ?? {},
+      )
     }
 
     if (!data.metadata.correlationId) {
