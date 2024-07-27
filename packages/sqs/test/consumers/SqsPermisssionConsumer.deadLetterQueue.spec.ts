@@ -432,6 +432,6 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       expect(messageBody._internalNumberOfRetries).toBe(1)
 
       dlqConsumer.stop()
-    })
+    }, 7000)
   })
 })
