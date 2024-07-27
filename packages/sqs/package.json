@@ -25,12 +25,12 @@
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@lokalise/node-core": "^11.1.0",
+    "@lokalise/node-core": "^11.2.0",
     "sqs-consumer": "^11.0.1",
     "zod": "^3.23.8"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.598.0",
+    "@aws-sdk/client-sqs": "^3.614.0",
     "@message-queue-toolkit/core": "^15.0.0"
   },
   "devDependencies": {
