@@ -8,10 +8,12 @@ export default defineConfig({
         singleThread: true,
       },
     },
+    pool: "threads",
     watch: false,
     environment: 'node',
     reporters: ['default'],
     coverage: {
+      provider: 'v8',
       include: ['lib/**/*.ts'],
       exclude: ['lib/**/*.spec.ts', 'lib/**/*.test.ts', 'test/**/*.*', 'lib/types/**/*.*'],
       reporter: ['text'],
