@@ -30,8 +30,8 @@
     "zod": "^3.23.8"
   },
   "peerDependencies": {
-    "@aws-sdk/client-sns": "^3.598.0",
-    "@aws-sdk/client-sqs": "^3.598.0",
+    "@aws-sdk/client-sns": "^3.614.0",
+    "@aws-sdk/client-sqs": "^3.614.0",
     "@message-queue-toolkit/core": "^15.0.0",
     "@message-queue-toolkit/schemas": "^2.0.0",
     "@message-queue-toolkit/sqs": "^17.0.0"
@@ -46,7 +46,7 @@
     "@types/node": "^20.14.10",
     "@typescript-eslint/eslint-plugin": "^7.7.1",
     "@typescript-eslint/parser": "^7.7.1",
-    "@vitest/coverage-v8": "^1.6.0",
+    "@vitest/coverage-v8": "^2.0.4",
     "awilix": "^10.0.1",
     "awilix-manager": "^5.1.0",
     "del-cli": "^5.1.0",
@@ -55,7 +55,7 @@
     "eslint-plugin-vitest": "0.4.1",
     "prettier": "^3.2.5",
     "typescript": "^5.5.3",
-    "vitest": "^1.6.0"
+    "vitest": "^2.0.4"
   },
   "homepage": "https://github.com/kibertoad/message-queue-toolkit",
   "repository": {

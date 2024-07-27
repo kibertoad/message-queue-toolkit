@@ -8,12 +8,20 @@ export default defineConfig({
         singleThread: true,
       },
     },
+    pool: 'threads',
     watch: false,
     environment: 'node',
     reporters: ['default'],
     coverage: {
+      provider: 'v8',
       include: ['lib/**/*.ts'],
-      exclude: ['lib/**/*.spec.ts', 'lib/**/*.test.ts', 'test/**/*.*', 'lib/types/**/*.*'],
+      exclude: [
+        'lib/**/*.spec.ts',
+        'lib/**/*.test.ts',
+        'test/**/*.*',
+        'lib/types/**/*.*',
+        'lib/sns/fakes',
+      ],
       reporter: ['text'],
       all: true,
       thresholds: {
