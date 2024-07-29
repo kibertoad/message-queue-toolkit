@@ -43,7 +43,7 @@
     "@message-queue-toolkit/core": "*",
     "@message-queue-toolkit/s3-payload-store": "*",
     "@message-queue-toolkit/sqs": "*",
-    "@types/node": "^20.14.10",
+    "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^7.7.1",
     "@typescript-eslint/parser": "^7.7.1",
     "@vitest/coverage-v8": "^2.0.4",

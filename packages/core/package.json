@@ -36,7 +36,7 @@
   "devDependencies": {
     "@biomejs/biome": "1.8.3",
     "@kibertoad/biome-config": "^1.2.1",
-    "@types/node": "^20.12.8",
+    "@types/node": "^22.0.0",
     "@types/tmp": "^0.2.6",
     "@vitest/coverage-v8": "^2.0.4",
     "awilix": "^10.0.2",
