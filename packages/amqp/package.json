@@ -38,7 +38,7 @@
     "@kibertoad/biome-config": "^1.2.1",
     "@message-queue-toolkit/core": "*",
     "@types/amqplib": "^0.10.5",
-    "@types/node": "^20.12.12",
+    "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.0.4",
     "amqplib": "^0.10.4",
     "awilix": "^10.0.2",
