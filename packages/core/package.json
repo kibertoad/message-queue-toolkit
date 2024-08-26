@@ -39,7 +39,7 @@
     "@types/node": "^22.0.0",
     "@types/tmp": "^0.2.6",
     "@vitest/coverage-v8": "^2.0.4",
-    "awilix": "^10.0.2",
+    "awilix": "^11.0.0",
     "awilix-manager": "^5.4.0",
     "del-cli": "^5.1.0",
     "typescript": "^5.5.4",
