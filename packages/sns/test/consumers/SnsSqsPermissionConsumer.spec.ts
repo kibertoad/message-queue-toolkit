@@ -6,7 +6,7 @@ import { waitAndRetry } from '@lokalise/node-core'
 import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
@@ -298,14 +298,12 @@ describe('SnsSqsPermissionConsumer', () => {
         deletionConfig: {
           deleteIfExists: true,
         },
-        removeHandlerOverride: async (message, _context, preHandlerOutputs) => {
+        removeHandlerOverride: (_message, _context, preHandlerOutputs) => {
           expect(preHandlerOutputs.preHandlerOutput.preHandlerCount).toBe(1)
-          return {
-            result: 'success',
-          }
+          return Promise.resolve({ result: 'success' })
         },
         removePreHandlers: [
-          (message, context, preHandlerOutput, next) => {
+          (_message, _context, preHandlerOutput, next) => {
             preHandlerOutput.preHandlerCount = preHandlerOutput.preHandlerCount
               ? preHandlerOutput.preHandlerCount + 1
               : 1
@@ -343,14 +341,12 @@ describe('SnsSqsPermissionConsumer', () => {
         deletionConfig: {
           deleteIfExists: true,
         },
-        removeHandlerOverride: async (message, _context, preHandlerOutputs) => {
+        removeHandlerOverride: (_message, _context, preHandlerOutputs) => {
           expect(preHandlerOutputs.preHandlerOutput.preHandlerCount).toBe(11)
-          return {
-            result: 'success',
-          }
+          return Promise.resolve({ result: 'success' })
         },
         removePreHandlers: [
-          (message, context, preHandlerOutput, next) => {
+          (_message, _context, preHandlerOutput, next) => {
             preHandlerOutput.preHandlerCount = preHandlerOutput.preHandlerCount
               ? preHandlerOutput.preHandlerCount + 10
               : 10
@@ -359,7 +355,7 @@ describe('SnsSqsPermissionConsumer', () => {
             })
           },
 
-          (message, context, preHandlerOutput, next) => {
+          (_message, _context, preHandlerOutput, next) => {
             preHandlerOutput.preHandlerCount = preHandlerOutput.preHandlerCount
               ? preHandlerOutput.preHandlerCount + 1
               : 1
@@ -475,9 +471,14 @@ describe('SnsSqsPermissionConsumer', () => {
         const consumer1 = new SnsSqsPermissionConsumer(diContainer.cradle, {
           creationConfig: {
             topic: { Name: topicName },
-            queue: { QueueName: queueName, Attributes: { VisibilityTimeout: '2' } },
+            queue: {
+              QueueName: queueName,
+              Attributes: { VisibilityTimeout: '2' },
+            },
           },
-          consumerOverrides: { heartbeatInterval: heartbeatEnabled ? 1 : undefined },
+          consumerOverrides: {
+            heartbeatInterval: heartbeatEnabled ? 1 : undefined,
+          },
           removeHandlerOverride: async () => {
             consumer1IsProcessing = true
             await setTimeout(3100) // Wait to the visibility timeout to expire
@@ -494,9 +495,9 @@ describe('SnsSqsPermissionConsumer', () => {
             topicArn: consumer1.subscriptionProps.topicArn,
             subscriptionArn: consumer1.subscriptionProps.subscriptionArn,
           },
-          removeHandlerOverride: async () => {
+          removeHandlerOverride: () => {
             consumer2Counter++
-            return { result: 'success' }
+            return Promise.resolve({ result: 'success' })
           },
         })
         const publisher = new SnsPermissionPublisher(diContainer.cradle, {

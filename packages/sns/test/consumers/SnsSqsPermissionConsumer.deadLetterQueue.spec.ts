@@ -9,7 +9,7 @@ import {
 } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { deleteTopic } from '../../lib/utils/snsUtils'
 import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
@@ -133,13 +133,16 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
     it('Stuck messages are sent to DLQ', async () => {
       let counter = 0
       consumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
-        creationConfig: { queue: { QueueName: queueName }, topic: { Name: topicName } },
+        creationConfig: {
+          queue: { QueueName: queueName },
+          topic: { Name: topicName },
+        },
         deadLetterQueue: {
           creationConfig: { queue: { QueueName: deadLetterQueueName } },
           redrivePolicy: { maxReceiveCount: 200 },
         },
         maxRetryDuration: 3,
-        removeHandlerOverride: async () => {
+        removeHandlerOverride: () => {
           counter++
           return Promise.resolve({ error: 'retryLater' })
         },
@@ -150,8 +153,9 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
       const dlqConsumer = Consumer.create({
         sqs: diContainer.cradle.sqsClient,
         queueUrl: consumer.subscriptionProps.deadLetterQueueUrl ?? '',
-        handleMessage: async (message: SQSMessage) => {
+        handleMessage: (message: SQSMessage) => {
           dlqMessage = message
+          return Promise.resolve()
         },
       })
       dlqConsumer.start()

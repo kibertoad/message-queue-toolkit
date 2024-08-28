@@ -151,16 +151,16 @@ describe('SnsPermissionPublisher', () => {
       let receivedMessage: unknown = null
       consumer = Consumer.create({
         queueUrl: queueUrl,
-        handleMessage: async (message: SQSMessage) => {
-          if (message === null) {
-            return
+        handleMessage: (message: SQSMessage) => {
+          if (message !== null) {
+            const decodedMessage = deserializeSNSMessage(
+              message as any,
+              PERMISSIONS_ADD_MESSAGE_SCHEMA,
+              new FakeConsumerErrorResolver(),
+            )
+            receivedMessage = decodedMessage.result!
           }
-          const decodedMessage = deserializeSNSMessage(
-            message as any,
-            PERMISSIONS_ADD_MESSAGE_SCHEMA,
-            new FakeConsumerErrorResolver(),
-          )
-          receivedMessage = decodedMessage.result!
+          return Promise.resolve()
         },
         sqs: diContainer.cradle.sqsClient,
       })
@@ -173,7 +173,11 @@ describe('SnsPermissionPublisher', () => {
       await waitAndRetry(() => !!receivedMessage)
 
       expect(receivedMessage).toEqual({
-        originalMessage: { ...message, _internalNumberOfRetries: 0, timestamp: expect.any(String) },
+        originalMessage: {
+          ...message,
+          _internalNumberOfRetries: 0,
+          timestamp: expect.any(String),
+        },
         parsedMessage: message,
       })
 
@@ -209,16 +213,16 @@ describe('SnsPermissionPublisher', () => {
       let receivedMessage: unknown
       consumer = Consumer.create({
         queueUrl: queueUrl,
-        handleMessage: async (message: SQSMessage) => {
+        handleMessage: (message: SQSMessage) => {
           if (message === null) {
-            return
+            const decodedMessage = deserializeSNSMessage(
+              message as any,
+              PERMISSIONS_ADD_MESSAGE_SCHEMA,
+              new FakeConsumerErrorResolver(),
+            )
+            receivedMessage = decodedMessage.result!
           }
-          const decodedMessage = deserializeSNSMessage(
-            message as any,
-            PERMISSIONS_ADD_MESSAGE_SCHEMA,
-            new FakeConsumerErrorResolver(),
-          )
-          receivedMessage = decodedMessage.result!
+          return Promise.resolve()
         },
         sqs: diContainer.cradle.sqsClient,
       })
