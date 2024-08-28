@@ -244,6 +244,7 @@ describe('AutopilotEventEmitter', () => {
     const fakeListener = new ErroredFakeListener(100)
     eventEmitter.onAny(fakeListener, true)
     const reporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
+    const logSpy = vi.spyOn(diContainer.cradle.logger, 'error')
 
     const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
 
@@ -253,10 +254,18 @@ describe('AutopilotEventEmitter', () => {
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
 
-    expect(reporterSpy).toHaveBeenCalledOnce()
+    const expectedContext = {
+      event: JSON.stringify(emittedEvent),
+      'x-request-id': emittedEvent.metadata?.correlationId,
+    }
     expect(reporterSpy).toHaveBeenCalledWith({
       error: expect.any(Error),
-      context: emittedEvent,
+      context: expectedContext,
+    })
+    expect(logSpy).toHaveBeenCalledWith({
+      error: expect.anything(),
+      message: 'ErroredFakeListener error',
+      ...expectedContext,
     })
   })
 })

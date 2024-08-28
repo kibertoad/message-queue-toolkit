@@ -172,14 +172,18 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
     const bgHandlers = [...eventHandlers.background, ...this.anyHandlers.background]
     for (const handler of bgHandlers) {
-      // TODO: log using request context + stats
-      Promise.resolve(handler.handleEvent(event))
-        .then(() => console.log('Background handler executed'))
-        .catch((error) => {
-          const logObject = resolveGlobalErrorLogObject(error)
-          this.logger?.error({ ...logObject, event: JSON.stringify(event) })
-          this.errorReporter?.report({ error: error, context: event })
+      // TODO: stats -> should be part of library or service? to discuss
+      Promise.resolve(handler.handleEvent(event)).catch((error) => {
+        const context = {
+          event: JSON.stringify(event),
+          'x-request-id': event.metadata?.correlationId,
+        }
+        this.logger?.error({
+          ...resolveGlobalErrorLogObject(error),
+          ...context,
         })
+        this.errorReporter?.report({ error: error, context })
+      })
     }
   }
 }
