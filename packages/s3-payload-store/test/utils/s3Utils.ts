@@ -8,7 +8,9 @@ export async function assertEmptyBucket(s3: S3, bucketName: string) {
     if (objects.Contents?.length) {
       await s3.deleteObjects({
         Bucket: bucketName,
-        Delete: { Objects: objects.Contents?.map((object) => ({ Key: object.Key })) },
+        Delete: {
+          Objects: objects.Contents?.map((object) => ({ Key: object.Key })),
+        },
       })
     }
   } catch (e) {
@@ -28,7 +30,7 @@ export async function objectExists(s3: S3, bucket: string, key: string) {
   try {
     await s3.headObject({ Bucket: bucket, Key: key })
     return true
-  } catch (e) {
+  } catch (_) {
     return false
   }
 }

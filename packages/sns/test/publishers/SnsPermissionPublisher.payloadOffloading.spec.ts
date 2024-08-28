@@ -15,7 +15,7 @@ import {
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { describe, beforeEach, afterEach, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { SNS_MESSAGE_BODY_SCHEMA } from '../../lib/types/MessageTypes'
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber'
@@ -56,13 +56,18 @@ describe('SnsPermissionPublisher', () => {
       await assertBucket(s3, s3BucketName)
       payloadStoreConfig = {
         messageSizeThreshold: largeMessageSizeThreshold,
-        store: new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketName }),
+        store: new S3PayloadStore(diContainer.cradle, {
+          bucketName: s3BucketName,
+        }),
       }
     })
+
     beforeEach(async () => {
       await deleteQueue(sqsClient, queueName)
       await deleteTopic(snsClient, SnsPermissionPublisher.TOPIC_NAME)
-      const { queueUrl } = await assertQueue(sqsClient, { QueueName: queueName })
+      const { queueUrl } = await assertQueue(sqsClient, {
+        QueueName: queueName,
+      })
       await subscribeToTopic(
         sqsClient,
         snsClient,
@@ -78,24 +83,26 @@ describe('SnsPermissionPublisher', () => {
       receivedSnsMessages = []
       consumer = Consumer.create({
         queueUrl,
-        handleMessage: async (message: Message) => {
-          if (message === null) {
-            return
-          }
-          receivedSnsMessages.push(message)
+        handleMessage: (message: Message) => {
+          if (message !== null) receivedSnsMessages.push(message)
+          return Promise.resolve()
         },
         sqs: sqsClient,
         messageAttributeNames: [OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE],
       })
-      publisher = new SnsPermissionPublisher(diContainer.cradle, { payloadStoreConfig })
+      publisher = new SnsPermissionPublisher(diContainer.cradle, {
+        payloadStoreConfig,
+      })
 
       consumer.start()
       await publisher.init()
     })
+
     afterEach(async () => {
       await publisher.close()
       consumer.stop()
     })
+
     afterAll(async () => {
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()

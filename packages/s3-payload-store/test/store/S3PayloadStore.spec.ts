@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream'
 
 import { S3 } from '@aws-sdk/client-s3'
-import { describe, beforeEach, expect, it, beforeAll } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { S3PayloadStore } from '../../lib/S3PayloadStore'
 import { assertEmptyBucket, getObjectContent, objectExists } from '../utils/s3Utils'
@@ -14,7 +14,7 @@ describe('S3PayloadStore', () => {
   let s3: S3
   let store: S3PayloadStore
 
-  beforeAll(async () => {
+  beforeAll(() => {
     s3 = new S3(TEST_AWS_CONFIG)
     store = new S3PayloadStore({ s3 }, { bucketName: TEST_BUCKET })
   })

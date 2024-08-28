@@ -1,5 +1,5 @@
-import type { SNSClient, CreateTopicCommandInput } from '@aws-sdk/client-sns'
-import type { SQSClient, CreateQueueCommandInput } from '@aws-sdk/client-sqs'
+import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
+import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import type { DeletionConfig, ExtraParams } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 import type { SQSCreationConfig } from '@message-queue-toolkit/sqs'

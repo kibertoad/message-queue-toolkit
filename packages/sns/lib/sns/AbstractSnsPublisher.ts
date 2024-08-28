@@ -6,10 +6,10 @@ import type {
   AsyncPublisher,
   BarrierResult,
   MessageInvalidFormatError,
-  MessageValidationError,
-  QueuePublisherOptions,
   MessageSchemaContainer,
+  MessageValidationError,
   OffloadedPayloadPointerPayload,
+  QueuePublisherOptions,
   ResolvedMessage,
 } from '@message-queue-toolkit/core'
 import { resolveOutgoingMessageAttributes } from '@message-queue-toolkit/sqs'
@@ -69,9 +69,10 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         this.logMessage(resolvedLogMessage)
       }
 
-      message = this.updateInternalProperties(message)
-      const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(message, () =>
-        calculateOutgoingMessageSize(message),
+      const updatedMessage = this.updateInternalProperties(message)
+      const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(
+        updatedMessage,
+        () => calculateOutgoingMessageSize(updatedMessage),
       )
 
       await this.sendMessage(maybeOffloadedPayloadMessage, options)

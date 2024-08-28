@@ -5,10 +5,10 @@ import type { TestEvents } from '../../utils/testContext'
 
 let _latestData: string
 
-export async function entityCreatedHandler(
+export function entityCreatedHandler(
   message: z.infer<typeof TestEvents.created.consumerSchema>,
 ): Promise<Either<'retryLater', 'success'>> {
   _latestData = message.payload.newData
 
-  return { result: 'success' }
+  return Promise.resolve({ result: 'success' })
 }

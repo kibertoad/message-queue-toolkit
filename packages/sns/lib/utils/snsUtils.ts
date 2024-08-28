@@ -113,7 +113,7 @@ export async function deleteTopic(client: SNSClient, topicName: string) {
     })
 
     await client.send(command)
-  } catch (err) {
+  } catch (_) {
     // we don't care it operation has failed
   }
 }
@@ -124,7 +124,7 @@ export async function deleteSubscription(client: SNSClient, subscriptionArn: str
   })
   try {
     await client.send(command)
-  } catch (err) {
+  } catch (_) {
     // we don't care it operation has failed
   }
 }

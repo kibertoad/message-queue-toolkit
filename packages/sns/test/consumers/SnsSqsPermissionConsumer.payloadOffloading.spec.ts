@@ -3,7 +3,7 @@ import type { PayloadStoreConfig } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { SNS_MESSAGE_MAX_SIZE } from '../../lib/sns/AbstractSnsService'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
@@ -36,9 +36,12 @@ describe('SnsSqsPermissionConsumer', () => {
       await assertBucket(s3, s3BucketName)
       payloadStoreConfig = {
         messageSizeThreshold: largeMessageSizeThreshold,
-        store: new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketName }),
+        store: new S3PayloadStore(diContainer.cradle, {
+          bucketName: s3BucketName,
+        }),
       }
     })
+
     beforeEach(async () => {
       consumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         payloadStoreConfig,
@@ -49,10 +52,12 @@ describe('SnsSqsPermissionConsumer', () => {
       await consumer.start()
       await publisher.init()
     })
+
     afterEach(async () => {
       await publisher.close()
       await consumer.close()
     })
+
     afterAll(async () => {
       await emptyBucket(s3, s3BucketName)
 

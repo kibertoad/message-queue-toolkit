@@ -2,7 +2,7 @@ import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
-import { afterEach, describe, expect } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber'
 import {
@@ -22,6 +22,7 @@ describe('snsSubscriber', () => {
   let diContainer: AwilixContainer<Dependencies>
   let snsClient: SNSClient
   let sqsClient: SQSClient
+
   beforeEach(async () => {
     diContainer = await registerDependencies({}, false)
     snsClient = diContainer.cradle.snsClient
