@@ -4,13 +4,13 @@ import { SQSClient } from '@aws-sdk/client-sqs'
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
 import {
-  enrichMessageSchemaWithBase,
   CommonMetadataFiller,
   EventRegistry,
+  enrichMessageSchemaWithBase,
 } from '@message-queue-toolkit/core'
 import { FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
 import type { Resolver } from 'awilix'
-import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
+import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import { z } from 'zod'
 

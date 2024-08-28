@@ -3,10 +3,10 @@ import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { InternalError } from '@lokalise/node-core'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
-import { assertQueue, deleteQueue, FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
+import { FakeConsumerErrorResolver, assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { deserializeSNSMessage } from '../../lib/utils/snsMessageDeserializer'
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber'
@@ -151,16 +151,16 @@ describe('SnsPermissionPublisher', () => {
       let receivedMessage: unknown = null
       consumer = Consumer.create({
         queueUrl: queueUrl,
-        handleMessage: async (message: SQSMessage) => {
-          if (message === null) {
-            return
+        handleMessage: (message: SQSMessage) => {
+          if (message !== null) {
+            const decodedMessage = deserializeSNSMessage(
+              message as any,
+              PERMISSIONS_ADD_MESSAGE_SCHEMA,
+              new FakeConsumerErrorResolver(),
+            )
+            receivedMessage = decodedMessage.result!
           }
-          const decodedMessage = deserializeSNSMessage(
-            message as any,
-            PERMISSIONS_ADD_MESSAGE_SCHEMA,
-            new FakeConsumerErrorResolver(),
-          )
-          receivedMessage = decodedMessage.result!
+          return Promise.resolve()
         },
         sqs: diContainer.cradle.sqsClient,
       })
@@ -173,7 +173,11 @@ describe('SnsPermissionPublisher', () => {
       await waitAndRetry(() => !!receivedMessage)
 
       expect(receivedMessage).toEqual({
-        originalMessage: { ...message, _internalNumberOfRetries: 0, timestamp: expect.any(String) },
+        originalMessage: {
+          ...message,
+          _internalNumberOfRetries: 0,
+          timestamp: expect.any(String),
+        },
         parsedMessage: message,
       })
 
@@ -209,16 +213,16 @@ describe('SnsPermissionPublisher', () => {
       let receivedMessage: unknown
       consumer = Consumer.create({
         queueUrl: queueUrl,
-        handleMessage: async (message: SQSMessage) => {
-          if (message === null) {
-            return
+        handleMessage: (message: SQSMessage) => {
+          if (message !== null) {
+            const decodedMessage = deserializeSNSMessage(
+              message as any,
+              PERMISSIONS_ADD_MESSAGE_SCHEMA,
+              new FakeConsumerErrorResolver(),
+            )
+            receivedMessage = decodedMessage.result!
           }
-          const decodedMessage = deserializeSNSMessage(
-            message as any,
-            PERMISSIONS_ADD_MESSAGE_SCHEMA,
-            new FakeConsumerErrorResolver(),
-          )
-          receivedMessage = decodedMessage.result!
+          return Promise.resolve()
         },
         sqs: diContainer.cradle.sqsClient,
       })

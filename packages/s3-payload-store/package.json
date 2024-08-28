@@ -22,8 +22,8 @@
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
-    "lint": "eslint . --ext .ts && tsc --noEmit",
-    "lint:fix": "prettier --write . && eslint .  --ext .ts --fix",
+    "lint": "biome check . && tsc --project tsconfig.json --noEmit",
+    "lint:fix": "biome check --write .",
     "docker:start:dev": "docker compose up -d",
     "docker:stop:dev": "docker compose down",
     "prepublishOnly": "npm run build:release"
@@ -35,15 +35,11 @@
   },
   "devDependencies": {
     "@message-queue-toolkit/core": "*",
+    "@biomejs/biome": "1.8.3",
+    "@kibertoad/biome-config": "^1.2.1",
     "@types/node": "^22.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.0.1",
-    "@typescript-eslint/parser": "^8.0.1",
     "@vitest/coverage-v8": "^2.0.4",
     "del-cli": "^5.1.0",
-    "eslint": "^8.57.0",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-vitest": "0.4.1",
-    "prettier": "^3.2.5",
     "typescript": "^5.5.3",
     "vitest": "^2.0.4"
   },
@@ -64,9 +60,5 @@
     "store",
     "claim-check"
   ],
-  "files": [
-    "README.md",
-    "LICENSE",
-    "dist/*"
-  ]
+  "files": ["README.md", "LICENSE", "dist/*"]
 }
