@@ -1,10 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { waitAndRetry } from '@lokalise/node-core'
-import type {
-  CommonEventDefinitionPublisherSchemaType,
-  ConsumerMessageSchema,
-} from '@message-queue-toolkit/schemas'
+import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-toolkit/schemas'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -12,7 +9,6 @@ import type { Dependencies, TestEventsType } from '../../test/testContext'
 import { TestEvents, registerDependencies } from '../../test/testContext'
 
 import type { DomainEventEmitter } from './DomainEventEmitter'
-import { FakeDelayedListener } from './fakes/FakeDelayedListener'
 import { FakeListener } from './fakes/FakeListener'
 
 const createdEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.created> = {
@@ -72,16 +68,25 @@ describe('AutopilotEventEmitter', () => {
 
     const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
 
-    const processedEvent = await eventEmitter.handlerSpy.waitForMessageWithId<
-      ConsumerMessageSchema<typeof TestEvents.created>
-    >(emittedEvent.id)
+    const processedEvent = await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id)
 
     expect(processedEvent.message.type).toBe(TestEvents.created.consumerSchema.shape.type.value)
+    expect(fakeListener.receivedEvents).toHaveLength(1)
+    expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+  })
 
-    await waitAndRetry(() => {
-      return fakeListener.receivedEvents.length > 0
-    })
+  it('emits event to anyListener - background', async () => {
+    const fakeListener = new FakeListener(100)
+    eventEmitter.onAny(fakeListener, true)
 
+    const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+    const processedEvent = await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id)
+
+    expect(processedEvent.message.type).toBe(TestEvents.created.consumerSchema.shape.type.value)
+    // even thought event is consumed, the listener is still processing
+    expect(fakeListener.receivedEvents).toHaveLength(0)
+    // Wait for the event to be processed
+    await waitAndRetry(() => fakeListener.receivedEvents.length > 0)
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
   })
@@ -96,16 +101,9 @@ describe('AutopilotEventEmitter', () => {
       },
     })
 
-    const processedEvent = await eventEmitter.handlerSpy.waitForMessageWithId<
-      ConsumerMessageSchema<typeof TestEvents.created>
-    >(emittedEvent.id)
+    const processedEvent = await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id)
 
     expect(processedEvent.message.type).toBe(TestEvents.created.consumerSchema.shape.type.value)
-
-    await waitAndRetry(() => {
-      return fakeListener.receivedEvents.length > 0
-    })
-
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject({
       id: expect.any(String),
@@ -129,14 +127,10 @@ describe('AutopilotEventEmitter', () => {
 
     await eventEmitter.emit(TestEvents.created, createdEventPayload)
 
-    const notEmittedEvent = eventEmitter.handlerSpy.checkForMessage<
-      ConsumerMessageSchema<typeof TestEvents.updated>
-    >({
+    const notEmittedEvent = eventEmitter.handlerSpy.checkForMessage({
       type: 'entity.updated',
     })
-    const emittedEvent = eventEmitter.handlerSpy.checkForMessage<
-      ConsumerMessageSchema<typeof TestEvents.created>
-    >({
+    const emittedEvent = eventEmitter.handlerSpy.checkForMessage({
       type: 'entity.created',
     })
 
@@ -194,21 +188,31 @@ describe('AutopilotEventEmitter', () => {
     })
   })
 
-  it('emits event to singleListener', async () => {
+  it('emits event to singleListener - foreground', async () => {
     const fakeListener = new FakeListener()
     eventEmitter.on('entity.created', fakeListener)
 
     await eventEmitter.emit(TestEvents.created, createdEventPayload)
 
-    await waitAndRetry(() => {
-      return fakeListener.receivedEvents.length > 0
-    })
-
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
   })
 
-  it('emits event to manyListener', async () => {
+  it('emits event to singleListener - background', async () => {
+    const fakeListener = new FakeListener(100)
+    eventEmitter.on('entity.created', fakeListener, true)
+
+    await eventEmitter.emit(TestEvents.created, createdEventPayload)
+
+    // even thought event is consumed, the listener is still processing
+    expect(fakeListener.receivedEvents).toHaveLength(0)
+    // Wait for the event to be processed
+    await waitAndRetry(() => fakeListener.receivedEvents.length > 0)
+    expect(fakeListener.receivedEvents).toHaveLength(1)
+    expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+  })
+
+  it('emits event to manyListener - foreground', async () => {
     const { eventEmitter } = diContainer.cradle
     const fakeListener = new FakeListener()
     eventEmitter.onMany(['entity.created', 'entity.updated'], fakeListener)
@@ -216,9 +220,21 @@ describe('AutopilotEventEmitter', () => {
     await eventEmitter.emit(TestEvents.created, createdEventPayload)
     await eventEmitter.emit(TestEvents.updated, updatedEventPayload)
 
-    await waitAndRetry(() => {
-      return fakeListener.receivedEvents.length === 2
-    })
+    expect(fakeListener.receivedEvents).toHaveLength(2)
+    expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+    expect(fakeListener.receivedEvents[1]).toMatchObject(expectedUpdatedPayload)
+  })
+
+  it('emits event to manyListener - background', async () => {
+    const { eventEmitter } = diContainer.cradle
+    const fakeListener = new FakeListener(100)
+    eventEmitter.onMany(['entity.created', 'entity.updated'], fakeListener, true)
+
+    await eventEmitter.emit(TestEvents.created, createdEventPayload)
+    await eventEmitter.emit(TestEvents.updated, updatedEventPayload)
+
+    expect(fakeListener.receivedEvents).toHaveLength(0)
+    await waitAndRetry(() => fakeListener.receivedEvents.length === 2)
 
     expect(fakeListener.receivedEvents).toHaveLength(2)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
