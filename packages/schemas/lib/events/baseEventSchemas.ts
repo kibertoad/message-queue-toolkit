@@ -1,4 +1,4 @@
-import type { ZodLiteral, ZodObject, ZodOptional, ZodString, ZodRawShape } from 'zod'
+import type { ZodLiteral, ZodObject, ZodOptional, ZodRawShape, ZodString } from 'zod'
 import { z } from 'zod'
 
 // External message metadata that describe the context in which the message was created, primarily used for debugging purposes

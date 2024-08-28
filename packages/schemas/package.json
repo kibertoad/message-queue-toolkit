@@ -15,8 +15,8 @@
   "scripts": {
     "build": "del-cli dist && del-cli coverage && tsc",
     "build:release": "del-cli dist && npm run lint && tsc --project tsconfig.release.json",
-    "lint": "eslint . --ext .ts",
-    "lint:fix": "prettier --write . && eslint .  --ext .ts --fix",
+    "lint": "biome check . && tsc --project tsconfig.json --noEmit",
+    "lint:fix": "biome check --write .",
     "test:coverage": "",
     "test:ci": "",
     "docker:start:dev": "",
@@ -27,14 +27,10 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.8.3",
+    "@kibertoad/biome-config": "^1.2.1",
     "@types/node": "^22.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.0.1",
-    "@typescript-eslint/parser": "^8.0.1",
     "del-cli": "^5.1.0",
-    "eslint": "^8.57.0",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-vitest": "0.4.1",
-    "prettier": "^3.2.5",
     "typescript": "^5.5.3"
   },
   "homepage": "https://github.com/kibertoad/message-queue-toolkit",
@@ -54,9 +50,5 @@
     "rabbitmq",
     "rabbit"
   ],
-  "files": [
-    "README.md",
-    "LICENSE",
-    "dist/*"
-  ]
+  "files": ["README.md", "LICENSE", "dist/*"]
 }
