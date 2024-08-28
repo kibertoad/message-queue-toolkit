@@ -1,10 +1,11 @@
-import { InternalError } from '@lokalise/node-core'
+import { type ErrorReporter, InternalError } from '@lokalise/node-core'
 
 import type { MetadataFiller } from '../messages/MetadataFiller'
 import type { HandlerSpy, HandlerSpyParams, PublicHandlerSpy } from '../queues/HandlerSpy'
 import { resolveHandlerSpy } from '../queues/HandlerSpy'
 
 import type { ConsumerMessageMetadataType } from '@message-queue-toolkit/schemas'
+import type { Logger } from '../types/MessageQueueTypes'
 import type { EventRegistry } from './EventRegistry'
 import type {
   AnyEventHandler,
@@ -16,33 +17,39 @@ import type {
   SingleEventHandler,
 } from './eventTypes'
 
+export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDefinition[]> = {
+  eventRegistry: EventRegistry<SupportedEvents>
+  metadataFiller: MetadataFiller
+  // TODO: make them mandatory is a breaking change, decide if we are fine with that
+  logger?: Logger
+  errorReporter?: ErrorReporter
+}
+
 export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]> {
   private readonly eventRegistry: EventRegistry<SupportedEvents>
+  private readonly metadataFiller: MetadataFiller
+  private readonly logger?: Logger
+  private readonly errorReporter?: ErrorReporter
+  private readonly _handlerSpy?: HandlerSpy<
+    CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>
+  >
 
   private readonly eventHandlerMap: Record<
     string,
     EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvents[number]>>[]
   > = {}
   private readonly anyHandlers: AnyEventHandler<SupportedEvents>[] = []
-  private readonly metadataFiller: MetadataFiller
-  private readonly _handlerSpy?: HandlerSpy<
-    CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>
-  >
 
   constructor(
-    {
-      eventRegistry,
-      metadataFiller,
-    }: {
-      eventRegistry: EventRegistry<SupportedEvents>
-      metadataFiller: MetadataFiller
-    },
+    deps: DomainEventEmitterDependencies<SupportedEvents>,
     options: {
       handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
     } = {},
   ) {
-    this.eventRegistry = eventRegistry
-    this.metadataFiller = metadataFiller
+    this.eventRegistry = deps.eventRegistry
+    this.metadataFiller = deps.metadataFiller
+    this.logger = deps.logger
+    this.errorReporter = deps.errorReporter
 
     this._handlerSpy =
       resolveHandlerSpy<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>(options)
@@ -72,36 +79,19 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       })
     }
 
-    const event = this.buildEvent(supportedEvent, eventTypeName, data, precedingMessageMetadata)
-    const eventHandlers = this.eventHandlerMap[eventTypeName]
-
-    // No relevant handlers are registered, we can stop processing
-    if (!eventHandlers && this.anyHandlers.length === 0) {
-      // @ts-ignore
-      return event
-    }
-
     const validatedEvent = this.eventRegistry
       .getEventDefinitionByTypeName(eventTypeName)
-      .publisherSchema.parse(event)
+      .publisherSchema.parse(
+        this.buildEvent(supportedEvent, eventTypeName, data, precedingMessageMetadata),
+      )
 
-    if (eventHandlers) {
-      for (const handler of eventHandlers) {
-        await handler.handleEvent(validatedEvent)
-      }
-    }
-
-    for (const handler of this.anyHandlers) {
-      await handler.handleEvent(validatedEvent)
-    }
+    await this.handleEvent(validatedEvent)
 
     if (this._handlerSpy) {
       this._handlerSpy.addProcessedMessage(
         {
           // @ts-ignore
-          message: {
-            ...validatedEvent,
-          },
+          message: validatedEvent,
           processingResult: 'consumed',
         },
         validatedEvent.id,
@@ -171,5 +161,15 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     if (!data.metadata.correlationId) data.metadata.correlationId = this.metadataFiller.produceId()
 
     return { type: eventTypeName, ...data }
+  }
+
+  private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
+    event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
+  ): Promise<void> {
+    const handlers = [...(this.eventHandlerMap[event.type] ?? []), ...this.anyHandlers]
+
+    for (const handler of handlers) {
+      await handler.handleEvent(event)
+    }
   }
 }
