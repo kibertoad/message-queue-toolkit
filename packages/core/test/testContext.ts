@@ -65,16 +65,10 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       return new EventRegistry(Object.values(TestEvents))
     }, SINGLETON_CONFIG),
 
-    eventEmitter: asFunction((dependencies: Dependencies) => {
-      return new DomainEventEmitter(
-        {
-          metadataFiller: dependencies.metadataFiller,
-          eventRegistry: dependencies.eventRegistry,
-        },
-        {
-          handlerSpy: true,
-        },
-      )
+    eventEmitter: asFunction((deps: Dependencies) => {
+      return new DomainEventEmitter(deps, {
+        handlerSpy: true,
+      })
     }, SINGLETON_CONFIG),
     metadataFiller: asFunction(() => {
       return new CommonMetadataFiller({
@@ -90,7 +84,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       return {
         report: () => {},
       } satisfies ErrorReporter
-    }),
+    }, SINGLETON_CONFIG),
   }
   diContainer.register(diConfig)
 

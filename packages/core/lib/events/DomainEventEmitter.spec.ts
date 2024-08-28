@@ -3,11 +3,12 @@ import { randomUUID } from 'node:crypto'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-toolkit/schemas'
 import type { AwilixContainer } from 'awilix'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Dependencies, TestEventsType } from '../../test/testContext'
 import { TestEvents, registerDependencies } from '../../test/testContext'
 
+import { ErroredFakeListener } from '../../test/fakes/ErroredFakeListener'
 import type { DomainEventEmitter } from './DomainEventEmitter'
 import { FakeListener } from './fakes/FakeListener'
 
@@ -213,7 +214,6 @@ describe('AutopilotEventEmitter', () => {
   })
 
   it('emits event to manyListener - foreground', async () => {
-    const { eventEmitter } = diContainer.cradle
     const fakeListener = new FakeListener()
     eventEmitter.onMany(['entity.created', 'entity.updated'], fakeListener)
 
@@ -226,7 +226,6 @@ describe('AutopilotEventEmitter', () => {
   })
 
   it('emits event to manyListener - background', async () => {
-    const { eventEmitter } = diContainer.cradle
     const fakeListener = new FakeListener(100)
     eventEmitter.onMany(['entity.created', 'entity.updated'], fakeListener, true)
 
@@ -239,5 +238,25 @@ describe('AutopilotEventEmitter', () => {
     expect(fakeListener.receivedEvents).toHaveLength(2)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
     expect(fakeListener.receivedEvents[1]).toMatchObject(expectedUpdatedPayload)
+  })
+
+  it('background listener error handling', async () => {
+    const fakeListener = new ErroredFakeListener(100)
+    eventEmitter.onAny(fakeListener, true)
+    const reporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
+
+    const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+
+    expect(fakeListener.receivedEvents).toHaveLength(0)
+    await waitAndRetry(() => fakeListener.receivedEvents.length === 1)
+
+    expect(fakeListener.receivedEvents).toHaveLength(1)
+    expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+
+    expect(reporterSpy).toHaveBeenCalledOnce()
+    expect(reporterSpy).toHaveBeenCalledWith({
+      error: expect.any(Error),
+      context: emittedEvent,
+    })
   })
 })

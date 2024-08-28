@@ -1,4 +1,4 @@
-import { type ErrorReporter, InternalError } from '@lokalise/node-core'
+import { type ErrorReporter, InternalError, resolveGlobalErrorLogObject } from '@lokalise/node-core'
 
 import type { MetadataFiller } from '../messages/MetadataFiller'
 import type { HandlerSpy, HandlerSpyParams, PublicHandlerSpy } from '../queues/HandlerSpy'
@@ -172,10 +172,14 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
     const bgHandlers = [...eventHandlers.background, ...this.anyHandlers.background]
     for (const handler of bgHandlers) {
-      // TODO: error handling + stats
+      // TODO: log using request context + stats
       Promise.resolve(handler.handleEvent(event))
         .then(() => console.log('Background handler executed'))
-        .catch((err) => console.log(err))
+        .catch((error) => {
+          const logObject = resolveGlobalErrorLogObject(error)
+          this.logger?.error({ ...logObject, event: JSON.stringify(event) })
+          this.errorReporter?.report({ error: error, context: event })
+        })
     }
   }
 }
