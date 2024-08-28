@@ -165,7 +165,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       background: [],
     }
 
-    const fgHandlers = [...eventHandlers.foreground, ...this.anyHandlers.background]
+    const fgHandlers = [...eventHandlers.foreground, ...this.anyHandlers.foreground]
     for (const handler of fgHandlers) {
       await handler.handleEvent(event)
     }
