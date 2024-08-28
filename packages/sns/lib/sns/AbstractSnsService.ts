@@ -1,4 +1,4 @@
-import type { SNSClient, CreateTopicCommandInput, Tag } from '@aws-sdk/client-sns'
+import type { CreateTopicCommandInput, SNSClient, Tag } from '@aws-sdk/client-sns'
 import type { QueueDependencies, QueueOptions } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 

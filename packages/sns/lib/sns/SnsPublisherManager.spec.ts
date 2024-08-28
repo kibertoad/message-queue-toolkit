@@ -10,7 +10,7 @@ import type {
   TestEventPublishPayloadsType,
   TestEventsType,
 } from '../../test/utils/testContext'
-import { registerDependencies, TestEvents } from '../../test/utils/testContext'
+import { TestEvents, registerDependencies } from '../../test/utils/testContext'
 
 import { CommonSnsPublisher } from './CommonSnsPublisherFactory'
 import type { SnsPublisherManager } from './SnsPublisherManager'

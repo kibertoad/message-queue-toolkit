@@ -6,7 +6,7 @@ import { waitAndRetry } from '@lokalise/node-core'
 import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
-import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'

@@ -104,7 +104,7 @@ async function tryToUpdateSubscription(
     })
   })
 
-  for (let command of setSubscriptionAttributesCommands) {
+  for (const command of setSubscriptionAttributesCommands) {
     await snsClient.send(command)
   }
 

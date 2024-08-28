@@ -1,9 +1,9 @@
 import type { Either } from '@lokalise/node-core'
 import type {
-  PrehandlerResult,
   BarrierResult,
-  Prehandler,
   PreHandlingOutputs,
+  Prehandler,
+  PrehandlerResult,
 } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 

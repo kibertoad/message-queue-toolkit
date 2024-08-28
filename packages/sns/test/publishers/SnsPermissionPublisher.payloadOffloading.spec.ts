@@ -15,7 +15,7 @@ import {
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { describe, beforeEach, afterEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { SNS_MESSAGE_BODY_SCHEMA } from '../../lib/types/MessageTypes'
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber'

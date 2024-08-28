@@ -6,10 +6,10 @@ import type {
   AsyncPublisher,
   BarrierResult,
   MessageInvalidFormatError,
-  MessageValidationError,
-  QueuePublisherOptions,
   MessageSchemaContainer,
+  MessageValidationError,
   OffloadedPayloadPointerPayload,
+  QueuePublisherOptions,
   ResolvedMessage,
 } from '@message-queue-toolkit/core'
 import { resolveOutgoingMessageAttributes } from '@message-queue-toolkit/sqs'

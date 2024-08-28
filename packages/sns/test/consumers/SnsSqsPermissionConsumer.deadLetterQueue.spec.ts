@@ -2,14 +2,14 @@ import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import {
+  type SQSMessage,
   assertQueue,
   deleteQueue,
   getQueueAttributes,
-  type SQSMessage,
 } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { describe, beforeEach, afterEach, expect, it, beforeAll } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { deleteTopic } from '../../lib/utils/snsUtils'
 import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
