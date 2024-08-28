@@ -25,10 +25,9 @@ export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDe
   errorReporter?: ErrorReporter
 }
 
-// TODO: not sure how to call it
 type Handlers<T> = {
-  sync: T[]
-  async: T[]
+  background: T[]
+  foreground: T[]
 }
 
 export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]> {
@@ -61,7 +60,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       resolveHandlerSpy<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>(options)
 
     this.eventHandlerMap = {}
-    this.anyHandlers = { sync: [], async: [] }
+    this.anyHandlers = { background: [], foreground: [] }
   }
 
   get handlerSpy(): PublicHandlerSpy<
@@ -127,14 +126,14 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   public on<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeName: EventTypeName,
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
-    asyncHandler = false,
+    bgHandler = false,
   ) {
     if (!this.eventHandlerMap[eventTypeName]) {
-      this.eventHandlerMap[eventTypeName] = { sync: [], async: [] }
+      this.eventHandlerMap[eventTypeName] = { foreground: [], background: [] }
     }
 
-    if (asyncHandler) this.eventHandlerMap[eventTypeName].async.push(handler)
-    else this.eventHandlerMap[eventTypeName].sync.push(handler)
+    if (bgHandler) this.eventHandlerMap[eventTypeName].background.push(handler)
+    else this.eventHandlerMap[eventTypeName].foreground.push(handler)
   }
 
   /**
@@ -143,35 +142,35 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   public onMany<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeNames: EventTypeName[],
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
-    asyncHandler = false,
+    bgHandler = false,
   ) {
     for (const eventTypeName of eventTypeNames) {
-      this.on(eventTypeName, handler, asyncHandler)
+      this.on(eventTypeName, handler, bgHandler)
     }
   }
 
   /**
    * Register handler for all events supported by the emitter
    */
-  public onAny(handler: AnyEventHandler<SupportedEvents>, asyncHandler = false) {
-    if (asyncHandler) this.anyHandlers.async.push(handler)
-    else this.anyHandlers.sync.push(handler)
+  public onAny(handler: AnyEventHandler<SupportedEvents>, bgHandler = false) {
+    if (bgHandler) this.anyHandlers.background.push(handler)
+    else this.anyHandlers.foreground.push(handler)
   }
 
   private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
     event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
   ): Promise<void> {
-    const eventHandler = this.eventHandlerMap[event.type] ?? {
-      sync: [],
-      async: [],
+    const eventHandlers = this.eventHandlerMap[event.type] ?? {
+      foreground: [],
+      background: [],
     }
 
-    const syncHandlers = [...eventHandler.sync, ...this.anyHandlers.sync]
-    for (const handler of syncHandlers) {
+    const fgHandlers = [...eventHandlers.foreground, ...this.anyHandlers.background]
+    for (const handler of fgHandlers) {
       await handler.handleEvent(event)
     }
 
-    // const asyncHandlers = [...eventHandler.async, ...this.anyHandlers.async]
+    // const bgHandlers = [...eventHandlers.background, ...this.anyHandlers.background]
     // TODO: implement async handling
   }
 }
