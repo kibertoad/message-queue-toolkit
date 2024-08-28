@@ -159,12 +159,19 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   }
 
   private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
-    _event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
+    event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
   ): Promise<void> {
-    // TODO: implement
-    //const handlers = [...(this.eventHandlerMap[event.type] ?? []), ...this.anyHandlers]
-    //for (const handler of handlers) {
-    //  await handler.handleEvent(event)
-    //}
+    const eventHandler = this.eventHandlerMap[event.type] ?? {
+      sync: [],
+      async: [],
+    }
+
+    const syncHandlers = [...eventHandler.sync, ...this.anyHandlers.sync]
+    for (const handler of syncHandlers) {
+      await handler.handleEvent(event)
+    }
+
+    // const asyncHandlers = [...eventHandler.async, ...this.anyHandlers.async]
+    // TODO: implement async handling
   }
 }
