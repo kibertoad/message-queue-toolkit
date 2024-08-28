@@ -79,11 +79,21 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       })
     }
 
+    if (!data.timestamp) data.timestamp = this.metadataFiller.produceTimestamp()
+    if (!data.id) data.id = this.metadataFiller.produceId()
+    if (!data.metadata) {
+      data.metadata = this.metadataFiller.produceMetadata(
+        // @ts-ignore
+        data,
+        supportedEvent,
+        precedingMessageMetadata ?? {},
+      )
+    }
+    if (!data.metadata.correlationId) data.metadata.correlationId = this.metadataFiller.produceId()
+
     const validatedEvent = this.eventRegistry
       .getEventDefinitionByTypeName(eventTypeName)
-      .publisherSchema.parse(
-        this.buildEvent(supportedEvent, eventTypeName, data, precedingMessageMetadata),
-      )
+      .publisherSchema.parse({ type: eventTypeName, ...data })
 
     await this.handleEvent(validatedEvent)
 
@@ -140,27 +150,6 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     }
 
     this.eventHandlerMap[eventTypeName].push(handler)
-  }
-
-  private buildEvent<SupportedEvent extends SupportedEvents[number]>(
-    supportedEvent: SupportedEvent,
-    eventTypeName: string,
-    data: Omit<CommonEventDefinitionPublisherSchemaType<SupportedEvent>, 'type'>,
-    precedingMessageMetadata?: Partial<ConsumerMessageMetadataType>,
-  ): CommonEventDefinitionPublisherSchemaType<SupportedEvent> {
-    if (!data.timestamp) data.timestamp = this.metadataFiller.produceTimestamp()
-    if (!data.id) data.id = this.metadataFiller.produceId()
-    if (!data.metadata) {
-      data.metadata = this.metadataFiller.produceMetadata(
-        // @ts-ignore
-        data,
-        supportedEvent,
-        precedingMessageMetadata ?? {},
-      )
-    }
-    if (!data.metadata.correlationId) data.metadata.correlationId = this.metadataFiller.produceId()
-
-    return { type: eventTypeName, ...data }
   }
 
   private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
