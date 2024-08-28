@@ -25,9 +25,9 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   > = {}
   private readonly anyHandlers: AnyEventHandler<SupportedEvents>[] = []
   private readonly metadataFiller: MetadataFiller
-  private _handlerSpy:
-    | HandlerSpy<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>
-    | undefined
+  private readonly _handlerSpy?: HandlerSpy<
+    CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>
+  >
 
   constructor(
     {
