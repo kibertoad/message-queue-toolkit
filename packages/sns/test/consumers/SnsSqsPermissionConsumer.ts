@@ -79,15 +79,13 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
       },
     },
   ) {
-    const defaultRemoveHandler = async (
+    const defaultRemoveHandler = (
       _message: SupportedMessages,
       context: ExecutionContext,
       _preHandlingOutputs: PreHandlingOutputs<PreHandlerOutput, number>,
     ): Promise<Either<'retryLater', 'success'>> => {
       this.removeCounter += context.incrementAmount
-      return {
-        result: 'success',
-      }
+      return Promise.resolve({ result: 'success' })
     }
 
     super(
@@ -101,18 +99,16 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
         >()
           .addConfig(
             PERMISSIONS_ADD_MESSAGE_SCHEMA,
-            async (_message, context, _preHandlingOutputs) => {
+            (_message, context, _preHandlingOutputs) => {
               this.addCounter += context.incrementAmount
-              return {
-                result: 'success',
-              }
+              return Promise.resolve({ result: 'success' })
             },
             {
               preHandlers: [
                 (
                   message: SupportedMessages,
-                  context: ExecutionContext,
-                  preHandlerOutput: Partial<PreHandlerOutput>,
+                  _context: ExecutionContext,
+                  _preHandlerOutput: Partial<PreHandlerOutput>,
                   next: (result: PrehandlerResult) => void,
                 ) => {
                   if (message.preHandlerIncrement) {
@@ -123,18 +119,16 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
                   })
                 },
               ],
-              preHandlerBarrier: async (_message, context) => {
+              preHandlerBarrier: (_message, context) => {
                 this.addBarrierCounter += context.incrementAmount
                 if (this.addBarrierCounter < 3) {
-                  return {
-                    isPassing: false,
-                  }
+                  return Promise.resolve({ isPassing: false })
                 }
 
-                return {
+                return Promise.resolve({
                   isPassing: true,
                   output: this.addBarrierCounter,
-                }
+                })
               },
             },
           )
@@ -158,7 +152,9 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
           ? { locatorConfig: options.locatorConfig }
           : {
               creationConfig: options.creationConfig ?? {
-                queue: { QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME },
+                queue: {
+                  QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
+                },
                 topic: { Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME },
               },
             }),

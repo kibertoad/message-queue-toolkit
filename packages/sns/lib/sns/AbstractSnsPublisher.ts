@@ -69,9 +69,10 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         this.logMessage(resolvedLogMessage)
       }
 
-      message = this.updateInternalProperties(message)
-      const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(message, () =>
-        calculateOutgoingMessageSize(message),
+      const updatedMessage = this.updateInternalProperties(message)
+      const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(
+        updatedMessage,
+        () => calculateOutgoingMessageSize(updatedMessage),
       )
 
       await this.sendMessage(maybeOffloadedPayloadMessage, options)

@@ -23,7 +23,7 @@ export function generateTopicSubscriptionPolicy(params: TopicSubscriptionPolicyP
 }
 
 export function generateFilterAttributes(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   messageSchemas: ZodSchema<any>[],
   messageTypeField: string,
 ) {
