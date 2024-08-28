@@ -64,28 +64,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     data: Omit<CommonEventDefinitionPublisherSchemaType<SupportedEvent>, 'type'>,
     precedingMessageMetadata?: Partial<ConsumerMessageMetadataType>,
   ): Promise<Omit<CommonEventDefinitionConsumerSchemaType<SupportedEvent>, 'type'>> {
-    if (!data.timestamp) {
-      data.timestamp = this.metadataFiller.produceTimestamp()
-    }
-    if (!data.id) {
-      data.id = this.metadataFiller.produceId()
-    }
-
-    if (!data.metadata) {
-      data.metadata = this.metadataFiller.produceMetadata(
-        // @ts-ignore
-        data,
-        supportedEvent,
-        precedingMessageMetadata ?? {},
-      )
-    }
-
-    if (!data.metadata.correlationId) {
-      data.metadata.correlationId = this.metadataFiller.produceId()
-    }
-
     const eventTypeName = supportedEvent.publisherSchema.shape.type.value
-
     if (!this.eventRegistry.isSupportedEvent(eventTypeName)) {
       throw new InternalError({
         errorCode: 'UNKNOWN_EVENT',
@@ -93,20 +72,18 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       })
     }
 
+    const event = this.buildEvent(supportedEvent, eventTypeName, data, precedingMessageMetadata)
     const eventHandlers = this.eventHandlerMap[eventTypeName]
 
     // No relevant handlers are registered, we can stop processing
     if (!eventHandlers && this.anyHandlers.length === 0) {
       // @ts-ignore
-      return data
+      return event
     }
 
     const validatedEvent = this.eventRegistry
       .getEventDefinitionByTypeName(eventTypeName)
-      .publisherSchema.parse({
-        type: eventTypeName,
-        ...data,
-      })
+      .publisherSchema.parse(event)
 
     if (eventHandlers) {
       for (const handler of eventHandlers) {
@@ -173,5 +150,26 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     }
 
     this.eventHandlerMap[eventTypeName].push(handler)
+  }
+
+  private buildEvent<SupportedEvent extends SupportedEvents[number]>(
+    supportedEvent: SupportedEvent,
+    eventTypeName: string,
+    data: Omit<CommonEventDefinitionPublisherSchemaType<SupportedEvent>, 'type'>,
+    precedingMessageMetadata?: Partial<ConsumerMessageMetadataType>,
+  ): CommonEventDefinitionPublisherSchemaType<SupportedEvent> {
+    if (!data.timestamp) data.timestamp = this.metadataFiller.produceTimestamp()
+    if (!data.id) data.id = this.metadataFiller.produceId()
+    if (!data.metadata) {
+      data.metadata = this.metadataFiller.produceMetadata(
+        // @ts-ignore
+        data,
+        supportedEvent,
+        precedingMessageMetadata ?? {},
+      )
+    }
+    if (!data.metadata.correlationId) data.metadata.correlationId = this.metadataFiller.produceId()
+
+    return { type: eventTypeName, ...data }
   }
 }
