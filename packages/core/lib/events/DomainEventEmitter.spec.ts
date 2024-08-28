@@ -8,9 +8,11 @@ import type {
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import type { Dependencies } from '../../test/testContext'
+import type { Dependencies, TestEventsType } from '../../test/testContext'
 import { TestEvents, registerDependencies } from '../../test/testContext'
 
+import type { DomainEventEmitter } from './DomainEventEmitter'
+import { FakeDelayedListener } from './fakes/FakeDelayedListener'
 import { FakeListener } from './fakes/FakeListener'
 
 const createdEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.created> = {
@@ -53,17 +55,19 @@ const expectedUpdatedPayload = {
 
 describe('AutopilotEventEmitter', () => {
   let diContainer: AwilixContainer<Dependencies>
+  let eventEmitter: DomainEventEmitter<TestEventsType>
+
   beforeEach(async () => {
     diContainer = await registerDependencies()
+    eventEmitter = diContainer.cradle.eventEmitter
   })
 
   afterEach(async () => {
     await diContainer.dispose()
   })
 
-  it('emits event to anyListener', async () => {
-    const { eventEmitter } = diContainer.cradle
-    const fakeListener = new FakeListener(diContainer.cradle.eventRegistry.supportedEvents)
+  it('emits event to anyListener - foreground', async () => {
+    const fakeListener = new FakeListener()
     eventEmitter.onAny(fakeListener)
 
     const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
@@ -83,8 +87,7 @@ describe('AutopilotEventEmitter', () => {
   })
 
   it('emits event to anyListener and populates metadata', async () => {
-    const { eventEmitter } = diContainer.cradle
-    const fakeListener = new FakeListener(diContainer.cradle.eventRegistry.supportedEvents)
+    const fakeListener = new FakeListener()
     eventEmitter.onAny(fakeListener)
 
     const emittedEvent = await eventEmitter.emit(TestEvents.created, {
@@ -121,8 +124,7 @@ describe('AutopilotEventEmitter', () => {
   })
 
   it('can check spy for messages not being sent', async () => {
-    const { eventEmitter } = diContainer.cradle
-    const fakeListener = new FakeListener(diContainer.cradle.eventRegistry.supportedEvents)
+    const fakeListener = new FakeListener()
     eventEmitter.onAny(fakeListener)
 
     await eventEmitter.emit(TestEvents.created, createdEventPayload)
@@ -143,8 +145,7 @@ describe('AutopilotEventEmitter', () => {
   })
 
   it('emits event to anyListener with metadata', async () => {
-    const { eventEmitter } = diContainer.cradle
-    const fakeListener = new FakeListener(diContainer.cradle.eventRegistry.supportedEvents)
+    const fakeListener = new FakeListener()
     eventEmitter.onAny(fakeListener)
 
     const partialCreatedEventPayload = {
@@ -194,8 +195,7 @@ describe('AutopilotEventEmitter', () => {
   })
 
   it('emits event to singleListener', async () => {
-    const { eventEmitter } = diContainer.cradle
-    const fakeListener = new FakeListener(diContainer.cradle.eventRegistry.supportedEvents)
+    const fakeListener = new FakeListener()
     eventEmitter.on('entity.created', fakeListener)
 
     await eventEmitter.emit(TestEvents.created, createdEventPayload)
@@ -210,7 +210,7 @@ describe('AutopilotEventEmitter', () => {
 
   it('emits event to manyListener', async () => {
     const { eventEmitter } = diContainer.cradle
-    const fakeListener = new FakeListener(diContainer.cradle.eventRegistry.supportedEvents)
+    const fakeListener = new FakeListener()
     eventEmitter.onMany(['entity.created', 'entity.updated'], fakeListener)
 
     await eventEmitter.emit(TestEvents.created, createdEventPayload)

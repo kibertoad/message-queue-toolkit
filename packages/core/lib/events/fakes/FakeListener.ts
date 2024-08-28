@@ -5,7 +5,7 @@ export class FakeListener<SupportedEvents extends CommonEventDefinition[]>
 {
   public receivedEvents: SupportedEvents[number]['publisherSchema']['_output'][] = []
 
-  constructor(_supportedEvents: SupportedEvents) {
+  constructor() {
     this.receivedEvents = []
   }
 
