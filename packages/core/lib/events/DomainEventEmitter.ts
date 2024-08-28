@@ -25,6 +25,12 @@ export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDe
   errorReporter?: ErrorReporter
 }
 
+// TODO: not sure how to call it
+type Handlers<T> = {
+  sync: T[]
+  async: T[]
+}
+
 export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]> {
   private readonly eventRegistry: EventRegistry<SupportedEvents>
   private readonly metadataFiller: MetadataFiller
@@ -36,9 +42,9 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   private readonly eventHandlerMap: Record<
     string,
-    EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvents[number]>>[]
-  > = {}
-  private readonly anyHandlers: AnyEventHandler<SupportedEvents>[] = []
+    Handlers<EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvents[number]>>>
+  >
+  private readonly anyHandlers: Handlers<AnyEventHandler<SupportedEvents>>
 
   constructor(
     deps: DomainEventEmitterDependencies<SupportedEvents>,
@@ -53,6 +59,9 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
     this._handlerSpy =
       resolveHandlerSpy<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>(options)
+
+    this.eventHandlerMap = {}
+    this.anyHandlers = { sync: [], async: [] }
   }
 
   get handlerSpy(): PublicHandlerSpy<
@@ -118,8 +127,14 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   public on<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeName: EventTypeName,
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
+    asyncHandler = false,
   ) {
-    this.addOnHandler(eventTypeName, handler)
+    if (!this.eventHandlerMap[eventTypeName]) {
+      this.eventHandlerMap[eventTypeName] = { sync: [], async: [] }
+    }
+
+    if (asyncHandler) this.eventHandlerMap[eventTypeName].async.push(handler)
+    else this.eventHandlerMap[eventTypeName].sync.push(handler)
   }
 
   /**
@@ -128,37 +143,28 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   public onMany<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeNames: EventTypeName[],
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
+    asyncHandler = false,
   ) {
     for (const eventTypeName of eventTypeNames) {
-      this.on(eventTypeName, handler)
+      this.on(eventTypeName, handler, asyncHandler)
     }
   }
 
   /**
    * Register handler for all events supported by the emitter
    */
-  public onAny(handler: AnyEventHandler<SupportedEvents>) {
-    this.anyHandlers.push(handler)
-  }
-
-  private addOnHandler(
-    eventTypeName: EventTypeNames<SupportedEvents[number]>,
-    handler: EventHandler,
-  ) {
-    if (!this.eventHandlerMap[eventTypeName]) {
-      this.eventHandlerMap[eventTypeName] = []
-    }
-
-    this.eventHandlerMap[eventTypeName].push(handler)
+  public onAny(handler: AnyEventHandler<SupportedEvents>, asyncHandler = false) {
+    if (asyncHandler) this.anyHandlers.async.push(handler)
+    else this.anyHandlers.sync.push(handler)
   }
 
   private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
-    event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
+    _event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
   ): Promise<void> {
-    const handlers = [...(this.eventHandlerMap[event.type] ?? []), ...this.anyHandlers]
-
-    for (const handler of handlers) {
-      await handler.handleEvent(event)
-    }
+    // TODO: implement
+    //const handlers = [...(this.eventHandlerMap[event.type] ?? []), ...this.anyHandlers]
+    //for (const handler of handlers) {
+    //  await handler.handleEvent(event)
+    //}
   }
 }
