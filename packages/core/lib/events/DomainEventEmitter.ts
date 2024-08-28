@@ -170,7 +170,12 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       await handler.handleEvent(event)
     }
 
-    // const bgHandlers = [...eventHandlers.background, ...this.anyHandlers.background]
-    // TODO: implement async handling
+    const bgHandlers = [...eventHandlers.background, ...this.anyHandlers.background]
+    for (const handler of bgHandlers) {
+      // TODO: error handling + stats
+      Promise.resolve(handler.handleEvent(event))
+        .then(() => console.log('Background handler executed'))
+        .catch((err) => console.log(err))
+    }
   }
 }
