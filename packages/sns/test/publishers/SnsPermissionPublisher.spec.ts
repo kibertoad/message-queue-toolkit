@@ -214,7 +214,7 @@ describe('SnsPermissionPublisher', () => {
       consumer = Consumer.create({
         queueUrl: queueUrl,
         handleMessage: (message: SQSMessage) => {
-          if (message === null) {
+          if (message !== null) {
             const decodedMessage = deserializeSNSMessage(
               message as any,
               PERMISSIONS_ADD_MESSAGE_SCHEMA,
