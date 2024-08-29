@@ -1,9 +1,15 @@
-import { type ErrorReporter, InternalError, resolveGlobalErrorLogObject } from '@lokalise/node-core'
+import {
+  type ErrorReporter,
+  InternalError,
+  type TransactionObservabilityManager,
+  resolveGlobalErrorLogObject,
+} from '@lokalise/node-core'
 
 import type { MetadataFiller } from '../messages/MetadataFiller'
 import type { HandlerSpy, HandlerSpyParams, PublicHandlerSpy } from '../queues/HandlerSpy'
 import { resolveHandlerSpy } from '../queues/HandlerSpy'
 
+import { randomUUID } from 'node:crypto'
 import type { ConsumerMessageMetadataType } from '@message-queue-toolkit/schemas'
 import type { Logger } from '../types/MessageQueueTypes'
 import type { EventRegistry } from './EventRegistry'
@@ -22,6 +28,7 @@ export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDe
   metadataFiller: MetadataFiller
   logger: Logger
   errorReporter: ErrorReporter
+  transactionObservabilityManager?: TransactionObservabilityManager
 }
 
 type Handlers<T> = {
@@ -34,6 +41,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   private readonly metadataFiller: MetadataFiller
   private readonly logger: Logger
   private readonly errorReporter: ErrorReporter
+  private readonly transactionObservabilityManager?: TransactionObservabilityManager
   private readonly _handlerSpy?: HandlerSpy<
     CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>
   >
@@ -54,6 +62,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     this.metadataFiller = deps.metadataFiller
     this.logger = deps.logger
     this.errorReporter = deps.errorReporter
+    this.transactionObservabilityManager = deps.transactionObservabilityManager
 
     this._handlerSpy =
       resolveHandlerSpy<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>(options)
@@ -171,18 +180,39 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
     const bgHandlers = [...eventHandlers.background, ...this.anyHandlers.background]
     for (const handler of bgHandlers) {
-      // TODO: stats -> should be part of library or service? to discuss
-      Promise.resolve(handler.handleEvent(event)).catch((error) => {
-        const context = {
-          event: JSON.stringify(event),
-          'x-request-id': event.metadata?.correlationId,
-        }
-        this.logger.error({
-          ...resolveGlobalErrorLogObject(error),
-          ...context,
+      const transactionId = randomUUID()
+      // not sure if we should use startWithGroup or start, using group to group all handlers for the same event type
+      // should it be eventId + eventType or just eventType?
+      this.transactionObservabilityManager?.startWithGroup(
+        this.buildTransactionKey(event, handler),
+        transactionId,
+        event.type,
+      )
+
+      Promise.resolve(handler.handleEvent(event))
+        .then(() => {
+          this.transactionObservabilityManager?.stop(transactionId, true)
         })
-        this.errorReporter.report({ error: error, context })
-      })
+        .catch((error) => {
+          this.transactionObservabilityManager?.stop(transactionId, false)
+          const context = {
+            event: JSON.stringify(event),
+            eventHandlerId: handler.eventHandlerId,
+            'x-request-id': event.metadata?.correlationId,
+          }
+          this.logger.error({
+            ...resolveGlobalErrorLogObject(error),
+            ...context,
+          })
+          this.errorReporter.report({ error: error, context })
+        })
     }
+  }
+
+  private buildTransactionKey<SupportedEvent extends SupportedEvents[number]>(
+    event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
+    handler: EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvent>>,
+  ): string {
+    return `bg_event_listener:${event.type}:${handler.eventHandlerId}`
   }
 }
