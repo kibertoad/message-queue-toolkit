@@ -20,9 +20,8 @@ import type {
 export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDefinition[]> = {
   eventRegistry: EventRegistry<SupportedEvents>
   metadataFiller: MetadataFiller
-  // TODO: make them mandatory is a breaking change, decide if we are fine with that
-  logger?: Logger
-  errorReporter?: ErrorReporter
+  logger: Logger
+  errorReporter: ErrorReporter
 }
 
 type Handlers<T> = {
@@ -33,8 +32,8 @@ type Handlers<T> = {
 export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]> {
   private readonly eventRegistry: EventRegistry<SupportedEvents>
   private readonly metadataFiller: MetadataFiller
-  private readonly logger?: Logger
-  private readonly errorReporter?: ErrorReporter
+  private readonly logger: Logger
+  private readonly errorReporter: ErrorReporter
   private readonly _handlerSpy?: HandlerSpy<
     CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>
   >
@@ -178,11 +177,11 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
           event: JSON.stringify(event),
           'x-request-id': event.metadata?.correlationId,
         }
-        this.logger?.error({
+        this.logger.error({
           ...resolveGlobalErrorLogObject(error),
           ...context,
         })
-        this.errorReporter?.report({ error: error, context })
+        this.errorReporter.report({ error: error, context })
       })
     }
   }
