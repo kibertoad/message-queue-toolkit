@@ -79,6 +79,14 @@ describe('AutopilotEventEmitter', () => {
   it('emits event to anyListener - background', async () => {
     const fakeListener = new FakeListener(100)
     eventEmitter.onAny(fakeListener, true)
+    const transactionManagerStartSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'startWithGroup',
+    )
+    const transactionManagerStopSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'stop',
+    )
 
     const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
     const processedEvent = await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id)
@@ -90,6 +98,19 @@ describe('AutopilotEventEmitter', () => {
     await waitAndRetry(() => fakeListener.receivedEvents.length > 0)
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+
+    expect(transactionManagerStartSpy).toHaveBeenCalledOnce()
+    expect(transactionManagerStartSpy).toHaveBeenCalledWith(
+      'bg_event_listener:entity.created:FakeListener',
+      expect.any(String),
+      'entity.created',
+    )
+
+    expect(transactionManagerStopSpy).toHaveBeenCalledOnce()
+    expect(transactionManagerStopSpy).toHaveBeenCalledWith(
+      transactionManagerStartSpy.mock.calls[0][1],
+      true,
+    )
   })
 
   it('emits event to anyListener and populates metadata', async () => {
@@ -203,6 +224,15 @@ describe('AutopilotEventEmitter', () => {
     const fakeListener = new FakeListener(100)
     eventEmitter.on('entity.created', fakeListener, true)
 
+    const transactionManagerStartSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'startWithGroup',
+    )
+    const transactionManagerStopSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'stop',
+    )
+
     await eventEmitter.emit(TestEvents.created, createdEventPayload)
 
     // even thought event is consumed, the listener is still processing
@@ -211,6 +241,19 @@ describe('AutopilotEventEmitter', () => {
     await waitAndRetry(() => fakeListener.receivedEvents.length > 0)
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+
+    expect(transactionManagerStartSpy).toHaveBeenCalledOnce()
+    expect(transactionManagerStartSpy).toHaveBeenCalledWith(
+      'bg_event_listener:entity.created:FakeListener',
+      expect.any(String),
+      'entity.created',
+    )
+
+    expect(transactionManagerStopSpy).toHaveBeenCalledOnce()
+    expect(transactionManagerStopSpy).toHaveBeenCalledWith(
+      transactionManagerStartSpy.mock.calls[0][1],
+      true,
+    )
   })
 
   it('emits event to manyListener - foreground', async () => {
@@ -228,6 +271,14 @@ describe('AutopilotEventEmitter', () => {
   it('emits event to manyListener - background', async () => {
     const fakeListener = new FakeListener(100)
     eventEmitter.onMany(['entity.created', 'entity.updated'], fakeListener, true)
+    const transactionManagerStartSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'startWithGroup',
+    )
+    const transactionManagerStopSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'stop',
+    )
 
     await eventEmitter.emit(TestEvents.created, createdEventPayload)
     await eventEmitter.emit(TestEvents.updated, updatedEventPayload)
@@ -238,6 +289,9 @@ describe('AutopilotEventEmitter', () => {
     expect(fakeListener.receivedEvents).toHaveLength(2)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
     expect(fakeListener.receivedEvents[1]).toMatchObject(expectedUpdatedPayload)
+
+    expect(transactionManagerStartSpy).toHaveBeenCalledTimes(2)
+    expect(transactionManagerStopSpy).toHaveBeenCalledTimes(2)
   })
 
   it('background listener error handling', async () => {
@@ -245,6 +299,14 @@ describe('AutopilotEventEmitter', () => {
     eventEmitter.onAny(fakeListener, true)
     const reporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
     const logSpy = vi.spyOn(diContainer.cradle.logger, 'error')
+    const transactionManagerStartSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'startWithGroup',
+    )
+    const transactionManagerStopSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'stop',
+    )
 
     const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
 
@@ -268,5 +330,18 @@ describe('AutopilotEventEmitter', () => {
       message: 'ErroredFakeListener error',
       ...expectedContext,
     })
+
+    expect(transactionManagerStartSpy).toHaveBeenCalledOnce()
+    expect(transactionManagerStartSpy).toHaveBeenCalledWith(
+      'bg_event_listener:entity.created:ErroredFakeListener',
+      expect.any(String),
+      'entity.created',
+    )
+
+    expect(transactionManagerStopSpy).toHaveBeenCalledOnce()
+    expect(transactionManagerStopSpy).toHaveBeenCalledWith(
+      transactionManagerStartSpy.mock.calls[0][1],
+      false,
+    )
   })
 })

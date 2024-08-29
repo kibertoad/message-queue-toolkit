@@ -1,18 +1,18 @@
 import type { ErrorReporter } from '@lokalise/node-core'
-import { Resolver, asClass } from 'awilix'
+import { type Resolver, asClass } from 'awilix'
 import { Lifetime, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import type { Logger } from 'pino'
 import pino from 'pino'
 import { z } from 'zod'
 
+import type { TransactionObservabilityManager } from '@lokalise/node-core'
+import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/schemas'
 import { DomainEventEmitter } from '../lib/events/DomainEventEmitter'
 import { EventRegistry } from '../lib/events/EventRegistry'
 import type { CommonEventDefinition } from '../lib/events/eventTypes'
 import type { MetadataFiller } from '../lib/messages/MetadataFiller'
 import { CommonMetadataFiller } from '../lib/messages/MetadataFiller'
-import { enrichMessageSchemaWithBase } from '../lib/messages/baseMessageSchemas'
-import type { TransactionObservabilityManager } from '../lib/types/MessageQueueTypes'
 import { FakeTransactionObservabilityManager } from './fakes/FakeTransactionObservabilityManager'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
