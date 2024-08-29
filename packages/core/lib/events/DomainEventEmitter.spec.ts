@@ -256,6 +256,7 @@ describe('AutopilotEventEmitter', () => {
 
     const expectedContext = {
       event: JSON.stringify(emittedEvent),
+      eventHandlerId: 'ErroredFakeListener',
       'x-request-id': emittedEvent.metadata?.correlationId,
     }
     expect(reporterSpy).toHaveBeenCalledWith({

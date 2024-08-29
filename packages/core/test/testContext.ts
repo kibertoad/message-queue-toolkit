@@ -1,5 +1,5 @@
 import type { ErrorReporter } from '@lokalise/node-core'
-import type { Resolver } from 'awilix'
+import { Resolver, asClass } from 'awilix'
 import { Lifetime, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import type { Logger } from 'pino'
@@ -13,6 +13,7 @@ import type { MetadataFiller } from '../lib/messages/MetadataFiller'
 import { CommonMetadataFiller } from '../lib/messages/MetadataFiller'
 import { enrichMessageSchemaWithBase } from '../lib/messages/baseMessageSchemas'
 import type { TransactionObservabilityManager } from '../lib/types/MessageQueueTypes'
+import { FakeTransactionObservabilityManager } from './fakes/FakeTransactionObservabilityManager'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -77,9 +78,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
     }, SINGLETON_CONFIG),
 
     // vendor-specific dependencies
-    newRelicBackgroundTransactionManager: asFunction(() => {
-      return undefined
-    }, SINGLETON_CONFIG),
+    transactionObservabilityManager: asClass(FakeTransactionObservabilityManager, SINGLETON_CONFIG),
     errorReporter: asFunction(() => {
       return {
         report: () => {},
@@ -105,7 +104,7 @@ export interface Dependencies {
   awilixManager: AwilixManager
 
   // vendor-specific dependencies
-  newRelicBackgroundTransactionManager: TransactionObservabilityManager
+  transactionObservabilityManager: TransactionObservabilityManager
 
   errorReporter: ErrorReporter
   eventRegistry: EventRegistry<TestEventsType>
