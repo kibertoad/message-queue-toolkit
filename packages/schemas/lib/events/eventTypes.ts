@@ -12,10 +12,14 @@ export function isCommonEventDefinition(entity: unknown): entity is CommonEventD
 
 export type CommonEventDefinition = {
   consumerSchema: ZodObject<
-    Omit<(typeof CONSUMER_BASE_EVENT_SCHEMA)['shape'], 'payload'> & { payload: ZodTypeAny }
+    Omit<(typeof CONSUMER_BASE_EVENT_SCHEMA)['shape'], 'payload'> & {
+      payload: ZodTypeAny
+    }
   >
   publisherSchema: ZodObject<
-    Omit<(typeof PUBLISHER_BASE_EVENT_SCHEMA)['shape'], 'payload'> & { payload: ZodTypeAny }
+    Omit<(typeof PUBLISHER_BASE_EVENT_SCHEMA)['shape'], 'payload'> & {
+      payload: ZodTypeAny
+    }
   >
   schemaVersion?: string
 
@@ -39,6 +43,7 @@ export type EventHandler<
   EventDefinitionSchema extends
     CommonEventDefinitionPublisherSchemaType<CommonEventDefinition> = CommonEventDefinitionPublisherSchemaType<CommonEventDefinition>,
 > = {
+  readonly eventHandlerId: string
   handleEvent(event: EventDefinitionSchema): void | Promise<void>
 }
 
