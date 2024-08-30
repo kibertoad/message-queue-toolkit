@@ -27,7 +27,7 @@ export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDe
   eventRegistry: EventRegistry<SupportedEvents>
   metadataFiller: MetadataFiller
   logger: Logger
-  errorReporter: ErrorReporter
+  errorReporter?: ErrorReporter
   transactionObservabilityManager?: TransactionObservabilityManager
 }
 
@@ -40,7 +40,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   private readonly eventRegistry: EventRegistry<SupportedEvents>
   private readonly metadataFiller: MetadataFiller
   private readonly logger: Logger
-  private readonly errorReporter: ErrorReporter
+  private readonly errorReporter?: ErrorReporter
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
   private readonly _handlerSpy?: HandlerSpy<
     CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>
@@ -134,13 +134,13 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   public on<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeName: EventTypeName,
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
-    bgHandler = false,
+    isBackgroundHandler = false,
   ) {
     if (!this.eventHandlerMap[eventTypeName]) {
       this.eventHandlerMap[eventTypeName] = { foreground: [], background: [] }
     }
 
-    if (bgHandler) this.eventHandlerMap[eventTypeName].background.push(handler)
+    if (isBackgroundHandler) this.eventHandlerMap[eventTypeName].background.push(handler)
     else this.eventHandlerMap[eventTypeName].foreground.push(handler)
   }
 
@@ -150,18 +150,18 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   public onMany<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeNames: EventTypeName[],
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
-    bgHandler = false,
+    isBackgroundHandler = false,
   ) {
     for (const eventTypeName of eventTypeNames) {
-      this.on(eventTypeName, handler, bgHandler)
+      this.on(eventTypeName, handler, isBackgroundHandler)
     }
   }
 
   /**
    * Register handler for all events supported by the emitter
    */
-  public onAny(handler: AnyEventHandler<SupportedEvents>, bgHandler = false) {
-    if (bgHandler) this.anyHandlers.background.push(handler)
+  public onAny(handler: AnyEventHandler<SupportedEvents>, isBackgroundHandler = false) {
+    if (isBackgroundHandler) this.anyHandlers.background.push(handler)
     else this.anyHandlers.foreground.push(handler)
   }
 
@@ -204,7 +204,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
             ...resolveGlobalErrorLogObject(error),
             ...context,
           })
-          this.errorReporter.report({ error: error, context })
+          this.errorReporter?.report({ error: error, context })
         })
     }
   }
