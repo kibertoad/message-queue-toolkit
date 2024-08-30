@@ -175,7 +175,19 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
     const fgHandlers = [...eventHandlers.foreground, ...this.anyHandlers.foreground]
     for (const handler of fgHandlers) {
-      await handler.handleEvent(event)
+      const transactionId = randomUUID()
+      let isSuccessfull = false
+      try {
+        this.transactionObservabilityManager?.startWithGroup(
+          this.buildTransactionKey(event, handler, false),
+          transactionId,
+          event.type,
+        )
+        await handler.handleEvent(event)
+        isSuccessfull = true
+      } finally {
+        this.transactionObservabilityManager?.stop(transactionId, isSuccessfull)
+      }
     }
 
     const bgHandlers = [...eventHandlers.background, ...this.anyHandlers.background]
@@ -184,7 +196,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       // not sure if we should use startWithGroup or start, using group to group all handlers for the same event type
       // should it be eventId + eventType or just eventType?
       this.transactionObservabilityManager?.startWithGroup(
-        this.buildTransactionKey(event, handler),
+        this.buildTransactionKey(event, handler, true),
         transactionId,
         event.type,
       )
@@ -212,7 +224,8 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   private buildTransactionKey<SupportedEvent extends SupportedEvents[number]>(
     event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
     handler: EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvent>>,
+    isBackgroundHandler: boolean,
   ): string {
-    return `bg_event_listener:${event.type}:${handler.eventHandlerId}`
+    return `${isBackgroundHandler ? 'bg' : 'fg'}_event_listener:${event.type}:${handler.eventHandlerId}`
   }
 }

@@ -66,6 +66,14 @@ describe('AutopilotEventEmitter', () => {
   it('emits event to anyListener - foreground', async () => {
     const fakeListener = new FakeListener()
     eventEmitter.onAny(fakeListener)
+    const transactionManagerStartSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'startWithGroup',
+    )
+    const transactionManagerStopSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'stop',
+    )
 
     const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
 
@@ -74,6 +82,19 @@ describe('AutopilotEventEmitter', () => {
     expect(processedEvent.message.type).toBe(TestEvents.created.consumerSchema.shape.type.value)
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+
+    expect(transactionManagerStartSpy).toHaveBeenCalledOnce()
+    expect(transactionManagerStartSpy).toHaveBeenCalledWith(
+      'fg_event_listener:entity.created:FakeListener',
+      expect.any(String),
+      'entity.created',
+    )
+
+    expect(transactionManagerStopSpy).toHaveBeenCalledOnce()
+    expect(transactionManagerStopSpy).toHaveBeenCalledWith(
+      transactionManagerStartSpy.mock.calls[0][1],
+      true,
+    )
   })
 
   it('emits event to anyListener - background', async () => {
@@ -213,11 +234,32 @@ describe('AutopilotEventEmitter', () => {
   it('emits event to singleListener - foreground', async () => {
     const fakeListener = new FakeListener()
     eventEmitter.on('entity.created', fakeListener)
+    const transactionManagerStartSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'startWithGroup',
+    )
+    const transactionManagerStopSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'stop',
+    )
 
     await eventEmitter.emit(TestEvents.created, createdEventPayload)
 
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+
+    expect(transactionManagerStartSpy).toHaveBeenCalledOnce()
+    expect(transactionManagerStartSpy).toHaveBeenCalledWith(
+      'fg_event_listener:entity.created:FakeListener',
+      expect.any(String),
+      'entity.created',
+    )
+
+    expect(transactionManagerStopSpy).toHaveBeenCalledOnce()
+    expect(transactionManagerStopSpy).toHaveBeenCalledWith(
+      transactionManagerStartSpy.mock.calls[0][1],
+      true,
+    )
   })
 
   it('emits event to singleListener - background', async () => {
@@ -259,6 +301,14 @@ describe('AutopilotEventEmitter', () => {
   it('emits event to manyListener - foreground', async () => {
     const fakeListener = new FakeListener()
     eventEmitter.onMany(['entity.created', 'entity.updated'], fakeListener)
+    const transactionManagerStartSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'startWithGroup',
+    )
+    const transactionManagerStopSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'stop',
+    )
 
     await eventEmitter.emit(TestEvents.created, createdEventPayload)
     await eventEmitter.emit(TestEvents.updated, updatedEventPayload)
@@ -266,6 +316,9 @@ describe('AutopilotEventEmitter', () => {
     expect(fakeListener.receivedEvents).toHaveLength(2)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
     expect(fakeListener.receivedEvents[1]).toMatchObject(expectedUpdatedPayload)
+
+    expect(transactionManagerStartSpy).toHaveBeenCalledTimes(2)
+    expect(transactionManagerStopSpy).toHaveBeenCalledTimes(2)
   })
 
   it('emits event to manyListener - background', async () => {
@@ -292,6 +345,39 @@ describe('AutopilotEventEmitter', () => {
 
     expect(transactionManagerStartSpy).toHaveBeenCalledTimes(2)
     expect(transactionManagerStopSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('foreground listener error handling', async () => {
+    const fakeListener = new ErroredFakeListener()
+    eventEmitter.onAny(fakeListener)
+    const transactionManagerStartSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'startWithGroup',
+    )
+    const transactionManagerStopSpy = vi.spyOn(
+      diContainer.cradle.transactionObservabilityManager,
+      'stop',
+    )
+
+    await expect(eventEmitter.emit(TestEvents.created, createdEventPayload)).rejects.toThrow(
+      'ErroredFakeListener error',
+    )
+
+    expect(fakeListener.receivedEvents).toHaveLength(1)
+    expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+
+    expect(transactionManagerStartSpy).toHaveBeenCalledOnce()
+    expect(transactionManagerStartSpy).toHaveBeenCalledWith(
+      'fg_event_listener:entity.created:ErroredFakeListener',
+      expect.any(String),
+      'entity.created',
+    )
+
+    expect(transactionManagerStopSpy).toHaveBeenCalledOnce()
+    expect(transactionManagerStopSpy).toHaveBeenCalledWith(
+      transactionManagerStartSpy.mock.calls[0][1],
+      false,
+    )
   })
 
   it('background listener error handling', async () => {
