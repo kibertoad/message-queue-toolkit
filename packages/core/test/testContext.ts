@@ -1,18 +1,19 @@
 import type { ErrorReporter } from '@lokalise/node-core'
-import type { Resolver } from 'awilix'
+import { type Resolver, asClass } from 'awilix'
 import { Lifetime, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import type { Logger } from 'pino'
 import pino from 'pino'
 import { z } from 'zod'
 
+import type { TransactionObservabilityManager } from '@lokalise/node-core'
+import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/schemas'
 import { DomainEventEmitter } from '../lib/events/DomainEventEmitter'
 import { EventRegistry } from '../lib/events/EventRegistry'
 import type { CommonEventDefinition } from '../lib/events/eventTypes'
 import type { MetadataFiller } from '../lib/messages/MetadataFiller'
 import { CommonMetadataFiller } from '../lib/messages/MetadataFiller'
-import { enrichMessageSchemaWithBase } from '../lib/messages/baseMessageSchemas'
-import type { TransactionObservabilityManager } from '../lib/types/MessageQueueTypes'
+import { FakeTransactionObservabilityManager } from './fakes/FakeTransactionObservabilityManager'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -65,16 +66,10 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       return new EventRegistry(Object.values(TestEvents))
     }, SINGLETON_CONFIG),
 
-    eventEmitter: asFunction((dependencies: Dependencies) => {
-      return new DomainEventEmitter(
-        {
-          metadataFiller: dependencies.metadataFiller,
-          eventRegistry: dependencies.eventRegistry,
-        },
-        {
-          handlerSpy: true,
-        },
-      )
+    eventEmitter: asFunction((deps: Dependencies) => {
+      return new DomainEventEmitter(deps, {
+        handlerSpy: true,
+      })
     }, SINGLETON_CONFIG),
     metadataFiller: asFunction(() => {
       return new CommonMetadataFiller({
@@ -83,14 +78,12 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
     }, SINGLETON_CONFIG),
 
     // vendor-specific dependencies
-    newRelicBackgroundTransactionManager: asFunction(() => {
-      return undefined
-    }, SINGLETON_CONFIG),
+    transactionObservabilityManager: asClass(FakeTransactionObservabilityManager, SINGLETON_CONFIG),
     errorReporter: asFunction(() => {
       return {
         report: () => {},
       } satisfies ErrorReporter
-    }),
+    }, SINGLETON_CONFIG),
   }
   diContainer.register(diConfig)
 
@@ -111,7 +104,7 @@ export interface Dependencies {
   awilixManager: AwilixManager
 
   // vendor-specific dependencies
-  newRelicBackgroundTransactionManager: TransactionObservabilityManager
+  transactionObservabilityManager: TransactionObservabilityManager
 
   errorReporter: ErrorReporter
   eventRegistry: EventRegistry<TestEventsType>

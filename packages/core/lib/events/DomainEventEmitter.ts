@@ -1,10 +1,17 @@
-import { InternalError } from '@lokalise/node-core'
+import {
+  type ErrorReporter,
+  InternalError,
+  type TransactionObservabilityManager,
+  resolveGlobalErrorLogObject,
+} from '@lokalise/node-core'
 
 import type { MetadataFiller } from '../messages/MetadataFiller'
 import type { HandlerSpy, HandlerSpyParams, PublicHandlerSpy } from '../queues/HandlerSpy'
 import { resolveHandlerSpy } from '../queues/HandlerSpy'
 
+import { randomUUID } from 'node:crypto'
 import type { ConsumerMessageMetadataType } from '@message-queue-toolkit/schemas'
+import type { Logger } from '../types/MessageQueueTypes'
 import type { EventRegistry } from './EventRegistry'
 import type {
   AnyEventHandler,
@@ -16,36 +23,49 @@ import type {
   SingleEventHandler,
 } from './eventTypes'
 
+export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDefinition[]> = {
+  eventRegistry: EventRegistry<SupportedEvents>
+  metadataFiller: MetadataFiller
+  logger: Logger
+  errorReporter?: ErrorReporter
+  transactionObservabilityManager?: TransactionObservabilityManager
+}
+
+type Handlers<T> = {
+  background: T[]
+  foreground: T[]
+}
+
 export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]> {
   private readonly eventRegistry: EventRegistry<SupportedEvents>
+  private readonly metadataFiller: MetadataFiller
+  private readonly logger: Logger
+  private readonly errorReporter?: ErrorReporter
+  private readonly transactionObservabilityManager?: TransactionObservabilityManager
+  private readonly _handlerSpy?: HandlerSpy<
+    CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>
+  >
 
   private readonly eventHandlerMap: Record<
     string,
-    EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvents[number]>>[]
-  > = {}
-  private readonly anyHandlers: AnyEventHandler<SupportedEvents>[] = []
-  private readonly metadataFiller: MetadataFiller
-  private _handlerSpy:
-    | HandlerSpy<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>
-    | undefined
-
+    Handlers<EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvents[number]>>>
+  >
   constructor(
-    {
-      eventRegistry,
-      metadataFiller,
-    }: {
-      eventRegistry: EventRegistry<SupportedEvents>
-      metadataFiller: MetadataFiller
-    },
+    deps: DomainEventEmitterDependencies<SupportedEvents>,
     options: {
       handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
     } = {},
   ) {
-    this.eventRegistry = eventRegistry
-    this.metadataFiller = metadataFiller
+    this.eventRegistry = deps.eventRegistry
+    this.metadataFiller = deps.metadataFiller
+    this.logger = deps.logger
+    this.errorReporter = deps.errorReporter
+    this.transactionObservabilityManager = deps.transactionObservabilityManager
 
     this._handlerSpy =
       resolveHandlerSpy<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>(options)
+
+    this.eventHandlerMap = {}
   }
 
   get handlerSpy(): PublicHandlerSpy<
@@ -64,13 +84,16 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     data: Omit<CommonEventDefinitionPublisherSchemaType<SupportedEvent>, 'type'>,
     precedingMessageMetadata?: Partial<ConsumerMessageMetadataType>,
   ): Promise<Omit<CommonEventDefinitionConsumerSchemaType<SupportedEvent>, 'type'>> {
-    if (!data.timestamp) {
-      data.timestamp = this.metadataFiller.produceTimestamp()
-    }
-    if (!data.id) {
-      data.id = this.metadataFiller.produceId()
+    const eventTypeName = supportedEvent.publisherSchema.shape.type.value
+    if (!this.eventRegistry.isSupportedEvent(eventTypeName)) {
+      throw new InternalError({
+        errorCode: 'UNKNOWN_EVENT',
+        message: `Unknown event ${eventTypeName}`,
+      })
     }
 
+    if (!data.timestamp) data.timestamp = this.metadataFiller.produceTimestamp()
+    if (!data.id) data.id = this.metadataFiller.produceId()
     if (!data.metadata) {
       data.metadata = this.metadataFiller.produceMetadata(
         // @ts-ignore
@@ -79,52 +102,19 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
         precedingMessageMetadata ?? {},
       )
     }
-
-    if (!data.metadata.correlationId) {
-      data.metadata.correlationId = this.metadataFiller.produceId()
-    }
-
-    const eventTypeName = supportedEvent.publisherSchema.shape.type.value
-
-    if (!this.eventRegistry.isSupportedEvent(eventTypeName)) {
-      throw new InternalError({
-        errorCode: 'UNKNOWN_EVENT',
-        message: `Unknown event ${eventTypeName}`,
-      })
-    }
-
-    const eventHandlers = this.eventHandlerMap[eventTypeName]
-
-    // No relevant handlers are registered, we can stop processing
-    if (!eventHandlers && this.anyHandlers.length === 0) {
-      // @ts-ignore
-      return data
-    }
+    if (!data.metadata.correlationId) data.metadata.correlationId = this.metadataFiller.produceId()
 
     const validatedEvent = this.eventRegistry
       .getEventDefinitionByTypeName(eventTypeName)
-      .publisherSchema.parse({
-        type: eventTypeName,
-        ...data,
-      })
+      .publisherSchema.parse({ type: eventTypeName, ...data })
 
-    if (eventHandlers) {
-      for (const handler of eventHandlers) {
-        await handler.handleEvent(validatedEvent)
-      }
-    }
-
-    for (const handler of this.anyHandlers) {
-      await handler.handleEvent(validatedEvent)
-    }
+    await this.handleEvent(validatedEvent)
 
     if (this._handlerSpy) {
       this._handlerSpy.addProcessedMessage(
         {
           // @ts-ignore
-          message: {
-            ...validatedEvent,
-          },
+          message: validatedEvent,
           processingResult: 'consumed',
         },
         validatedEvent.id,
@@ -141,8 +131,14 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   public on<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeName: EventTypeName,
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
+    isBackgroundHandler = false,
   ) {
-    this.addOnHandler(eventTypeName, handler)
+    if (!this.eventHandlerMap[eventTypeName]) {
+      this.eventHandlerMap[eventTypeName] = { foreground: [], background: [] }
+    }
+
+    if (isBackgroundHandler) this.eventHandlerMap[eventTypeName].background.push(handler)
+    else this.eventHandlerMap[eventTypeName].foreground.push(handler)
   }
 
   /**
@@ -151,27 +147,79 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   public onMany<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeNames: EventTypeName[],
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
+    isBackgroundHandler = false,
   ) {
     for (const eventTypeName of eventTypeNames) {
-      this.on(eventTypeName, handler)
+      this.on(eventTypeName, handler, isBackgroundHandler)
     }
   }
 
   /**
    * Register handler for all events supported by the emitter
    */
-  public onAny(handler: AnyEventHandler<SupportedEvents>) {
-    this.anyHandlers.push(handler)
+  public onAny(handler: AnyEventHandler<SupportedEvents>, isBackgroundHandler = false) {
+    for (const supportedEvent of this.eventRegistry.supportedEvents) {
+      this.on(supportedEvent.consumerSchema.shape.type.value, handler, isBackgroundHandler)
+    }
   }
 
-  private addOnHandler(
-    eventTypeName: EventTypeNames<SupportedEvents[number]>,
-    handler: EventHandler,
-  ) {
-    if (!this.eventHandlerMap[eventTypeName]) {
-      this.eventHandlerMap[eventTypeName] = []
+  private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
+    event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
+  ): Promise<void> {
+    const eventHandlers = this.eventHandlerMap[event.type] ?? {
+      foreground: [],
+      background: [],
     }
 
-    this.eventHandlerMap[eventTypeName].push(handler)
+    for (const handler of eventHandlers.foreground) {
+      const transactionId = randomUUID()
+      let isSuccessfull = false
+      try {
+        this.transactionObservabilityManager?.startWithGroup(
+          this.buildTransactionKey(event, handler, false),
+          transactionId,
+          event.type,
+        )
+        await handler.handleEvent(event)
+        isSuccessfull = true
+      } finally {
+        this.transactionObservabilityManager?.stop(transactionId, isSuccessfull)
+      }
+    }
+
+    for (const handler of eventHandlers.background) {
+      const transactionId = randomUUID()
+      this.transactionObservabilityManager?.startWithGroup(
+        this.buildTransactionKey(event, handler, true),
+        transactionId,
+        event.type,
+      )
+
+      Promise.resolve(handler.handleEvent(event))
+        .then(() => {
+          this.transactionObservabilityManager?.stop(transactionId, true)
+        })
+        .catch((error) => {
+          this.transactionObservabilityManager?.stop(transactionId, false)
+          const context = {
+            event: JSON.stringify(event),
+            eventHandlerId: handler.eventHandlerId,
+            'x-request-id': event.metadata?.correlationId,
+          }
+          this.logger.error({
+            ...resolveGlobalErrorLogObject(error),
+            ...context,
+          })
+          this.errorReporter?.report({ error: error, context })
+        })
+    }
+  }
+
+  private buildTransactionKey<SupportedEvent extends SupportedEvents[number]>(
+    event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
+    handler: EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvent>>,
+    isBackgroundHandler: boolean,
+  ): string {
+    return `${isBackgroundHandler ? 'bg' : 'fg'}_event_listener:${event.type}:${handler.eventHandlerId}`
   }
 }
