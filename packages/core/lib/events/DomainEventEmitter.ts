@@ -189,8 +189,6 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
     for (const handler of eventHandlers.background) {
       const transactionId = randomUUID()
-      // not sure if we should use startWithGroup or start, using group to group all handlers for the same event type
-      // should it be eventId + eventType or just eventType?
       this.transactionObservabilityManager?.startWithGroup(
         this.buildTransactionKey(event, handler, true),
         transactionId,
