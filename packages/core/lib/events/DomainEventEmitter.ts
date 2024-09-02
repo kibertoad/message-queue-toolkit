@@ -50,8 +50,6 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     string,
     Handlers<EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvents[number]>>>
   >
-  private readonly anyHandlers: Handlers<AnyEventHandler<SupportedEvents>>
-
   constructor(
     deps: DomainEventEmitterDependencies<SupportedEvents>,
     options: {
@@ -68,7 +66,6 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       resolveHandlerSpy<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>(options)
 
     this.eventHandlerMap = {}
-    this.anyHandlers = { background: [], foreground: [] }
   }
 
   get handlerSpy(): PublicHandlerSpy<
@@ -161,8 +158,9 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
    * Register handler for all events supported by the emitter
    */
   public onAny(handler: AnyEventHandler<SupportedEvents>, isBackgroundHandler = false) {
-    if (isBackgroundHandler) this.anyHandlers.background.push(handler)
-    else this.anyHandlers.foreground.push(handler)
+    for (const supportedEvent of this.eventRegistry.supportedEvents) {
+      this.on(supportedEvent.consumerSchema.shape.type.value, handler, isBackgroundHandler)
+    }
   }
 
   private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
@@ -173,8 +171,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       background: [],
     }
 
-    const fgHandlers = [...eventHandlers.foreground, ...this.anyHandlers.foreground]
-    for (const handler of fgHandlers) {
+    for (const handler of eventHandlers.foreground) {
       const transactionId = randomUUID()
       let isSuccessfull = false
       try {
@@ -190,8 +187,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       }
     }
 
-    const bgHandlers = [...eventHandlers.background, ...this.anyHandlers.background]
-    for (const handler of bgHandlers) {
+    for (const handler of eventHandlers.background) {
       const transactionId = randomUUID()
       // not sure if we should use startWithGroup or start, using group to group all handlers for the same event type
       // should it be eventId + eventType or just eventType?
