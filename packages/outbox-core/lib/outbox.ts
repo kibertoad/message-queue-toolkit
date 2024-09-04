@@ -53,43 +53,14 @@ export interface OutboxStorage<SupportedEvents extends CommonEventDefinition[]> 
   getEntries(maxRetryCount: number): Promise<OutboxEntry<SupportedEvents[number]>[]>
 }
 
-/**
- * Periodic job that processes outbox entries every second. If processing takes longer than 1 second, another subsequent job WILL NOT be started.
- *
- * Each entry is ACKed, then event is published, and then entry is marked as SUCCESS. If processing fails, entry is marked as FAILED and will be retried.
- *
- * Max retry count is defined by the user.
- */
-export class OutboxPeriodicJob<
-  SupportedEvents extends CommonEventDefinition[],
-> extends AbstractPeriodicJob {
+export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
   constructor(
     private readonly outboxStorage: OutboxStorage<SupportedEvents>,
     private readonly eventEmitter: DomainEventEmitter<SupportedEvents>,
     private readonly maxRetryCount: number,
-    dependencies: PeriodicJobDependencies,
-  ) {
-    super(
-      {
-        jobId: 'OutboxJob',
-        schedule: {
-          intervalInMs: 1000,
-        },
-        singleConsumerMode: {
-          enabled: true,
-        },
-      },
-      {
-        redis: dependencies.redis,
-        logger: dependencies.logger,
-        transactionObservabilityManager: dependencies.transactionObservabilityManager,
-        errorReporter: dependencies.errorReporter,
-        scheduler: dependencies.scheduler,
-      },
-    )
-  }
+  ) {}
 
-  protected async processInternal(context: JobExecutionContext): Promise<void> {
+  public async processOutboxEntries(context: JobExecutionContext) {
     const entries = await this.outboxStorage.getEntries(this.maxRetryCount)
 
     for (const entry of entries) {
@@ -114,6 +85,55 @@ export class OutboxPeriodicJob<
         })
       }
     }
+  }
+}
+
+/**
+ * Periodic job that processes outbox entries every second. If processing takes longer than 1 second, another subsequent job WILL NOT be started.
+ *
+ * Each entry is ACKed, then event is published, and then entry is marked as SUCCESS. If processing fails, entry is marked as FAILED and will be retried.
+ *
+ * Max retry count is defined by the user.
+ */
+export class OutboxPeriodicJob<
+  SupportedEvents extends CommonEventDefinition[],
+> extends AbstractPeriodicJob {
+  private readonly outboxProcessor: OutboxProcessor<SupportedEvents>
+
+  constructor(
+    outboxStorage: OutboxStorage<SupportedEvents>,
+    eventEmitter: DomainEventEmitter<SupportedEvents>,
+    maxRetryCount: number,
+    dependencies: PeriodicJobDependencies,
+  ) {
+    super(
+      {
+        jobId: 'OutboxJob',
+        schedule: {
+          intervalInMs: 1000,
+        },
+        singleConsumerMode: {
+          enabled: true,
+        },
+      },
+      {
+        redis: dependencies.redis,
+        logger: dependencies.logger,
+        transactionObservabilityManager: dependencies.transactionObservabilityManager,
+        errorReporter: dependencies.errorReporter,
+        scheduler: dependencies.scheduler,
+      },
+    )
+
+    this.outboxProcessor = new OutboxProcessor<SupportedEvents>(
+      outboxStorage,
+      eventEmitter,
+      maxRetryCount,
+    )
+  }
+
+  protected async processInternal(context: JobExecutionContext): Promise<void> {
+    await this.outboxProcessor.processOutboxEntries(context)
   }
 }
 

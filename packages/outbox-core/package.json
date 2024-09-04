@@ -29,17 +29,18 @@
     "@lokalise/id-utils": "^2.2.0"
   },
   "peerDependencies": {
-    "@message-queue-toolkit/core": ">=14.0.0"
+    "@message-queue-toolkit/core": ">=14.0.0",
+    "@message-queue-toolkit/schemas": ">=4.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "1.8.3",
     "@kibertoad/biome-config": "^1.2.1",
-    "@message-queue-toolkit/core": "*",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.0.4",
     "del-cli": "^5.1.0",
     "typescript": "^5.5.3",
-    "vitest": "^2.0.4"
+    "vitest": "^2.0.4",
+    "zod": "^3.23.8"
   },
   "homepage": "https://github.com/kibertoad/message-queue-toolkit",
   "repository": {
