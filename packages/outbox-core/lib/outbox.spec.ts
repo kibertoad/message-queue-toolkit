@@ -160,10 +160,64 @@ describe('outbox', () => {
     const entries = await outboxStorage.getEntries(2)
 
     expect(entries).toHaveLength(0)
-
     expect(outboxStorage.entries).toMatchObject([
       {
         status: 'SUCCESS',
+      },
+    ])
+  })
+
+  it('saves outbox entry and process it with error and retries', async () => {
+    await outboxEventEmitter.emit(TestEvents.created, createdEventPayload, {
+      correlationId: randomUUID(),
+    })
+
+    const mockedEventEmitter = vi.spyOn(eventEmitter, 'emit')
+    mockedEventEmitter.mockImplementationOnce(() => {
+      throw new Error('Could not emit event.')
+    })
+    mockedEventEmitter.mockImplementationOnce(() =>
+      Promise.resolve({
+        ...createdEventPayload,
+        id: randomUUID(),
+        timestamp: new Date().toISOString(),
+        metadata: {
+          schemaVersion: '1',
+          producedBy: 'test',
+          originatedFrom: 'service',
+          correlationId: randomUUID(),
+        },
+      }),
+    )
+
+    await outboxProcessor.processOutboxEntries({
+      logger: TestLogger,
+      reqId: randomUUID(),
+      executorId: randomUUID(),
+    })
+
+    let entries = await outboxStorage.getEntries(2)
+    expect(entries).toHaveLength(1)
+    expect(outboxStorage.entries).toMatchObject([
+      {
+        status: 'FAILED',
+        retryCount: 1,
+      },
+    ])
+
+    //Now let's process again successfully
+    await outboxProcessor.processOutboxEntries({
+      logger: TestLogger,
+      reqId: randomUUID(),
+      executorId: randomUUID(),
+    })
+
+    entries = await outboxStorage.getEntries(2)
+    expect(entries).toHaveLength(0) //Nothing to process anymore
+    expect(outboxStorage.entries).toMatchObject([
+      {
+        status: 'SUCCESS',
+        retryCount: 1,
       },
     ])
   })
