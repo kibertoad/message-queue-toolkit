@@ -1,5 +1,5 @@
 import { AbstractPeriodicJob, type JobExecutionContext } from '@lokalise/background-jobs-common'
-import type { PeriodicJobDependencies } from '@lokalise/background-jobs-common/dist/periodic-jobs/periodicJobTypes'
+import type { PeriodicJobDependencies } from '@lokalise/background-jobs-common'
 import { generateUuid7 } from '@lokalise/id-utils'
 import type {
   CommonEventDefinition,
