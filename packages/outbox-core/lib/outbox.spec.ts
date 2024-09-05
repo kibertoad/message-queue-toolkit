@@ -111,6 +111,8 @@ class InMemoryOutboxStorage<SupportedEvents extends CommonEventDefinition[]>
   }
 }
 
+const MAX_RETRY_COUNT = 2
+
 describe('outbox', () => {
   let outboxProcessor: OutboxProcessor<TestEventsType>
   let eventEmitter: DomainEventEmitter<TestEventsType>
@@ -129,7 +131,11 @@ describe('outbox', () => {
 
     outboxStorage = new InMemoryOutboxStorage<TestEventsType>()
     outboxEventEmitter = new OutboxEventEmitter<TestEventsType>(outboxStorage)
-    outboxProcessor = new OutboxProcessor<TestEventsType>(outboxStorage, eventEmitter, 2)
+    outboxProcessor = new OutboxProcessor<TestEventsType>(
+      outboxStorage,
+      eventEmitter,
+      MAX_RETRY_COUNT,
+    )
   })
 
   afterEach(() => {
@@ -141,7 +147,7 @@ describe('outbox', () => {
       correlationId: randomUUID(),
     })
 
-    const entries = await outboxStorage.getEntries(2)
+    const entries = await outboxStorage.getEntries(MAX_RETRY_COUNT)
 
     expect(entries).toHaveLength(1)
   })
@@ -157,7 +163,7 @@ describe('outbox', () => {
       executorId: randomUUID(),
     })
 
-    const entries = await outboxStorage.getEntries(2)
+    const entries = await outboxStorage.getEntries(MAX_RETRY_COUNT)
 
     expect(entries).toHaveLength(0)
     expect(outboxStorage.entries).toMatchObject([
@@ -168,10 +174,6 @@ describe('outbox', () => {
   })
 
   it('saves outbox entry and process it with error and retries', async () => {
-    await outboxEventEmitter.emit(TestEvents.created, createdEventPayload, {
-      correlationId: randomUUID(),
-    })
-
     const mockedEventEmitter = vi.spyOn(eventEmitter, 'emit')
     mockedEventEmitter.mockImplementationOnce(() => {
       throw new Error('Could not emit event.')
@@ -190,13 +192,17 @@ describe('outbox', () => {
       }),
     )
 
+    await outboxEventEmitter.emit(TestEvents.created, createdEventPayload, {
+      correlationId: randomUUID(),
+    })
+
     await outboxProcessor.processOutboxEntries({
       logger: TestLogger,
       reqId: randomUUID(),
       executorId: randomUUID(),
     })
 
-    let entries = await outboxStorage.getEntries(2)
+    let entries = await outboxStorage.getEntries(MAX_RETRY_COUNT)
     expect(entries).toHaveLength(1)
     expect(outboxStorage.entries).toMatchObject([
       {
@@ -212,12 +218,62 @@ describe('outbox', () => {
       executorId: randomUUID(),
     })
 
-    entries = await outboxStorage.getEntries(2)
+    entries = await outboxStorage.getEntries(MAX_RETRY_COUNT)
     expect(entries).toHaveLength(0) //Nothing to process anymore
     expect(outboxStorage.entries).toMatchObject([
       {
         status: 'SUCCESS',
         retryCount: 1,
+      },
+    ])
+  })
+
+  it('no longer processes the event if exceeded retry count', async () => {
+    //Let's always fail the event
+    const mockedEventEmitter = vi.spyOn(eventEmitter, 'emit')
+    mockedEventEmitter.mockImplementation(() => {
+      throw new Error('Could not emit event.')
+    })
+
+    //Persist the event
+    await outboxEventEmitter.emit(TestEvents.created, createdEventPayload, {
+      correlationId: randomUUID(),
+    })
+
+    //Initially event is present in outbox storage.
+    expect(await outboxStorage.getEntries(MAX_RETRY_COUNT)).toHaveLength(1)
+
+    //Retry +1
+    await outboxProcessor.processOutboxEntries({
+      logger: TestLogger,
+      reqId: randomUUID(),
+      executorId: randomUUID(),
+    })
+    //Still present
+    expect(await outboxStorage.getEntries(MAX_RETRY_COUNT)).toHaveLength(1)
+
+    //Retry +2
+    await outboxProcessor.processOutboxEntries({
+      logger: TestLogger,
+      reqId: randomUUID(),
+      executorId: randomUUID(),
+    })
+    //Stil present
+    expect(await outboxStorage.getEntries(MAX_RETRY_COUNT)).toHaveLength(1)
+
+    //Retry +3
+    await outboxProcessor.processOutboxEntries({
+      logger: TestLogger,
+      reqId: randomUUID(),
+      executorId: randomUUID(),
+    })
+    //Now it's gone, we no longer try to process it
+    expect(await outboxStorage.getEntries(MAX_RETRY_COUNT)).toHaveLength(0)
+
+    expect(outboxStorage.entries).toMatchObject([
+      {
+        status: 'FAILED',
+        retryCount: 3,
       },
     ])
   })
