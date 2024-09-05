@@ -1,12 +1,12 @@
 import { AbstractPeriodicJob, type JobExecutionContext } from '@lokalise/background-jobs-common'
 import type { PeriodicJobDependencies } from '@lokalise/background-jobs-common'
-import { generateUuid7 } from '@lokalise/id-utils'
 import type {
   CommonEventDefinition,
   CommonEventDefinitionPublisherSchemaType,
   ConsumerMessageMetadataType,
   DomainEventEmitter,
 } from '@message-queue-toolkit/core'
+import { uuidv7 } from 'uuidv7'
 
 /**
  * Status of the outbox entry.
@@ -158,7 +158,7 @@ export class OutboxEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     precedingMessageMetadata?: Partial<ConsumerMessageMetadataType>,
   ) {
     await this.storage.create({
-      id: generateUuid7(),
+      id: uuidv7(),
       event: supportedEvent,
       data,
       precedingMessageMetadata,

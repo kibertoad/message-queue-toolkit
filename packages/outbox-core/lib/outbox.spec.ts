@@ -49,31 +49,6 @@ const createdEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestE
   },
 }
 
-const updatedEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.updated> = {
-  ...createdEventPayload,
-  type: 'entity.updated',
-}
-
-const expectedCreatedPayload = {
-  id: expect.any(String),
-  timestamp: expect.any(String),
-  payload: {
-    message: 'msg',
-  },
-  type: 'entity.created',
-  metadata: {
-    correlationId: expect.any(String),
-    originatedFrom: 'service',
-    producedBy: 'producer',
-    schemaVersion: '1',
-  },
-}
-
-const expectedUpdatedPayload = {
-  ...expectedCreatedPayload,
-  type: 'entity.updated',
-}
-
 const TestLogger: Logger = pino()
 
 class InMemoryOutboxStorage<SupportedEvents extends CommonEventDefinition[]>
