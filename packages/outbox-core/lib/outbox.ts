@@ -26,6 +26,7 @@ export type OutboxEntry<SupportedEvent extends CommonEventDefinition> = {
   created: Date
   updated?: Date
   retryCount: number
+  lockedUntil?: Date
 }
 
 /**
@@ -53,6 +54,11 @@ export interface OutboxStorage<SupportedEvents extends CommonEventDefinition[]> 
   getEntries(maxRetryCount: number): Promise<OutboxEntry<SupportedEvents[number]>[]>
 }
 
+/**
+ * Main logic for handling outbox entries.
+ *
+ * If entry is rejected, it is NOT going to be handled during the same execution. Next execution will pick it up.
+ */
 export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
   constructor(
     private readonly outboxStorage: OutboxStorage<SupportedEvents>,
