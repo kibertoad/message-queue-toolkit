@@ -95,7 +95,7 @@ export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
 }
 
 /**
- * Periodic job that processes outbox entries every second. If processing takes longer than 1 second, another subsequent job WILL NOT be started.
+ * Periodic job that processes outbox entries every "intervalInMs". If processing takes longer than defined interval, another subsequent job WILL NOT be started.
  *
  * Each entry is ACKed, then event is published, and then entry is marked as SUCCESS. If processing fails, entry is marked as FAILED and will be retried.
  *
@@ -109,14 +109,15 @@ export class OutboxPeriodicJob<
   constructor(
     outboxStorage: OutboxStorage<SupportedEvents>,
     eventEmitter: DomainEventEmitter<SupportedEvents>,
-    maxRetryCount: number,
     dependencies: PeriodicJobDependencies,
+    maxRetryCount: number,
+    intervalInMs: number,
   ) {
     super(
       {
         jobId: 'OutboxJob',
         schedule: {
-          intervalInMs: 1000,
+          intervalInMs: intervalInMs,
         },
         singleConsumerMode: {
           enabled: true,
