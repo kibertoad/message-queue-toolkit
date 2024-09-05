@@ -26,7 +26,6 @@ export type OutboxEntry<SupportedEvent extends CommonEventDefinition> = {
   created: Date
   updated?: Date
   retryCount: number
-  lockedUntil?: Date
 }
 
 /**
