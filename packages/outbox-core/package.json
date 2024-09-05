@@ -55,9 +55,8 @@
     "common",
     "utils",
     "notification",
-    "s3",
-    "store",
-    "claim-check"
+    "outbox",
+    "pattern"
   ],
   "files": ["README.md", "LICENSE", "dist/*"]
 }
