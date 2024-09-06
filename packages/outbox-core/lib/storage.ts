@@ -15,6 +15,12 @@ export interface OutboxStorage<SupportedEvents extends CommonEventDefinition[]> 
     outboxEntry: OutboxEntry<SupportedEvents[number]>,
   ): Promise<OutboxEntry<SupportedEvents[number]>>
 
+  /**
+   * Responsible for taking all entries from the accumulator and persisting them in the storage.
+   *
+   * - Items that are in OutboxAccumulator::getEntries MUST be changed to SUCCESS status and `updatedAt` field needs to be set.
+   * - Items that are in OutboxAccumulator::getFailedEntries MUST be changed to FAILED status, `updatedAt` field needs to be set and retryCount needs to be incremented.
+   */
   flush(outboxAccumulator: OutboxAccumulator<SupportedEvents>): Promise<void>
 
   /**
