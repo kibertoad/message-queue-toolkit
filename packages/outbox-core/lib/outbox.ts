@@ -6,6 +6,7 @@ import type {
   ConsumerMessageMetadataType,
   DomainEventEmitter,
 } from '@message-queue-toolkit/core'
+import { PromisePool } from '@supercharge/promise-pool'
 import { uuidv7 } from 'uuidv7'
 
 /**
@@ -28,6 +29,51 @@ export type OutboxEntry<SupportedEvent extends CommonEventDefinition> = {
   retryCount: number
 }
 
+export interface OutboxAccumulator<SupportedEvents extends CommonEventDefinition[]> {
+  add(outboxEntry: OutboxEntry<SupportedEvents[number]>): Promise<void>
+
+  addFailure(outboxEntry: OutboxEntry<SupportedEvents[number]>): Promise<void>
+
+  getEntries(): Promise<OutboxEntry<SupportedEvents[number]>[]>
+
+  getFailedEntries(): Promise<OutboxEntry<SupportedEvents[number]>[]>
+
+  clear(): Promise<void>
+}
+
+export class InMemoryOutboxAccumulator<SupportedEvents extends CommonEventDefinition[]>
+  implements OutboxAccumulator<SupportedEvents>
+{
+  private entries: OutboxEntry<SupportedEvents[number]>[] = []
+  private failedEntries: OutboxEntry<SupportedEvents[number]>[] = []
+
+  public add(outboxEntry: OutboxEntry<SupportedEvents[number]>) {
+    this.entries = [...this.entries, outboxEntry]
+
+    return Promise.resolve()
+  }
+
+  public addFailure(outboxEntry: OutboxEntry<SupportedEvents[number]>) {
+    this.failedEntries = [...this.failedEntries, outboxEntry]
+
+    return Promise.resolve()
+  }
+
+  getEntries(): Promise<OutboxEntry<SupportedEvents[number]>[]> {
+    return Promise.resolve(this.entries)
+  }
+
+  getFailedEntries(): Promise<OutboxEntry<SupportedEvents[number]>[]> {
+    return Promise.resolve(this.failedEntries)
+  }
+
+  public clear(): Promise<void> {
+    this.entries = []
+    this.failedEntries = []
+    return Promise.resolve()
+  }
+}
+
 /**
  * Takes care of persisting and retrieving outbox entries.
  *
@@ -40,6 +86,8 @@ export interface OutboxStorage<SupportedEvents extends CommonEventDefinition[]> 
   create(
     outboxEntry: OutboxEntry<SupportedEvents[number]>,
   ): Promise<OutboxEntry<SupportedEvents[number]>>
+
+  flush(outboxAccumulator: OutboxAccumulator<SupportedEvents>): Promise<void>
 
   update(
     outboxEntry: OutboxEntry<SupportedEvents[number]>,
@@ -61,35 +109,29 @@ export interface OutboxStorage<SupportedEvents extends CommonEventDefinition[]> 
 export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
   constructor(
     private readonly outboxStorage: OutboxStorage<SupportedEvents>,
+    private readonly outboxAccumulator: OutboxAccumulator<SupportedEvents>,
     private readonly eventEmitter: DomainEventEmitter<SupportedEvents>,
     private readonly maxRetryCount: number,
+    private readonly emitBatchSize: number,
   ) {}
 
   public async processOutboxEntries(context: JobExecutionContext) {
     const entries = await this.outboxStorage.getEntries(this.maxRetryCount)
 
-    for (const entry of entries) {
-      try {
-        const updatedEntry = await this.outboxStorage.update({
-          ...entry,
-          updated: new Date(),
-          status: 'ACKED',
-        })
+    await PromisePool.for(entries)
+      .withConcurrency(this.emitBatchSize)
+      .process(async (entry) => {
+        try {
+          await this.eventEmitter.emit(entry.event, entry.data, entry.precedingMessageMetadata)
+          await this.outboxAccumulator.add(entry)
+        } catch (e) {
+          context.logger.error({ error: e }, 'Failed to process outbox entry.')
 
-        await this.eventEmitter.emit(entry.event, entry.data, entry.precedingMessageMetadata)
+          await this.outboxAccumulator.addFailure(entry)
+        }
+      })
 
-        await this.outboxStorage.update({ ...updatedEntry, updated: new Date(), status: 'SUCCESS' })
-      } catch (e) {
-        context.logger.error({ error: e }, 'Failed to process outbox entry.')
-
-        await this.outboxStorage.update({
-          ...entry,
-          updated: new Date(),
-          status: 'FAILED',
-          retryCount: entry.retryCount + 1,
-        })
-      }
-    }
+    await this.outboxStorage.flush(this.outboxAccumulator)
   }
 }
 
@@ -107,9 +149,11 @@ export class OutboxPeriodicJob<
 
   constructor(
     outboxStorage: OutboxStorage<SupportedEvents>,
+    outboxAccumulator: OutboxAccumulator<SupportedEvents>,
     eventEmitter: DomainEventEmitter<SupportedEvents>,
     dependencies: PeriodicJobDependencies,
     maxRetryCount: number,
+    emitBatchSize: number,
     intervalInMs: number,
   ) {
     super(
@@ -133,8 +177,10 @@ export class OutboxPeriodicJob<
 
     this.outboxProcessor = new OutboxProcessor<SupportedEvents>(
       outboxStorage,
+      outboxAccumulator,
       eventEmitter,
       maxRetryCount,
+      emitBatchSize,
     )
   }
 

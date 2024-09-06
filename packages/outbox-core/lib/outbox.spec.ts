@@ -12,7 +12,14 @@ import {
 import pino, { type Logger } from 'pino'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { type OutboxEntry, OutboxEventEmitter, OutboxProcessor, type OutboxStorage } from './outbox'
+import {
+  InMemoryOutboxAccumulator,
+  type OutboxAccumulator,
+  type OutboxEntry,
+  OutboxEventEmitter,
+  OutboxProcessor,
+  type OutboxStorage,
+} from './outbox'
 
 const TestEvents = {
   created: {
@@ -84,6 +91,43 @@ class InMemoryOutboxStorage<SupportedEvents extends CommonEventDefinition[]>
 
     return Promise.resolve(outboxEntry)
   }
+
+  public async flush(outboxAccumulator: OutboxAccumulator<SupportedEvents>): Promise<void> {
+    let successEntries = await outboxAccumulator.getEntries()
+    successEntries = successEntries.map((entry) => {
+      return {
+        ...entry,
+        status: 'SUCCESS',
+        updateAt: new Date(),
+      }
+    })
+    this.entries = this.entries.map((entry) => {
+      const foundEntry = successEntries.find((successEntry) => successEntry.id === entry.id)
+      if (foundEntry) {
+        return foundEntry
+      }
+      return entry
+    })
+
+    let failedEntries = await outboxAccumulator.getFailedEntries()
+    failedEntries = failedEntries.map((entry) => {
+      return {
+        ...entry,
+        status: 'FAILED',
+        updateAt: new Date(),
+        retryCount: entry.retryCount + 1,
+      }
+    })
+    this.entries = this.entries.map((entry) => {
+      const foundEntry = failedEntries.find((failedEntry) => failedEntry.id === entry.id)
+      if (foundEntry) {
+        return foundEntry
+      }
+      return entry
+    })
+
+    outboxAccumulator.clear()
+  }
 }
 
 const MAX_RETRY_COUNT = 2
@@ -108,8 +152,11 @@ describe('outbox', () => {
     outboxEventEmitter = new OutboxEventEmitter<TestEventsType>(outboxStorage)
     outboxProcessor = new OutboxProcessor<TestEventsType>(
       outboxStorage,
+      //@ts-ignore
+      new InMemoryOutboxAccumulator(),
       eventEmitter,
       MAX_RETRY_COUNT,
+      1,
     )
   })
 
