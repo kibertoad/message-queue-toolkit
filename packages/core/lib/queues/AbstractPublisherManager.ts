@@ -180,7 +180,9 @@ export abstract class AbstractPublisherManager<
   ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
     const publisher = this.targetToPublisherMap[eventTarget]
     if (!publisher) {
-      throw new Error(`No publisher for target ${eventTarget} - did you perhaps forget to update supportedEvents passed to EventRegistry?`)
+      throw new Error(
+        `No publisher for target ${eventTarget} - did you perhaps forget to update supportedEvents passed to EventRegistry?`
+      )
     }
     const messageDefinition = this.resolveMessageDefinition(eventTarget, message)
     if (!messageDefinition) {
@@ -254,7 +256,9 @@ export abstract class AbstractPublisherManager<
     const publisher = this.targetToPublisherMap[eventTarget]
 
     if (!publisher) {
-      throw new Error(`No publisher for target ${eventTarget} - did you perhaps forget to update supportedEvents passed to EventRegistry?`)
+      throw new Error(
+        `No publisher for target ${eventTarget} - did you perhaps forget to update supportedEvents passed to EventRegistry?`
+      )
     }
 
     return publisher.handlerSpy
