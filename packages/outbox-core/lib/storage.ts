@@ -17,10 +17,6 @@ export interface OutboxStorage<SupportedEvents extends CommonEventDefinition[]> 
 
   flush(outboxAccumulator: OutboxAccumulator<SupportedEvents>): Promise<void>
 
-  update(
-    outboxEntry: OutboxEntry<SupportedEvents[number]>,
-  ): Promise<OutboxEntry<SupportedEvents[number]>>
-
   /**
    * Returns entries in the order they were created. It doesn't return entries with 'SUCCESS' status. It doesn't return entries that have been retried more than maxRetryCount times.
    *

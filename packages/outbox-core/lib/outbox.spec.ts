@@ -14,7 +14,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { InMemoryOutboxAccumulator, type OutboxAccumulator } from './accumulators'
 import type { OutboxEntry } from './objects'
-import { OutboxEventEmitter, OutboxProcessor, type OutboxStorage } from './outbox'
+import { OutboxEventEmitter, OutboxProcessor } from './outbox'
+import type { OutboxStorage } from './storage'
 
 const TestEvents = {
   created: {
