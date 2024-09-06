@@ -12,14 +12,9 @@ import {
 import pino, { type Logger } from 'pino'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import {
-  InMemoryOutboxAccumulator,
-  type OutboxAccumulator,
-  type OutboxEntry,
-  OutboxEventEmitter,
-  OutboxProcessor,
-  type OutboxStorage,
-} from './outbox'
+import { InMemoryOutboxAccumulator, type OutboxAccumulator } from './accumulators'
+import type { OutboxEntry } from './objects'
+import { OutboxEventEmitter, OutboxProcessor, type OutboxStorage } from './outbox'
 
 const TestEvents = {
   created: {
@@ -125,8 +120,6 @@ class InMemoryOutboxStorage<SupportedEvents extends CommonEventDefinition[]>
       }
       return entry
     })
-
-    outboxAccumulator.clear()
   }
 }
 

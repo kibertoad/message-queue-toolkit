@@ -8,98 +8,8 @@ import type {
 } from '@message-queue-toolkit/core'
 import { PromisePool } from '@supercharge/promise-pool'
 import { uuidv7 } from 'uuidv7'
-
-/**
- * Status of the outbox entry.
- * - CREATED - entry was created and is waiting to be processed to publish actual event
- * - ACKED - entry was picked up by outbox job and is being processed
- * - SUCCESS - entry was successfully processed, event was published
- * - FAILED - entry processing failed, it will be retried
- */
-export type OutboxEntryStatus = 'CREATED' | 'ACKED' | 'SUCCESS' | 'FAILED'
-
-export type OutboxEntry<SupportedEvent extends CommonEventDefinition> = {
-  id: string
-  event: SupportedEvent
-  data: Omit<CommonEventDefinitionPublisherSchemaType<SupportedEvent>, 'type'>
-  precedingMessageMetadata?: Partial<ConsumerMessageMetadataType>
-  status: OutboxEntryStatus
-  created: Date
-  updated?: Date
-  retryCount: number
-}
-
-export interface OutboxAccumulator<SupportedEvents extends CommonEventDefinition[]> {
-  add(outboxEntry: OutboxEntry<SupportedEvents[number]>): Promise<void>
-
-  addFailure(outboxEntry: OutboxEntry<SupportedEvents[number]>): Promise<void>
-
-  getEntries(): Promise<OutboxEntry<SupportedEvents[number]>[]>
-
-  getFailedEntries(): Promise<OutboxEntry<SupportedEvents[number]>[]>
-
-  clear(): Promise<void>
-}
-
-export class InMemoryOutboxAccumulator<SupportedEvents extends CommonEventDefinition[]>
-  implements OutboxAccumulator<SupportedEvents>
-{
-  private entries: OutboxEntry<SupportedEvents[number]>[] = []
-  private failedEntries: OutboxEntry<SupportedEvents[number]>[] = []
-
-  public add(outboxEntry: OutboxEntry<SupportedEvents[number]>) {
-    this.entries = [...this.entries, outboxEntry]
-
-    return Promise.resolve()
-  }
-
-  public addFailure(outboxEntry: OutboxEntry<SupportedEvents[number]>) {
-    this.failedEntries = [...this.failedEntries, outboxEntry]
-
-    return Promise.resolve()
-  }
-
-  getEntries(): Promise<OutboxEntry<SupportedEvents[number]>[]> {
-    return Promise.resolve(this.entries)
-  }
-
-  getFailedEntries(): Promise<OutboxEntry<SupportedEvents[number]>[]> {
-    return Promise.resolve(this.failedEntries)
-  }
-
-  public clear(): Promise<void> {
-    this.entries = []
-    this.failedEntries = []
-    return Promise.resolve()
-  }
-}
-
-/**
- * Takes care of persisting and retrieving outbox entries.
- *
- * Implementation is required:
- * - in order to fulfill at least once delivery guarantee, persisting entries should be performed inside isolated transaction
- * - to return entries in the order they were created (UUID7 is used to create entries in OutboxEventEmitter)
- * - returned entries should not include the ones with 'SUCCESS' status
- */
-export interface OutboxStorage<SupportedEvents extends CommonEventDefinition[]> {
-  create(
-    outboxEntry: OutboxEntry<SupportedEvents[number]>,
-  ): Promise<OutboxEntry<SupportedEvents[number]>>
-
-  flush(outboxAccumulator: OutboxAccumulator<SupportedEvents>): Promise<void>
-
-  update(
-    outboxEntry: OutboxEntry<SupportedEvents[number]>,
-  ): Promise<OutboxEntry<SupportedEvents[number]>>
-
-  /**
-   * Returns entries in the order they were created. It doesn't return entries with 'SUCCESS' status. It doesn't return entries that have been retried more than maxRetryCount times.
-   *
-   * For example if entry retryCount is 1 and maxRetryCount is 1, entry MUST be returned. If it fails again then retry count is 2, in that case entry MUST NOT be returned.
-   */
-  getEntries(maxRetryCount: number): Promise<OutboxEntry<SupportedEvents[number]>[]>
-}
+import type { OutboxAccumulator } from './accumulators'
+import type { OutboxStorage } from './storage'
 
 /**
  * Main logic for handling outbox entries.
@@ -132,6 +42,7 @@ export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
       })
 
     await this.outboxStorage.flush(this.outboxAccumulator)
+    await this.outboxAccumulator.clear()
   }
 }
 
