@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { InMemoryOutboxAccumulator, type OutboxAccumulator } from './accumulators'
 import type { OutboxEntry } from './objects'
-import { OutboxEventEmitter, OutboxProcessor } from './outbox'
+import { type OutboxDependencies, OutboxEventEmitter, OutboxProcessor } from './outbox'
 import type { OutboxStorage } from './storage'
 
 const TestEvents = {
@@ -145,10 +145,12 @@ describe('outbox', () => {
     outboxStorage = new InMemoryOutboxStorage<TestEventsType>()
     outboxEventEmitter = new OutboxEventEmitter<TestEventsType>(outboxStorage)
     outboxProcessor = new OutboxProcessor<TestEventsType>(
-      outboxStorage,
-      //@ts-ignore
-      new InMemoryOutboxAccumulator(),
-      eventEmitter,
+      {
+        outboxStorage,
+        //@ts-ignore
+        outboxAccumulator: new InMemoryOutboxAccumulator(),
+        eventEmitter,
+      } satisfies OutboxDependencies<TestEventsType>,
       MAX_RETRY_COUNT,
       1,
     )

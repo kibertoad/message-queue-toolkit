@@ -11,6 +11,18 @@ import { uuidv7 } from 'uuidv7'
 import type { OutboxAccumulator } from './accumulators'
 import type { OutboxStorage } from './storage'
 
+export type OutboxDependencies<SupportedEvents extends CommonEventDefinition[]> = {
+  outboxStorage: OutboxStorage<SupportedEvents>
+  outboxAccumulator: OutboxAccumulator<SupportedEvents>
+  eventEmitter: DomainEventEmitter<SupportedEvents>
+}
+
+export type OutboxConfiguration = {
+  maxRetryCount: number
+  emitBatchSize: number
+  jobIntervalInMs: number
+}
+
 /**
  * Main logic for handling outbox entries.
  *
@@ -18,31 +30,31 @@ import type { OutboxStorage } from './storage'
  */
 export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
   constructor(
-    private readonly outboxStorage: OutboxStorage<SupportedEvents>,
-    private readonly outboxAccumulator: OutboxAccumulator<SupportedEvents>,
-    private readonly eventEmitter: DomainEventEmitter<SupportedEvents>,
+    private readonly outboxDependencies: OutboxDependencies<SupportedEvents>,
     private readonly maxRetryCount: number,
     private readonly emitBatchSize: number,
   ) {}
 
   public async processOutboxEntries(context: JobExecutionContext) {
-    const entries = await this.outboxStorage.getEntries(this.maxRetryCount)
+    const { outboxStorage, eventEmitter, outboxAccumulator } = this.outboxDependencies
+
+    const entries = await outboxStorage.getEntries(this.maxRetryCount)
 
     await PromisePool.for(entries)
       .withConcurrency(this.emitBatchSize)
       .process(async (entry) => {
         try {
-          await this.eventEmitter.emit(entry.event, entry.data, entry.precedingMessageMetadata)
-          await this.outboxAccumulator.add(entry)
+          await eventEmitter.emit(entry.event, entry.data, entry.precedingMessageMetadata)
+          await outboxAccumulator.add(entry)
         } catch (e) {
           context.logger.error({ error: e }, 'Failed to process outbox entry.')
 
-          await this.outboxAccumulator.addFailure(entry)
+          await outboxAccumulator.addFailure(entry)
         }
       })
 
-    await this.outboxStorage.flush(this.outboxAccumulator)
-    await this.outboxAccumulator.clear()
+    await outboxStorage.flush(outboxAccumulator)
+    await outboxAccumulator.clear()
   }
 }
 
@@ -59,19 +71,15 @@ export class OutboxPeriodicJob<
   private readonly outboxProcessor: OutboxProcessor<SupportedEvents>
 
   constructor(
-    outboxStorage: OutboxStorage<SupportedEvents>,
-    outboxAccumulator: OutboxAccumulator<SupportedEvents>,
-    eventEmitter: DomainEventEmitter<SupportedEvents>,
+    outboxDependencies: OutboxDependencies<SupportedEvents>,
+    outboxConfiguration: OutboxConfiguration,
     dependencies: PeriodicJobDependencies,
-    maxRetryCount: number,
-    emitBatchSize: number,
-    intervalInMs: number,
   ) {
     super(
       {
         jobId: 'OutboxJob',
         schedule: {
-          intervalInMs: intervalInMs,
+          intervalInMs: outboxConfiguration.jobIntervalInMs,
         },
         singleConsumerMode: {
           enabled: true,
@@ -87,11 +95,9 @@ export class OutboxPeriodicJob<
     )
 
     this.outboxProcessor = new OutboxProcessor<SupportedEvents>(
-      outboxStorage,
-      outboxAccumulator,
-      eventEmitter,
-      maxRetryCount,
-      emitBatchSize,
+      outboxDependencies,
+      outboxConfiguration.maxRetryCount,
+      outboxConfiguration.emitBatchSize,
     )
   }
 
