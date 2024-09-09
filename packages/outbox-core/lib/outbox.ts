@@ -17,11 +17,14 @@ export type OutboxDependencies<SupportedEvents extends CommonEventDefinition[]> 
   eventEmitter: DomainEventEmitter<SupportedEvents>
 }
 
-export type OutboxConfiguration = {
+export type OutboxProcessorConfiguration = {
   maxRetryCount: number
   emitBatchSize: number
-  jobIntervalInMs: number
 }
+
+export type OutboxConfiguration = {
+  jobIntervalInMs: number
+} & OutboxProcessorConfiguration
 
 /**
  * Main logic for handling outbox entries.
@@ -31,17 +34,16 @@ export type OutboxConfiguration = {
 export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
   constructor(
     private readonly outboxDependencies: OutboxDependencies<SupportedEvents>,
-    private readonly maxRetryCount: number,
-    private readonly emitBatchSize: number,
+    private readonly outboxProcessorConfiguration: OutboxProcessorConfiguration,
   ) {}
 
   public async processOutboxEntries(context: JobExecutionContext) {
     const { outboxStorage, eventEmitter, outboxAccumulator } = this.outboxDependencies
 
-    const entries = await outboxStorage.getEntries(this.maxRetryCount)
+    const entries = await outboxStorage.getEntries(this.outboxProcessorConfiguration.maxRetryCount)
 
     await PromisePool.for(entries)
-      .withConcurrency(this.emitBatchSize)
+      .withConcurrency(this.outboxProcessorConfiguration.emitBatchSize)
       .process(async (entry) => {
         try {
           await eventEmitter.emit(entry.event, entry.data, entry.precedingMessageMetadata)
@@ -96,8 +98,7 @@ export class OutboxPeriodicJob<
 
     this.outboxProcessor = new OutboxProcessor<SupportedEvents>(
       outboxDependencies,
-      outboxConfiguration.maxRetryCount,
-      outboxConfiguration.emitBatchSize,
+      outboxConfiguration,
     )
   }
 

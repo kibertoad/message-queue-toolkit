@@ -151,8 +151,7 @@ describe('outbox', () => {
         outboxAccumulator: new InMemoryOutboxAccumulator(),
         eventEmitter,
       } satisfies OutboxDependencies<TestEventsType>,
-      MAX_RETRY_COUNT,
-      1,
+      { maxRetryCount: MAX_RETRY_COUNT, emitBatchSize: 1 },
     )
   })
 
