@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
 
-import { waitAndRetry } from '@lokalise/node-core'
 import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-toolkit/schemas'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -77,11 +76,14 @@ describe('AutopilotEventEmitter', () => {
 
     const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
 
-    const processedEvent = await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id)
-
-    expect(processedEvent.message.type).toBe(TestEvents.created.consumerSchema.shape.type.value)
-    expect(fakeListener.receivedEvents).toHaveLength(1)
+    expect(fakeListener.receivedEvents).toHaveLength(1) // is processed synchronously so no need to wait
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
+
+    const processedEvent = await eventEmitter.handlerSpy.waitForMessageWithId(
+      emittedEvent.id,
+      'consumed',
+    )
+    expect(processedEvent.message.type).toBe(TestEvents.created.consumerSchema.shape.type.value)
 
     expect(transactionManagerStartSpy).toHaveBeenCalledOnce()
     expect(transactionManagerStartSpy).toHaveBeenCalledWith(
@@ -110,13 +112,12 @@ describe('AutopilotEventEmitter', () => {
     )
 
     const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
-    const processedEvent = await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id)
+    expect(fakeListener.receivedEvents).toHaveLength(0)
 
+    const processedEvent = await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id)
     expect(processedEvent.message.type).toBe(TestEvents.created.consumerSchema.shape.type.value)
     // even thought event is consumed, the listener is still processing
-    expect(fakeListener.receivedEvents).toHaveLength(0)
     // Wait for the event to be processed
-    await waitAndRetry(() => fakeListener.receivedEvents.length > 0)
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
 
@@ -275,12 +276,10 @@ describe('AutopilotEventEmitter', () => {
       'stop',
     )
 
-    await eventEmitter.emit(TestEvents.created, createdEventPayload)
-
-    // even thought event is consumed, the listener is still processing
+    const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
     expect(fakeListener.receivedEvents).toHaveLength(0)
-    // Wait for the event to be processed
-    await waitAndRetry(() => fakeListener.receivedEvents.length > 0)
+
+    await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
 
@@ -333,11 +332,12 @@ describe('AutopilotEventEmitter', () => {
       'stop',
     )
 
-    await eventEmitter.emit(TestEvents.created, createdEventPayload)
-    await eventEmitter.emit(TestEvents.updated, updatedEventPayload)
-
+    const eventEmitted1 = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+    const emittedEvent2 = await eventEmitter.emit(TestEvents.updated, updatedEventPayload)
     expect(fakeListener.receivedEvents).toHaveLength(0)
-    await waitAndRetry(() => fakeListener.receivedEvents.length === 2)
+
+    await eventEmitter.handlerSpy.waitForMessageWithId(eventEmitted1.id, 'consumed')
+    await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent2.id, 'consumed')
 
     expect(fakeListener.receivedEvents).toHaveLength(2)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
@@ -395,10 +395,9 @@ describe('AutopilotEventEmitter', () => {
     )
 
     const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
-
     expect(fakeListener.receivedEvents).toHaveLength(0)
-    await waitAndRetry(() => fakeListener.receivedEvents.length === 1)
 
+    await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
     expect(fakeListener.receivedEvents).toHaveLength(1)
     expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
 
