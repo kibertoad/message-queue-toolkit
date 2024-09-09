@@ -19,7 +19,7 @@ const job = new OutboxPeriodicJob(
     //Implementation of OutboxStorage interface, TODO: Point to other packages in message-queue-toolkit
     outboxStorage, 
     //Default available accumulator for gathering outbox entries as the process job is progressing.
-    new InMemoryOutboxAccumulator(), //Default accumulator
+    new InMemoryOutboxAccumulator(),
     //DomainEventEmitter, it will be used to publish events, see @message-queue-toolkit/core
     eventEmitter,
     //See PeriodicJobDependencies from @lokalise/background-jobs-common
