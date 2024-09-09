@@ -131,6 +131,7 @@ describe('outbox', () => {
   let eventEmitter: DomainEventEmitter<TestEventsType>
   let outboxEventEmitter: OutboxEventEmitter<TestEventsType>
   let outboxStorage: InMemoryOutboxStorage<TestEventsType>
+  let inMemoryOutboxAccumulator: InMemoryOutboxAccumulator<TestEventsType>
 
   beforeEach(() => {
     eventEmitter = new DomainEventEmitter({
@@ -144,11 +145,12 @@ describe('outbox', () => {
 
     outboxStorage = new InMemoryOutboxStorage<TestEventsType>()
     outboxEventEmitter = new OutboxEventEmitter<TestEventsType>(outboxStorage)
+    inMemoryOutboxAccumulator = new InMemoryOutboxAccumulator()
     outboxProcessor = new OutboxProcessor<TestEventsType>(
       {
         outboxStorage,
         //@ts-ignore
-        outboxAccumulator: new InMemoryOutboxAccumulator(),
+        outboxAccumulator: inMemoryOutboxAccumulator,
         eventEmitter,
       } satisfies OutboxDependencies<TestEventsType>,
       { maxRetryCount: MAX_RETRY_COUNT, emitBatchSize: 1 },
@@ -293,5 +295,33 @@ describe('outbox', () => {
         retryCount: 3,
       },
     ])
+  })
+
+  it("doesn't emit event again if it's already present in accumulator", async () => {
+    const mockedEventEmitter = vi.spyOn(eventEmitter, 'emit')
+
+    await outboxEventEmitter.emit(TestEvents.created, createdEventPayload, {
+      correlationId: randomUUID(),
+    })
+
+    await inMemoryOutboxAccumulator.add(outboxStorage.entries[0])
+
+    await outboxProcessor.processOutboxEntries({
+      logger: TestLogger,
+      reqId: randomUUID(),
+      executorId: randomUUID(),
+    })
+
+    //We pretended that event was emitted in previous run by adding state to accumulator
+    expect(mockedEventEmitter).toHaveBeenCalledTimes(0)
+
+    //But after the loop, if successful, it should be marked as success anyway
+    expect(outboxStorage.entries).toMatchObject([
+      {
+        status: 'SUCCESS',
+      },
+    ])
+    //And accumulator should be cleared
+    expect(await inMemoryOutboxAccumulator.getEntries()).toHaveLength(0)
   })
 })

@@ -42,7 +42,12 @@ export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
 
     const entries = await outboxStorage.getEntries(this.outboxProcessorConfiguration.maxRetryCount)
 
-    await PromisePool.for(entries)
+    const currentEntriesInAccumulator = new Set(
+      (await outboxAccumulator.getEntries()).map((entry) => entry.id),
+    )
+    const filteredEntries = entries.filter((entry) => !currentEntriesInAccumulator.has(entry.id))
+
+    await PromisePool.for(filteredEntries)
       .withConcurrency(this.outboxProcessorConfiguration.emitBatchSize)
       .process(async (entry) => {
         try {
