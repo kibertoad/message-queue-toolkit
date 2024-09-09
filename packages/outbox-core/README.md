@@ -5,7 +5,7 @@ Main package that contains the core functionality of the Outbox pattern to provi
 ## Installation
 
 ```bash
-npm i -S outbox-core
+npm i -S @message-queue-toolkit/outbox-core
 ```
 
 ## Usage
