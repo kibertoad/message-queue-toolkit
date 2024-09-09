@@ -59,7 +59,7 @@ class InMemoryOutboxStorage<SupportedEvents extends CommonEventDefinition[]>
 {
   public entries: OutboxEntry<SupportedEvents[number]>[] = []
 
-  create(
+  createEntry(
     outboxEntry: OutboxEntry<SupportedEvents[number]>,
   ): Promise<OutboxEntry<SupportedEvents[number]>> {
     this.entries = [...this.entries, outboxEntry]

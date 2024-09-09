@@ -11,7 +11,7 @@ import type { OutboxEntry } from './objects'
  * - returned entries should not include the ones with 'SUCCESS' status
  */
 export interface OutboxStorage<SupportedEvents extends CommonEventDefinition[]> {
-  create(
+  createEntry(
     outboxEntry: OutboxEntry<SupportedEvents[number]>,
   ): Promise<OutboxEntry<SupportedEvents[number]>>
 

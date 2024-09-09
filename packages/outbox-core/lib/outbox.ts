@@ -126,7 +126,7 @@ export class OutboxEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     data: Omit<CommonEventDefinitionPublisherSchemaType<SupportedEvent>, 'type'>,
     precedingMessageMetadata?: Partial<ConsumerMessageMetadataType>,
   ) {
-    await this.storage.create({
+    await this.storage.createEntry({
       id: uuidv7(),
       event: supportedEvent,
       data,
