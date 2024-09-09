@@ -181,7 +181,7 @@ export abstract class AbstractPublisherManager<
     const publisher = this.targetToPublisherMap[eventTarget]
     if (!publisher) {
       throw new Error(
-        `No publisher for target ${eventTarget} - did you perhaps forget to update supportedEvents passed to EventRegistry?`
+        `No publisher for target ${eventTarget} - did you perhaps forget to update supportedEvents passed to EventRegistry?`,
       )
     }
     const messageDefinition = this.resolveMessageDefinition(eventTarget, message)
@@ -257,7 +257,7 @@ export abstract class AbstractPublisherManager<
 
     if (!publisher) {
       throw new Error(
-        `No publisher for target ${eventTarget} - did you perhaps forget to update supportedEvents passed to EventRegistry?`
+        `No publisher for target ${eventTarget} - did you perhaps forget to update supportedEvents passed to EventRegistry?`,
       )
     }
 
