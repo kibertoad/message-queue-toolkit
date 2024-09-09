@@ -49,7 +49,7 @@ export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
 /**
  * Periodic job that processes outbox entries every "intervalInMs". If processing takes longer than defined interval, another subsequent job WILL NOT be started.
  *
- * Each entry is ACKed, then event is published, and then entry is marked as SUCCESS. If processing fails, entry is marked as FAILED and will be retried.
+ * When event is published, and then entry is accumulated into SUCCESS group. If processing fails, entry is accumulated as FAILED and will be retried.
  *
  * Max retry count is defined by the user.
  */
