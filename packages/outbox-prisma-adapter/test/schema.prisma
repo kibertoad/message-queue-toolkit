@@ -1,0 +1,15 @@
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://prisma:prisma@localhost:5432/prisma?schema=testdb"
+}
+
+model OutboxEntry {
+  id      String   @id @default(uuid()) @db.Uuid
+  created DateTime @default(now())
+
+  @@map("outbox_entry")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
