@@ -1,0 +1,60 @@
+{
+  "name": "@message-queue-toolkit/outbox-prisma-adapter",
+  "version": "0.1.0",
+  "private": false,
+  "license": "MIT",
+  "description": "OutboxStorage implementation for @message-queue-toolkit/outbox-core package.",
+  "maintainers": [
+    {
+      "name": "Igor Savin",
+      "email": "kibertoad@gmail.com"
+    }
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "del-cli dist && tsc",
+    "build:release": "del-cli dist && del-cli coverage && npm run lint && tsc --project tsconfig.release.json",
+    "test": "vitest",
+    "test:coverage": "npm test -- --coverage",
+    "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
+    "lint": "biome check . && tsc --project tsconfig.json --noEmit",
+    "lint:fix": "biome check --write .",
+    "docker:start:dev": "docker compose up -d",
+    "docker:stop:dev": "docker compose down",
+    "prepublishOnly": "npm run build:release"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@message-queue-toolkit/core": ">=14.0.0",
+    "@message-queue-toolkit/schemas": ">=4.0.0",
+    "@message-queue-toolkit/outbox-core": ">=0.1.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.8.3",
+    "@kibertoad/biome-config": "^1.2.1",
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^2.0.4",
+    "del-cli": "^5.1.0",
+    "typescript": "^5.5.3",
+    "vitest": "^2.0.4",
+    "zod": "^3.23.8"
+  },
+  "homepage": "https://github.com/kibertoad/message-queue-toolkit",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/kibertoad/message-queue-toolkit.git"
+  },
+  "keywords": [
+    "message",
+    "queue",
+    "queues",
+    "abstract",
+    "common",
+    "utils",
+    "notification",
+    "outbox",
+    "pattern"
+  ],
+  "files": ["README.md", "LICENSE", "dist/*"]
+}
