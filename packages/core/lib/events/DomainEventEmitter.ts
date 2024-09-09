@@ -110,17 +110,6 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
     await this.handleEvent(validatedEvent)
 
-    if (this._handlerSpy) {
-      this._handlerSpy.addProcessedMessage(
-        {
-          // @ts-ignore
-          message: validatedEvent,
-          processingResult: 'consumed',
-        },
-        validatedEvent.id,
-      )
-    }
-
     // @ts-ignore
     return validatedEvent
   }
@@ -158,9 +147,10 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
    * Register handler for all events supported by the emitter
    */
   public onAny(handler: AnyEventHandler<SupportedEvents>, isBackgroundHandler = false) {
-    for (const supportedEvent of this.eventRegistry.supportedEvents) {
-      this.on(supportedEvent.consumerSchema.shape.type.value, handler, isBackgroundHandler)
-    }
+    const eventTypes = this.eventRegistry.supportedEvents.map(
+      (event) => event.consumerSchema.shape.type.value,
+    )
+    this.onMany(eventTypes, handler, isBackgroundHandler)
   }
 
   private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
@@ -172,46 +162,56 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     }
 
     for (const handler of eventHandlers.foreground) {
-      const transactionId = randomUUID()
-      let isSuccessfull = false
-      try {
-        this.transactionObservabilityManager?.startWithGroup(
-          this.buildTransactionKey(event, handler, false),
-          transactionId,
-          event.type,
-        )
-        await handler.handleEvent(event)
-        isSuccessfull = true
-      } finally {
-        this.transactionObservabilityManager?.stop(transactionId, isSuccessfull)
-      }
+      await this.executeEventHandler(event, handler, false)
     }
 
-    for (const handler of eventHandlers.background) {
-      const transactionId = randomUUID()
+    const bgPromises = eventHandlers.background.map((handler) =>
+      this.executeEventHandler(event, handler, true),
+    )
+    Promise.all(bgPromises).then(() => {
+      if (!this._handlerSpy) return
+      this._handlerSpy.addProcessedMessage(
+        {
+          // @ts-ignore
+          message: event,
+          processingResult: 'consumed',
+        },
+        event.id,
+      )
+    })
+  }
+
+  private async executeEventHandler<SupportedEvent extends SupportedEvents[number]>(
+    event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
+    handler: EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvent>>,
+    isBackgroundHandler: boolean,
+  ) {
+    const transactionId = randomUUID()
+    let isSuccessful = false
+    try {
       this.transactionObservabilityManager?.startWithGroup(
-        this.buildTransactionKey(event, handler, true),
+        this.buildTransactionKey(event, handler, isBackgroundHandler),
         transactionId,
         event.type,
       )
+      await handler.handleEvent(event)
+      isSuccessful = true
+    } catch (error) {
+      if (!isBackgroundHandler) throw error
 
-      Promise.resolve(handler.handleEvent(event))
-        .then(() => {
-          this.transactionObservabilityManager?.stop(transactionId, true)
-        })
-        .catch((error) => {
-          this.transactionObservabilityManager?.stop(transactionId, false)
-          const context = {
-            event: JSON.stringify(event),
-            eventHandlerId: handler.eventHandlerId,
-            'x-request-id': event.metadata?.correlationId,
-          }
-          this.logger.error({
-            ...resolveGlobalErrorLogObject(error),
-            ...context,
-          })
-          this.errorReporter?.report({ error: error, context })
-        })
+      const context = {
+        event: JSON.stringify(event),
+        eventHandlerId: handler.eventHandlerId,
+        'x-request-id': event.metadata?.correlationId,
+      }
+      this.logger.error({
+        ...resolveGlobalErrorLogObject(error),
+        ...context,
+      })
+      // biome-ignore lint/suspicious/noExplicitAny: TODO: improve error type
+      this.errorReporter?.report({ error: error as any, context })
+    } finally {
+      this.transactionObservabilityManager?.stop(transactionId, isSuccessful)
     }
   }
 
