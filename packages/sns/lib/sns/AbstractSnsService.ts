@@ -29,7 +29,7 @@ export type SNSTopicConfig = {
 }
 
 export type ExtraSNSCreationParams = {
-  queueUrlsWithSubscribePermissionsPrefix?: string
+  queueUrlsWithSubscribePermissionsPrefix?: string | string[]
   allowedSourceOwner?: string
 }
 
