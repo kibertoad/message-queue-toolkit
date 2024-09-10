@@ -147,10 +147,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
    * Register handler for all events supported by the emitter
    */
   public onAny(handler: AnyEventHandler<SupportedEvents>, isBackgroundHandler = false) {
-    const eventTypes = this.eventRegistry.supportedEvents.map(
-      (event) => event.consumerSchema.shape.type.value,
-    )
-    this.onMany(eventTypes, handler, isBackgroundHandler)
+    this.onMany(Array.from(this.eventRegistry.supportedEventTypes), handler, isBackgroundHandler)
   }
 
   private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
