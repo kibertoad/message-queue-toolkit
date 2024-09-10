@@ -5,7 +5,7 @@ const POLICY_VERSION = '2012-10-17'
 
 export type TopicSubscriptionPolicyParams = {
   topicArn: string
-  allowedSqsQueueUrlPrefix?: string | string[]
+  allowedSqsQueueUrlPrefix?: string | readonly string[]
   allowedSourceOwner?: string
 }
 
