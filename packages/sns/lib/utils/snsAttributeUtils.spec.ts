@@ -16,7 +16,32 @@ describe('snsAttributeUtils', () => {
       })
 
       expect(resolvedPolicy).toBe(
-        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-central-1:632374391739:test-sns-some-service","Condition":{"StringEquals":{"AWS:SourceOwner": "111111111111"},"StringLike":{"sns:Endpoint":"arn:aws:sqs:eu-central-1:632374391739:test-sqs-*"}}}]}`,
+        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-central-1:632374391739:test-sns-some-service","Condition":{"StringEquals":{"AWS:SourceOwner":"111111111111"},"StringLike":{"sns:Endpoint":"arn:aws:sqs:eu-central-1:632374391739:test-sqs-*"}}}]}`,
+      )
+    })
+
+    it('resolves policy for array of sns:endpoints', () => {
+      const resolvedPolicy = generateTopicSubscriptionPolicy({
+        topicArn: 'arn:aws:sns:eu-central-1:632374391739:test-sns-some-service',
+        allowedSqsQueueUrlPrefix: [
+          'arn:aws:sqs:eu-central-1:632374391739:test1-sqs-*',
+          'arn:aws:sqs:eu-central-1:632374391739:test2-sqs-*',
+        ],
+      })
+
+      expect(resolvedPolicy).toBe(
+        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-central-1:632374391739:test-sns-some-service","Condition":{"StringLike":{"sns:Endpoint":["arn:aws:sqs:eu-central-1:632374391739:test1-sqs-*","arn:aws:sqs:eu-central-1:632374391739:test2-sqs-*"]}}}]}`,
+      )
+    })
+
+    it('resolves policy without condition for sns:endpoint if provided array is empty', () => {
+      const resolvedPolicy = generateTopicSubscriptionPolicy({
+        topicArn: 'arn:aws:sns:eu-central-1:632374391739:test-sns-some-service',
+        allowedSqsQueueUrlPrefix: [],
+      })
+
+      expect(resolvedPolicy).toBe(
+        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-central-1:632374391739:test-sns-some-service","Condition":{}}]}`,
       )
     })
 
@@ -27,7 +52,7 @@ describe('snsAttributeUtils', () => {
       })
 
       expect(resolvedPolicy).toBe(
-        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-central-1:632374391739:test-sns-some-service","Condition":{"StringEquals":{"AWS:SourceOwner": "111111111111"}}}]}`,
+        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"arn:aws:sns:eu-central-1:632374391739:test-sns-some-service","Condition":{"StringEquals":{"AWS:SourceOwner":"111111111111"}}}]}`,
       )
     })
 

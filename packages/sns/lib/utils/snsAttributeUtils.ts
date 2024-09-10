@@ -5,21 +5,42 @@ const POLICY_VERSION = '2012-10-17'
 
 export type TopicSubscriptionPolicyParams = {
   topicArn: string
-  allowedSqsQueueUrlPrefix?: string
+  allowedSqsQueueUrlPrefix?: string | readonly string[]
   allowedSourceOwner?: string
 }
 
 export function generateTopicSubscriptionPolicy(params: TopicSubscriptionPolicyParams) {
-  const sourceOwnerFragment = params.allowedSourceOwner
-    ? `"StringEquals":{"AWS:SourceOwner": "${params.allowedSourceOwner}"}`
-    : ''
-  const supportedSqsQueueUrlPrefixFragment = params.allowedSqsQueueUrlPrefix
-    ? `"StringLike":{"sns:Endpoint":"${params.allowedSqsQueueUrlPrefix}"}`
-    : ''
-  const commaFragment =
-    sourceOwnerFragment.length > 0 && supportedSqsQueueUrlPrefixFragment.length > 0 ? ',' : ''
+  const policyObject = {
+    Version: POLICY_VERSION,
+    Id: '__default_policy_ID',
+    Statement: [
+      {
+        Sid: 'AllowSQSSubscription',
+        Effect: 'Allow',
+        Principal: {
+          AWS: '*',
+        },
+        Action: ['sns:Subscribe'],
+        Resource: params.topicArn,
+        Condition: {},
+      },
+    ],
+  }
 
-  return `{"Version":"${POLICY_VERSION}","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSQSSubscription","Effect":"Allow","Principal":{"AWS":"*"},"Action":["sns:Subscribe"],"Resource":"${params.topicArn}","Condition":{${sourceOwnerFragment}${commaFragment}${supportedSqsQueueUrlPrefixFragment}}}]}`
+  if (params.allowedSourceOwner) {
+    // @ts-ignore
+    policyObject.Statement[0].Condition.StringEquals = {
+      'AWS:SourceOwner': params.allowedSourceOwner,
+    }
+  }
+  if (params.allowedSqsQueueUrlPrefix?.length && params.allowedSqsQueueUrlPrefix.length > 0) {
+    // @ts-ignore
+    policyObject.Statement[0].Condition.StringLike = {
+      'sns:Endpoint': params.allowedSqsQueueUrlPrefix,
+    }
+  }
+
+  return JSON.stringify(policyObject)
 }
 
 export function generateFilterAttributes(
