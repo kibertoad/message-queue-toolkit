@@ -1,5 +1,5 @@
-import { AbstractPeriodicJob, type JobExecutionContext } from '@lokalise/background-jobs-common'
 import type { PeriodicJobDependencies } from '@lokalise/background-jobs-common'
+import { AbstractPeriodicJob, type JobExecutionContext } from '@lokalise/background-jobs-common'
 import type {
   CommonEventDefinition,
   CommonEventDefinitionPublisherSchemaType,
@@ -9,6 +9,7 @@ import type {
 import { PromisePool } from '@supercharge/promise-pool'
 import { uuidv7 } from 'uuidv7'
 import type { OutboxAccumulator } from './accumulators'
+import type { OutboxEntry } from './objects'
 import type { OutboxStorage } from './storage'
 
 export type OutboxDependencies<SupportedEvents extends CommonEventDefinition[]> = {
@@ -42,10 +43,8 @@ export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
 
     const entries = await outboxStorage.getEntries(this.outboxProcessorConfiguration.maxRetryCount)
 
-    const currentEntriesInAccumulator = new Set(
-      (await outboxAccumulator.getEntries()).map((entry) => entry.id),
-    )
-    const filteredEntries = entries.filter((entry) => !currentEntriesInAccumulator.has(entry.id))
+    const filteredEntries =
+      entries.length === 0 ? entries : await this.getFilteredEntries(entries, outboxAccumulator)
 
     await PromisePool.for(filteredEntries)
       .withConcurrency(this.outboxProcessorConfiguration.emitBatchSize)
@@ -62,6 +61,16 @@ export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
 
     await outboxStorage.flush(outboxAccumulator)
     await outboxAccumulator.clear()
+  }
+
+  private async getFilteredEntries(
+    entries: OutboxEntry<SupportedEvents[number]>[],
+    outboxAccumulator: OutboxAccumulator<SupportedEvents>,
+  ) {
+    const currentEntriesInAccumulator = new Set(
+      (await outboxAccumulator.getEntries()).map((entry) => entry.id),
+    )
+    return entries.filter((entry) => !currentEntriesInAccumulator.has(entry.id))
   }
 }
 
