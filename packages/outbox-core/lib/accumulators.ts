@@ -46,13 +46,13 @@ export class InMemoryOutboxAccumulator<SupportedEvents extends CommonEventDefini
   private failedEntries: OutboxEntry<SupportedEvents[number]>[] = []
 
   public add(outboxEntry: OutboxEntry<SupportedEvents[number]>) {
-    this.entries = [...this.entries, outboxEntry]
+    this.entries.push(outboxEntry)
 
     return Promise.resolve()
   }
 
   public addFailure(outboxEntry: OutboxEntry<SupportedEvents[number]>) {
-    this.failedEntries = [...this.failedEntries, outboxEntry]
+    this.failedEntries.push(outboxEntry)
 
     return Promise.resolve()
   }
