@@ -1,6 +1,6 @@
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://prisma:prisma@localhost:5432/prisma?schema=testdb"
+  url      = "postgresql://prisma:prisma@localhost:5432/prisma?schema=prisma"
 }
 
 model OutboxEntry {
