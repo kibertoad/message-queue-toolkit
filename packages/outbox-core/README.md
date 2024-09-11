@@ -35,8 +35,29 @@ const job = new OutboxPeriodicJob(
 
 Job will take care of processing outbox entries emitted by:
 ```typescript
-const emitter = new OutboxEventEmitter(
+import {
+  type CommonEventDefinition,
+  enrichMessageSchemaWithBase,
+} from '@message-queue-toolkit/schemas'
+
+const MyEvents = {
+  created: {
+    ...enrichMessageSchemaWithBase(
+      'entity.created',
+      z.object({
+        message: z.string(),
+      }),
+    ),
+  },
+} as const satisfies Record<string, CommonEventDefinition>
+
+type MySupportedEvents = (typeof TestEvents)[keyof typeof TestEvents][]
+
+const emitter = new OutboxEventEmitter<MySupportedEvents>(
     //Same instance of outbox storage that is used by OutboxPeriodicJob
     outboxStorage
 )
+
+//It pushes the entry to the storage, later will be picked up by the OutboxPeriodicJob
+await emitter.emit(/* args */)
 ```
