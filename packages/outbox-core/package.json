@@ -17,11 +17,9 @@
     "build:release": "del-cli dist && del-cli coverage && npm run lint && tsc --project tsconfig.release.json",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
-    "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
+    "test:ci": "npm run test:coverage",
     "lint": "biome check . && tsc --project tsconfig.json --noEmit",
     "lint:fix": "biome check --write .",
-    "docker:start:dev": "docker compose up -d",
-    "docker:stop:dev": "docker compose down",
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {

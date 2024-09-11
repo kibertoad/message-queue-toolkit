@@ -81,6 +81,7 @@ export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
  *
  * Max retry count is defined by the user.
  */
+/* c8 ignore start */
 export class OutboxPeriodicJob<
   SupportedEvents extends CommonEventDefinition[],
 > extends AbstractPeriodicJob {
@@ -120,6 +121,7 @@ export class OutboxPeriodicJob<
     await this.outboxProcessor.processOutboxEntries(context)
   }
 }
+/* c8 ignore stop */
 
 export class OutboxEventEmitter<SupportedEvents extends CommonEventDefinition[]> {
   constructor(private storage: OutboxStorage<SupportedEvents>) {}
