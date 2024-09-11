@@ -1,6 +1,6 @@
 import type { OutboxAccumulator, OutboxEntry } from '@message-queue-toolkit/outbox-core'
 import type { OutboxStorage } from '@message-queue-toolkit/outbox-core/dist/lib/storage'
-import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
+import { type CommonEventDefinition, getMessageType } from '@message-queue-toolkit/schemas'
 import type { PrismaClient } from '@prisma/client'
 
 export class OutboxPrismaAdapter<SupportedEvents extends CommonEventDefinition[]>
@@ -17,7 +17,7 @@ export class OutboxPrismaAdapter<SupportedEvents extends CommonEventDefinition[]
     const prismaModel: PrismaClient[typeof this.modelName] = this.prisma[this.modelName]
 
     return prismaModel.create({
-      data: outboxEntry,
+      data: getMessageType(outboxEntry.event),
     })
   }
 
