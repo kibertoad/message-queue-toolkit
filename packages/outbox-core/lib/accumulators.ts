@@ -22,12 +22,12 @@ export interface OutboxAccumulator<SupportedEvents extends CommonEventDefinition
   addFailure(outboxEntry: OutboxEntry<SupportedEvents[number]>): Promise<void>
 
   /**
-   * It's meant to be used by OutboxStorage::flush() to get all entries that should be persisted as successful ones.
+   * Returns all entries that should be persisted as successful ones.
    */
   getEntries(): Promise<OutboxEntry<SupportedEvents[number]>[]>
 
   /**
-   * Also used by OutboxStorage::flush() to get all entries that should be persisted as failed ones. Such entries will be retried + their retryCount will be incremented.
+   * Returns all entries that should be persisted as failed ones. Such entries will be retried + their retryCount will be incremented.
    */
   getFailedEntries(): Promise<OutboxEntry<SupportedEvents[number]>[]>
 
