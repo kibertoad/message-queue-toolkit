@@ -43,7 +43,7 @@
     "@message-queue-toolkit/core": "*",
     "@message-queue-toolkit/s3-payload-store": "*",
     "@message-queue-toolkit/sqs": "*",
-    "@biomejs/biome": "1.8.3",
+    "@biomejs/biome": "1.9.1",
     "@kibertoad/biome-config": "^1.2.1",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.0.4",
