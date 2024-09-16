@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@message-queue-toolkit/core": "*",
-    "@biomejs/biome": "1.8.3",
+    "@biomejs/biome": "1.9.1",
     "@kibertoad/biome-config": "^1.2.1",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.0.4",
