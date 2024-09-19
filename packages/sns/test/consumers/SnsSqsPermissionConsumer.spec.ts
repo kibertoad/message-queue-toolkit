@@ -84,24 +84,22 @@ describe('SnsSqsPermissionConsumer', () => {
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
           topicName: 'existingTopic',
-          subscriptionArn:
-            'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
         },
         creationConfig: {
           queue: {
-            QueueName: 'newQueue'
+            QueueName: 'newQueue',
           },
-        }
+        },
       })
 
       await newConsumer.init()
       expect(newConsumer.subscriptionProps.queueUrl).toBe(
-        'http://s3.localhost.localstack.cloud:4566/000000000000/newQueue',
+        'http://sqs.eu-west-1.localstack:4566/000000000000/newQueue',
       )
       expect(newConsumer.subscriptionProps.queueName).toBe('newQueue')
       expect(newConsumer.subscriptionProps.topicArn).toEqual(arn)
-      expect(newConsumer.subscriptionProps.subscriptionArn).toBe(
-        'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
+      expect(newConsumer.subscriptionProps.subscriptionArn).toMatch(
+        'arn:aws:sns:eu-west-1:000000000000:existingTopic',
       )
       await deleteTopic(snsClient, 'existingTopic')
     })

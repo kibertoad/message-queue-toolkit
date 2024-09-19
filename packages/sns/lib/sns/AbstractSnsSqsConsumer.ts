@@ -83,8 +83,10 @@ export abstract class AbstractSnsSqsConsumer<
         this.snsClient,
         this.deletionConfig,
         this.creationConfig.queue,
-        this.creationConfig.topic ?? this.locatorConfig!,
+        this.creationConfig.topic,
         this.subscriptionConfig,
+        undefined,
+        this.locatorConfig,
       )
     } else if (this.deletionConfig && this.creationConfig) {
       await deleteSqs(this.sqsClient, this.deletionConfig, this.creationConfig)

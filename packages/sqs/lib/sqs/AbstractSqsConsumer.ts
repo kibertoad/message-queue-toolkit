@@ -454,11 +454,9 @@ export abstract class AbstractSqsConsumer<
       visibilityTimeoutString = this.creationConfig.queue.Attributes?.VisibilityTimeout
     } else {
       // if user is using locatorConfig, we should look into queue config
-      const queueAttributes = await getQueueAttributes(
-        this.sqsClient,
-        this.queueUrl,
-        ['VisibilityTimeout'],
-      )
+      const queueAttributes = await getQueueAttributes(this.sqsClient, this.queueUrl, [
+        'VisibilityTimeout',
+      ])
       visibilityTimeoutString = queueAttributes.result?.attributes?.VisibilityTimeout
     }
 

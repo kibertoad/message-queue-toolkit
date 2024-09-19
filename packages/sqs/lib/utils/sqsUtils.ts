@@ -16,7 +16,7 @@ import type { Either } from '@lokalise/node-core'
 import { globalLogger } from '@lokalise/node-core'
 import { isShallowSubset, waitAndRetry } from '@message-queue-toolkit/core'
 
-import type { ExtraSQSCreationParams, SQSQueueLocatorType } from '../sqs/AbstractSqsService'
+import type { ExtraSQSCreationParams } from '../sqs/AbstractSqsService'
 
 import { generateQueuePublishForTopicPolicy } from './sqsAttributeUtils'
 import { updateQueueAttributes } from './sqsInitter'

@@ -149,7 +149,8 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
         },
         deadLetterQueue: options.deadLetterQueue,
         ...(options.locatorConfig
-          ? { locatorConfig: options.locatorConfig }
+          ? // biome-ignore lint/suspicious/noExplicitAny: This is expected
+            { locatorConfig: options.locatorConfig, creationConfig: options.creationConfig as any }
           : {
               creationConfig: options.creationConfig ?? {
                 queue: {

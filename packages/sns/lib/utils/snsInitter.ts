@@ -2,17 +2,25 @@ import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import type { DeletionConfig, ExtraParams } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
-import { SQSCreationConfig, SQSQueueLocatorType } from '@message-queue-toolkit/sqs'
+import type { SQSCreationConfig, SQSQueueLocatorType } from '@message-queue-toolkit/sqs'
 import { deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 
 import type { SNSCreationConfig, SNSTopicLocatorType } from '../sns/AbstractSnsService'
 import type { SNSSQSQueueLocatorType } from '../sns/AbstractSnsSqsConsumer'
 
+import type { Either } from '@lokalise/node-core'
+import { type TopicResolutionOptions, isCreateTopicCommand } from '../types/TopicTypes'
 import type { SNSSubscriptionOptions } from './snsSubscriber'
 import { subscribeToTopic } from './snsSubscriber'
-import { assertTopic, deleteSubscription, deleteTopic, getTopicArnByName, getTopicAttributes } from './snsUtils'
-import { isCreateTopicCommand, TopicResolutionOptions } from '../types/TopicTypes'
+import {
+  assertTopic,
+  deleteSubscription,
+  deleteTopic,
+  getTopicArnByName,
+  getTopicAttributes,
+} from './snsUtils'
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
 export async function initSnsSqs(
   sqsClient: SQSClient,
   snsClient: SNSClient,
@@ -43,12 +51,15 @@ export async function initSnsSqs(
       )
     }
 
-    let subscriptionTopicArn = locatorConfig ? locatorConfig.topicArn ?? await getTopicArnByName(snsClient, locatorConfig.topicName)
+    const subscriptionTopicArn = locatorConfig
+      ? (locatorConfig.topicArn ?? (await getTopicArnByName(snsClient, locatorConfig.topicName)))
       : undefined
 
-    const topicResolutionOptions: TopicResolutionOptions = subscriptionTopicArn ? {
-      topicArn: subscriptionTopicArn,
-    } : creationConfig.topic!
+    const topicResolutionOptions: TopicResolutionOptions = subscriptionTopicArn
+      ? {
+          topicArn: subscriptionTopicArn,
+        }
+      : creationConfig.topic!
 
     const { subscriptionArn, topicArn, queueUrl } = await subscribeToTopic(
       sqsClient,
@@ -76,27 +87,38 @@ export async function initSnsSqs(
     }
   }
 
+  const checkPromises: Promise<Either<'not_found', unknown>>[] = []
   // Check for existing resources, using the locators
-  const queuePromise = getQueueAttributes(sqsClient, (locatorConfig as SQSQueueLocatorType).queueUrl)
-
-  let subscriptionTopicArn = locatorConfig.topicArn ?? await getTopicArnByName(snsClient, locatorConfig.topicName)
+  const subscriptionTopicArn =
+    locatorConfig.topicArn ?? (await getTopicArnByName(snsClient, locatorConfig.topicName))
   const topicPromise = getTopicAttributes(snsClient, subscriptionTopicArn)
+  checkPromises.push(topicPromise)
 
-  const [queueCheckResult, topicCheckResult] = await Promise.all([queuePromise, topicPromise])
+  if (locatorConfig.queueUrl) {
+    const queuePromise = getQueueAttributes(
+      sqsClient,
+      (locatorConfig as SQSQueueLocatorType).queueUrl,
+    )
+    checkPromises.push(queuePromise)
+  }
 
-  if (queueCheckResult.error === 'not_found') {
+  const [topicCheckResult, queueCheckResult] = await Promise.all(checkPromises)
+
+  if (queueCheckResult?.error === 'not_found') {
     throw new Error(`Queue with queueUrl ${locatorConfig.queueUrl} does not exist.`)
   }
   if (topicCheckResult.error === 'not_found') {
     throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
   }
 
-  const splitUrl = (locatorConfig as SQSQueueLocatorType).queueUrl.split('/')
-  const queueName = splitUrl[splitUrl.length - 1]
-
-  if (!locatorConfig.queueUrl) {
-    throw new Error('queueUrl not set on locator')
+  let queueName: string
+  if ((locatorConfig as SQSQueueLocatorType).queueUrl) {
+    const splitUrl = (locatorConfig as SQSQueueLocatorType).queueUrl.split('/')
+    queueName = splitUrl[splitUrl.length - 1]
+  } else {
+    queueName = creationConfig!.queue.QueueName!
   }
+
   return {
     subscriptionArn: locatorConfig.subscriptionArn,
     topicArn: subscriptionTopicArn,
@@ -110,9 +132,10 @@ export async function deleteSnsSqs(
   snsClient: SNSClient,
   deletionConfig: DeletionConfig,
   queueConfiguration: CreateQueueCommandInput,
-  topicConfiguration: TopicResolutionOptions,
+  topicConfiguration: CreateTopicCommandInput | undefined,
   subscriptionConfiguration: SNSSubscriptionOptions,
   extraParams?: ExtraParams,
+  topicLocator?: SNSTopicLocatorType,
 ) {
   if (!deletionConfig.deleteIfExists) {
     return
@@ -128,7 +151,7 @@ export async function deleteSnsSqs(
     sqsClient,
     snsClient,
     queueConfiguration,
-    topicConfiguration,
+    topicConfiguration ?? topicLocator!,
     subscriptionConfiguration,
     extraParams,
   )
@@ -144,11 +167,15 @@ export async function deleteSnsSqs(
     deletionConfig.waitForConfirmation !== false,
   )
 
-  const topicName = isCreateTopicCommand(topicConfiguration) ? topicConfiguration.Name : topicConfiguration.topicName
-  if (!topicName) {
-    throw new Error('Failed to resolve topic name')
+  if (topicConfiguration) {
+    const topicName = isCreateTopicCommand(topicConfiguration)
+      ? topicConfiguration.Name
+      : 'undefined'
+    if (!topicName) {
+      throw new Error('Failed to resolve topic name')
+    }
+    await deleteTopic(snsClient, topicName)
   }
-  await deleteTopic(snsClient, topicName)
   await deleteSubscription(snsClient, subscriptionArn)
 }
 
@@ -182,7 +209,8 @@ export async function initSns(
   creationConfig?: SNSCreationConfig,
 ) {
   if (locatorConfig) {
-    const topicArn = locatorConfig.topicArn ?? await getTopicArnByName(snsClient, locatorConfig.topicName)
+    const topicArn =
+      locatorConfig.topicArn ?? (await getTopicArnByName(snsClient, locatorConfig.topicName))
     const checkResult = await getTopicAttributes(snsClient, topicArn)
     if (checkResult.error === 'not_found') {
       throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)

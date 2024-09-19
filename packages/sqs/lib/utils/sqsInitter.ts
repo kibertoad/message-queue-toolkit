@@ -52,7 +52,11 @@ export async function initSqs(
 ) {
   // reuse existing queue only
   if (locatorConfig?.queueUrl) {
-    const checkResult = await getQueueAttributes(sqsClient, (locatorConfig as SQSQueueLocatorType).queueUrl, ['QueueArn'])
+    const checkResult = await getQueueAttributes(
+      sqsClient,
+      (locatorConfig as SQSQueueLocatorType).queueUrl,
+      ['QueueArn'],
+    )
     if (checkResult.error === 'not_found') {
       throw new Error(`Queue with queueUrl ${locatorConfig.queueUrl} does not exist.`)
     }

@@ -1,4 +1,4 @@
-import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
+import type { SNSClient } from '@aws-sdk/client-sns'
 import { SetSubscriptionAttributesCommand, SubscribeCommand } from '@aws-sdk/client-sns'
 import type { SubscribeCommandInput } from '@aws-sdk/client-sns/dist-types/commands/SubscribeCommand'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
@@ -8,8 +8,12 @@ import { assertQueue } from '@message-queue-toolkit/sqs'
 
 import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
 
+import {
+  type TopicResolutionOptions,
+  isCreateTopicCommand,
+  isSNSTopicLocatorType,
+} from '../types/TopicTypes'
 import { assertTopic, findSubscriptionByTopicAndQueue, getTopicArnByName } from './snsUtils'
-import { isCreateTopicCommand, isSNSTopicLocatorType, TopicResolutionOptions } from '../types/TopicTypes'
 
 export type SNSSubscriptionOptions = Omit<
   SubscribeCommandInput,
@@ -29,7 +33,8 @@ export async function subscribeToTopic(
   if (!topicArn) {
     if (isCreateTopicCommand(topicConfiguration)) {
       topicArn = await assertTopic(snsClient, topicConfiguration, {
-        queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
+        queueUrlsWithSubscribePermissionsPrefix:
+          extraParams?.queueUrlsWithSubscribePermissionsPrefix,
         allowedSourceOwner: extraParams?.allowedSourceOwner,
       })
     } else {
@@ -62,7 +67,9 @@ export async function subscribeToTopic(
     // @ts-ignore
     logger.error(
       `Error while creating subscription for queue "${queueConfiguration.QueueName}", topic "${
-        isCreateTopicCommand(topicConfiguration) ? topicConfiguration.Name : topicConfiguration.topicName
+        isCreateTopicCommand(topicConfiguration)
+          ? topicConfiguration.Name
+          : topicConfiguration.topicName
       }": ${(err as Error).message}`,
     )
 
