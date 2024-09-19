@@ -15,7 +15,7 @@ import type {
   SNSMessageOptions,
   SNSPublisherOptions,
 } from './AbstractSnsPublisher'
-import type { SNSCreationConfig, SNSDependencies, SNSQueueLocatorType } from './AbstractSnsService'
+import type { SNSCreationConfig, SNSDependencies, SNSTopicLocatorType } from './AbstractSnsService'
 import type { SnsPublisherFactory } from './CommonSnsPublisherFactory'
 import { CommonSnsPublisherFactory } from './CommonSnsPublisherFactory'
 
@@ -53,7 +53,7 @@ export class SnsPublisherManager<
   AbstractSnsPublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
   SNSDependencies,
   SNSCreationConfig,
-  SNSQueueLocatorType,
+  SNSTopicLocatorType,
   SnsMessageSchemaType<SnsAwareEventDefinition>,
   Omit<
     SNSPublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,

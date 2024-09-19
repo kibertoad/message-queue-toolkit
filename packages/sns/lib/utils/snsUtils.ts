@@ -1,4 +1,4 @@
-import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
+import { CreateTopicCommandInput, ListTopicsCommand, paginateListTopics, SNSClient } from '@aws-sdk/client-sns'
 import {
   CreateTopicCommand,
   DeleteTopicCommand,
@@ -143,6 +143,23 @@ export async function findSubscriptionByTopicAndQueue(
     return entry.Endpoint === queueArn
   })
 }
+
+export async function getTopicArnByName(snsClient: SNSClient, topicName?: string): Promise<string> {
+  if (!topicName) {
+    throw new Error('topicName is not provided')
+  }
+
+    // Use paginator to automatically handle NextToken
+    const paginator = paginateListTopics({ client: snsClient }, {});
+    for await (const page of paginator) {
+      for (const topic of page.Topics || []) {
+        if (topic.TopicArn?.includes(topicName)) {
+          return topic.TopicArn;
+        }
+      }
+    }
+    throw new Error(`Failed to resolve topic by name ${topicName}`)
+  }
 
 /**
  * Calculates the size of an outgoing SNS message.

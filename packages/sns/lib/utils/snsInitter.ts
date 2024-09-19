@@ -2,15 +2,16 @@ import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import type { DeletionConfig, ExtraParams } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
-import type { SQSCreationConfig } from '@message-queue-toolkit/sqs'
+import { SQSCreationConfig, SQSQueueLocatorType } from '@message-queue-toolkit/sqs'
 import { deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 
-import type { SNSCreationConfig, SNSQueueLocatorType } from '../sns/AbstractSnsService'
+import type { SNSCreationConfig, SNSTopicLocatorType } from '../sns/AbstractSnsService'
 import type { SNSSQSQueueLocatorType } from '../sns/AbstractSnsSqsConsumer'
 
 import type { SNSSubscriptionOptions } from './snsSubscriber'
 import { subscribeToTopic } from './snsSubscriber'
-import { assertTopic, deleteSubscription, deleteTopic, getTopicAttributes } from './snsUtils'
+import { assertTopic, deleteSubscription, deleteTopic, getTopicArnByName, getTopicAttributes } from './snsUtils'
+import { isCreateTopicCommand, TopicResolutionOptions } from '../types/TopicTypes'
 
 export async function initSnsSqs(
   sqsClient: SQSClient,
@@ -21,9 +22,9 @@ export async function initSnsSqs(
   extraParams?: ExtraParams,
 ) {
   if (!locatorConfig?.subscriptionArn) {
-    if (!creationConfig?.topic) {
+    if (!creationConfig?.topic && !locatorConfig?.topicArn && !locatorConfig?.topicName) {
       throw new Error(
-        'If locatorConfig.subscriptionArn is not specified, creationConfig.topic parameter is mandatory, as there will be an attempt to create the missing topic',
+        'If locatorConfig.subscriptionArn is not specified, creationConfig.topic, localtorConfig.name or locatorConfig.topicArn parameter is mandatory, as there will be an attempt to create the missing topic',
       )
     }
     if (!creationConfig?.queue) {
@@ -42,11 +43,18 @@ export async function initSnsSqs(
       )
     }
 
+    let subscriptionTopicArn = locatorConfig ? locatorConfig.topicArn ?? await getTopicArnByName(snsClient, locatorConfig.topicName)
+      : undefined
+
+    const topicResolutionOptions: TopicResolutionOptions = subscriptionTopicArn ? {
+      topicArn: subscriptionTopicArn,
+    } : creationConfig.topic!
+
     const { subscriptionArn, topicArn, queueUrl } = await subscribeToTopic(
       sqsClient,
       snsClient,
       creationConfig.queue,
-      creationConfig.topic,
+      topicResolutionOptions,
       subscriptionConfig,
       {
         updateAttributesIfExists: creationConfig.updateAttributesIfExists,
@@ -69,8 +77,10 @@ export async function initSnsSqs(
   }
 
   // Check for existing resources, using the locators
-  const queuePromise = getQueueAttributes(sqsClient, locatorConfig)
-  const topicPromise = getTopicAttributes(snsClient, locatorConfig.topicArn)
+  const queuePromise = getQueueAttributes(sqsClient, (locatorConfig as SQSQueueLocatorType).queueUrl)
+
+  let subscriptionTopicArn = locatorConfig.topicArn ?? await getTopicArnByName(snsClient, locatorConfig.topicName)
+  const topicPromise = getTopicAttributes(snsClient, subscriptionTopicArn)
 
   const [queueCheckResult, topicCheckResult] = await Promise.all([queuePromise, topicPromise])
 
@@ -81,12 +91,15 @@ export async function initSnsSqs(
     throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
   }
 
-  const splitUrl = locatorConfig.queueUrl.split('/')
+  const splitUrl = (locatorConfig as SQSQueueLocatorType).queueUrl.split('/')
   const queueName = splitUrl[splitUrl.length - 1]
 
+  if (!locatorConfig.queueUrl) {
+    throw new Error('queueUrl not set on locator')
+  }
   return {
     subscriptionArn: locatorConfig.subscriptionArn,
-    topicArn: locatorConfig.topicArn,
+    topicArn: subscriptionTopicArn,
     queueUrl: locatorConfig.queueUrl,
     queueName,
   }
@@ -97,7 +110,7 @@ export async function deleteSnsSqs(
   snsClient: SNSClient,
   deletionConfig: DeletionConfig,
   queueConfiguration: CreateQueueCommandInput,
-  topicConfiguration: CreateTopicCommandInput,
+  topicConfiguration: TopicResolutionOptions,
   subscriptionConfiguration: SNSSubscriptionOptions,
   extraParams?: ExtraParams,
 ) {
@@ -130,8 +143,12 @@ export async function deleteSnsSqs(
     queueConfiguration.QueueName!,
     deletionConfig.waitForConfirmation !== false,
   )
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  await deleteTopic(snsClient, topicConfiguration.Name!)
+
+  const topicName = isCreateTopicCommand(topicConfiguration) ? topicConfiguration.Name : topicConfiguration.topicName
+  if (!topicName) {
+    throw new Error('Failed to resolve topic name')
+  }
+  await deleteTopic(snsClient, topicName)
   await deleteSubscription(snsClient, subscriptionArn)
 }
 
@@ -150,26 +167,29 @@ export async function deleteSns(
     )
   }
 
-  if (!creationConfig.topic.Name) {
-    throw new Error('topic.Name must be set for automatic deletion')
-  }
+  if (creationConfig.topic) {
+    if (!creationConfig.topic.Name) {
+      throw new Error('topic.Name must be set for automatic deletion')
+    }
 
-  await deleteTopic(snsClient, creationConfig.topic.Name)
+    await deleteTopic(snsClient, creationConfig.topic.Name)
+  }
 }
 
 export async function initSns(
   snsClient: SNSClient,
-  locatorConfig?: SNSQueueLocatorType,
+  locatorConfig?: SNSTopicLocatorType,
   creationConfig?: SNSCreationConfig,
 ) {
   if (locatorConfig) {
-    const checkResult = await getTopicAttributes(snsClient, locatorConfig.topicArn)
+    const topicArn = locatorConfig.topicArn ?? await getTopicArnByName(snsClient, locatorConfig.topicName)
+    const checkResult = await getTopicAttributes(snsClient, topicArn)
     if (checkResult.error === 'not_found') {
       throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
     }
 
     return {
-      topicArn: locatorConfig.topicArn,
+      topicArn,
     }
   }
 
@@ -179,7 +199,7 @@ export async function initSns(
       'When locatorConfig for the topic is not specified, creationConfig of the topic is mandatory',
     )
   }
-  const topicArn = await assertTopic(snsClient, creationConfig.topic, {
+  const topicArn = await assertTopic(snsClient, creationConfig.topic!, {
     queueUrlsWithSubscribePermissionsPrefix: creationConfig.queueUrlsWithSubscribePermissionsPrefix,
     allowedSourceOwner: creationConfig.allowedSourceOwner,
   })

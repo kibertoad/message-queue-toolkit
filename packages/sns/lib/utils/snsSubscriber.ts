@@ -8,7 +8,8 @@ import { assertQueue } from '@message-queue-toolkit/sqs'
 
 import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
 
-import { assertTopic, findSubscriptionByTopicAndQueue } from './snsUtils'
+import { assertTopic, findSubscriptionByTopicAndQueue, getTopicArnByName } from './snsUtils'
+import { isCreateTopicCommand, isSNSTopicLocatorType, TopicResolutionOptions } from '../types/TopicTypes'
 
 export type SNSSubscriptionOptions = Omit<
   SubscribeCommandInput,
@@ -19,14 +20,22 @@ export async function subscribeToTopic(
   sqsClient: SQSClient,
   snsClient: SNSClient,
   queueConfiguration: CreateQueueCommandInput,
-  topicConfiguration: CreateTopicCommandInput,
+  topicConfiguration: TopicResolutionOptions,
   subscriptionConfiguration: SNSSubscriptionOptions,
   extraParams?: ExtraSNSCreationParams & ExtraSQSCreationParams & ExtraParams,
 ) {
-  const topicArn = await assertTopic(snsClient, topicConfiguration, {
-    queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
-    allowedSourceOwner: extraParams?.allowedSourceOwner,
-  })
+  let topicArn = isSNSTopicLocatorType(topicConfiguration) ? topicConfiguration.topicArn : undefined
+
+  if (!topicArn) {
+    if (isCreateTopicCommand(topicConfiguration)) {
+      topicArn = await assertTopic(snsClient, topicConfiguration, {
+        queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
+        allowedSourceOwner: extraParams?.allowedSourceOwner,
+      })
+    } else {
+      topicArn = await getTopicArnByName(snsClient, topicConfiguration.topicName)
+    }
+  }
   const { queueUrl, queueArn } = await assertQueue(sqsClient, queueConfiguration, {
     topicArnsWithPublishPermissionsPrefix: extraParams?.topicArnsWithPublishPermissionsPrefix,
     updateAttributesIfExists: extraParams?.updateAttributesIfExists,
@@ -53,7 +62,7 @@ export async function subscribeToTopic(
     // @ts-ignore
     logger.error(
       `Error while creating subscription for queue "${queueConfiguration.QueueName}", topic "${
-        topicConfiguration.Name
+        isCreateTopicCommand(topicConfiguration) ? topicConfiguration.Name : topicConfiguration.topicName
       }": ${(err as Error).message}`,
     )
 
