@@ -82,6 +82,12 @@ export async function initSnsSqs(
     }
   }
 
+  if (!locatorConfig.queueUrl) {
+    throw new Error(
+      'If locatorConfig.subscriptionArn is provided, you have to also provide locatorConfig.queueUrl',
+    )
+  }
+
   const checkPromises: Promise<Either<'not_found', unknown>>[] = []
   // Check for existing resources, using the locators
   const subscriptionTopicArn =
