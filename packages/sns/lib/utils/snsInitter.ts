@@ -28,11 +28,11 @@ export async function initSnsSqs(
   creationConfig?: SNSCreationConfig & SQSCreationConfig,
   subscriptionConfig?: SNSSubscriptionOptions,
   extraParams?: ExtraParams,
-) {
+) : Promise<{subscriptionArn: string, topicArn: string, queueUrl: string, queueName: string}> {
   if (!locatorConfig?.subscriptionArn) {
     if (!creationConfig?.topic && !locatorConfig?.topicArn && !locatorConfig?.topicName) {
       throw new Error(
-        'If locatorConfig.subscriptionArn is not specified, creationConfig.topic, localtorConfig.name or locatorConfig.topicArn parameter is mandatory, as there will be an attempt to create the missing topic',
+        'If locatorConfig.subscriptionArn is not specified, creationConfig.topic is mandatory in order to attempt to create missing topic and subscribe to it OR locatorConfig.name or locatorConfig.topicArn parameter is mandatory, to create subscription for existing topic.',
       )
     }
     if (!creationConfig?.queue) {
