@@ -28,7 +28,7 @@ export async function initSnsSqs(
   creationConfig?: SNSCreationConfig & SQSCreationConfig,
   subscriptionConfig?: SNSSubscriptionOptions,
   extraParams?: ExtraParams,
-) : Promise<{subscriptionArn: string, topicArn: string, queueUrl: string, queueName: string}> {
+): Promise<{ subscriptionArn: string; topicArn: string; queueUrl: string; queueName: string }> {
   if (!locatorConfig?.subscriptionArn) {
     if (!creationConfig?.topic && !locatorConfig?.topicArn && !locatorConfig?.topicName) {
       throw new Error(
@@ -51,15 +51,10 @@ export async function initSnsSqs(
       )
     }
 
-    const subscriptionTopicArn = locatorConfig
-      ? (locatorConfig.topicArn ?? (await getTopicArnByName(snsClient, locatorConfig.topicName)))
-      : undefined
-
-    const topicResolutionOptions: TopicResolutionOptions = subscriptionTopicArn
-      ? {
-          topicArn: subscriptionTopicArn,
-        }
-      : creationConfig.topic!
+    const topicResolutionOptions: TopicResolutionOptions = {
+      ...locatorConfig,
+      ...creationConfig.topic,
+    }
 
     const { subscriptionArn, topicArn, queueUrl } = await subscribeToTopic(
       sqsClient,

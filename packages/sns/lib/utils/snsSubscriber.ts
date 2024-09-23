@@ -20,6 +20,28 @@ export type SNSSubscriptionOptions = Omit<
   'TopicArn' | 'Endpoint' | 'Protocol' | 'ReturnSubscriptionArn'
 > & { updateAttributesIfExists: boolean }
 
+async function resolveTopicArnToSubscribeTo(
+  topicConfiguration: TopicResolutionOptions,
+  snsClient: SNSClient,
+  extraParams: (ExtraSNSCreationParams & ExtraSQSCreationParams & ExtraParams) | undefined,
+) {
+  //If topicArn is present, let's use it and return early.
+  if (isSNSTopicLocatorType(topicConfiguration) && topicConfiguration.topicArn) {
+    return topicConfiguration.topicArn
+  }
+
+  //If input configuration is capable of creating a topic, let's create it and return its ARN.
+  if (isCreateTopicCommand(topicConfiguration)) {
+    return await assertTopic(snsClient, topicConfiguration, {
+      queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
+      allowedSourceOwner: extraParams?.allowedSourceOwner,
+    })
+  }
+
+  //Last option: let's not create a topic but resolve a ARN based on the desired topic name.
+  return await getTopicArnByName(snsClient, topicConfiguration.topicName)
+}
+
 export async function subscribeToTopic(
   sqsClient: SQSClient,
   snsClient: SNSClient,
@@ -28,19 +50,8 @@ export async function subscribeToTopic(
   subscriptionConfiguration: SNSSubscriptionOptions,
   extraParams?: ExtraSNSCreationParams & ExtraSQSCreationParams & ExtraParams,
 ) {
-  let topicArn = isSNSTopicLocatorType(topicConfiguration) ? topicConfiguration.topicArn : undefined
+  const topicArn = await resolveTopicArnToSubscribeTo(topicConfiguration, snsClient, extraParams)
 
-  if (!topicArn) {
-    if (isCreateTopicCommand(topicConfiguration)) {
-      topicArn = await assertTopic(snsClient, topicConfiguration, {
-        queueUrlsWithSubscribePermissionsPrefix:
-          extraParams?.queueUrlsWithSubscribePermissionsPrefix,
-        allowedSourceOwner: extraParams?.allowedSourceOwner,
-      })
-    } else {
-      topicArn = await getTopicArnByName(snsClient, topicConfiguration.topicName)
-    }
-  }
   const { queueUrl, queueArn } = await assertQueue(sqsClient, queueConfiguration, {
     topicArnsWithPublishPermissionsPrefix: extraParams?.topicArnsWithPublishPermissionsPrefix,
     updateAttributesIfExists: extraParams?.updateAttributesIfExists,
