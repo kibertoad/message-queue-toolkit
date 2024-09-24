@@ -27,7 +27,8 @@ describe('CreateLocateConfigMixConsumer', () => {
     await deleteTopic(snsClient, CreateLocateConfigMixConsumer.SUBSCRIBED_TOPIC_NAME)
   })
 
-  it('accepts mixed config of create and locate', () => {
+  it('accepts mixed config of create and locate', async () => {
     const consumer = new CreateLocateConfigMixConsumer(diContainer.cradle)
+    await consumer.init()
   })
 })
