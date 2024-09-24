@@ -74,9 +74,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           `http://sqs.eu-west-1.localstack:4566/000000000000/${customDeadLetterQueueName}`,
         )
 
-        const attributes = await getQueueAttributes(sqsClient, {
-          queueUrl: consumer.queueProps.url,
-        })
+        const attributes = await getQueueAttributes(sqsClient, consumer.queueProps.url)
         expect(attributes.result?.attributes).toMatchObject({
           RedrivePolicy: JSON.stringify({
             deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${customDeadLetterQueueName}`,
@@ -103,9 +101,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           `http://sqs.eu-west-1.localstack:4566/000000000000/${customDeadLetterQueueName}`,
         )
 
-        const attributes = await getQueueAttributes(sqsClient, {
-          queueUrl: consumer.queueProps.url,
-        })
+        const attributes = await getQueueAttributes(sqsClient, consumer.queueProps.url)
         expect(attributes.result?.attributes).toMatchObject({
           RedrivePolicy: JSON.stringify({
             deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${customDeadLetterQueueName}`,
@@ -179,9 +175,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         )
         expect(consumer.dlqUrl).toBe(dlqUrl)
 
-        const attributes = await getQueueAttributes(sqsClient, {
-          queueUrl: consumer.dlqUrl,
-        })
+        const attributes = await getQueueAttributes(sqsClient, consumer.dlqUrl)
 
         expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('new value')
       })
@@ -201,9 +195,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         expect(consumer.queueProps.url).toBe(queueUrl)
         expect(consumer.dlqUrl).toBe(dlqUrl)
 
-        const attributes = await getQueueAttributes(sqsClient, {
-          queueUrl,
-        })
+        const attributes = await getQueueAttributes(sqsClient, queueUrl)
 
         expect(attributes.result?.attributes).toMatchObject({
           RedrivePolicy: JSON.stringify({

@@ -12,15 +12,15 @@ import { deleteSnsSqs, initSnsSqs } from '../utils/snsInitter'
 import { readSnsMessage } from '../utils/snsMessageReader'
 import type { SNSSubscriptionOptions } from '../utils/snsSubscriber'
 
-import type { SNSCreationConfig, SNSOptions, SNSQueueLocatorType } from './AbstractSnsService'
+import type { SNSCreationConfig, SNSOptions, SNSTopicLocatorType } from './AbstractSnsService'
 
 export type SNSSQSConsumerDependencies = SQSConsumerDependencies & {
   snsClient: SNSClient
 }
 export type SNSSQSCreationConfig = SQSCreationConfig & SNSCreationConfig
 
-export type SNSSQSQueueLocatorType = SQSQueueLocatorType &
-  SNSQueueLocatorType & {
+export type SNSSQSQueueLocatorType = Partial<SQSQueueLocatorType> &
+  SNSTopicLocatorType & {
     subscriptionArn?: string
   }
 
@@ -85,6 +85,8 @@ export abstract class AbstractSnsSqsConsumer<
         this.creationConfig.queue,
         this.creationConfig.topic,
         this.subscriptionConfig,
+        undefined,
+        this.locatorConfig,
       )
     } else if (this.deletionConfig && this.creationConfig) {
       await deleteSqs(this.sqsClient, this.deletionConfig, this.creationConfig)

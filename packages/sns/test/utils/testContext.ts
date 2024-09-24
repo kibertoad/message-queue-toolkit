@@ -21,6 +21,7 @@ import { SnsPublisherManager } from '../../lib/sns/SnsPublisherManager'
 import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 
+import { CreateLocateConfigMixPublisher } from '../publishers/CreateLocateConfigMixPublisher'
 import { TEST_AWS_CONFIG } from './testSnsConfig'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
@@ -118,6 +119,14 @@ export async function registerDependencies(
       asyncDisposePriority: 40,
       enabled: queuesEnabled,
     }),
+    createLocateConfigMixPublisher: asClass(CreateLocateConfigMixPublisher, {
+      lifetime: Lifetime.SINGLETON,
+      asyncInit: 'init',
+      asyncDispose: 'close',
+      asyncInitPriority: 40,
+      asyncDisposePriority: 40,
+      enabled: queuesEnabled,
+    }),
     eventRegistry: asFunction(() => {
       return new EventRegistry(Object.values(TestEvents))
     }, SINGLETON_CONFIG),
@@ -188,4 +197,5 @@ export interface Dependencies {
     CommonSnsPublisher<TestEventPublishPayloadsType>,
     TestEventsType
   >
+  createLocateConfigMixPublisher: CreateLocateConfigMixPublisher
 }

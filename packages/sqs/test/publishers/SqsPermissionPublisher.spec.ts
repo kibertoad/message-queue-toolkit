@@ -95,9 +95,7 @@ describe('SqsPermissionPublisher', () => {
       })
       expect(updateCall).toBeDefined()
 
-      const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newPublisher.queueProps.url,
-      })
+      const attributes = await getQueueAttributes(sqsClient, newPublisher.queueProps.url)
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
     })
@@ -138,9 +136,7 @@ describe('SqsPermissionPublisher', () => {
       })
       expect(updateCall).toBeUndefined()
 
-      const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newPublisher.queueProps.url,
-      })
+      const attributes = await getQueueAttributes(sqsClient, newPublisher.queueProps.url)
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('somevalue')
     })

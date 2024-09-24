@@ -100,9 +100,7 @@ describe('SqsPermissionConsumer', () => {
       })
       expect(updateCall).toBeDefined()
 
-      const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.queueProps.url,
-      })
+      const attributes = await getQueueAttributes(sqsClient, newConsumer.queueProps.url)
 
       expect(attributes.result?.attributes).toMatchObject({
         KmsMasterKeyId: 'othervalue',
@@ -146,9 +144,7 @@ describe('SqsPermissionConsumer', () => {
       })
       expect(updateCall).toBeUndefined()
 
-      const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.queueProps.url,
-      })
+      const attributes = await getQueueAttributes(sqsClient, newConsumer.queueProps.url)
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('somevalue')
     })

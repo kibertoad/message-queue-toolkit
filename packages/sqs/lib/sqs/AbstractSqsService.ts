@@ -28,7 +28,7 @@ export type SQSQueueLocatorType = {
 
 export abstract class AbstractSqsService<
   MessagePayloadType extends object,
-  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+  QueueLocatorType extends object = SQSQueueLocatorType,
   CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
   SQSOptionsType extends QueueOptions<CreationConfigType, QueueLocatorType> = QueueOptions<
     CreationConfigType,

@@ -16,7 +16,7 @@ import { resolveOutgoingMessageAttributes } from '@message-queue-toolkit/sqs'
 
 import { calculateOutgoingMessageSize } from '../utils/snsUtils'
 
-import type { SNSCreationConfig, SNSDependencies, SNSQueueLocatorType } from './AbstractSnsService'
+import type { SNSCreationConfig, SNSDependencies, SNSTopicLocatorType } from './AbstractSnsService'
 import { AbstractSnsService } from './AbstractSnsService'
 
 export type SNSMessageOptions = {
@@ -26,7 +26,7 @@ export type SNSMessageOptions = {
 
 export type SNSPublisherOptions<MessagePayloadType extends object> = QueuePublisherOptions<
   SNSCreationConfig,
-  SNSQueueLocatorType,
+  SNSTopicLocatorType,
   MessagePayloadType
 >
 

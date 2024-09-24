@@ -16,7 +16,7 @@ import type { Either } from '@lokalise/node-core'
 import { globalLogger } from '@lokalise/node-core'
 import { isShallowSubset, waitAndRetry } from '@message-queue-toolkit/core'
 
-import type { ExtraSQSCreationParams, SQSQueueLocatorType } from '../sqs/AbstractSqsService'
+import type { ExtraSQSCreationParams } from '../sqs/AbstractSqsService'
 
 import { generateQueuePublishForTopicPolicy } from './sqsAttributeUtils'
 import { updateQueueAttributes } from './sqsInitter'
@@ -60,11 +60,11 @@ export async function getQueueUrl(
 
 export async function getQueueAttributes(
   sqsClient: SQSClient,
-  queueLocator: SQSQueueLocatorType,
+  queueUrl: string,
   attributeNames: QueueAttributeName[] = ['All'],
 ): Promise<Either<'not_found', QueueAttributesResult>> {
   const command = new GetQueueAttributesCommand({
-    QueueUrl: queueLocator.queueUrl,
+    QueueUrl: queueUrl,
     AttributeNames: attributeNames,
   })
 
@@ -93,9 +93,7 @@ async function updateExistingQueue(
   queueConfig: CreateQueueCommandInput,
   extraParams?: ExtraSQSCreationParams,
 ) {
-  const existingAttributes = await getQueueAttributes(sqsClient, {
-    queueUrl,
-  })
+  const existingAttributes = await getQueueAttributes(sqsClient, queueUrl)
 
   if (!existingAttributes.result?.attributes) {
     throw new Error('Attributes are not set')
