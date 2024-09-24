@@ -195,13 +195,11 @@ export async function deleteSns(
     )
   }
 
-  if (creationConfig.topic) {
-    if (!creationConfig.topic.Name) {
-      throw new Error('topic.Name must be set for automatic deletion')
-    }
-
-    await deleteTopic(snsClient, creationConfig.topic.Name)
+  if (!creationConfig.topic?.Name) {
+    throw new Error('topic.Name must be set for automatic deletion')
   }
+
+  await deleteTopic(snsClient, creationConfig.topic.Name)
 }
 
 export async function initSns(
