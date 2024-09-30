@@ -50,6 +50,8 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     string,
     Handlers<EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvents[number]>>>
   >
+  private readonly inProgressBackgroundHandlerByEventId: Map<string, Promise<void>>
+
   constructor(
     deps: DomainEventEmitterDependencies<SupportedEvents>,
     options: {
@@ -66,6 +68,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       resolveHandlerSpy<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>(options)
 
     this.eventHandlerMap = {}
+    this.inProgressBackgroundHandlerByEventId = new Map()
   }
 
   get handlerSpy(): PublicHandlerSpy<
@@ -77,6 +80,13 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       )
     }
     return this._handlerSpy
+  }
+
+  public async dispose(): Promise<void> {
+    for (const [key, promise] of this.inProgressBackgroundHandlerByEventId.entries()) {
+      await promise
+      this.inProgressBackgroundHandlerByEventId.delete(key)
+    }
   }
 
   public async emit<SupportedEvent extends SupportedEvents[number]>(
@@ -108,6 +118,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       .getEventDefinitionByTypeName(eventTypeName)
       .publisherSchema.parse({ type: eventTypeName, ...data })
 
+    // @ts-ignore
     await this.handleEvent(validatedEvent)
 
     // @ts-ignore
@@ -151,7 +162,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   }
 
   private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
-    event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
+    event: CommonEventDefinitionConsumerSchemaType<SupportedEvent>,
   ): Promise<void> {
     const eventHandlers = this.eventHandlerMap[event.type] ?? {
       foreground: [],
@@ -162,10 +173,10 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       await this.executeEventHandler(event, handler, false)
     }
 
-    const bgPromises = eventHandlers.background.map((handler) =>
-      this.executeEventHandler(event, handler, true),
-    )
-    Promise.all(bgPromises).then(() => {
+    const bgPromise = Promise.all(
+      eventHandlers.background.map((handler) => this.executeEventHandler(event, handler, true)),
+    ).then(() => {
+      this.inProgressBackgroundHandlerByEventId.delete(event.id)
       if (!this._handlerSpy) return
       this._handlerSpy.addProcessedMessage(
         {
@@ -176,11 +187,12 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
         event.id,
       )
     })
+    this.inProgressBackgroundHandlerByEventId.set(event.id, bgPromise)
   }
 
   private async executeEventHandler<SupportedEvent extends SupportedEvents[number]>(
-    event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
-    handler: EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvent>>,
+    event: CommonEventDefinitionConsumerSchemaType<SupportedEvent>,
+    handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvent>>,
     isBackgroundHandler: boolean,
   ) {
     const transactionId = randomUUID()
