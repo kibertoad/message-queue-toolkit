@@ -87,6 +87,8 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       await promise
       this.inProgressBackgroundHandlerByEventId.delete(key)
     }
+    this._handlerSpy?.clear()
+    // TODO: decide if we should clean handlers at this point
   }
 
   public async emit<SupportedEvent extends SupportedEvents[number]>(
