@@ -46,7 +46,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>
   >
 
-  private readonly eventHandlerMap: Record<
+  private readonly eventHandlerMap: Map<
     string,
     Handlers<EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvents[number]>>>
   >
@@ -67,7 +67,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     this._handlerSpy =
       resolveHandlerSpy<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>(options)
 
-    this.eventHandlerMap = {}
+    this.eventHandlerMap = new Map()
     this.inProgressBackgroundHandlerByEventId = new Map()
   }
 
@@ -83,10 +83,10 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   }
 
   public async dispose(): Promise<void> {
-    await Promise.all(Object.values(this.inProgressBackgroundHandlerByEventId))
+    await Promise.all(this.inProgressBackgroundHandlerByEventId.values())
     this.inProgressBackgroundHandlerByEventId.clear()
+    this.eventHandlerMap.clear()
     this._handlerSpy?.clear()
-    // TODO: decide if we should clean handlers at this point
   }
 
   public async emit<SupportedEvent extends SupportedEvents[number]>(
@@ -133,12 +133,12 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
     isBackgroundHandler = false,
   ) {
-    if (!this.eventHandlerMap[eventTypeName]) {
-      this.eventHandlerMap[eventTypeName] = { foreground: [], background: [] }
+    if (!this.eventHandlerMap.has(eventTypeName)) {
+      this.eventHandlerMap.set(eventTypeName, { foreground: [], background: [] })
     }
 
-    if (isBackgroundHandler) this.eventHandlerMap[eventTypeName].background.push(handler)
-    else this.eventHandlerMap[eventTypeName].foreground.push(handler)
+    if (isBackgroundHandler) this.eventHandlerMap.get(eventTypeName)?.background.push(handler)
+    else this.eventHandlerMap.get(eventTypeName)?.foreground.push(handler)
   }
 
   /**
@@ -164,10 +164,8 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
     event: CommonEventDefinitionConsumerSchemaType<SupportedEvent>,
   ): Promise<void> {
-    const eventHandlers = this.eventHandlerMap[event.type] ?? {
-      foreground: [],
-      background: [],
-    }
+    const eventHandlers = this.eventHandlerMap.get(event.type)
+    if (!eventHandlers) return
 
     for (const handler of eventHandlers.foreground) {
       await this.executeEventHandler(event, handler, false)

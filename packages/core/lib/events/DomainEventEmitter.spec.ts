@@ -456,5 +456,15 @@ describe('AutopilotEventEmitter', () => {
       expect(fakeListener1.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
       expect(fakeListener2.receivedEvents[0]).toMatchObject(expectedUpdatedPayload)
     })
+
+    it('after dispose handlers are not called', async () => {
+      const fakeListener = new FakeListener()
+      eventEmitter.onAny(fakeListener)
+
+      await eventEmitter.dispose()
+
+      await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      expect(fakeListener.receivedEvents).toHaveLength(0)
+    })
   })
 })
