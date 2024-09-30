@@ -83,10 +83,8 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   }
 
   public async dispose(): Promise<void> {
-    for (const [key, promise] of this.inProgressBackgroundHandlerByEventId.entries()) {
-      await promise
-      this.inProgressBackgroundHandlerByEventId.delete(key)
-    }
+    await Promise.all(Object.values(this.inProgressBackgroundHandlerByEventId))
+    this.inProgressBackgroundHandlerByEventId.clear()
     this._handlerSpy?.clear()
     // TODO: decide if we should clean handlers at this point
   }
