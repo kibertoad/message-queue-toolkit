@@ -66,7 +66,8 @@ export type DeadLetterQueueOptions<
 > = {
   deletionConfig?: DeletionConfig
 } & DeadLetterQueueIntegrationOptions &
-  NewQueueOptions<CreationConfigType> & ExistingQueueOptions<QueueLocatorType>
+  NewQueueOptions<CreationConfigType> &
+  ExistingQueueOptions<QueueLocatorType>
 
 export type QueueConsumerOptions<
   CreationConfigType extends object,
