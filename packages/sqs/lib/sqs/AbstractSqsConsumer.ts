@@ -44,7 +44,7 @@ export type SQSConsumerOptions<
   ExecutionContext,
   PrehandlerOutput,
   CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
-  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+  QueueLocatorType extends object = SQSQueueLocatorType,
 > = QueueConsumerOptions<
   CreationConfigType,
   QueueLocatorType,
@@ -70,7 +70,7 @@ export abstract class AbstractSqsConsumer<
     ExecutionContext,
     PrehandlerOutput = undefined,
     CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
-    QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+    QueueLocatorType extends object = SQSQueueLocatorType,
     ConsumerOptionsType extends SQSConsumerOptions<
       MessagePayloadType,
       ExecutionContext,
@@ -454,11 +454,9 @@ export abstract class AbstractSqsConsumer<
       visibilityTimeoutString = this.creationConfig.queue.Attributes?.VisibilityTimeout
     } else {
       // if user is using locatorConfig, we should look into queue config
-      const queueAttributes = await getQueueAttributes(
-        this.sqsClient,
-        { queueUrl: this.queueUrl },
-        ['VisibilityTimeout'],
-      )
+      const queueAttributes = await getQueueAttributes(this.sqsClient, this.queueUrl, [
+        'VisibilityTimeout',
+      ])
       visibilityTimeoutString = queueAttributes.result?.attributes?.VisibilityTimeout
     }
 

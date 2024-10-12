@@ -38,20 +38,18 @@ export type DeletionConfig = {
 }
 
 type NewQueueOptions<CreationConfigType extends CommonCreationConfigType> = {
-  locatorConfig?: never
-  creationConfig: CreationConfigType
+  creationConfig?: CreationConfigType
 }
 
 type ExistingQueueOptions<QueueLocatorType extends object> = {
-  locatorConfig: QueueLocatorType
-  creationConfig?: never
+  locatorConfig?: QueueLocatorType
 }
 
 export type QueueOptions<
   CreationConfigType extends CommonCreationConfigType,
   QueueLocatorType extends object,
 > = CommonQueueOptions &
-  (NewQueueOptions<CreationConfigType> | ExistingQueueOptions<QueueLocatorType>)
+  (NewQueueOptions<CreationConfigType> & ExistingQueueOptions<QueueLocatorType>)
 
 export type QueuePublisherOptions<
   CreationConfigType extends CommonCreationConfigType,
@@ -68,7 +66,8 @@ export type DeadLetterQueueOptions<
 > = {
   deletionConfig?: DeletionConfig
 } & DeadLetterQueueIntegrationOptions &
-  (NewQueueOptions<CreationConfigType> | ExistingQueueOptions<QueueLocatorType>)
+  NewQueueOptions<CreationConfigType> &
+  ExistingQueueOptions<QueueLocatorType>
 
 export type QueueConsumerOptions<
   CreationConfigType extends object,

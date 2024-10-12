@@ -47,12 +47,16 @@ export async function updateQueueAttributes(
 
 export async function initSqs(
   sqsClient: SQSClient,
-  locatorConfig?: SQSQueueLocatorType,
+  locatorConfig?: Partial<SQSQueueLocatorType>,
   creationConfig?: SQSCreationConfig,
 ) {
   // reuse existing queue only
-  if (locatorConfig) {
-    const checkResult = await getQueueAttributes(sqsClient, locatorConfig, ['QueueArn'])
+  if (locatorConfig?.queueUrl) {
+    const checkResult = await getQueueAttributes(
+      sqsClient,
+      (locatorConfig as SQSQueueLocatorType).queueUrl,
+      ['QueueArn'],
+    )
     if (checkResult.error === 'not_found') {
       throw new Error(`Queue with queueUrl ${locatorConfig.queueUrl} does not exist.`)
     }

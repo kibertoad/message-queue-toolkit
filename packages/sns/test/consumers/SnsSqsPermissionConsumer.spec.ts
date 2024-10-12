@@ -76,6 +76,34 @@ describe('SnsSqsPermissionConsumer', () => {
       await deleteTopic(snsClient, 'existingTopic')
     })
 
+    it('does not create a new topic when mixed locator is passed', async () => {
+      const arn = await assertTopic(snsClient, {
+        Name: 'existingTopic',
+      })
+
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName: 'existingTopic',
+        },
+        creationConfig: {
+          queue: {
+            QueueName: 'newQueue',
+          },
+        },
+      })
+
+      await newConsumer.init()
+      expect(newConsumer.subscriptionProps.queueUrl).toBe(
+        'http://sqs.eu-west-1.localstack:4566/000000000000/newQueue',
+      )
+      expect(newConsumer.subscriptionProps.queueName).toBe('newQueue')
+      expect(newConsumer.subscriptionProps.topicArn).toEqual(arn)
+      expect(newConsumer.subscriptionProps.subscriptionArn).toMatch(
+        'arn:aws:sns:eu-west-1:000000000000:existingTopic',
+      )
+      await deleteTopic(snsClient, 'existingTopic')
+    })
+
     it('updates existing queue when one with different attributes exist', async () => {
       await assertQueue(sqsClient, {
         QueueName: 'existingQueue',
@@ -109,9 +137,7 @@ describe('SnsSqsPermissionConsumer', () => {
       )
       expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
 
-      const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.subscriptionProps.queueUrl,
-      })
+      const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
 
       expect(attributes.result?.attributes).toMatchObject({
         KmsMasterKeyId: 'othervalue',
@@ -151,9 +177,7 @@ describe('SnsSqsPermissionConsumer', () => {
         'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
       )
 
-      const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.subscriptionProps.queueUrl,
-      })
+      const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
       expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
 
       expect(attributes.result?.attributes!.Policy).toBe(
@@ -186,9 +210,7 @@ describe('SnsSqsPermissionConsumer', () => {
       )
       expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
 
-      const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.subscriptionProps.queueUrl,
-      })
+      const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
 
       expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
     })
@@ -216,9 +238,7 @@ describe('SnsSqsPermissionConsumer', () => {
         'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
       )
 
-      const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.subscriptionProps.queueUrl,
-      })
+      const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
 
       expect(attributes.result?.attributes).toMatchObject({
         RedrivePolicy: JSON.stringify({
@@ -255,9 +275,7 @@ describe('SnsSqsPermissionConsumer', () => {
         'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
       )
 
-      const attributes = await getQueueAttributes(sqsClient, {
-        queueUrl: newConsumer.subscriptionProps.queueUrl,
-      })
+      const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
 
       expect(attributes.result?.attributes).toMatchObject({
         RedrivePolicy: JSON.stringify({
@@ -396,7 +414,7 @@ describe('SnsSqsPermissionConsumer', () => {
     })
 
     describe('happy path', () => {
-      it('Processes messages', async () => {
+      it('Processes messages with prehandlers', async () => {
         await publisher.publish({
           id: '1',
           messageType: 'add',
@@ -418,29 +436,6 @@ describe('SnsSqsPermissionConsumer', () => {
         expect(consumer.addCounter).toBe(1)
         expect(consumer.removeCounter).toBe(2)
       }, 10000)
-
-      it('Handles preHandlers', async () => {
-        await publisher.publish({
-          id: '1',
-          messageType: 'add',
-        })
-        await publisher.publish({
-          id: '2',
-          messageType: 'remove',
-        })
-        await publisher.publish({
-          id: '3',
-          messageType: 'remove',
-        })
-
-        await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
-        await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
-        await consumer.handlerSpy.waitForMessageWithId('3', 'consumed')
-
-        expect(consumer.addBarrierCounter).toBe(3)
-        expect(consumer.addCounter).toBe(1)
-        expect(consumer.removeCounter).toBe(2)
-      })
     })
   })
 

@@ -25,7 +25,7 @@
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@lokalise/node-core": "^12.0.0",
+    "@lokalise/node-core": "^13.0.1",
     "zod": "^3.23.8"
   },
   "peerDependencies": {
@@ -38,14 +38,14 @@
     "@kibertoad/biome-config": "^1.2.1",
     "@message-queue-toolkit/core": "*",
     "@types/amqplib": "^0.10.5",
-    "@types/node": "^22.0.0",
-    "@vitest/coverage-v8": "^2.0.4",
+    "@types/node": "^22.7.5",
+    "@vitest/coverage-v8": "^2.1.2",
     "amqplib": "^0.10.4",
     "awilix": "^12.0.1",
     "awilix-manager": "^5.4.0",
     "del-cli": "^6.0.0",
-    "typescript": "^5.5.2",
-    "vitest": "^2.0.4"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.2"
   },
   "homepage": "https://github.com/kibertoad/message-queue-toolkit",
   "repository": {

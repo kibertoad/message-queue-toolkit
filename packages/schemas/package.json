@@ -17,8 +17,9 @@
     "build:release": "del-cli dist && npm run lint && tsc --project tsconfig.release.json",
     "lint": "biome check . && tsc --project tsconfig.json --noEmit",
     "lint:fix": "biome check --write .",
-    "test:coverage": "",
-    "test:ci": "",
+    "test": "vitest",
+    "test:coverage": "npm test -- --coverage",
+    "test:ci": "npm test",
     "docker:start:dev": "",
     "docker:stop:dev": "",
     "prepublishOnly": "npm run build:release"
@@ -29,11 +30,11 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.3",
     "@kibertoad/biome-config": "^1.2.1",
-    "@types/node": "^22.0.0",
-    "@vitest/coverage-v8": "^2.0.4",
+    "@types/node": "^22.7.5",
+    "@vitest/coverage-v8": "^2.1.2",
     "del-cli": "^6.0.0",
-    "typescript": "^5.5.3",
-    "vitest": "^2.0.4"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.2"
   },
   "homepage": "https://github.com/kibertoad/message-queue-toolkit",
   "repository": {

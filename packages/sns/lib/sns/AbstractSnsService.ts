@@ -34,15 +34,16 @@ export type ExtraSNSCreationParams = {
 }
 
 export type SNSCreationConfig = {
-  topic: SNSTopicAWSConfig
+  topic?: SNSTopicAWSConfig
   updateAttributesIfExists?: boolean
 } & ExtraSNSCreationParams
 
-export type SNSQueueLocatorType = {
-  topicArn: string
+export type SNSTopicLocatorType = {
+  topicArn?: string
+  topicName?: string
 }
 
-export type SNSOptions = QueueOptions<SNSCreationConfig, SNSQueueLocatorType>
+export type SNSOptions = QueueOptions<SNSCreationConfig, SNSTopicLocatorType>
 
 export abstract class AbstractSnsService<
   MessagePayloadType extends object,
@@ -54,7 +55,7 @@ export abstract class AbstractSnsService<
   MessageEnvelopeType,
   DependenciesType,
   SNSCreationConfig,
-  SNSQueueLocatorType,
+  SNSTopicLocatorType,
   SNSOptionsType
 > {
   protected readonly snsClient: SNSClient

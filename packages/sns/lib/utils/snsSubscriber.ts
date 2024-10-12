@@ -1,4 +1,4 @@
-import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
+import type { SNSClient } from '@aws-sdk/client-sns'
 import { SetSubscriptionAttributesCommand, SubscribeCommand } from '@aws-sdk/client-sns'
 import type { SubscribeCommandInput } from '@aws-sdk/client-sns/dist-types/commands/SubscribeCommand'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
@@ -8,25 +8,50 @@ import { assertQueue } from '@message-queue-toolkit/sqs'
 
 import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
 
-import { assertTopic, findSubscriptionByTopicAndQueue } from './snsUtils'
+import {
+  type TopicResolutionOptions,
+  isCreateTopicCommand,
+  isSNSTopicLocatorType,
+} from '../types/TopicTypes'
+import { assertTopic, findSubscriptionByTopicAndQueue, getTopicArnByName } from './snsUtils'
 
 export type SNSSubscriptionOptions = Omit<
   SubscribeCommandInput,
   'TopicArn' | 'Endpoint' | 'Protocol' | 'ReturnSubscriptionArn'
 > & { updateAttributesIfExists: boolean }
 
+async function resolveTopicArnToSubscribeTo(
+  topicConfiguration: TopicResolutionOptions,
+  snsClient: SNSClient,
+  extraParams: (ExtraSNSCreationParams & ExtraSQSCreationParams & ExtraParams) | undefined,
+) {
+  //If topicArn is present, let's use it and return early.
+  if (isSNSTopicLocatorType(topicConfiguration) && topicConfiguration.topicArn) {
+    return topicConfiguration.topicArn
+  }
+
+  //If input configuration is capable of creating a topic, let's create it and return its ARN.
+  if (isCreateTopicCommand(topicConfiguration)) {
+    return await assertTopic(snsClient, topicConfiguration, {
+      queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
+      allowedSourceOwner: extraParams?.allowedSourceOwner,
+    })
+  }
+
+  //Last option: let's not create a topic but resolve a ARN based on the desired topic name.
+  return await getTopicArnByName(snsClient, topicConfiguration.topicName)
+}
+
 export async function subscribeToTopic(
   sqsClient: SQSClient,
   snsClient: SNSClient,
   queueConfiguration: CreateQueueCommandInput,
-  topicConfiguration: CreateTopicCommandInput,
+  topicConfiguration: TopicResolutionOptions,
   subscriptionConfiguration: SNSSubscriptionOptions,
   extraParams?: ExtraSNSCreationParams & ExtraSQSCreationParams & ExtraParams,
 ) {
-  const topicArn = await assertTopic(snsClient, topicConfiguration, {
-    queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
-    allowedSourceOwner: extraParams?.allowedSourceOwner,
-  })
+  const topicArn = await resolveTopicArnToSubscribeTo(topicConfiguration, snsClient, extraParams)
+
   const { queueUrl, queueArn } = await assertQueue(sqsClient, queueConfiguration, {
     topicArnsWithPublishPermissionsPrefix: extraParams?.topicArnsWithPublishPermissionsPrefix,
     updateAttributesIfExists: extraParams?.updateAttributesIfExists,
@@ -53,7 +78,9 @@ export async function subscribeToTopic(
     // @ts-ignore
     logger.error(
       `Error while creating subscription for queue "${queueConfiguration.QueueName}", topic "${
-        topicConfiguration.Name
+        isCreateTopicCommand(topicConfiguration)
+          ? topicConfiguration.Name
+          : topicConfiguration.topicName
       }": ${(err as Error).message}`,
     )
 
