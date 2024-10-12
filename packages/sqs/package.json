@@ -36,15 +36,15 @@
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.614.0",
     "@aws-sdk/client-sqs": "^3.614.0",
-    "@biomejs/biome": "1.9.1",
+    "@biomejs/biome": "1.9.3",
     "@kibertoad/biome-config": "^1.2.1",
     "@message-queue-toolkit/core": "*",
     "@message-queue-toolkit/s3-payload-store": "*",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.0.4",
-    "awilix": "^11.0.0",
+    "awilix": "^12.0.1",
     "awilix-manager": "^5.1.0",
-    "del-cli": "^5.1.0",
+    "del-cli": "^6.0.0",
     "typescript": "^5.5.3",
     "vitest": "^2.0.4"
   },

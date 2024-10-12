@@ -34,16 +34,16 @@
     "amqplib": "^0.10.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.1",
+    "@biomejs/biome": "1.9.3",
     "@kibertoad/biome-config": "^1.2.1",
     "@message-queue-toolkit/core": "*",
     "@types/amqplib": "^0.10.5",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.0.4",
     "amqplib": "^0.10.4",
-    "awilix": "^11.0.0",
+    "awilix": "^12.0.1",
     "awilix-manager": "^5.4.0",
-    "del-cli": "^5.1.0",
+    "del-cli": "^6.0.0",
     "typescript": "^5.5.2",
     "vitest": "^2.0.4"
   },
