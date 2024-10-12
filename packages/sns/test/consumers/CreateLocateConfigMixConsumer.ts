@@ -41,13 +41,10 @@ export class CreateLocateConfigMixConsumer extends AbstractSnsSqsConsumer<
           queue: {
             QueueName: CreateLocateConfigMixConsumer.CONSUMED_QUEUE_NAME,
           },
-          topic: {
-            Name: CreateLocateConfigMixConsumer.SUBSCRIBED_TOPIC_NAME,
-          },
         },
-        // locatorConfig: {
-        //   topicName: CreateLocateConfigMixConsumer.SUBSCRIBED_TOPIC_NAME,
-        // },
+        locatorConfig: {
+          topicName: CreateLocateConfigMixConsumer.SUBSCRIBED_TOPIC_NAME,
+        },
         subscriptionConfig: {
           updateAttributesIfExists: false,
         },

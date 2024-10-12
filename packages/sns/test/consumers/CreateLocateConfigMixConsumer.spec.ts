@@ -3,8 +3,7 @@ import type { SQSClient } from '@aws-sdk/client-sqs'
 import { deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { beforeAll, beforeEach, describe, it } from 'vitest'
-import { deleteTopic } from '../../lib/utils/snsUtils'
-import type { CreateLocateConfigMixPublisher } from '../publishers/CreateLocateConfigMixPublisher'
+import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
 import { type Dependencies, registerDependencies } from '../utils/testContext'
 import { CreateLocateConfigMixConsumer } from './CreateLocateConfigMixConsumer'
 
@@ -13,13 +12,10 @@ describe('CreateLocateConfigMixConsumer', () => {
   let sqsClient: SQSClient
   let snsClient: SNSClient
 
-  let publisher: CreateLocateConfigMixPublisher
-
   beforeAll(async () => {
     diContainer = await registerDependencies({}, false)
     sqsClient = diContainer.cradle.sqsClient
     snsClient = diContainer.cradle.snsClient
-    publisher = diContainer.cradle.createLocateConfigMixPublisher
   })
 
   beforeEach(async () => {
@@ -28,6 +24,9 @@ describe('CreateLocateConfigMixConsumer', () => {
   })
 
   it('accepts mixed config of create and locate', async () => {
+    await assertTopic(snsClient, {
+      Name: CreateLocateConfigMixConsumer.SUBSCRIBED_TOPIC_NAME,
+    })
     const consumer = new CreateLocateConfigMixConsumer(diContainer.cradle)
     await consumer.init()
   })
