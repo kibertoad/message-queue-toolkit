@@ -55,6 +55,7 @@ export async function subscribeToTopic(
   const { queueUrl, queueArn } = await assertQueue(sqsClient, queueConfiguration, {
     topicArnsWithPublishPermissionsPrefix: extraParams?.topicArnsWithPublishPermissionsPrefix,
     updateAttributesIfExists: extraParams?.updateAttributesIfExists,
+    forceTagUpdate: extraParams?.forceTagUpdate,
   })
 
   const subscribeCommand = new SubscribeCommand({

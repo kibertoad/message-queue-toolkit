@@ -15,11 +15,13 @@ export type SQSDependencies = QueueDependencies & {
 export type ExtraSQSCreationParams = {
   topicArnsWithPublishPermissionsPrefix?: string
   updateAttributesIfExists?: boolean
+  forceTagUpdate?: boolean
 }
 
 export type SQSCreationConfig = {
   queue: CreateQueueRequest
   updateAttributesIfExists?: boolean
+  forceTagUpdate?: boolean
 } & ExtraSQSCreationParams
 
 export type SQSQueueLocatorType = {

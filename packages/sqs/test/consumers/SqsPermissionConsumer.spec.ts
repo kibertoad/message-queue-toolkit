@@ -108,6 +108,87 @@ describe('SqsPermissionConsumer', () => {
       })
     })
 
+    it('updates existing queue when update is forced', async () => {
+      await assertQueue(sqsClient, {
+        QueueName: queueName,
+        tags: {
+          project: 'some-project',
+          service: 'some-service',
+          leftover: 'some-leftover',
+        },
+      })
+
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            tags: {
+              project: 'some-project',
+              service: 'changed-service',
+              cc: 'some-cc',
+            },
+          },
+          forceTagUpdate: true,
+        },
+        deletionConfig: {
+          deleteIfExists: false,
+        },
+        logMessages: true,
+      })
+
+      const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+      await newConsumer.init()
+      expect(newConsumer.queueProps.url).toBe(
+        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+      )
+
+      const updateCall = sqsSpy.mock.calls.find((entry) => {
+        return entry[0].constructor.name === 'TagQueueCommand'
+      })
+      expect(updateCall).toBeDefined()
+    })
+
+    it('updates existing queue when update is not forced', async () => {
+      await assertQueue(sqsClient, {
+        QueueName: queueName,
+        tags: {
+          project: 'some-project',
+          service: 'some-service',
+          leftover: 'some-leftover',
+        },
+      })
+
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            tags: {
+              project: 'some-project',
+              service: 'changed-service',
+              cc: 'some-cc',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: false,
+        },
+        logMessages: true,
+      })
+
+      const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+      await newConsumer.init()
+      expect(newConsumer.queueProps.url).toBe(
+        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+      )
+
+      const updateCall = sqsSpy.mock.calls.find((entry) => {
+        return entry[0].constructor.name === 'TagQueueCommand'
+      })
+      expect(updateCall).toBeUndefined()
+    })
+
     it('does not update existing queue when attributes did not change', async () => {
       await assertQueue(sqsClient, {
         QueueName: queueName,
