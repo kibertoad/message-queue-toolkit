@@ -32,9 +32,14 @@ export abstract class AbstractAmqpQueuePublisher<
     options: AMQPPublisherOptions<MessagePayloadType, AMQPQueueCreationConfig, AMQPQueueLocator>,
   ) {
     super(dependencies, options)
+
+    if (!options.locatorConfig?.queueName && !options.creationConfig?.queueName) {
+      throw new Error('Either locatorConfig or creationConfig must provide queueName')
+    }
+
     this.queueName = options.locatorConfig
       ? options.locatorConfig.queueName
-      : options.creationConfig.queueName
+      : options.creationConfig!.queueName
   }
 
   protected publishInternal(message: Buffer, options: AmqpQueueMessageOptions): void {
