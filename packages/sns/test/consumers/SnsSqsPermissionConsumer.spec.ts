@@ -242,7 +242,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
       expect(attributes.result?.attributes).toMatchObject({
         RedrivePolicy: JSON.stringify({
-          deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:deadLetterQueue`,
+          deadLetterTargetArn: 'arn:aws:sqs:eu-west-1:000000000000:deadLetterQueue',
           maxReceiveCount: 3,
         }),
       })
@@ -279,7 +279,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
       expect(attributes.result?.attributes).toMatchObject({
         RedrivePolicy: JSON.stringify({
-          deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:deadLetterQueue`,
+          deadLetterTargetArn: 'arn:aws:sqs:eu-west-1:000000000000:deadLetterQueue',
           maxReceiveCount: 3,
         }),
       })
