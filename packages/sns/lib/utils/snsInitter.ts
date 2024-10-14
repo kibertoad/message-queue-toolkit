@@ -69,6 +69,7 @@ export async function initSnsSqs(
         allowedSourceOwner: creationConfig.allowedSourceOwner,
         topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
         logger: extraParams?.logger,
+        forceTagUpdate: creationConfig.forceTagUpdate,
       },
     )
     if (!subscriptionArn) {
