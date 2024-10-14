@@ -1,4 +1,4 @@
-import type { SQSClient } from '@aws-sdk/client-sqs'
+import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
@@ -59,86 +59,188 @@ describe('SqsPermissionPublisher', () => {
       )
     })
 
-    it('updates existing queue when one with different attributes exist', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: queueName,
-        Attributes: {
-          KmsMasterKeyId: 'somevalue',
-        },
-      })
-
-      const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
-        creationConfig: {
-          queue: {
-            QueueName: queueName,
-            Attributes: {
-              KmsMasterKeyId: 'othervalue',
-            },
+    describe('attributes update', () => {
+      it('updates existing queue when one with different attributes exist', async () => {
+        await assertQueue(sqsClient, {
+          QueueName: queueName,
+          Attributes: {
+            KmsMasterKeyId: 'somevalue',
           },
-          updateAttributesIfExists: true,
-        },
-        deletionConfig: {
-          deleteIfExists: false,
-        },
-        logMessages: true,
+        })
+
+        const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
+          creationConfig: {
+            queue: {
+              QueueName: queueName,
+              Attributes: {
+                KmsMasterKeyId: 'othervalue',
+              },
+            },
+            updateAttributesIfExists: true,
+          },
+          deletionConfig: {
+            deleteIfExists: false,
+          },
+          logMessages: true,
+        })
+
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+        await newPublisher.init()
+        expect(newPublisher.queueProps.url).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        )
+
+        const updateCall = sqsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'SetQueueAttributesCommand'
+        })
+        expect(updateCall).toBeDefined()
+
+        const attributes = await getQueueAttributes(sqsClient, newPublisher.queueProps.url)
+
+        expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
       })
 
-      const sqsSpy = vi.spyOn(sqsClient, 'send')
+      it('does not update existing queue when attributes did not change', async () => {
+        await assertQueue(sqsClient, {
+          QueueName: queueName,
+          Attributes: {
+            KmsMasterKeyId: 'somevalue',
+          },
+        })
 
-      await newPublisher.init()
-      expect(newPublisher.queueProps.url).toBe(
-        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-      )
+        const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
+          creationConfig: {
+            queue: {
+              QueueName: queueName,
+              Attributes: {
+                KmsMasterKeyId: 'somevalue',
+              },
+            },
+            updateAttributesIfExists: true,
+          },
+          deletionConfig: {
+            deleteIfExists: false,
+          },
+          logMessages: true,
+        })
 
-      const updateCall = sqsSpy.mock.calls.find((entry) => {
-        return entry[0].constructor.name === 'SetQueueAttributesCommand'
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+        await newPublisher.init()
+        expect(newPublisher.queueProps.url).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        )
+
+        const updateCall = sqsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'SetQueueAttributesCommand'
+        })
+        expect(updateCall).toBeUndefined()
+
+        const attributes = await getQueueAttributes(sqsClient, newPublisher.queueProps.url)
+
+        expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('somevalue')
       })
-      expect(updateCall).toBeDefined()
-
-      const attributes = await getQueueAttributes(sqsClient, newPublisher.queueProps.url)
-
-      expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
     })
 
-    it('does not update existing queue when attributes did not change', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: queueName,
-        Attributes: {
-          KmsMasterKeyId: 'somevalue',
-        },
+    describe('tags update', () => {
+      const getTags = (queueUrl: string) =>
+        sqsClient.send(new ListQueueTagsCommand({ QueueUrl: queueUrl }))
+
+      it('updates existing queue tags when update is forced', async () => {
+        const initialTags = {
+          project: 'some-project',
+          service: 'some-service',
+          leftover: 'some-leftover',
+        }
+        const newTags = {
+          project: 'some-project',
+          service: 'changed-service',
+          cc: 'some-cc',
+        }
+
+        const assertResult = await assertQueue(sqsClient, {
+          QueueName: queueName,
+          tags: initialTags,
+        })
+        const preTags = await getTags(assertResult.queueUrl)
+        expect(preTags.Tags).toEqual(initialTags)
+
+        const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
+          creationConfig: {
+            queue: {
+              QueueName: queueName,
+              tags: newTags,
+            },
+            forceTagUpdate: true,
+          },
+          deletionConfig: {
+            deleteIfExists: false,
+          },
+          logMessages: true,
+        })
+
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+        await newPublisher.init()
+        expect(newPublisher.queueProps.url).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        )
+
+        const updateCall = sqsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'TagQueueCommand'
+        })
+        expect(updateCall).toBeDefined()
+
+        const postTags = await getTags(assertResult.queueUrl)
+        expect(postTags.Tags).toEqual({
+          ...newTags,
+          leftover: 'some-leftover',
+        })
       })
 
-      const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
-        creationConfig: {
-          queue: {
-            QueueName: queueName,
-            Attributes: {
-              KmsMasterKeyId: 'somevalue',
+      it('does not update existing queue tags when update is not forced', async () => {
+        const initialTags = {
+          project: 'some-project',
+          service: 'some-service',
+          leftover: 'some-leftover',
+        }
+
+        const assertResult = await assertQueue(sqsClient, {
+          QueueName: queueName,
+          tags: initialTags,
+        })
+        const preTags = await getTags(assertResult.queueUrl)
+        expect(preTags.Tags).toEqual(initialTags)
+
+        const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
+          creationConfig: {
+            queue: {
+              QueueName: queueName,
+              tags: { service: 'changed-service' },
             },
           },
-          updateAttributesIfExists: true,
-        },
-        deletionConfig: {
-          deleteIfExists: false,
-        },
-        logMessages: true,
+          deletionConfig: {
+            deleteIfExists: false,
+          },
+          logMessages: true,
+        })
+
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+        await newPublisher.init()
+        expect(newPublisher.queueProps.url).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        )
+
+        const updateCall = sqsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'TagQueueCommand'
+        })
+        expect(updateCall).toBeUndefined()
+
+        const postTags = await getTags(assertResult.queueUrl)
+        expect(postTags.Tags).toEqual(initialTags)
       })
-
-      const sqsSpy = vi.spyOn(sqsClient, 'send')
-
-      await newPublisher.init()
-      expect(newPublisher.queueProps.url).toBe(
-        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-      )
-
-      const updateCall = sqsSpy.mock.calls.find((entry) => {
-        return entry[0].constructor.name === 'SetQueueAttributesCommand'
-      })
-      expect(updateCall).toBeUndefined()
-
-      const attributes = await getQueueAttributes(sqsClient, newPublisher.queueProps.url)
-
-      expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('somevalue')
     })
   })
 
