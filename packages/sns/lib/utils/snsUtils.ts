@@ -1,6 +1,7 @@
 import {
   type CreateTopicCommandInput,
   type SNSClient,
+  TagResourceCommand,
   paginateListTopics,
 } from '@aws-sdk/client-sns'
 import {
@@ -101,6 +102,13 @@ export async function assertTopic(
       }),
     })
     await snsClient.send(setTopicAttributesCommand)
+  }
+  if (extraParams?.forceTagUpdate) {
+    const tagTopicCommand = new TagResourceCommand({
+      ResourceArn: topicArn,
+      Tags: topicOptions.Tags,
+    })
+    await snsClient.send(tagTopicCommand)
   }
 
   return topicArn
