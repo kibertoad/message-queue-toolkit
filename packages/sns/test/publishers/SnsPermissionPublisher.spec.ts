@@ -1,4 +1,4 @@
-import type { SNSClient } from '@aws-sdk/client-sns'
+import { ListTagsForResourceCommand, type SNSClient, TagResourceCommand } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { InternalError } from '@lokalise/node-core'
 import { waitAndRetry } from '@lokalise/node-core'
@@ -21,10 +21,10 @@ import type { Dependencies } from '../utils/testContext'
 
 import { SnsPermissionPublisher } from './SnsPermissionPublisher'
 
-const queueName = 'someQueue'
-
 describe('SnsPermissionPublisher', () => {
   describe('init', () => {
+    const topicNome = 'existingTopic'
+
     let diContainer: AwilixContainer<Dependencies>
     let snsClient: SNSClient
     beforeAll(async () => {
@@ -84,7 +84,7 @@ describe('SnsPermissionPublisher', () => {
 
     it('does not create a new queue when queue locator is passed', async () => {
       const arn = await assertTopic(snsClient, {
-        Name: 'existingTopic',
+        Name: topicNome,
       })
 
       const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
@@ -95,11 +95,42 @@ describe('SnsPermissionPublisher', () => {
 
       await newPublisher.init()
       expect(newPublisher.topicArnProp).toEqual(arn)
-      await deleteTopic(snsClient, 'existingTopic')
+      await deleteTopic(snsClient, topicNome)
+    })
+
+    // TESTING HOW SNS TAGS UPDATE WORKS
+    it.skip('to be removed', async () => {
+      await deleteTopic(snsClient, topicNome)
+      const arn = await assertTopic(snsClient, {
+        Name: topicNome,
+        Tags: [
+          { Key: 'hello', Value: 'world' },
+          { Key: 'goodbye', Value: 'world' },
+        ],
+      })
+
+      const command = new ListTagsForResourceCommand({ ResourceArn: arn })
+      const res = await snsClient.send(command)
+      console.log(res.Tags)
+
+      const updateCommand = new TagResourceCommand({
+        ResourceArn: arn,
+        Tags: [
+          { Key: 'hello', Value: 'friend' },
+          { Key: 'goodbye', Value: 'world' },
+        ],
+      })
+      await snsClient.send(updateCommand)
+
+      const command2 = new ListTagsForResourceCommand({ ResourceArn: arn })
+      const res2 = await snsClient.send(command2)
+      console.log(res2.Tags)
     })
   })
 
   describe('publish', () => {
+    const queueName = 'someQueue'
+
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
     let snsClient: SNSClient
