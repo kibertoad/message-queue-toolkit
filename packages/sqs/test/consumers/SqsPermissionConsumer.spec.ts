@@ -160,30 +160,29 @@ describe('SqsPermissionConsumer', () => {
         sqsClient.send(new ListQueueTagsCommand({ QueueUrl: queueUrl }))
 
       it('updates existing queue tags when update is forced', async () => {
-        const assertResult = await assertQueue(sqsClient, {
-          QueueName: queueName,
-          tags: {
-            project: 'some-project',
-            service: 'some-service',
-            leftover: 'some-leftover',
-          },
-        })
-        const preTags = await getTags(assertResult.queueUrl)
-        expect(preTags.Tags).toEqual({
+        const initialTags = {
           project: 'some-project',
           service: 'some-service',
           leftover: 'some-leftover',
+        }
+        const newTags = {
+          project: 'some-project',
+          service: 'changed-service',
+          cc: 'some-cc',
+        }
+
+        const assertResult = await assertQueue(sqsClient, {
+          QueueName: queueName,
+          tags: initialTags,
         })
+        const preTags = await getTags(assertResult.queueUrl)
+        expect(preTags.Tags).toEqual(initialTags)
 
         const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
           creationConfig: {
             queue: {
               QueueName: queueName,
-              tags: {
-                project: 'some-project',
-                service: 'changed-service',
-                cc: 'some-cc',
-              },
+              tags: newTags,
             },
             forceTagUpdate: true,
           },
@@ -207,14 +206,12 @@ describe('SqsPermissionConsumer', () => {
 
         const postTags = await getTags(assertResult.queueUrl)
         expect(postTags.Tags).toEqual({
-          project: 'some-project',
-          service: 'changed-service',
-          cc: 'some-cc',
+          ...newTags,
           leftover: 'some-leftover',
         })
       })
 
-      it('not updates existing queue tags when update is not forced', async () => {
+      it('does not update existing queue tags when update is not forced', async () => {
         const assertResult = await assertQueue(sqsClient, {
           QueueName: queueName,
           tags: {
