@@ -17,27 +17,30 @@ import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
 
 describe('SnsSqsPermissionConsumer', () => {
   describe('init', () => {
+    const queueName = 'some-queue'
+
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
     let snsClient: SNSClient
+
     beforeAll(async () => {
       diContainer = await registerDependencies({}, false)
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
     })
     beforeEach(async () => {
-      await deleteQueue(sqsClient, 'existingQueue')
+      await deleteQueue(sqsClient, queueName)
     })
 
     // FixMe https://github.com/localstack/localstack/issues/9306
     it.skip('throws an error when invalid queue locator is passed', async () => {
       await assertQueue(sqsClient, {
-        QueueName: 'existingQueue',
+        QueueName: queueName,
       })
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
-          queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+          queueUrl: `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
           subscriptionArn: 'dummy',
           topicArn: 'dummy',
         },
@@ -48,7 +51,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
     it('does not create a new queue when queue locator is passed', async () => {
       await assertQueue(sqsClient, {
-        QueueName: 'existingQueue',
+        QueueName: queueName,
       })
 
       const arn = await assertTopic(snsClient, {
@@ -58,7 +61,7 @@ describe('SnsSqsPermissionConsumer', () => {
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
           topicArn: arn,
-          queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+          queueUrl: `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
           subscriptionArn:
             'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
         },
@@ -66,9 +69,9 @@ describe('SnsSqsPermissionConsumer', () => {
 
       await newConsumer.init()
       expect(newConsumer.subscriptionProps.queueUrl).toBe(
-        'http://s3.localhost.localstack.cloud:4566/000000000000/existingQueue',
+        `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
       )
-      expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
+      expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
       expect(newConsumer.subscriptionProps.topicArn).toEqual(arn)
       expect(newConsumer.subscriptionProps.subscriptionArn).toBe(
         'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
@@ -105,12 +108,6 @@ describe('SnsSqsPermissionConsumer', () => {
     })
 
     describe('tags update', () => {
-      const queueName = 'my-queue-with-tags'
-
-      beforeEach(async () => {
-        await deleteQueue(sqsClient, queueName)
-      })
-
       const getTags = (queueUrl: string) =>
         sqsClient.send(new ListQueueTagsCommand({ QueueUrl: queueUrl }))
 
@@ -150,7 +147,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
         await newConsumer.init()
         expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          'http://sqs.eu-west-1.localstack:4566/000000000000/my-queue-with-tags',
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
         )
         expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
 
@@ -196,7 +193,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
         await newConsumer.init()
         expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          'http://sqs.eu-west-1.localstack:4566/000000000000/my-queue-with-tags',
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
         )
         expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
 
@@ -213,7 +210,7 @@ describe('SnsSqsPermissionConsumer', () => {
     describe('attributes update', () => {
       it('updates existing queue when one with different attributes exist', async () => {
         await assertQueue(sqsClient, {
-          QueueName: 'existingQueue',
+          QueueName: queueName,
           Attributes: {
             KmsMasterKeyId: 'somevalue',
           },
@@ -225,7 +222,7 @@ describe('SnsSqsPermissionConsumer', () => {
               Name: 'sometopic',
             },
             queue: {
-              QueueName: 'existingQueue',
+              QueueName: queueName,
               Attributes: {
                 KmsMasterKeyId: 'othervalue',
                 VisibilityTimeout: '10',
@@ -240,9 +237,9 @@ describe('SnsSqsPermissionConsumer', () => {
 
         await newConsumer.init()
         expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
         )
-        expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
+        expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
 
         const attributes = await getQueueAttributes(
           sqsClient,
@@ -257,7 +254,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
       it('updates existing queue when one with different attributes exist and sets the policy', async () => {
         await assertQueue(sqsClient, {
-          QueueName: 'existingQueue',
+          QueueName: queueName,
           Attributes: {
             KmsMasterKeyId: 'somevalue',
           },
@@ -269,7 +266,7 @@ describe('SnsSqsPermissionConsumer', () => {
               Name: 'sometopic',
             },
             queue: {
-              QueueName: 'existingQueue',
+              QueueName: queueName,
               Attributes: {
                 KmsMasterKeyId: 'othervalue',
               },
@@ -284,17 +281,17 @@ describe('SnsSqsPermissionConsumer', () => {
 
         await newConsumer.init()
         expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
         )
 
         const attributes = await getQueueAttributes(
           sqsClient,
           newConsumer.subscriptionProps.queueUrl,
         )
-        expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
+        expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
 
-        expect(attributes.result?.attributes!.Policy).toBe(
-          '{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-west-1:000000000000:existingQueue","Condition":{"ArnLike":{"aws:SourceArn":"someservice-"}}}]}',
+        expect(attributes.result?.attributes!.Policy).toMatchInlineSnapshot(
+          `"{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-west-1:000000000000:some-queue","Condition":{"ArnLike":{"aws:SourceArn":"someservice-"}}}]}"`,
         )
       })
 
@@ -305,7 +302,7 @@ describe('SnsSqsPermissionConsumer', () => {
               Name: 'sometopic',
             },
             queue: {
-              QueueName: 'existingQueue',
+              QueueName: queueName,
               Attributes: {
                 KmsMasterKeyId: 'othervalue',
               },
@@ -319,9 +316,9 @@ describe('SnsSqsPermissionConsumer', () => {
 
         await newConsumer.init()
         expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
         )
-        expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
+        expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
 
         const attributes = await getQueueAttributes(
           sqsClient,
@@ -337,7 +334,7 @@ describe('SnsSqsPermissionConsumer', () => {
         const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
           creationConfig: {
             topic: { Name: 'sometopic' },
-            queue: { QueueName: 'existingQueue' },
+            queue: { QueueName: queueName },
             updateAttributesIfExists: true,
           },
           deadLetterQueue: {
@@ -350,7 +347,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
         await newConsumer.init()
         expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
         )
         expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
           'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
@@ -377,7 +374,7 @@ describe('SnsSqsPermissionConsumer', () => {
         const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
           creationConfig: {
             topic: { Name: 'sometopic' },
-            queue: { QueueName: 'existingQueue' },
+            queue: { QueueName: queueName },
             updateAttributesIfExists: true,
           },
           deadLetterQueue: {
@@ -390,7 +387,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
         await newConsumer.init()
         expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
         )
         expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
           'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
