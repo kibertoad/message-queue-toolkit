@@ -1,7 +1,7 @@
 import { setTimeout } from 'node:timers/promises'
 
 import type { SNSClient } from '@aws-sdk/client-sns'
-import type { SQSClient } from '@aws-sdk/client-sqs'
+import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
@@ -104,184 +104,309 @@ describe('SnsSqsPermissionConsumer', () => {
       await deleteTopic(snsClient, 'existingTopic')
     })
 
-    it('updates existing queue when one with different attributes exist', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: 'existingQueue',
-        Attributes: {
-          KmsMasterKeyId: 'somevalue',
-        },
+    describe('tags update', () => {
+      const queueName = 'my-queue-with-tags'
+
+      beforeEach(async () => {
+        await deleteQueue(sqsClient, queueName)
       })
 
-      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
-        creationConfig: {
-          topic: {
-            Name: 'sometopic',
-          },
-          queue: {
-            QueueName: 'existingQueue',
-            Attributes: {
-              KmsMasterKeyId: 'othervalue',
-              VisibilityTimeout: '10',
-            },
-          },
-          updateAttributesIfExists: true,
-        },
-        deletionConfig: {
-          deleteIfExists: false,
-        },
-      })
+      const getTags = (queueUrl: string) =>
+        sqsClient.send(new ListQueueTagsCommand({ QueueUrl: queueUrl }))
 
-      await newConsumer.init()
-      expect(newConsumer.subscriptionProps.queueUrl).toBe(
-        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
-      )
-      expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
+      it('updates existing queue tags when update is forced', async () => {
+        const initialTags = {
+          project: 'some-project',
+          service: 'some-service',
+          leftover: 'some-leftover',
+        }
+        const newTags = {
+          project: 'some-project',
+          service: 'changed-service',
+          cc: 'some-cc',
+        }
+        const assertResult = await assertQueue(sqsClient, {
+          QueueName: queueName,
+          tags: initialTags,
+        })
+        const preTags = await getTags(assertResult.queueUrl)
+        expect(preTags.Tags).toEqual(initialTags)
 
-      const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
 
-      expect(attributes.result?.attributes).toMatchObject({
-        KmsMasterKeyId: 'othervalue',
-        VisibilityTimeout: '10',
-      })
-    })
-
-    it('updates existing queue when one with different attributes exist and sets the policy', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: 'existingQueue',
-        Attributes: {
-          KmsMasterKeyId: 'somevalue',
-        },
-      })
-
-      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
-        creationConfig: {
-          topic: {
-            Name: 'sometopic',
-          },
-          queue: {
-            QueueName: 'existingQueue',
-            Attributes: {
-              KmsMasterKeyId: 'othervalue',
-            },
-          },
-          updateAttributesIfExists: true,
-          topicArnsWithPublishPermissionsPrefix: 'someservice-',
-        },
-        deletionConfig: {
-          deleteIfExists: false,
-        },
-      })
-
-      await newConsumer.init()
-      expect(newConsumer.subscriptionProps.queueUrl).toBe(
-        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
-      )
-
-      const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
-      expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
-
-      expect(attributes.result?.attributes!.Policy).toBe(
-        '{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-west-1:000000000000:existingQueue","Condition":{"ArnLike":{"aws:SourceArn":"someservice-"}}}]}',
-      )
-    })
-
-    it('does not attempt to update non-existing queue when passing update param', async () => {
-      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
-        creationConfig: {
-          topic: {
-            Name: 'sometopic',
-          },
-          queue: {
-            QueueName: 'existingQueue',
-            Attributes: {
-              KmsMasterKeyId: 'othervalue',
-            },
-          },
-          updateAttributesIfExists: true,
-        },
-        deletionConfig: {
-          deleteIfExists: false,
-        },
-      })
-
-      await newConsumer.init()
-      expect(newConsumer.subscriptionProps.queueUrl).toBe(
-        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
-      )
-      expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
-
-      const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
-
-      expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
-    })
-
-    it('creates a new dead letter queue', async () => {
-      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
-        creationConfig: {
-          topic: { Name: 'sometopic' },
-          queue: { QueueName: 'existingQueue' },
-          updateAttributesIfExists: true,
-        },
-        deadLetterQueue: {
-          redrivePolicy: { maxReceiveCount: 3 },
+        const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
           creationConfig: {
-            queue: { QueueName: 'deadLetterQueue' },
+            topic: {
+              Name: 'some-topic',
+            },
+            queue: {
+              QueueName: queueName,
+              tags: newTags,
+            },
+            forceTagUpdate: true,
           },
-        },
+          deletionConfig: { deleteIfExists: false },
+        })
+
+        await newConsumer.init()
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(
+          'http://sqs.eu-west-1.localstack:4566/000000000000/my-queue-with-tags',
+        )
+        expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
+
+        const updateCall = sqsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'TagQueueCommand'
+        })
+        expect(updateCall).toBeDefined()
+
+        const postTags = await getTags(assertResult.queueUrl)
+        expect(postTags.Tags).toEqual({
+          ...newTags,
+          leftover: 'some-leftover',
+        })
       })
 
-      await newConsumer.init()
-      expect(newConsumer.subscriptionProps.queueUrl).toBe(
-        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
-      )
-      expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
-        'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
-      )
+      it('does not update existing queue tags when update is not forced', async () => {
+        const initialTags = {
+          project: 'some-project',
+          service: 'some-service',
+          leftover: 'some-leftover',
+        }
+        const assertResult = await assertQueue(sqsClient, {
+          QueueName: queueName,
+          tags: initialTags,
+        })
+        const preTags = await getTags(assertResult.queueUrl)
+        expect(preTags.Tags).toEqual(initialTags)
 
-      const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
 
-      expect(attributes.result?.attributes).toMatchObject({
-        RedrivePolicy: JSON.stringify({
-          deadLetterTargetArn: 'arn:aws:sqs:eu-west-1:000000000000:deadLetterQueue',
-          maxReceiveCount: 3,
-        }),
+        const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            topic: {
+              Name: 'some-topic',
+            },
+            queue: {
+              QueueName: queueName,
+              tags: { service: 'changed-service' },
+            },
+          },
+          deletionConfig: { deleteIfExists: false },
+        })
+
+        await newConsumer.init()
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(
+          'http://sqs.eu-west-1.localstack:4566/000000000000/my-queue-with-tags',
+        )
+        expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
+
+        const updateCall = sqsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'TagQueueCommand'
+        })
+        expect(updateCall).toBeUndefined()
+
+        const postTags = await getTags(assertResult.queueUrl)
+        expect(postTags.Tags).toEqual(initialTags)
       })
     })
 
-    it('using existing dead letter queue', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: 'deadLetterQueue',
-      })
-
-      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
-        creationConfig: {
-          topic: { Name: 'sometopic' },
-          queue: { QueueName: 'existingQueue' },
-          updateAttributesIfExists: true,
-        },
-        deadLetterQueue: {
-          redrivePolicy: { maxReceiveCount: 3 },
-          locatorConfig: {
-            queueUrl: 'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
+    describe('attributes update', () => {
+      it('updates existing queue when one with different attributes exist', async () => {
+        await assertQueue(sqsClient, {
+          QueueName: 'existingQueue',
+          Attributes: {
+            KmsMasterKeyId: 'somevalue',
           },
-        },
+        })
+
+        const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            topic: {
+              Name: 'sometopic',
+            },
+            queue: {
+              QueueName: 'existingQueue',
+              Attributes: {
+                KmsMasterKeyId: 'othervalue',
+                VisibilityTimeout: '10',
+              },
+            },
+            updateAttributesIfExists: true,
+          },
+          deletionConfig: {
+            deleteIfExists: false,
+          },
+        })
+
+        await newConsumer.init()
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(
+          'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+        )
+        expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
+
+        const attributes = await getQueueAttributes(
+          sqsClient,
+          newConsumer.subscriptionProps.queueUrl,
+        )
+
+        expect(attributes.result?.attributes).toMatchObject({
+          KmsMasterKeyId: 'othervalue',
+          VisibilityTimeout: '10',
+        })
       })
 
-      await newConsumer.init()
-      expect(newConsumer.subscriptionProps.queueUrl).toBe(
-        'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
-      )
-      expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
-        'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
-      )
+      it('updates existing queue when one with different attributes exist and sets the policy', async () => {
+        await assertQueue(sqsClient, {
+          QueueName: 'existingQueue',
+          Attributes: {
+            KmsMasterKeyId: 'somevalue',
+          },
+        })
 
-      const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
+        const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            topic: {
+              Name: 'sometopic',
+            },
+            queue: {
+              QueueName: 'existingQueue',
+              Attributes: {
+                KmsMasterKeyId: 'othervalue',
+              },
+            },
+            updateAttributesIfExists: true,
+            topicArnsWithPublishPermissionsPrefix: 'someservice-',
+          },
+          deletionConfig: {
+            deleteIfExists: false,
+          },
+        })
 
-      expect(attributes.result?.attributes).toMatchObject({
-        RedrivePolicy: JSON.stringify({
-          deadLetterTargetArn: 'arn:aws:sqs:eu-west-1:000000000000:deadLetterQueue',
-          maxReceiveCount: 3,
-        }),
+        await newConsumer.init()
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(
+          'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+        )
+
+        const attributes = await getQueueAttributes(
+          sqsClient,
+          newConsumer.subscriptionProps.queueUrl,
+        )
+        expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
+
+        expect(attributes.result?.attributes!.Policy).toBe(
+          '{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-west-1:000000000000:existingQueue","Condition":{"ArnLike":{"aws:SourceArn":"someservice-"}}}]}',
+        )
+      })
+
+      it('does not attempt to update non-existing queue when passing update param', async () => {
+        const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            topic: {
+              Name: 'sometopic',
+            },
+            queue: {
+              QueueName: 'existingQueue',
+              Attributes: {
+                KmsMasterKeyId: 'othervalue',
+              },
+            },
+            updateAttributesIfExists: true,
+          },
+          deletionConfig: {
+            deleteIfExists: false,
+          },
+        })
+
+        await newConsumer.init()
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(
+          'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+        )
+        expect(newConsumer.subscriptionProps.queueName).toBe('existingQueue')
+
+        const attributes = await getQueueAttributes(
+          sqsClient,
+          newConsumer.subscriptionProps.queueUrl,
+        )
+
+        expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
+      })
+    })
+
+    describe('dead letter queue', () => {
+      it('creates a new dead letter queue', async () => {
+        const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            topic: { Name: 'sometopic' },
+            queue: { QueueName: 'existingQueue' },
+            updateAttributesIfExists: true,
+          },
+          deadLetterQueue: {
+            redrivePolicy: { maxReceiveCount: 3 },
+            creationConfig: {
+              queue: { QueueName: 'deadLetterQueue' },
+            },
+          },
+        })
+
+        await newConsumer.init()
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(
+          'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+        )
+        expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
+          'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
+        )
+
+        const attributes = await getQueueAttributes(
+          sqsClient,
+          newConsumer.subscriptionProps.queueUrl,
+        )
+
+        expect(attributes.result?.attributes).toMatchObject({
+          RedrivePolicy: JSON.stringify({
+            deadLetterTargetArn: 'arn:aws:sqs:eu-west-1:000000000000:deadLetterQueue',
+            maxReceiveCount: 3,
+          }),
+        })
+      })
+
+      it('using existing dead letter queue', async () => {
+        await assertQueue(sqsClient, {
+          QueueName: 'deadLetterQueue',
+        })
+
+        const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            topic: { Name: 'sometopic' },
+            queue: { QueueName: 'existingQueue' },
+            updateAttributesIfExists: true,
+          },
+          deadLetterQueue: {
+            redrivePolicy: { maxReceiveCount: 3 },
+            locatorConfig: {
+              queueUrl: 'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
+            },
+          },
+        })
+
+        await newConsumer.init()
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(
+          'http://sqs.eu-west-1.localstack:4566/000000000000/existingQueue',
+        )
+        expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
+          'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
+        )
+
+        const attributes = await getQueueAttributes(
+          sqsClient,
+          newConsumer.subscriptionProps.queueUrl,
+        )
+
+        expect(attributes.result?.attributes).toMatchObject({
+          RedrivePolicy: JSON.stringify({
+            deadLetterTargetArn: 'arn:aws:sqs:eu-west-1:000000000000:deadLetterQueue',
+            maxReceiveCount: 3,
+          }),
+        })
       })
     })
   })
