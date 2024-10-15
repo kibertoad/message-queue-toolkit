@@ -1,12 +1,12 @@
 import { ListTagsForResourceCommand, type SNSClient, TagResourceCommand } from '@aws-sdk/client-sns'
-import type { SQSClient } from '@aws-sdk/client-sqs'
+import { ListQueueTagsCommand, SQSClient } from '@aws-sdk/client-sqs'
 import type { InternalError } from '@lokalise/node-core'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
 import { FakeConsumerErrorResolver, assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { deserializeSNSMessage } from '../../lib/utils/snsMessageDeserializer'
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber'
@@ -96,6 +96,52 @@ describe('SnsPermissionPublisher', () => {
       await newPublisher.init()
       expect(newPublisher.topicArnProp).toEqual(arn)
       await deleteTopic(snsClient, topicNome)
+    })
+
+    describe('tags', () => {
+      const getTags = (arn: string) =>
+        snsClient.send(new ListTagsForResourceCommand({ ResourceArn: arn }))
+
+      it('updates existing queue tags when update is forced', async () => {
+        const initialTags = [
+          { Key: 'project', Value: 'some-project' },
+          { Key: 'service', Value: 'some-service' },
+          { Key: 'leftover', Value: 'some-leftover' },
+        ]
+        const newTags = [
+          { Key: 'project', Value: 'some-project' },
+          { Key: 'service', Value: 'changed-service' },
+          { Key: 'cc', Value: 'some-cc' },
+        ]
+
+        const arn = await assertTopic(snsClient, {
+          Name: topicNome,
+          Tags: initialTags,
+        })
+        const preTags = await getTags(arn)
+        expect(preTags.Tags).toEqual(initialTags)
+
+        const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
+          creationConfig: {
+            topic: {
+              Name: topicNome,
+              Tags: newTags,
+            },
+            forceTagUpdate: true,
+          },
+        })
+
+        const snsSpy = vi.spyOn(snsClient, 'send')
+        await newPublisher.init()
+
+        const updateCall = snsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'TagResourceCommand'
+        })
+        expect(updateCall).toBeDefined()
+
+        const postTags = await getTags(arn)
+        expect(postTags.Tags).toEqual([...newTags, { Key: 'leftover', Value: 'some-leftover' }])
+      })
     })
 
     // TESTING HOW SNS TAGS UPDATE WORKS
