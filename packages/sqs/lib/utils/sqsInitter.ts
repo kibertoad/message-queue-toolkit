@@ -1,4 +1,4 @@
-import { SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
+import { SetQueueAttributesCommand, TagQueueCommand } from '@aws-sdk/client-sqs'
 import type { QueueAttributeName, SQSClient } from '@aws-sdk/client-sqs'
 import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
@@ -45,6 +45,18 @@ export async function updateQueueAttributes(
   await sqsClient.send(command)
 }
 
+export async function updateQueueTags(
+  sqsClient: SQSClient,
+  queueUrl: string,
+  tags: Record<string, string> | undefined = {},
+) {
+  const command = new TagQueueCommand({
+    QueueUrl: queueUrl,
+    Tags: tags,
+  })
+  await sqsClient.send(command)
+}
+
 export async function initSqs(
   sqsClient: SQSClient,
   locatorConfig?: Partial<SQSQueueLocatorType>,
@@ -82,6 +94,7 @@ export async function initSqs(
   const { queueUrl, queueArn } = await assertQueue(sqsClient, creationConfig.queue, {
     topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
     updateAttributesIfExists: creationConfig.updateAttributesIfExists,
+    forceTagUpdate: creationConfig.forceTagUpdate,
   })
   const queueName = creationConfig.queue.QueueName
 

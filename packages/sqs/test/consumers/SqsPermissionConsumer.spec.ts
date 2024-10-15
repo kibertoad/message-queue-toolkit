@@ -1,6 +1,10 @@
 import { setTimeout } from 'node:timers/promises'
 
-import type { SQSClient, SendMessageCommandInput } from '@aws-sdk/client-sqs'
+import {
+  ListQueueTagsCommand,
+  type SQSClient,
+  type SendMessageCommandInput,
+} from '@aws-sdk/client-sqs'
 import { ReceiveMessageCommand, SendMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { BarrierResult } from '@message-queue-toolkit/core'
@@ -63,90 +67,202 @@ describe('SqsPermissionConsumer', () => {
       )
     })
 
-    it('updates existing queue when one with different attributes exist', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: queueName,
-        Attributes: {
-          KmsMasterKeyId: 'somevalue',
-        },
-      })
-
-      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
-        creationConfig: {
-          queue: {
-            QueueName: queueName,
-            Attributes: {
-              KmsMasterKeyId: 'othervalue',
-              VisibilityTimeout: '10',
-            },
+    describe('attributes update', () => {
+      it('updates existing queue when one with different attributes exist', async () => {
+        await assertQueue(sqsClient, {
+          QueueName: queueName,
+          Attributes: {
+            KmsMasterKeyId: 'somevalue',
           },
-          updateAttributesIfExists: true,
-        },
-        deletionConfig: {
-          deleteIfExists: false,
-        },
-        logMessages: true,
+        })
+
+        const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            queue: {
+              QueueName: queueName,
+              Attributes: {
+                KmsMasterKeyId: 'othervalue',
+                VisibilityTimeout: '10',
+              },
+            },
+            updateAttributesIfExists: true,
+          },
+          deletionConfig: {
+            deleteIfExists: false,
+          },
+          logMessages: true,
+        })
+
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+        await newConsumer.init()
+        expect(newConsumer.queueProps.url).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        )
+
+        const updateCall = sqsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'SetQueueAttributesCommand'
+        })
+        expect(updateCall).toBeDefined()
+
+        const attributes = await getQueueAttributes(sqsClient, newConsumer.queueProps.url)
+
+        expect(attributes.result?.attributes).toMatchObject({
+          KmsMasterKeyId: 'othervalue',
+          VisibilityTimeout: '10',
+        })
       })
 
-      const sqsSpy = vi.spyOn(sqsClient, 'send')
+      it('does not update existing queue when attributes did not change', async () => {
+        await assertQueue(sqsClient, {
+          QueueName: queueName,
+          Attributes: {
+            KmsMasterKeyId: 'somevalue',
+          },
+        })
 
-      await newConsumer.init()
-      expect(newConsumer.queueProps.url).toBe(
-        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-      )
+        const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            queue: {
+              QueueName: queueName,
+              Attributes: {
+                KmsMasterKeyId: 'somevalue',
+              },
+            },
+            updateAttributesIfExists: true,
+          },
+          deletionConfig: {
+            deleteIfExists: false,
+          },
+          logMessages: true,
+        })
 
-      const updateCall = sqsSpy.mock.calls.find((entry) => {
-        return entry[0].constructor.name === 'SetQueueAttributesCommand'
-      })
-      expect(updateCall).toBeDefined()
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
 
-      const attributes = await getQueueAttributes(sqsClient, newConsumer.queueProps.url)
+        await newConsumer.init()
+        expect(newConsumer.queueProps.url).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        )
 
-      expect(attributes.result?.attributes).toMatchObject({
-        KmsMasterKeyId: 'othervalue',
-        VisibilityTimeout: '10',
+        const updateCall = sqsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'SetQueueAttributesCommand'
+        })
+        expect(updateCall).toBeUndefined()
+
+        const attributes = await getQueueAttributes(sqsClient, newConsumer.queueProps.url)
+
+        expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('somevalue')
       })
     })
 
-    it('does not update existing queue when attributes did not change', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: queueName,
-        Attributes: {
-          KmsMasterKeyId: 'somevalue',
-        },
+    describe('tags update', () => {
+      const getTags = (queueUrl: string) =>
+        sqsClient.send(new ListQueueTagsCommand({ QueueUrl: queueUrl }))
+
+      it('updates existing queue tags when update is forced', async () => {
+        const initialTags = {
+          project: 'some-project',
+          service: 'some-service',
+          leftover: 'some-leftover',
+        }
+        const newTags = {
+          project: 'some-project',
+          service: 'changed-service',
+          cc: 'some-cc',
+        }
+
+        const assertResult = await assertQueue(sqsClient, {
+          QueueName: queueName,
+          tags: initialTags,
+        })
+        const preTags = await getTags(assertResult.queueUrl)
+        expect(preTags.Tags).toEqual(initialTags)
+
+        const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            queue: {
+              QueueName: queueName,
+              tags: newTags,
+            },
+            forceTagUpdate: true,
+          },
+          deletionConfig: {
+            deleteIfExists: false,
+          },
+          logMessages: true,
+        })
+
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+        await newConsumer.init()
+        expect(newConsumer.queueProps.url).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        )
+
+        const updateCall = sqsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'TagQueueCommand'
+        })
+        expect(updateCall).toBeDefined()
+
+        const postTags = await getTags(assertResult.queueUrl)
+        expect(postTags.Tags).toEqual({
+          ...newTags,
+          leftover: 'some-leftover',
+        })
       })
 
-      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
-        creationConfig: {
-          queue: {
-            QueueName: queueName,
-            Attributes: {
-              KmsMasterKeyId: 'somevalue',
+      it('does not update existing queue tags when update is not forced', async () => {
+        const assertResult = await assertQueue(sqsClient, {
+          QueueName: queueName,
+          tags: {
+            project: 'some-project',
+            service: 'some-service',
+            leftover: 'some-leftover',
+          },
+        })
+        const preTags = await getTags(assertResult.queueUrl)
+        expect(preTags.Tags).toEqual({
+          project: 'some-project',
+          service: 'some-service',
+          leftover: 'some-leftover',
+        })
+
+        const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            queue: {
+              QueueName: queueName,
+              tags: {
+                project: 'some-project',
+                service: 'changed-service',
+                cc: 'some-cc',
+              },
             },
           },
-          updateAttributesIfExists: true,
-        },
-        deletionConfig: {
-          deleteIfExists: false,
-        },
-        logMessages: true,
+          deletionConfig: {
+            deleteIfExists: false,
+          },
+          logMessages: true,
+        })
+
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+        await newConsumer.init()
+        expect(newConsumer.queueProps.url).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        )
+
+        const updateCall = sqsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'TagQueueCommand'
+        })
+        expect(updateCall).toBeUndefined()
+
+        const postTags = await getTags(assertResult.queueUrl)
+        expect(postTags.Tags).toEqual({
+          project: 'some-project',
+          service: 'some-service',
+          leftover: 'some-leftover',
+        })
       })
-
-      const sqsSpy = vi.spyOn(sqsClient, 'send')
-
-      await newConsumer.init()
-      expect(newConsumer.queueProps.url).toBe(
-        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-      )
-
-      const updateCall = sqsSpy.mock.calls.find((entry) => {
-        return entry[0].constructor.name === 'SetQueueAttributesCommand'
-      })
-      expect(updateCall).toBeUndefined()
-
-      const attributes = await getQueueAttributes(sqsClient, newConsumer.queueProps.url)
-
-      expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('somevalue')
     })
   })
 

@@ -19,7 +19,7 @@ import { isShallowSubset, waitAndRetry } from '@message-queue-toolkit/core'
 import type { ExtraSQSCreationParams } from '../sqs/AbstractSqsService'
 
 import { generateQueuePublishForTopicPolicy } from './sqsAttributeUtils'
-import { updateQueueAttributes } from './sqsInitter'
+import { updateQueueAttributes, updateQueueTags } from './sqsInitter'
 
 const AWS_QUEUE_DOES_NOT_EXIST_ERROR_NAME = 'QueueDoesNotExist'
 
@@ -120,6 +120,10 @@ async function updateExistingQueue(
     if (!isShallowSubset(updatedAttributes, existingAttributes.result.attributes)) {
       await updateQueueAttributes(sqsClient, queueUrl, updatedAttributes)
     }
+  }
+
+  if (extraParams?.forceTagUpdate) {
+    await updateQueueTags(sqsClient, queueUrl, queueConfig.tags)
   }
 
   return {
