@@ -230,6 +230,7 @@ export async function initSns(
   const topicArn = await assertTopic(snsClient, creationConfig.topic!, {
     queueUrlsWithSubscribePermissionsPrefix: creationConfig.queueUrlsWithSubscribePermissionsPrefix,
     allowedSourceOwner: creationConfig.allowedSourceOwner,
+    forceTagUpdate: creationConfig.forceTagUpdate,
   })
   return {
     topicArn,

@@ -1,5 +1,7 @@
 import {
   type CreateTopicCommandInput,
+  ListTagsForResourceCommand,
+  ListTopicsCommand,
   type SNSClient,
   TagResourceCommand,
   paginateListTopics,
@@ -83,6 +85,7 @@ export async function assertTopic(
   topicOptions: CreateTopicCommandInput,
   extraParams?: ExtraSNSCreationParams,
 ) {
+  'aws:sns:region:account_id:topic_name'
   const command = new CreateTopicCommand(topicOptions)
   const response = await snsClient.send(command)
 
