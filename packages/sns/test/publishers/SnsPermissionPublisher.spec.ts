@@ -140,37 +140,12 @@ describe('SnsPermissionPublisher', () => {
         expect(updateCall).toBeDefined()
 
         const postTags = await getTags(arn)
-        expect(postTags.Tags).toEqual([...newTags, { Key: 'leftover', Value: 'some-leftover' }])
+        const tags = postTags.Tags
+        expect(tags).toHaveLength(4)
+        expect(postTags.Tags).toEqual(
+          expect.arrayContaining([...newTags, { Key: 'leftover', Value: 'some-leftover' }]),
+        )
       })
-    })
-
-    // TESTING HOW SNS TAGS UPDATE WORKS
-    it.skip('to be removed', async () => {
-      await deleteTopic(snsClient, topicNome)
-      const arn = await assertTopic(snsClient, {
-        Name: topicNome,
-        Tags: [
-          { Key: 'hello', Value: 'world' },
-          { Key: 'goodbye', Value: 'world' },
-        ],
-      })
-
-      const command = new ListTagsForResourceCommand({ ResourceArn: arn })
-      const res = await snsClient.send(command)
-      console.log(res.Tags)
-
-      const updateCommand = new TagResourceCommand({
-        ResourceArn: arn,
-        Tags: [
-          { Key: 'hello', Value: 'friend' },
-          { Key: 'goodbye', Value: 'world' },
-        ],
-      })
-      await snsClient.send(updateCommand)
-
-      const command2 = new ListTagsForResourceCommand({ ResourceArn: arn })
-      const res2 = await snsClient.send(command2)
-      console.log(res2.Tags)
     })
   })
 
