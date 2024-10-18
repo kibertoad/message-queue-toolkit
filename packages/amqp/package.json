@@ -25,7 +25,7 @@
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@lokalise/node-core": "^13.0.0",
+    "@lokalise/node-core": "^13.1.0",
     "zod": "^3.23.8"
   },
   "peerDependencies": {
