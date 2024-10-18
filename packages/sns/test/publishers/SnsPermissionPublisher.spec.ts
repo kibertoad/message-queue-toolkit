@@ -1,4 +1,4 @@
-import type { SNSClient } from '@aws-sdk/client-sns'
+import { ListTagsForResourceCommand, type SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { InternalError } from '@lokalise/node-core'
 import { waitAndRetry } from '@lokalise/node-core'
@@ -6,7 +6,7 @@ import type { SQSMessage } from '@message-queue-toolkit/sqs'
 import { FakeConsumerErrorResolver, assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { deserializeSNSMessage } from '../../lib/utils/snsMessageDeserializer'
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber'
@@ -21,15 +21,19 @@ import type { Dependencies } from '../utils/testContext'
 
 import { SnsPermissionPublisher } from './SnsPermissionPublisher'
 
-const queueName = 'someQueue'
-
 describe('SnsPermissionPublisher', () => {
   describe('init', () => {
+    const topicNome = 'existingTopic'
+
     let diContainer: AwilixContainer<Dependencies>
     let snsClient: SNSClient
     beforeAll(async () => {
       diContainer = await registerDependencies()
       snsClient = diContainer.cradle.snsClient
+    })
+
+    beforeEach(async () => {
+      await deleteTopic(snsClient, topicNome)
     })
 
     it('sets correct policy when policy fields are set', async () => {
@@ -84,7 +88,7 @@ describe('SnsPermissionPublisher', () => {
 
     it('does not create a new queue when queue locator is passed', async () => {
       const arn = await assertTopic(snsClient, {
-        Name: 'existingTopic',
+        Name: topicNome,
       })
 
       const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
@@ -95,11 +99,59 @@ describe('SnsPermissionPublisher', () => {
 
       await newPublisher.init()
       expect(newPublisher.topicArnProp).toEqual(arn)
-      await deleteTopic(snsClient, 'existingTopic')
+    })
+
+    describe('tags', () => {
+      const getTags = (arn: string) =>
+        snsClient.send(new ListTagsForResourceCommand({ ResourceArn: arn }))
+
+      it('updates existing queue tags when update is forced', async () => {
+        const initialTags = [
+          { Key: 'project', Value: 'some-project' },
+          { Key: 'service', Value: 'some-service' },
+          { Key: 'leftover', Value: 'some-leftover' },
+        ]
+        const newTags = [
+          { Key: 'project', Value: 'some-project' },
+          { Key: 'service', Value: 'changed-service' },
+          { Key: 'cc', Value: 'some-cc' },
+        ]
+
+        const arn = await assertTopic(snsClient, {
+          Name: topicNome,
+          Tags: initialTags,
+        })
+        const preTags = await getTags(arn)
+        expect(preTags.Tags).toEqual(initialTags)
+
+        const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
+          creationConfig: {
+            topic: { Name: topicNome, Tags: newTags },
+            forceTagUpdate: true,
+          },
+        })
+
+        const snsSpy = vi.spyOn(snsClient, 'send')
+        await newPublisher.init()
+
+        const updateCall = snsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'TagResourceCommand'
+        })
+        expect(updateCall).toBeDefined()
+
+        const postTags = await getTags(arn)
+        const tags = postTags.Tags
+        expect(tags).toHaveLength(4)
+        expect(postTags.Tags).toEqual(
+          expect.arrayContaining([...newTags, { Key: 'leftover', Value: 'some-leftover' }]),
+        )
+      })
     })
   })
 
   describe('publish', () => {
+    const queueName = 'someQueue'
+
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
     let snsClient: SNSClient
