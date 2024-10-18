@@ -1,5 +1,5 @@
-import { ListTagsForResourceCommand, type SNSClient, TagResourceCommand } from '@aws-sdk/client-sns'
-import { ListQueueTagsCommand, SQSClient } from '@aws-sdk/client-sqs'
+import { ListTagsForResourceCommand, type SNSClient } from '@aws-sdk/client-sns'
+import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { InternalError } from '@lokalise/node-core'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
@@ -30,6 +30,10 @@ describe('SnsPermissionPublisher', () => {
     beforeAll(async () => {
       diContainer = await registerDependencies()
       snsClient = diContainer.cradle.snsClient
+    })
+
+    beforeEach(async () => {
+      await deleteTopic(snsClient, topicNome)
     })
 
     it('sets correct policy when policy fields are set', async () => {
@@ -95,7 +99,6 @@ describe('SnsPermissionPublisher', () => {
 
       await newPublisher.init()
       expect(newPublisher.topicArnProp).toEqual(arn)
-      await deleteTopic(snsClient, topicNome)
     })
 
     describe('tags', () => {
@@ -123,10 +126,7 @@ describe('SnsPermissionPublisher', () => {
 
         const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
           creationConfig: {
-            topic: {
-              Name: topicNome,
-              Tags: newTags,
-            },
+            topic: { Name: topicNome, Tags: newTags },
             forceTagUpdate: true,
           },
         })
