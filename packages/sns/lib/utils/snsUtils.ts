@@ -1,7 +1,5 @@
 import {
   type CreateTopicCommandInput,
-  ListTagsForResourceCommand,
-  ListTopicsCommand,
   type SNSClient,
   TagResourceCommand,
   paginateListTopics,
@@ -15,11 +13,12 @@ import {
   SetTopicAttributesCommand,
   UnsubscribeCommand,
 } from '@aws-sdk/client-sns'
-import type { Either } from '@lokalise/node-core'
+import { type Either, isError } from '@lokalise/node-core'
 import { calculateOutgoingMessageSize as sqsCalculateOutgoingMessageSize } from '@message-queue-toolkit/sqs'
 
 import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
 
+import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts'
 import { generateTopicSubscriptionPolicy } from './snsAttributeUtils'
 
 type AttributesResult = {
@@ -85,14 +84,19 @@ export async function assertTopic(
   topicOptions: CreateTopicCommandInput,
   extraParams?: ExtraSNSCreationParams,
 ) {
-  'aws:sns:region:account_id:topic_name'
-  const command = new CreateTopicCommand(topicOptions)
-  const response = await snsClient.send(command)
-
-  if (!response.TopicArn) {
-    throw new Error('No topic arn in response')
+  let topicArn: string
+  try {
+    const command = new CreateTopicCommand(topicOptions)
+    const response = await snsClient.send(command)
+    if (!response.TopicArn) throw new Error('No topic arn in response')
+    topicArn = response.TopicArn
+  } catch (err) {
+    // We only manually build ARN in case of tag update
+    if (!extraParams?.forceTagUpdate) throw err
+    // To build ARN we need topic name and error should be "topic already exist with different tags"
+    if (!topicOptions.Name || !isTopicAlreadyExistWithDifferentTagsError(err)) throw err
+    topicArn = await buildTopicArn(snsClient, topicOptions.Name)
   }
-  const topicArn = response.TopicArn
 
   if (extraParams?.queueUrlsWithSubscribePermissionsPrefix || extraParams?.allowedSourceOwner) {
     const setTopicAttributesCommand = new SetTopicAttributesCommand({
@@ -189,3 +193,35 @@ export async function getTopicArnByName(snsClient: SNSClient, topicName?: string
  */
 export const calculateOutgoingMessageSize = (message: unknown) =>
   sqsCalculateOutgoingMessageSize(message)
+
+const isTopicAlreadyExistWithDifferentTagsError = (error: unknown) =>
+  !!error &&
+  isError(error) &&
+  'Error' in error &&
+  !!error.Error &&
+  typeof error.Error === 'object' &&
+  'Code' in error.Error &&
+  'Message' in error.Error &&
+  typeof error.Error.Message === 'string' &&
+  error.Error.Code === 'InvalidParameter' &&
+  error.Error.Message.includes('already exists with different tags')
+
+/**
+ * Manually builds the ARN of a topic based on the current AWS account and the topic name.
+ * It follows the following pattern: arn:aws:sns:<region>:<account-id>:<topic-name>
+ * Doc -> https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html
+ */
+const buildTopicArn = async (client: SNSClient, topicName: string) => {
+  const region =
+    typeof client.config.region === 'string' ? client.config.region : await client.config.region()
+
+  const stsClient = new STSClient({
+    endpoint: client.config.endpoint,
+    region,
+    credentials: client.config.credentials,
+    endpointProvider: client.config.endpointProvider,
+  })
+  const identityResponse = await stsClient.send(new GetCallerIdentityCommand({}))
+
+  return `arn:aws:sns:${region}:${identityResponse.Account}:${topicName}`
+}
