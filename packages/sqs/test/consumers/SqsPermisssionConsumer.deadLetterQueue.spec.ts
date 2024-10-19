@@ -1,4 +1,4 @@
-import type { SQSClient } from '@aws-sdk/client-sqs'
+import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { AwilixContainer } from 'awilix'
@@ -118,6 +118,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         const result = await assertQueue(sqsClient, {
           QueueName: customDeadLetterQueueName,
           Attributes: { KmsMasterKeyId: 'my first value' },
+          tags: { tag: 'old', hello: 'world' },
         })
         dlqUrl = result.queueUrl
       })
@@ -154,7 +155,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         expect(consumer.dlqUrl).toBe(dlqUrl)
       })
 
-      it('updates existing dlq when one with different attributes exist', async () => {
+      it('updates existing dlq attributes', async () => {
         consumer = new SqsPermissionConsumer(diContainer.cradle, {
           creationConfig: { queue: { QueueName: customQueueName }, updateAttributesIfExists: true },
           deadLetterQueue: {
@@ -178,6 +179,37 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         const attributes = await getQueueAttributes(sqsClient, consumer.dlqUrl)
 
         expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('new value')
+      })
+
+      it('updates existing dlq tags', async () => {
+        consumer = new SqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: { queue: { QueueName: customQueueName }, updateAttributesIfExists: true },
+          deadLetterQueue: {
+            redrivePolicy: { maxReceiveCount: 5 },
+            creationConfig: {
+              forceTagUpdate: true,
+              queue: {
+                QueueName: customDeadLetterQueueName,
+                tags: { tag: 'new', good: 'bye' },
+              },
+            },
+          },
+        })
+
+        await consumer.init()
+        expect(consumer.queueProps.url).toBe(
+          `http://sqs.eu-west-1.localstack:4566/000000000000/${customQueueName}`,
+        )
+        expect(consumer.dlqUrl).toBe(dlqUrl)
+
+        const tags = await sqsClient.send(new ListQueueTagsCommand({ QueueUrl: consumer.dlqUrl }))
+        expect(tags.Tags).toMatchInlineSnapshot(`
+          {
+            "good": "bye",
+            "hello": "world",
+            "tag": "new",
+          }
+        `)
       })
 
       it('connect existing dlq to existing queue', async () => {
