@@ -37,6 +37,7 @@ async function resolveTopicArnToSubscribeTo(
     return await assertTopic(snsClient, stsClient, topicConfiguration, {
       queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
       allowedSourceOwner: extraParams?.allowedSourceOwner,
+      forceTagUpdate: extraParams?.forceTagUpdate,
     })
   }
 
