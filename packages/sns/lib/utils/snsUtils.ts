@@ -112,7 +112,7 @@ export async function assertTopic(
     })
     await snsClient.send(setTopicAttributesCommand)
   }
-  if (extraParams?.forceTagUpdate) {
+  if (extraParams?.forceTagUpdate && topicOptions.Tags) {
     const tagTopicCommand = new TagResourceCommand({
       ResourceArn: topicArn,
       Tags: topicOptions.Tags,

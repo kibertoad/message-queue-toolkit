@@ -106,9 +106,6 @@ describe('SnsSqsPermissionConsumer', () => {
       expect(newConsumer.subscriptionProps.subscriptionArn).toMatch(
         `arn:aws:sns:eu-west-1:000000000000:${topicNome}:`,
       )
-
-      await deleteTopic(snsClient, stsClient, topicNome)
-      await deleteQueue(sqsClient, queueName)
     })
 
     describe('tags update', () => {
@@ -141,7 +138,7 @@ describe('SnsSqsPermissionConsumer', () => {
         const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
           creationConfig: {
             topic: {
-              Name: 'some-topic',
+              Name: topicNome,
             },
             queue: {
               QueueName: queueName,
