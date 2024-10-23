@@ -13,6 +13,7 @@ import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
+import type { STSClient } from '@aws-sdk/client-sts'
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
 
 describe('SnsSqsPermissionConsumer', () => {
@@ -22,11 +23,13 @@ describe('SnsSqsPermissionConsumer', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
     let snsClient: SNSClient
+    let stsClient: STSClient
 
     beforeAll(async () => {
       diContainer = await registerDependencies({}, false)
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
+      stsClient = diContainer.cradle.stsClient
     })
     beforeEach(async () => {
       await deleteQueue(sqsClient, queueName)
@@ -54,7 +57,7 @@ describe('SnsSqsPermissionConsumer', () => {
         QueueName: queueName,
       })
 
-      const arn = await assertTopic(snsClient, {
+      const arn = await assertTopic(snsClient, stsClient, {
         Name: 'existingTopic',
       })
 
@@ -76,11 +79,11 @@ describe('SnsSqsPermissionConsumer', () => {
       expect(newConsumer.subscriptionProps.subscriptionArn).toBe(
         'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
       )
-      await deleteTopic(snsClient, 'existingTopic')
+      await deleteTopic(snsClient, stsClient, 'existingTopic')
     })
 
     it('does not create a new topic when mixed locator is passed', async () => {
-      const arn = await assertTopic(snsClient, {
+      const arn = await assertTopic(snsClient, stsClient, {
         Name: 'existingTopic',
       })
 
@@ -104,7 +107,7 @@ describe('SnsSqsPermissionConsumer', () => {
       expect(newConsumer.subscriptionProps.subscriptionArn).toMatch(
         'arn:aws:sns:eu-west-1:000000000000:existingTopic',
       )
-      await deleteTopic(snsClient, 'existingTopic')
+      await deleteTopic(snsClient, stsClient, 'existingTopic')
     })
 
     describe('tags update', () => {

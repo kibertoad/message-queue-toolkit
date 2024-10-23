@@ -19,6 +19,7 @@ import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
+import type { STSClient } from '@aws-sdk/client-sts'
 import { SnsPermissionPublisher } from './SnsPermissionPublisher'
 
 describe('SnsPermissionPublisher', () => {
@@ -27,13 +28,16 @@ describe('SnsPermissionPublisher', () => {
 
     let diContainer: AwilixContainer<Dependencies>
     let snsClient: SNSClient
+    let stsClient: STSClient
+
     beforeAll(async () => {
       diContainer = await registerDependencies()
       snsClient = diContainer.cradle.snsClient
+      stsClient = diContainer.cradle.stsClient
     })
 
     beforeEach(async () => {
-      await deleteTopic(snsClient, topicNome)
+      await deleteTopic(snsClient, stsClient, topicNome)
     })
 
     it('sets correct policy when policy fields are set', async () => {
@@ -87,7 +91,7 @@ describe('SnsPermissionPublisher', () => {
     })
 
     it('does not create a new queue when queue locator is passed', async () => {
-      const arn = await assertTopic(snsClient, {
+      const arn = await assertTopic(snsClient, stsClient, {
         Name: topicNome,
       })
 
@@ -117,7 +121,7 @@ describe('SnsPermissionPublisher', () => {
           { Key: 'cc', Value: 'some-cc' },
         ]
 
-        const arn = await assertTopic(snsClient, {
+        const arn = await assertTopic(snsClient, stsClient, {
           Name: topicNome,
           Tags: initialTags,
         })
@@ -155,16 +159,19 @@ describe('SnsPermissionPublisher', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
     let snsClient: SNSClient
+    let stsClient: STSClient
+
     let consumer: Consumer
 
     beforeEach(async () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
+      stsClient = diContainer.cradle.stsClient
       await diContainer.cradle.permissionConsumer.close()
 
       await deleteQueue(sqsClient, queueName)
-      await deleteTopic(snsClient, SnsPermissionPublisher.TOPIC_NAME)
+      await deleteTopic(snsClient, stsClient, SnsPermissionPublisher.TOPIC_NAME)
     })
 
     afterEach(async () => {
@@ -189,6 +196,7 @@ describe('SnsPermissionPublisher', () => {
       await subscribeToTopic(
         sqsClient,
         snsClient,
+        stsClient,
         {
           QueueName: queueName,
         },
@@ -251,6 +259,7 @@ describe('SnsPermissionPublisher', () => {
       await subscribeToTopic(
         sqsClient,
         snsClient,
+        stsClient,
         {
           QueueName: queueName,
         },
@@ -319,6 +328,7 @@ describe('SnsPermissionPublisher', () => {
       await subscribeToTopic(
         sqsClient,
         snsClient,
+        stsClient,
         {
           QueueName: queueName,
         },
