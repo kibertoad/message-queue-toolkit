@@ -19,7 +19,8 @@ import { calculateOutgoingMessageSize as sqsCalculateOutgoingMessageSize } from 
 import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
 
 import type { STSClient } from '@aws-sdk/client-sts'
-import { buildTopicArn, generateTopicSubscriptionPolicy } from './snsAttributeUtils'
+import { generateTopicSubscriptionPolicy } from './snsAttributeUtils'
+import { buildTopicArn } from './stsUtils'
 
 type AttributesResult = {
   attributes?: Record<string, string>
