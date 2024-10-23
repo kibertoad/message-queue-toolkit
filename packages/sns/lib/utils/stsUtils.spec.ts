@@ -14,7 +14,9 @@ describe('stsUtils', () => {
   describe('buildTopicArn', () => {
     it('build ARN for topic', async () => {
       const topicName = 'my-test-topic'
-      await expect(buildTopicArn(stsClient, topicName)).resolves.toMatchInlineSnapshot(`"arn:aws:sns:eu-west-1:000000000000:my-test-topic"`)
+      await expect(buildTopicArn(stsClient, topicName)).resolves.toMatchInlineSnapshot(
+        `"arn:aws:sns:eu-west-1:000000000000:my-test-topic"`,
+      )
     })
   })
 })
