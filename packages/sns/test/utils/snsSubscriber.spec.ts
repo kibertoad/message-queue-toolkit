@@ -12,6 +12,7 @@ import {
 } from '../../lib/utils/snsUtils'
 import { FakeLogger } from '../fakes/FakeLogger'
 
+import type { STSClient } from '@aws-sdk/client-sts'
 import type { Dependencies } from './testContext'
 import { registerDependencies } from './testContext'
 
@@ -22,11 +23,13 @@ describe('snsSubscriber', () => {
   let diContainer: AwilixContainer<Dependencies>
   let snsClient: SNSClient
   let sqsClient: SQSClient
+  let stsClient: STSClient
 
   beforeEach(async () => {
     diContainer = await registerDependencies({}, false)
     snsClient = diContainer.cradle.snsClient
     sqsClient = diContainer.cradle.sqsClient
+    stsClient = diContainer.cradle.stsClient
   })
 
   afterEach(async () => {
@@ -34,7 +37,7 @@ describe('snsSubscriber', () => {
     await awilixManager.executeDispose()
     await diContainer.dispose()
 
-    await deleteTopic(snsClient, TOPIC_NAME)
+    await deleteTopic(snsClient, stsClient, TOPIC_NAME)
     await deleteQueue(sqsClient, QUEUE_NAME)
   })
 
@@ -44,6 +47,7 @@ describe('snsSubscriber', () => {
       await subscribeToTopic(
         sqsClient,
         snsClient,
+        stsClient,
         {
           QueueName: QUEUE_NAME,
         },
@@ -63,6 +67,7 @@ describe('snsSubscriber', () => {
         subscribeToTopic(
           sqsClient,
           snsClient,
+          stsClient,
           {
             QueueName: QUEUE_NAME,
           },
@@ -95,6 +100,7 @@ describe('snsSubscriber', () => {
       const subscription = await subscribeToTopic(
         sqsClient,
         snsClient,
+        stsClient,
         {
           QueueName: QUEUE_NAME,
         },
@@ -113,6 +119,7 @@ describe('snsSubscriber', () => {
       await subscribeToTopic(
         sqsClient,
         snsClient,
+        stsClient,
         {
           QueueName: QUEUE_NAME,
         },

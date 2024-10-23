@@ -141,7 +141,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
           )
           .build(),
         deletionConfig: options.deletionConfig ?? {
-          deleteIfExists: true,
+          deleteIfExists: false,
         },
         payloadStoreConfig: options.payloadStoreConfig,
         consumerOverrides: options.consumerOverrides ?? {

@@ -21,6 +21,7 @@ import { SnsPublisherManager } from '../../lib/sns/SnsPublisherManager'
 import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 
+import { STSClient } from '@aws-sdk/client-sts'
 import { CreateLocateConfigMixPublisher } from '../publishers/CreateLocateConfigMixPublisher'
 import { TEST_AWS_CONFIG } from './testSnsConfig'
 
@@ -92,6 +93,14 @@ export async function registerDependencies(
     snsClient: asFunction(
       () => {
         return new SNSClient(TEST_AWS_CONFIG)
+      },
+      {
+        lifetime: Lifetime.SINGLETON,
+      },
+    ),
+    stsClient: asFunction(
+      () => {
+        return new STSClient(TEST_AWS_CONFIG)
       },
       {
         lifetime: Lifetime.SINGLETON,
@@ -182,6 +191,7 @@ export interface Dependencies {
   logger: Logger
   sqsClient: SQSClient
   snsClient: SNSClient
+  stsClient: STSClient
   s3: S3
   awilixManager: AwilixManager
 

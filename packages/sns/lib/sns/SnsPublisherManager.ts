@@ -79,6 +79,7 @@ export class SnsPublisherManager<
       newPublisherOptions: options.newPublisherOptions,
       publisherDependencies: {
         snsClient: dependencies.snsClient,
+        stsClient: dependencies.stsClient,
         logger: dependencies.logger,
         errorReporter: dependencies.errorReporter,
       },

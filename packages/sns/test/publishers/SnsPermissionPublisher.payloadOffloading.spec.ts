@@ -25,6 +25,7 @@ import { assertBucket, getObjectContent } from '../utils/s3Utils'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
+import type { STSClient } from '@aws-sdk/client-sts'
 import { SnsPermissionPublisher } from './SnsPermissionPublisher'
 
 const queueName = 'payloadOffloadingTestQueue'
@@ -37,6 +38,7 @@ describe('SnsPermissionPublisher', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
     let snsClient: SNSClient
+    let stsClient: STSClient
     let s3: S3
 
     let payloadStoreConfig: PayloadStoreConfig
@@ -51,6 +53,7 @@ describe('SnsPermissionPublisher', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
+      stsClient = diContainer.cradle.stsClient
       s3 = diContainer.cradle.s3
 
       await assertBucket(s3, s3BucketName)
@@ -64,13 +67,14 @@ describe('SnsPermissionPublisher', () => {
 
     beforeEach(async () => {
       await deleteQueue(sqsClient, queueName)
-      await deleteTopic(snsClient, SnsPermissionPublisher.TOPIC_NAME)
+      await deleteTopic(snsClient, stsClient, SnsPermissionPublisher.TOPIC_NAME)
       const { queueUrl } = await assertQueue(sqsClient, {
         QueueName: queueName,
       })
       await subscribeToTopic(
         sqsClient,
         snsClient,
+        stsClient,
         { QueueName: queueName },
         {
           Name: SnsPermissionPublisher.TOPIC_NAME,

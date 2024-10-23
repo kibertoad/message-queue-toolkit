@@ -2,6 +2,7 @@ import type { CreateTopicCommandInput, SNSClient, Tag } from '@aws-sdk/client-sn
 import type { QueueDependencies, QueueOptions } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
+import type { STSClient } from '@aws-sdk/client-sts'
 import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
 import { deleteSns, initSns } from '../utils/snsInitter'
 
@@ -10,6 +11,7 @@ export const SNS_MESSAGE_MAX_SIZE = 256 * 1024 // 256KB
 
 export type SNSDependencies = QueueDependencies & {
   snsClient: SNSClient
+  stsClient: STSClient
 }
 
 export type SNSTopicAWSConfig = CreateTopicCommandInput
@@ -31,6 +33,7 @@ export type SNSTopicConfig = {
 export type ExtraSNSCreationParams = {
   queueUrlsWithSubscribePermissionsPrefix?: string | readonly string[]
   allowedSourceOwner?: string
+  forceTagUpdate?: boolean
 }
 
 export type SNSCreationConfig = {
@@ -59,6 +62,7 @@ export abstract class AbstractSnsService<
   SNSOptionsType
 > {
   protected readonly snsClient: SNSClient
+  protected readonly stsClient: STSClient
   // @ts-ignore
   protected topicArn: string
 
@@ -66,14 +70,20 @@ export abstract class AbstractSnsService<
     super(dependencies, options)
 
     this.snsClient = dependencies.snsClient
+    this.stsClient = dependencies.stsClient
   }
 
   public async init() {
     if (this.deletionConfig && this.creationConfig) {
-      await deleteSns(this.snsClient, this.deletionConfig, this.creationConfig)
+      await deleteSns(this.snsClient, this.stsClient, this.deletionConfig, this.creationConfig)
     }
 
-    const initResult = await initSns(this.snsClient, this.locatorConfig, this.creationConfig)
+    const initResult = await initSns(
+      this.snsClient,
+      this.stsClient,
+      this.locatorConfig,
+      this.creationConfig,
+    )
     this.topicArn = initResult.topicArn
     this.isInitted = true
   }

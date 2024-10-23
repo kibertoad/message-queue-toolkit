@@ -16,6 +16,7 @@ import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublishe
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
+import type { STSClient } from '@aws-sdk/client-sts'
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
 import type { PERMISSIONS_REMOVE_MESSAGE_TYPE } from './userConsumerSchemas'
 
@@ -28,6 +29,7 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
   let diContainer: AwilixContainer<Dependencies>
   let sqsClient: SQSClient
   let snsClient: SNSClient
+  let stsClient: STSClient
 
   let publisher: SnsPermissionPublisher
   let consumer: SnsSqsPermissionConsumer | undefined
@@ -36,13 +38,14 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
     diContainer = await registerDependencies({}, false)
     sqsClient = diContainer.cradle.sqsClient
     snsClient = diContainer.cradle.snsClient
+    stsClient = diContainer.cradle.stsClient
     publisher = diContainer.cradle.permissionPublisher
   })
 
   beforeEach(async () => {
     await deleteQueue(sqsClient, queueName)
     await deleteQueue(sqsClient, deadLetterQueueName)
-    await deleteTopic(snsClient, topicName)
+    await deleteTopic(snsClient, stsClient, topicName)
   })
 
   afterEach(async () => {
@@ -61,7 +64,7 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
     beforeEach(async () => {
       await deleteQueue(sqsClient, queueName)
       await deleteQueue(sqsClient, deadLetterQueueName)
-      await deleteTopic(snsClient, topicName)
+      await deleteTopic(snsClient, stsClient, topicName)
     })
 
     it('creates a new dead letter queue', async () => {
