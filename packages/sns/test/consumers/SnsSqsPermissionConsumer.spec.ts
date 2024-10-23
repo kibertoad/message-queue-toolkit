@@ -414,13 +414,14 @@ describe('SnsSqsPermissionConsumer', () => {
   describe('preHandlers', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SnsPermissionPublisher
-    beforeEach(async () => {
+
+    beforeAll(async () => {
       diContainer = await registerDependencies({}, false)
       publisher = diContainer.cradle.permissionPublisher
       await publisher.init()
     })
 
-    afterEach(async () => {
+    afterAll(async () => {
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
@@ -525,16 +526,15 @@ describe('SnsSqsPermissionConsumer', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SnsPermissionPublisher
     let consumer: SnsSqsPermissionConsumer
-    beforeEach(async () => {
+
+    beforeAll(async () => {
       diContainer = await registerDependencies()
       publisher = diContainer.cradle.permissionPublisher
       consumer = diContainer.cradle.permissionConsumer
     })
 
-    afterEach(async () => {
-      const { awilixManager } = diContainer.cradle
-
-      await awilixManager.executeDispose()
+    afterAll(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
 
@@ -569,14 +569,19 @@ describe('SnsSqsPermissionConsumer', () => {
     const queueName = 'myTestQueue'
     let diContainer: AwilixContainer<Dependencies>
 
-    beforeEach(async () => {
+    beforeAll(async () => {
       diContainer = await registerDependencies({
         permissionConsumer: asValue(() => undefined),
         permissionPublisher: asValue(() => undefined),
       })
     })
 
-    afterEach(async () => {
+    beforeEach(async () => {
+      await deleteQueue(diContainer.cradle.sqsClient, queueName)
+      await deleteTopic(diContainer.cradle.snsClient, diContainer.cradle.stsClient, topicName)
+    })
+
+    afterAll(async () => {
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
@@ -644,14 +649,19 @@ describe('SnsSqsPermissionConsumer', () => {
     const queueName = 'myTestQueue'
     let diContainer: AwilixContainer<Dependencies>
 
-    beforeEach(async () => {
+    beforeAll(async () => {
       diContainer = await registerDependencies({
         permissionConsumer: asValue(() => undefined),
         permissionPublisher: asValue(() => undefined),
       })
     })
 
-    afterEach(async () => {
+    beforeEach(async () => {
+      await deleteQueue(diContainer.cradle.sqsClient, queueName)
+      await deleteTopic(diContainer.cradle.snsClient, diContainer.cradle.stsClient, topicName)
+    })
+
+    afterAll(async () => {
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
