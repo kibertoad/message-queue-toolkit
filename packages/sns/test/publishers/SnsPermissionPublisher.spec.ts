@@ -109,7 +109,7 @@ describe('SnsPermissionPublisher', () => {
       const getTags = (arn: string) =>
         snsClient.send(new ListTagsForResourceCommand({ ResourceArn: arn }))
 
-      it('updates existing queue tags when update is forced', async () => {
+      it('updates existing topic tags when update is forced', async () => {
         const initialTags = [
           { Key: 'project', Value: 'some-project' },
           { Key: 'service', Value: 'some-service' },
@@ -148,6 +148,30 @@ describe('SnsPermissionPublisher', () => {
         expect(tags).toHaveLength(4)
         expect(postTags.Tags).toEqual(
           expect.arrayContaining([...newTags, { Key: 'leftover', Value: 'some-leftover' }]),
+        )
+      })
+
+      it('should throw error if tags are different and force tag update is not true', async () => {
+        const initialTags = [
+          { Key: 'project', Value: 'some-project' },
+          { Key: 'service', Value: 'some-service' },
+          { Key: 'leftover', Value: 'some-leftover' },
+        ]
+        const arn = await assertTopic(snsClient, stsClient, {
+          Name: topicNome,
+          Tags: initialTags,
+        })
+        const preTags = await getTags(arn)
+        expect(preTags.Tags).toEqual(initialTags)
+
+        const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
+          creationConfig: {
+            topic: { Name: topicNome, Tags: [{ Key: 'example', Value: 'should fail' }] },
+          },
+        })
+
+        await expect(newPublisher.init()).rejects.toThrowError(
+          /Topic already exists with different tags/,
         )
       })
     })
