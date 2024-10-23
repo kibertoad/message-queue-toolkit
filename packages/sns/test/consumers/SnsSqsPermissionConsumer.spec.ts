@@ -1,12 +1,10 @@
 import { setTimeout } from 'node:timers/promises'
-
-import type { SNSClient } from '@aws-sdk/client-sns'
+import { ListTagsForResourceCommand, type SNSClient } from '@aws-sdk/client-sns'
 import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
-import type { AwilixContainer } from 'awilix'
-import { asValue } from 'awilix'
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { type AwilixContainer, asValue } from 'awilix'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
@@ -19,6 +17,7 @@ import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
 describe('SnsSqsPermissionConsumer', () => {
   describe('init', () => {
     const queueName = 'some-queue'
+    const topicNome = 'some-topic'
 
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
@@ -33,6 +32,7 @@ describe('SnsSqsPermissionConsumer', () => {
     })
     beforeEach(async () => {
       await deleteQueue(sqsClient, queueName)
+      await deleteTopic(snsClient, stsClient, topicNome)
     })
 
     // FixMe https://github.com/localstack/localstack/issues/9306
@@ -58,7 +58,7 @@ describe('SnsSqsPermissionConsumer', () => {
       })
 
       const arn = await assertTopic(snsClient, stsClient, {
-        Name: 'existingTopic',
+        Name: topicNome,
       })
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
@@ -79,40 +79,44 @@ describe('SnsSqsPermissionConsumer', () => {
       expect(newConsumer.subscriptionProps.subscriptionArn).toBe(
         'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
       )
-      await deleteTopic(snsClient, stsClient, 'existingTopic')
     })
 
     it('does not create a new topic when mixed locator is passed', async () => {
       const arn = await assertTopic(snsClient, stsClient, {
-        Name: 'existingTopic',
+        Name: topicNome,
       })
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
-          topicName: 'existingTopic',
+          topicName: topicNome,
         },
         creationConfig: {
           queue: {
-            QueueName: 'newQueue',
+            QueueName: queueName,
           },
         },
       })
 
       await newConsumer.init()
       expect(newConsumer.subscriptionProps.queueUrl).toBe(
-        'http://sqs.eu-west-1.localstack:4566/000000000000/newQueue',
+        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
       )
-      expect(newConsumer.subscriptionProps.queueName).toBe('newQueue')
+      expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
       expect(newConsumer.subscriptionProps.topicArn).toEqual(arn)
       expect(newConsumer.subscriptionProps.subscriptionArn).toMatch(
-        'arn:aws:sns:eu-west-1:000000000000:existingTopic',
+        `arn:aws:sns:eu-west-1:000000000000:${topicNome}:`,
       )
-      await deleteTopic(snsClient, stsClient, 'existingTopic')
+
+      await deleteTopic(snsClient, stsClient, topicNome)
+      await deleteQueue(sqsClient, queueName)
     })
 
     describe('tags update', () => {
-      const getTags = (queueUrl: string) =>
+      const getQueueTags = (queueUrl: string) =>
         sqsClient.send(new ListQueueTagsCommand({ QueueUrl: queueUrl }))
+
+      const getTopicTags = (arn: string) =>
+        snsClient.send(new ListTagsForResourceCommand({ ResourceArn: arn }))
 
       it('updates existing queue tags when update is forced', async () => {
         const initialTags = {
@@ -129,7 +133,7 @@ describe('SnsSqsPermissionConsumer', () => {
           QueueName: queueName,
           tags: initialTags,
         })
-        const preTags = await getTags(assertResult.queueUrl)
+        const preTags = await getQueueTags(assertResult.queueUrl)
         expect(preTags.Tags).toEqual(initialTags)
 
         const sqsSpy = vi.spyOn(sqsClient, 'send')
@@ -159,7 +163,7 @@ describe('SnsSqsPermissionConsumer', () => {
         })
         expect(updateCall).toBeDefined()
 
-        const postTags = await getTags(assertResult.queueUrl)
+        const postTags = await getQueueTags(assertResult.queueUrl)
         expect(postTags.Tags).toEqual({
           ...newTags,
           leftover: 'some-leftover',
@@ -176,7 +180,7 @@ describe('SnsSqsPermissionConsumer', () => {
           QueueName: queueName,
           tags: initialTags,
         })
-        const preTags = await getTags(assertResult.queueUrl)
+        const preTags = await getQueueTags(assertResult.queueUrl)
         expect(preTags.Tags).toEqual(initialTags)
 
         const sqsSpy = vi.spyOn(sqsClient, 'send')
@@ -205,8 +209,149 @@ describe('SnsSqsPermissionConsumer', () => {
         })
         expect(updateCall).toBeUndefined()
 
-        const postTags = await getTags(assertResult.queueUrl)
+        const postTags = await getQueueTags(assertResult.queueUrl)
         expect(postTags.Tags).toEqual(initialTags)
+      })
+
+      it('updates existing topic tags when update is forced', async () => {
+        const initialTags = [
+          { Key: 'project', Value: 'some-project' },
+          { Key: 'service', Value: 'some-service' },
+          { Key: 'leftover', Value: 'some-leftover' },
+        ]
+        const newTags = [
+          { Key: 'project', Value: 'some-project' },
+          { Key: 'service', Value: 'changed-service' },
+          { Key: 'cc', Value: 'some-cc' },
+        ]
+
+        const arn = await assertTopic(snsClient, stsClient, {
+          Name: topicNome,
+          Tags: initialTags,
+        })
+        const preTags = await getTopicTags(arn)
+        expect(preTags.Tags).toEqual(initialTags)
+
+        const consumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            topic: { Name: topicNome, Tags: newTags },
+            queue: { QueueName: queueName },
+            forceTagUpdate: true,
+          },
+        })
+
+        const snsSpy = vi.spyOn(snsClient, 'send')
+        await consumer.init()
+
+        const updateCall = snsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'TagResourceCommand'
+        })
+        expect(updateCall).toBeDefined()
+
+        const postTags = await getTopicTags(arn)
+        const tags = postTags.Tags
+        expect(tags).toHaveLength(4)
+        expect(postTags.Tags).toEqual(
+          expect.arrayContaining([...newTags, { Key: 'leftover', Value: 'some-leftover' }]),
+        )
+      })
+
+      it('should throw error if tags are different and force tag update is not true', async () => {
+        const initialTags = [
+          { Key: 'project', Value: 'some-project' },
+          { Key: 'service', Value: 'some-service' },
+          { Key: 'leftover', Value: 'some-leftover' },
+        ]
+
+        const arn = await assertTopic(snsClient, stsClient, {
+          Name: topicNome,
+          Tags: initialTags,
+        })
+        const preTags = await getTopicTags(arn)
+        expect(preTags.Tags).toEqual(initialTags)
+
+        const consumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            topic: { Name: topicNome, Tags: [{ Key: 'example', Value: 'should fail' }] },
+            queue: { QueueName: queueName },
+          },
+        })
+
+        await expect(consumer.init()).rejects.toThrowError(
+          /Topic already exists with different tags/,
+        )
+      })
+
+      it('updates existing queue and topic tags when update is forced', async () => {
+        const initialTopicTags = [
+          { Key: 'project', Value: 'some-project' },
+          { Key: 'service', Value: 'some-service' },
+          { Key: 'leftover', Value: 'some-leftover' },
+        ]
+        const newTopicTags = [
+          { Key: 'project', Value: 'some-project' },
+          { Key: 'service', Value: 'changed-service' },
+          { Key: 'cc', Value: 'some-cc' },
+        ]
+
+        const arn = await assertTopic(snsClient, stsClient, {
+          Name: topicNome,
+          Tags: initialTopicTags,
+        })
+        const preTopicTags = await getTopicTags(arn)
+        expect(preTopicTags.Tags).toEqual(initialTopicTags)
+
+        const initialQueueTags = {
+          project: 'some-project',
+          service: 'some-service',
+          leftover: 'some-leftover',
+        }
+        const newQueueTags = {
+          project: 'some-project',
+          service: 'changed-service',
+          cc: 'some-cc',
+        }
+        const assertResult = await assertQueue(sqsClient, {
+          QueueName: queueName,
+          tags: initialQueueTags,
+        })
+        const preQueueTags = await getQueueTags(assertResult.queueUrl)
+        expect(preQueueTags.Tags).toEqual(initialQueueTags)
+
+        const consumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+          creationConfig: {
+            topic: { Name: topicNome, Tags: newTopicTags },
+            queue: { QueueName: queueName, tags: newQueueTags },
+            forceTagUpdate: true,
+          },
+        })
+
+        const snsSpy = vi.spyOn(snsClient, 'send')
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
+        await consumer.init()
+
+        const updateTopicCall = snsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'TagResourceCommand'
+        })
+        expect(updateTopicCall).toBeDefined()
+
+        const postTopicTags = await getTopicTags(arn)
+        const tags = postTopicTags.Tags
+        expect(tags).toHaveLength(4)
+        expect(postTopicTags.Tags).toEqual(
+          expect.arrayContaining([...newTopicTags, { Key: 'leftover', Value: 'some-leftover' }]),
+        )
+
+        const updateQueueCall = sqsSpy.mock.calls.find((entry) => {
+          return entry[0].constructor.name === 'TagQueueCommand'
+        })
+        expect(updateQueueCall).toBeDefined()
+
+        const postQueueTags = await getQueueTags(assertResult.queueUrl)
+        expect(postQueueTags.Tags).toEqual({
+          ...newQueueTags,
+          leftover: 'some-leftover',
+        })
       })
     })
 
