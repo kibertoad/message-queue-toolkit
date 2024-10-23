@@ -1,3 +1,4 @@
+import { GetCallerIdentityCommand, type STSClient } from '@aws-sdk/client-sts'
 import type { ZodSchema } from 'zod'
 
 // See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_version.html
@@ -60,4 +61,19 @@ export function generateFilterAttributes(
     }),
     FilterPolicyScope: 'MessageBody',
   }
+}
+
+/**
+ * Manually builds the ARN of a topic based on the current AWS account and the topic name.
+ * It follows the following pattern: arn:aws:sns:<region>:<account-id>:<topic-name>
+ * Doc -> https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html
+ *
+ * // TODO: add tests
+ */
+export const buildTopicArn = async (client: STSClient, topicName: string) => {
+  const identityResponse = await client.send(new GetCallerIdentityCommand({}))
+  const region =
+    typeof client.config.region === 'string' ? client.config.region : await client.config.region()
+
+  return `arn:aws:sns:${region}:${identityResponse.Account}:${topicName}`
 }

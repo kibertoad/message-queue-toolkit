@@ -8,6 +8,7 @@ import { deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 import type { SNSCreationConfig, SNSTopicLocatorType } from '../sns/AbstractSnsService'
 import type { SNSSQSQueueLocatorType } from '../sns/AbstractSnsSqsConsumer'
 
+import type { STSClient } from '@aws-sdk/client-sts'
 import type { Either } from '@lokalise/node-core'
 import { type TopicResolutionOptions, isCreateTopicCommand } from '../types/TopicTypes'
 import type { SNSSubscriptionOptions } from './snsSubscriber'
@@ -24,6 +25,7 @@ import {
 export async function initSnsSqs(
   sqsClient: SQSClient,
   snsClient: SNSClient,
+  stsClient: STSClient,
   locatorConfig?: SNSSQSQueueLocatorType,
   creationConfig?: SNSCreationConfig & SQSCreationConfig,
   subscriptionConfig?: SNSSubscriptionOptions,
@@ -59,6 +61,7 @@ export async function initSnsSqs(
     const { subscriptionArn, topicArn, queueUrl } = await subscribeToTopic(
       sqsClient,
       snsClient,
+      stsClient,
       creationConfig.queue,
       topicResolutionOptions,
       subscriptionConfig,
@@ -132,6 +135,7 @@ export async function initSnsSqs(
 export async function deleteSnsSqs(
   sqsClient: SQSClient,
   snsClient: SNSClient,
+  stsClient: STSClient,
   deletionConfig: DeletionConfig,
   queueConfiguration: CreateQueueCommandInput,
   topicConfiguration: CreateTopicCommandInput | undefined,
@@ -152,6 +156,7 @@ export async function deleteSnsSqs(
   const { subscriptionArn } = await subscribeToTopic(
     sqsClient,
     snsClient,
+    stsClient,
     queueConfiguration,
     topicConfiguration ?? topicLocator!,
     subscriptionConfiguration,
@@ -176,13 +181,14 @@ export async function deleteSnsSqs(
     if (!topicName) {
       throw new Error('Failed to resolve topic name')
     }
-    await deleteTopic(snsClient, topicName)
+    await deleteTopic(snsClient, stsClient, topicName)
   }
   await deleteSubscription(snsClient, subscriptionArn)
 }
 
 export async function deleteSns(
   snsClient: SNSClient,
+  stsClient: STSClient,
   deletionConfig: DeletionConfig,
   creationConfig: SNSCreationConfig,
 ) {
@@ -200,11 +206,12 @@ export async function deleteSns(
     throw new Error('topic.Name must be set for automatic deletion')
   }
 
-  await deleteTopic(snsClient, creationConfig.topic.Name)
+  await deleteTopic(snsClient, stsClient, creationConfig.topic.Name)
 }
 
 export async function initSns(
   snsClient: SNSClient,
+  stsClient: STSClient,
   locatorConfig?: SNSTopicLocatorType,
   creationConfig?: SNSCreationConfig,
 ) {
@@ -227,7 +234,7 @@ export async function initSns(
       'When locatorConfig for the topic is not specified, creationConfig of the topic is mandatory',
     )
   }
-  const topicArn = await assertTopic(snsClient, creationConfig.topic!, {
+  const topicArn = await assertTopic(snsClient, stsClient, creationConfig.topic!, {
     queueUrlsWithSubscribePermissionsPrefix: creationConfig.queueUrlsWithSubscribePermissionsPrefix,
     allowedSourceOwner: creationConfig.allowedSourceOwner,
     forceTagUpdate: creationConfig.forceTagUpdate,

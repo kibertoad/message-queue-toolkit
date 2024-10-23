@@ -18,8 +18,8 @@ import { calculateOutgoingMessageSize as sqsCalculateOutgoingMessageSize } from 
 
 import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
 
-import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts'
-import { generateTopicSubscriptionPolicy } from './snsAttributeUtils'
+import type { STSClient } from '@aws-sdk/client-sts'
+import { buildTopicArn, generateTopicSubscriptionPolicy } from './snsAttributeUtils'
 
 type AttributesResult = {
   attributes?: Record<string, string>
@@ -81,6 +81,7 @@ export async function getSubscriptionAttributes(
 
 export async function assertTopic(
   snsClient: SNSClient,
+  stsClient: STSClient,
   topicOptions: CreateTopicCommandInput,
   extraParams?: ExtraSNSCreationParams,
 ) {
@@ -95,7 +96,7 @@ export async function assertTopic(
     if (!extraParams?.forceTagUpdate) throw err
     // To build ARN we need topic name and error should be "topic already exist with different tags"
     if (!topicOptions.Name || !isTopicAlreadyExistWithDifferentTagsError(err)) throw err
-    topicArn = await buildTopicArn(snsClient, topicOptions.Name)
+    topicArn = await buildTopicArn(stsClient, topicOptions.Name)
   }
 
   if (extraParams?.queueUrlsWithSubscribePermissionsPrefix || extraParams?.allowedSourceOwner) {
@@ -121,17 +122,17 @@ export async function assertTopic(
   return topicArn
 }
 
-export async function deleteTopic(client: SNSClient, topicName: string) {
+export async function deleteTopic(snsClient: SNSClient, stsClient: STSClient, topicName: string) {
   try {
-    const topicArn = await assertTopic(client, {
+    const topicArn = await assertTopic(snsClient, stsClient, {
       Name: topicName,
     })
 
-    const command = new DeleteTopicCommand({
-      TopicArn: topicArn,
-    })
-
-    await client.send(command)
+    await snsClient.send(
+      new DeleteTopicCommand({
+        TopicArn: topicArn,
+      }),
+    )
   } catch (_) {
     // we don't care it operation has failed
   }
@@ -205,23 +206,3 @@ const isTopicAlreadyExistWithDifferentTagsError = (error: unknown) =>
   typeof error.Error.Message === 'string' &&
   error.Error.Code === 'InvalidParameter' &&
   error.Error.Message.includes('already exists with different tags')
-
-/**
- * Manually builds the ARN of a topic based on the current AWS account and the topic name.
- * It follows the following pattern: arn:aws:sns:<region>:<account-id>:<topic-name>
- * Doc -> https://docs.aws.amazon.com/IAM/latest/UserGuide/reference-arns.html
- */
-const buildTopicArn = async (client: SNSClient, topicName: string) => {
-  const region =
-    typeof client.config.region === 'string' ? client.config.region : await client.config.region()
-
-  const stsClient = new STSClient({
-    endpoint: client.config.endpoint,
-    region,
-    credentials: client.config.credentials,
-    endpointProvider: client.config.endpointProvider,
-  })
-  const identityResponse = await stsClient.send(new GetCallerIdentityCommand({}))
-
-  return `arn:aws:sns:${region}:${identityResponse.Account}:${topicName}`
-}
