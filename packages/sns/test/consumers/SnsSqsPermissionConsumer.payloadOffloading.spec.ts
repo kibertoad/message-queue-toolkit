@@ -11,6 +11,8 @@ import { assertBucket, emptyBucket } from '../utils/s3Utils'
 import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
+import { deleteQueue } from '@message-queue-toolkit/sqs'
+import { deleteTopic } from '../../lib/utils/snsUtils'
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas'
 
@@ -49,6 +51,14 @@ describe('SnsSqsPermissionConsumer', () => {
       publisher = new SnsPermissionPublisher(diContainer.cradle, {
         payloadStoreConfig,
       })
+
+      await deleteQueue(diContainer.cradle.sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
+      await deleteTopic(
+        diContainer.cradle.snsClient,
+        diContainer.cradle.stsClient,
+        SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
+      )
+
       await consumer.start()
       await publisher.init()
     })
