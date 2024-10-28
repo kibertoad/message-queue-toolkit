@@ -8,6 +8,7 @@ import { assertQueue } from '@message-queue-toolkit/sqs'
 
 import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
 
+import type { STSClient } from '@aws-sdk/client-sts'
 import {
   type TopicResolutionOptions,
   isCreateTopicCommand,
@@ -21,8 +22,9 @@ export type SNSSubscriptionOptions = Omit<
 > & { updateAttributesIfExists: boolean }
 
 async function resolveTopicArnToSubscribeTo(
-  topicConfiguration: TopicResolutionOptions,
   snsClient: SNSClient,
+  stsClient: STSClient,
+  topicConfiguration: TopicResolutionOptions,
   extraParams: (ExtraSNSCreationParams & ExtraSQSCreationParams & ExtraParams) | undefined,
 ) {
   //If topicArn is present, let's use it and return early.
@@ -32,9 +34,10 @@ async function resolveTopicArnToSubscribeTo(
 
   //If input configuration is capable of creating a topic, let's create it and return its ARN.
   if (isCreateTopicCommand(topicConfiguration)) {
-    return await assertTopic(snsClient, topicConfiguration, {
+    return await assertTopic(snsClient, stsClient, topicConfiguration, {
       queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
       allowedSourceOwner: extraParams?.allowedSourceOwner,
+      forceTagUpdate: extraParams?.forceTagUpdate,
     })
   }
 
@@ -45,12 +48,18 @@ async function resolveTopicArnToSubscribeTo(
 export async function subscribeToTopic(
   sqsClient: SQSClient,
   snsClient: SNSClient,
+  stsClient: STSClient,
   queueConfiguration: CreateQueueCommandInput,
   topicConfiguration: TopicResolutionOptions,
   subscriptionConfiguration: SNSSubscriptionOptions,
   extraParams?: ExtraSNSCreationParams & ExtraSQSCreationParams & ExtraParams,
 ) {
-  const topicArn = await resolveTopicArnToSubscribeTo(topicConfiguration, snsClient, extraParams)
+  const topicArn = await resolveTopicArnToSubscribeTo(
+    snsClient,
+    stsClient,
+    topicConfiguration,
+    extraParams,
+  )
 
   const { queueUrl, queueArn } = await assertQueue(sqsClient, queueConfiguration, {
     topicArnsWithPublishPermissionsPrefix: extraParams?.topicArnsWithPublishPermissionsPrefix,

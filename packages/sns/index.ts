@@ -33,6 +33,7 @@ export {
   findSubscriptionByTopicAndQueue,
   getSubscriptionAttributes,
 } from './lib/utils/snsUtils'
+export { clearCachedCallerIdentity } from './lib/utils/stsUtils'
 
 export { subscribeToTopic } from './lib/utils/snsSubscriber'
 export { initSns, initSnsSqs } from './lib/utils/snsInitter'

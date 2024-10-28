@@ -1,6 +1,7 @@
 import {
   type CreateTopicCommandInput,
   type SNSClient,
+  TagResourceCommand,
   paginateListTopics,
 } from '@aws-sdk/client-sns'
 import {
@@ -12,12 +13,14 @@ import {
   SetTopicAttributesCommand,
   UnsubscribeCommand,
 } from '@aws-sdk/client-sns'
-import type { Either } from '@lokalise/node-core'
+import { type Either, isError } from '@lokalise/node-core'
 import { calculateOutgoingMessageSize as sqsCalculateOutgoingMessageSize } from '@message-queue-toolkit/sqs'
 
 import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
 
+import type { STSClient } from '@aws-sdk/client-sts'
 import { generateTopicSubscriptionPolicy } from './snsAttributeUtils'
+import { buildTopicArn } from './stsUtils'
 
 type AttributesResult = {
   attributes?: Record<string, string>
@@ -79,16 +82,23 @@ export async function getSubscriptionAttributes(
 
 export async function assertTopic(
   snsClient: SNSClient,
+  stsClient: STSClient,
   topicOptions: CreateTopicCommandInput,
   extraParams?: ExtraSNSCreationParams,
 ) {
-  const command = new CreateTopicCommand(topicOptions)
-  const response = await snsClient.send(command)
-
-  if (!response.TopicArn) {
-    throw new Error('No topic arn in response')
+  let topicArn: string
+  try {
+    const command = new CreateTopicCommand(topicOptions)
+    const response = await snsClient.send(command)
+    if (!response.TopicArn) throw new Error('No topic arn in response')
+    topicArn = response.TopicArn
+  } catch (err) {
+    // We only manually build ARN in case of tag update
+    if (!extraParams?.forceTagUpdate) throw err
+    // To build ARN we need topic name and error should be "topic already exist with different tags"
+    if (!topicOptions.Name || !isTopicAlreadyExistWithDifferentTagsError(err)) throw err
+    topicArn = await buildTopicArn(stsClient, topicOptions.Name)
   }
-  const topicArn = response.TopicArn
 
   if (extraParams?.queueUrlsWithSubscribePermissionsPrefix || extraParams?.allowedSourceOwner) {
     const setTopicAttributesCommand = new SetTopicAttributesCommand({
@@ -102,21 +112,28 @@ export async function assertTopic(
     })
     await snsClient.send(setTopicAttributesCommand)
   }
+  if (extraParams?.forceTagUpdate && topicOptions.Tags) {
+    const tagTopicCommand = new TagResourceCommand({
+      ResourceArn: topicArn,
+      Tags: topicOptions.Tags,
+    })
+    await snsClient.send(tagTopicCommand)
+  }
 
   return topicArn
 }
 
-export async function deleteTopic(client: SNSClient, topicName: string) {
+export async function deleteTopic(snsClient: SNSClient, stsClient: STSClient, topicName: string) {
   try {
-    const topicArn = await assertTopic(client, {
+    const topicArn = await assertTopic(snsClient, stsClient, {
       Name: topicName,
     })
 
-    const command = new DeleteTopicCommand({
-      TopicArn: topicArn,
-    })
-
-    await client.send(command)
+    await snsClient.send(
+      new DeleteTopicCommand({
+        TopicArn: topicArn,
+      }),
+    )
   } catch (_) {
     // we don't care it operation has failed
   }
@@ -178,3 +195,15 @@ export async function getTopicArnByName(snsClient: SNSClient, topicName?: string
  */
 export const calculateOutgoingMessageSize = (message: unknown) =>
   sqsCalculateOutgoingMessageSize(message)
+
+const isTopicAlreadyExistWithDifferentTagsError = (error: unknown) =>
+  !!error &&
+  isError(error) &&
+  'Error' in error &&
+  !!error.Error &&
+  typeof error.Error === 'object' &&
+  'Code' in error.Error &&
+  'Message' in error.Error &&
+  typeof error.Error.Message === 'string' &&
+  error.Error.Code === 'InvalidParameter' &&
+  error.Error.Message.includes('already exists with different tags')
