@@ -36,7 +36,7 @@
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.670.0",
     "@aws-sdk/client-sqs": "^3.670.0",
-    "@biomejs/biome": "1.9.3",
+    "@biomejs/biome": "1.9.4",
     "@kibertoad/biome-config": "^1.2.1",
     "@message-queue-toolkit/core": "*",
     "@message-queue-toolkit/s3-payload-store": "*",
