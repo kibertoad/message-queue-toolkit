@@ -17,6 +17,10 @@ It consists of the following submodules:
 * `@message-queue-toolkit/sqs` - SQS (AWS Simple Queue Service)
 * `@message-queue-toolkit/sns` - SNS (AWS Simple Notification Service)
 
+## Setup
+
+In order to be able to run tests, you first need to run `npm run build`.
+
 ## Basic Usage
 
 ### Publishers
