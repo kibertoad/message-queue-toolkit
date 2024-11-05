@@ -167,25 +167,27 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     const eventHandlers = this.eventHandlerMap.get(event.type)
     if (!eventHandlers) return
 
-    for (const handler of eventHandlers.foreground) {
-      await this.executeEventHandler(event, handler, false)
+    try {
+      for (const handler of eventHandlers.foreground) {
+        await this.executeEventHandler(event, handler, false)
+      }
+    } finally {
+      const bgPromise = Promise.all(
+        eventHandlers.background.map((handler) => this.executeEventHandler(event, handler, true)),
+      ).then(() => {
+        this.inProgressBackgroundHandlerByEventId.delete(event.id)
+        if (!this._handlerSpy) return
+        this._handlerSpy.addProcessedMessage(
+          {
+            // @ts-ignore
+            message: event,
+            processingResult: 'consumed',
+          },
+          event.id,
+        )
+      })
+      this.inProgressBackgroundHandlerByEventId.set(event.id, bgPromise)
     }
-
-    const bgPromise = Promise.all(
-      eventHandlers.background.map((handler) => this.executeEventHandler(event, handler, true)),
-    ).then(() => {
-      this.inProgressBackgroundHandlerByEventId.delete(event.id)
-      if (!this._handlerSpy) return
-      this._handlerSpy.addProcessedMessage(
-        {
-          // @ts-ignore
-          message: event,
-          processingResult: 'consumed',
-        },
-        event.id,
-      )
-    })
-    this.inProgressBackgroundHandlerByEventId.set(event.id, bgPromise)
   }
 
   private async executeEventHandler<SupportedEvent extends SupportedEvents[number]>(
