@@ -275,19 +275,19 @@ describe('SnsSqsPermissionConsumer', () => {
         })
 
         await expect(consumer.init()).rejects.toThrowError(
-          /Topic already exists with different tags/,
+          `${topicNome} - Invalid parameter: Tags Reason: Topic already exists with different tags`,
         )
       })
 
       it('updates existing queue and topic tags when update is forced', async () => {
         const initialTopicTags = [
-          { Key: 'project', Value: 'some-project' },
-          { Key: 'service', Value: 'some-service' },
-          { Key: 'leftover', Value: 'some-leftover' },
+          { Key: 'project', Value: 'sns-project' },
+          { Key: 'service', Value: 'sns-service' },
+          { Key: 'leftover', Value: 'sns-leftover' },
         ]
         const newTopicTags = [
-          { Key: 'project', Value: 'some-project' },
-          { Key: 'service', Value: 'changed-service' },
+          { Key: 'project', Value: 'sns-project' },
+          { Key: 'service', Value: 'sns-service-changed' },
           { Key: 'cc', Value: 'some-cc' },
         ]
 
@@ -299,13 +299,13 @@ describe('SnsSqsPermissionConsumer', () => {
         expect(preTopicTags.Tags).toEqual(initialTopicTags)
 
         const initialQueueTags = {
-          project: 'some-project',
-          service: 'some-service',
-          leftover: 'some-leftover',
+          project: 'sqs-project',
+          service: 'sqs-service',
+          leftover: 'sqs-leftover',
         }
         const newQueueTags = {
-          project: 'some-project',
-          service: 'changed-service',
+          project: 'sqs-project',
+          service: 'sqs-service-changed',
           cc: 'some-cc',
         }
         const assertResult = await assertQueue(sqsClient, {
@@ -336,7 +336,7 @@ describe('SnsSqsPermissionConsumer', () => {
         const tags = postTopicTags.Tags
         expect(tags).toHaveLength(4)
         expect(postTopicTags.Tags).toEqual(
-          expect.arrayContaining([...newTopicTags, { Key: 'leftover', Value: 'some-leftover' }]),
+          expect.arrayContaining([...newTopicTags, { Key: 'leftover', Value: 'sns-leftover' }]),
         )
 
         const updateQueueCall = sqsSpy.mock.calls.find((entry) => {
@@ -347,7 +347,7 @@ describe('SnsSqsPermissionConsumer', () => {
         const postQueueTags = await getQueueTags(assertResult.queueUrl)
         expect(postQueueTags.Tags).toEqual({
           ...newQueueTags,
-          leftover: 'some-leftover',
+          leftover: 'sqs-leftover',
         })
       })
     })
