@@ -1,5 +1,6 @@
 import {
   type CreateTopicCommandInput,
+  ListTagsForResourceCommand,
   type SNSClient,
   TagResourceCommand,
   paginateListTopics,
@@ -13,7 +14,7 @@ import {
   SetTopicAttributesCommand,
   UnsubscribeCommand,
 } from '@aws-sdk/client-sns'
-import { type Either, isError } from '@lokalise/node-core'
+import { type Either, InternalError, isError } from '@lokalise/node-core'
 import { calculateOutgoingMessageSize as sqsCalculateOutgoingMessageSize } from '@message-queue-toolkit/sqs'
 
 import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
@@ -92,12 +93,26 @@ export async function assertTopic(
     const response = await snsClient.send(command)
     if (!response.TopicArn) throw new Error('No topic arn in response')
     topicArn = response.TopicArn
-  } catch (err) {
-    // We only manually build ARN in case of tag update
-    if (!extraParams?.forceTagUpdate) throw err
+  } catch (error) {
+    if (!isError(error)) throw error
     // To build ARN we need topic name and error should be "topic already exist with different tags"
-    if (!topicOptions.Name || !isTopicAlreadyExistWithDifferentTagsError(err)) throw err
+    if (!topicOptions.Name || !isTopicAlreadyExistWithDifferentTagsError(error)) throw error
+
     topicArn = await buildTopicArn(stsClient, topicOptions.Name)
+    if (!extraParams?.forceTagUpdate) {
+      const currentTags = await snsClient.send(
+        new ListTagsForResourceCommand({ ResourceArn: topicArn }),
+      )
+      throw new InternalError({
+        message: `${topicOptions.Name} - ${error.message}`,
+        details: {
+          currentTags: JSON.stringify(currentTags),
+          newTags: JSON.stringify(topicOptions.Tags),
+        },
+        errorCode: 'SNS_TOPIC_ALREADY_EXISTS_WITH_DIFFERENT_TAGS',
+        cause: error,
+      })
+    }
   }
 
   if (extraParams?.queueUrlsWithSubscribePermissionsPrefix || extraParams?.allowedSourceOwner) {
