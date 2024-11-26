@@ -35,7 +35,11 @@ describe('outbox-prisma-adapter', () => {
     await prisma.$queryRaw`
       CREATE TABLE prisma.outbox_entry (
         id UUID PRIMARY KEY, 
-        created TIMESTAMP NOT NULL
+        type TEXT NOT NULL,
+        created TIMESTAMP NOT NULL,
+        retry_count INT NOT NULL DEFAULT 0,
+        data JSONB NOT NULL,
+        status TEXT NOT NULL
       )
     `
   })
@@ -44,24 +48,6 @@ describe('outbox-prisma-adapter', () => {
     await prisma.$queryRaw`DROP TABLE prisma.outbox_entry;`
     await prisma.$queryRaw`DROP SCHEMA prisma;`
     await prisma.$disconnect()
-  })
-
-  it('test db connection', async () => {
-    const creationDate = new Date()
-    await prisma.outboxEntry.create({
-      data: {
-        id: 'ce08b43b-6162-4913-86ea-fa9367875e3b',
-        created: creationDate,
-      },
-    })
-
-    const result = await prisma.outboxEntry.findMany()
-    expect(result).toEqual([
-      {
-        id: 'ce08b43b-6162-4913-86ea-fa9367875e3b',
-        created: creationDate,
-      },
-    ])
   })
 
   it('creates entry in DB via outbox storage implementation', async () => {
@@ -77,6 +63,28 @@ describe('outbox-prisma-adapter', () => {
         metadata: {},
         timestamp: new Date().toISOString(),
       },
+      retryCount: 0,
+      created: new Date(),
     } satisfies OutboxEntry<SupportedEvents[number]>)
+
+    const entries = await outboxPrismaAdapter.getEntries(10)
+
+    expect(entries).toEqual([
+      {
+        id: expect.any(String),
+        type: 'entity.created',
+        created: expect.any(Date),
+        retryCount: 0,
+        data: {
+          id: expect.any(String),
+          payload: {
+            message: 'TEST EVENT',
+          },
+          metadata: {},
+          timestamp: expect.any(String),
+        },
+        status: 'CREATED',
+      },
+    ])
   })
 })

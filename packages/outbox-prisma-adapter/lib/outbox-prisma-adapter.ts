@@ -16,8 +16,15 @@ export class OutboxPrismaAdapter<SupportedEvents extends CommonEventDefinition[]
   ): Promise<OutboxEntry<SupportedEvents[number]>> {
     const prismaModel: PrismaClient[typeof this.modelName] = this.prisma[this.modelName]
 
+    const messageType = getMessageType(outboxEntry.event)
     return prismaModel.create({
-      data: getMessageType(outboxEntry.event),
+      data: {
+        id: outboxEntry.id,
+        type: messageType,
+        created: outboxEntry.created,
+        data: outboxEntry.data,
+        status: outboxEntry.status,
+      },
     })
   }
 
@@ -26,6 +33,12 @@ export class OutboxPrismaAdapter<SupportedEvents extends CommonEventDefinition[]
   }
 
   getEntries(maxRetryCount: number): Promise<OutboxEntry<SupportedEvents[number]>[]> {
-    return Promise.resolve([])
+    return this.prisma[this.modelName].findMany({
+      where: {
+        retryCount: {
+          lte: maxRetryCount,
+        },
+      },
+    })
   }
 }
