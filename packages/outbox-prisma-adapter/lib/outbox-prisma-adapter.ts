@@ -22,14 +22,37 @@ export class OutboxPrismaAdapter<SupportedEvents extends CommonEventDefinition[]
         id: outboxEntry.id,
         type: messageType,
         created: outboxEntry.created,
+        updated: outboxEntry.updated,
         data: outboxEntry.data,
         status: outboxEntry.status,
       },
     })
   }
 
-  flush(outboxAccumulator: OutboxAccumulator<SupportedEvents>): Promise<void> {
-    return Promise.resolve(undefined)
+  async flush(outboxAccumulator: OutboxAccumulator<SupportedEvents>): Promise<void> {
+    const entries = await outboxAccumulator.getEntries()
+
+    const prismaModel: PrismaClient[typeof this.modelName] = this.prisma[this.modelName]
+
+    for (const entry of entries) {
+      await prismaModel.upsert({
+        where: {
+          id: entry.id,
+        },
+        update: {
+          status: 'SUCCESS',
+          updated: new Date(),
+        },
+        create: {
+          id: entry.id,
+          type: getMessageType(entry.event),
+          created: entry.created,
+          updated: new Date(),
+          data: entry.data,
+          status: 'SUCCESS',
+        },
+      })
+    }
   }
 
   getEntries(maxRetryCount: number): Promise<OutboxEntry<SupportedEvents[number]>[]> {

@@ -1,4 +1,4 @@
-import type { OutboxEntry } from '@message-queue-toolkit/outbox-core'
+import { InMemoryOutboxAccumulator, type OutboxEntry } from '@message-queue-toolkit/outbox-core'
 import {
   type CommonEventDefinition,
   enrichMessageSchemaWithBase,
@@ -37,6 +37,7 @@ describe('outbox-prisma-adapter', () => {
         id UUID PRIMARY KEY, 
         type TEXT NOT NULL,
         created TIMESTAMP NOT NULL,
+        updated TIMESTAMP,
         retry_count INT NOT NULL DEFAULT 0,
         data JSONB NOT NULL,
         status TEXT NOT NULL
@@ -74,6 +75,7 @@ describe('outbox-prisma-adapter', () => {
         id: expect.any(String),
         type: 'entity.created',
         created: expect.any(Date),
+        updated: expect.any(Date),
         retryCount: 0,
         data: {
           id: expect.any(String),
@@ -84,6 +86,126 @@ describe('outbox-prisma-adapter', () => {
           timestamp: expect.any(String),
         },
         status: 'CREATED',
+      },
+    ])
+  })
+
+  it('should insert successful entries from accumulator', async () => {
+    const accumulator = new InMemoryOutboxAccumulator<SupportedEvents>()
+
+    const entry1 = {
+      id: uuidv7(),
+      event: events.created,
+      status: 'CREATED',
+      data: {
+        id: uuidv7(),
+        payload: {
+          message: 'TEST EVENT',
+        },
+        metadata: {},
+        timestamp: new Date().toISOString(),
+      },
+      retryCount: 0,
+      created: new Date(),
+    } satisfies OutboxEntry<SupportedEvents[number]>
+    accumulator.add(entry1)
+
+    const entry2 = {
+      id: uuidv7(),
+      event: events.created,
+      status: 'CREATED',
+      data: {
+        id: uuidv7(),
+        payload: {
+          message: 'TEST EVENT 2',
+        },
+        metadata: {},
+        timestamp: new Date().toISOString(),
+      },
+      retryCount: 0,
+      created: new Date(),
+    } satisfies OutboxEntry<SupportedEvents[number]>
+    accumulator.add(entry2)
+
+    await outboxPrismaAdapter.flush(accumulator)
+
+    const entriesAfterFlush = await outboxPrismaAdapter.getEntries(10)
+
+    expect(entriesAfterFlush).toMatchObject([
+      {
+        id: entry1.id,
+        status: 'SUCCESS',
+      },
+      {
+        id: entry2.id,
+        status: 'SUCCESS',
+      },
+    ])
+  })
+
+  it("should update successful entries' status to 'SUCCESS'", async () => {
+    const accumulator = new InMemoryOutboxAccumulator<SupportedEvents>()
+
+    const entry1 = {
+      id: uuidv7(),
+      event: events.created,
+      status: 'CREATED',
+      data: {
+        id: uuidv7(),
+        payload: {
+          message: 'TEST EVENT',
+        },
+        metadata: {},
+        timestamp: new Date().toISOString(),
+      },
+      retryCount: 0,
+      created: new Date(),
+    } satisfies OutboxEntry<SupportedEvents[number]>
+    accumulator.add(entry1)
+
+    const entry2 = {
+      id: uuidv7(),
+      event: events.created,
+      status: 'CREATED',
+      data: {
+        id: uuidv7(),
+        payload: {
+          message: 'TEST EVENT 2',
+        },
+        metadata: {},
+        timestamp: new Date().toISOString(),
+      },
+      retryCount: 0,
+      created: new Date(),
+    } satisfies OutboxEntry<SupportedEvents[number]>
+    accumulator.add(entry2)
+
+    await outboxPrismaAdapter.createEntry(entry1)
+    await outboxPrismaAdapter.createEntry(entry2)
+
+    const beforeFlush = await outboxPrismaAdapter.getEntries(10)
+    expect(beforeFlush).toMatchObject([
+      {
+        id: entry1.id,
+        status: 'CREATED',
+      },
+      {
+        id: entry2.id,
+        status: 'CREATED',
+      },
+    ])
+
+    outboxPrismaAdapter.flush(accumulator)
+
+    const afterFlush = await outboxPrismaAdapter.getEntries(10)
+    expect(afterFlush).toMatchObject([
+      {
+        id: entry1.id,
+        status: 'SUCCESS',
+      },
+      {
+        id: entry2.id,
+        status: 'SUCCESS',
       },
     ])
   })

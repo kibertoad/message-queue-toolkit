@@ -6,6 +6,7 @@ datasource db {
 model OutboxEntry {
   id         String   @id @default(uuid()) @db.Uuid
   created    DateTime @default(now())
+  updated    DateTime @default(now()) @updatedAt
   type       String
   retryCount Int      @default(0) @map("retry_count")
   data       Json
