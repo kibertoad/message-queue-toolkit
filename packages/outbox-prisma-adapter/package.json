@@ -13,7 +13,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "del-cli dist && tsc",
+    "build": "del-cli dist && npm run db:update-client && tsc",
     "build:release": "del-cli dist && del-cli coverage && npm run lint && tsc --project tsconfig.release.json",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
@@ -22,6 +22,7 @@
     "lint:fix": "biome check --write .",
     "docker:start:dev": "docker compose up -d",
     "docker:stop:dev": "docker compose down",
+    "db:update-client": "prisma generate --schema=./test/schema.prisma",
     "prepublishOnly": "npm run build:release"
   },
   "peerDependencies": {
