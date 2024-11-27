@@ -242,4 +242,15 @@ describe('outbox-prisma-adapter', () => {
       },
     ])
   })
+
+  it('should not fetch entries that exceed retry limit', async () => {
+    const failedEntry = { ...ENTRY_1, retryCount: 6, status: 'FAILED' } satisfies OutboxEntry<
+      SupportedEvents[number]
+    >
+    await outboxPrismaAdapter.createEntry(failedEntry)
+
+    const entries = await outboxPrismaAdapter.getEntries(5)
+
+    expect(entries).toEqual([])
+  })
 })
