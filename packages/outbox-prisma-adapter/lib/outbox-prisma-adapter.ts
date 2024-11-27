@@ -34,25 +34,43 @@ export class OutboxPrismaAdapter<SupportedEvents extends CommonEventDefinition[]
 
     const prismaModel: PrismaClient[typeof this.modelName] = this.prisma[this.modelName]
 
-    for (const entry of entries) {
-      await prismaModel.upsert({
-        where: {
-          id: entry.id,
+    const existingEntries = await prismaModel.findMany({
+      where: {
+        id: {
+          in: entries.map((entry) => entry.id),
         },
-        update: {
-          status: 'SUCCESS',
-          updated: new Date(),
+      },
+    })
+
+    const toCreate = entries.filter(
+      (entry) => !existingEntries.some((existingEntry) => existingEntry.id === entry.id),
+    )
+    const toUpdate = entries.filter((entry) =>
+      existingEntries.some((existingEntry) => existingEntry.id === entry.id),
+    )
+
+    await prismaModel.createMany({
+      data: toCreate.map((entry) => ({
+        id: entry.id,
+        type: getMessageType(entry.event),
+        created: entry.created,
+        updated: new Date(),
+        data: entry.data,
+        status: 'SUCCESS',
+      })),
+    })
+
+    await prismaModel.updateMany({
+      where: {
+        id: {
+          in: toUpdate.map((entry) => entry.id),
         },
-        create: {
-          id: entry.id,
-          type: getMessageType(entry.event),
-          created: entry.created,
-          updated: new Date(),
-          data: entry.data,
-          status: 'SUCCESS',
-        },
-      })
-    }
+      },
+      data: {
+        status: 'SUCCESS',
+        updated: new Date(),
+      },
+    })
   }
 
   getEntries(maxRetryCount: number): Promise<OutboxEntry<SupportedEvents[number]>[]> {

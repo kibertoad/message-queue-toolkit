@@ -5,7 +5,7 @@ import {
 } from '@message-queue-toolkit/schemas'
 import { PrismaClient } from '@prisma/client'
 import { uuidv7 } from 'uuidv7'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { OutboxPrismaAdapter } from '../lib/outbox-prisma-adapter'
 
@@ -26,8 +26,42 @@ describe('outbox-prisma-adapter', () => {
   let prisma: PrismaClient
   let outboxPrismaAdapter: OutboxPrismaAdapter<SupportedEvents>
 
+  const ENTRY_1 = {
+    id: uuidv7(),
+    event: events.created,
+    status: 'CREATED',
+    data: {
+      id: uuidv7(),
+      payload: {
+        message: 'TEST EVENT',
+      },
+      metadata: {},
+      timestamp: new Date().toISOString(),
+    },
+    retryCount: 0,
+    created: new Date(),
+  } satisfies OutboxEntry<SupportedEvents[number]>
+
+  const ENTRY_2 = {
+    id: uuidv7(),
+    event: events.created,
+    status: 'CREATED',
+    data: {
+      id: uuidv7(),
+      payload: {
+        message: 'TEST EVENT 2',
+      },
+      metadata: {},
+      timestamp: new Date().toISOString(),
+    },
+    retryCount: 0,
+    created: new Date(),
+  } satisfies OutboxEntry<SupportedEvents[number]>
+
   beforeAll(async () => {
-    prisma = new PrismaClient()
+    prisma = new PrismaClient({
+      log: ['query'],
+    })
 
     outboxPrismaAdapter = new OutboxPrismaAdapter<SupportedEvents>(prisma, 'OutboxEntry')
 
@@ -43,6 +77,10 @@ describe('outbox-prisma-adapter', () => {
         status TEXT NOT NULL
       )
     `
+  })
+
+  beforeEach(async () => {
+    await prisma.$queryRaw`DELETE FROM prisma.outbox_entry;`
   })
 
   afterAll(async () => {
@@ -92,40 +130,8 @@ describe('outbox-prisma-adapter', () => {
 
   it('should insert successful entries from accumulator', async () => {
     const accumulator = new InMemoryOutboxAccumulator<SupportedEvents>()
-
-    const entry1 = {
-      id: uuidv7(),
-      event: events.created,
-      status: 'CREATED',
-      data: {
-        id: uuidv7(),
-        payload: {
-          message: 'TEST EVENT',
-        },
-        metadata: {},
-        timestamp: new Date().toISOString(),
-      },
-      retryCount: 0,
-      created: new Date(),
-    } satisfies OutboxEntry<SupportedEvents[number]>
-    accumulator.add(entry1)
-
-    const entry2 = {
-      id: uuidv7(),
-      event: events.created,
-      status: 'CREATED',
-      data: {
-        id: uuidv7(),
-        payload: {
-          message: 'TEST EVENT 2',
-        },
-        metadata: {},
-        timestamp: new Date().toISOString(),
-      },
-      retryCount: 0,
-      created: new Date(),
-    } satisfies OutboxEntry<SupportedEvents[number]>
-    accumulator.add(entry2)
+    accumulator.add(ENTRY_1)
+    accumulator.add(ENTRY_2)
 
     await outboxPrismaAdapter.flush(accumulator)
 
@@ -133,78 +139,69 @@ describe('outbox-prisma-adapter', () => {
 
     expect(entriesAfterFlush).toMatchObject([
       {
-        id: entry1.id,
+        id: ENTRY_1.id,
         status: 'SUCCESS',
       },
       {
-        id: entry2.id,
+        id: ENTRY_2.id,
         status: 'SUCCESS',
       },
     ])
   })
 
-  it("should update successful entries' status to 'SUCCESS'", async () => {
+  it("should update existing entries' status to 'SUCCESS'", async () => {
     const accumulator = new InMemoryOutboxAccumulator<SupportedEvents>()
+    accumulator.add(ENTRY_1)
+    accumulator.add(ENTRY_2)
 
-    const entry1 = {
-      id: uuidv7(),
-      event: events.created,
-      status: 'CREATED',
-      data: {
-        id: uuidv7(),
-        payload: {
-          message: 'TEST EVENT',
-        },
-        metadata: {},
-        timestamp: new Date().toISOString(),
-      },
-      retryCount: 0,
-      created: new Date(),
-    } satisfies OutboxEntry<SupportedEvents[number]>
-    accumulator.add(entry1)
-
-    const entry2 = {
-      id: uuidv7(),
-      event: events.created,
-      status: 'CREATED',
-      data: {
-        id: uuidv7(),
-        payload: {
-          message: 'TEST EVENT 2',
-        },
-        metadata: {},
-        timestamp: new Date().toISOString(),
-      },
-      retryCount: 0,
-      created: new Date(),
-    } satisfies OutboxEntry<SupportedEvents[number]>
-    accumulator.add(entry2)
-
-    await outboxPrismaAdapter.createEntry(entry1)
-    await outboxPrismaAdapter.createEntry(entry2)
+    await outboxPrismaAdapter.createEntry(ENTRY_1)
+    await outboxPrismaAdapter.createEntry(ENTRY_2)
 
     const beforeFlush = await outboxPrismaAdapter.getEntries(10)
     expect(beforeFlush).toMatchObject([
       {
-        id: entry1.id,
+        id: ENTRY_1.id,
         status: 'CREATED',
       },
       {
-        id: entry2.id,
+        id: ENTRY_2.id,
         status: 'CREATED',
       },
     ])
 
-    outboxPrismaAdapter.flush(accumulator)
+    await outboxPrismaAdapter.flush(accumulator)
 
     const afterFlush = await outboxPrismaAdapter.getEntries(10)
     expect(afterFlush).toMatchObject([
       {
-        id: entry1.id,
+        id: ENTRY_1.id,
         status: 'SUCCESS',
       },
       {
-        id: entry2.id,
+        id: ENTRY_2.id,
+        status: 'SUCCESS',
+      },
+    ])
+  })
+
+  it('should handle mix of entries, non existing and existing, and change their status to SUCCESS', async () => {
+    const accumulator = new InMemoryOutboxAccumulator<SupportedEvents>()
+    accumulator.add(ENTRY_1)
+    accumulator.add(ENTRY_2)
+
+    //Only one exists in DB.
+    await outboxPrismaAdapter.createEntry(ENTRY_2)
+
+    await outboxPrismaAdapter.flush(accumulator)
+
+    const afterFirstFlush = await outboxPrismaAdapter.getEntries(10)
+    expect(afterFirstFlush).toMatchObject([
+      {
+        id: ENTRY_1.id,
+        status: 'SUCCESS',
+      },
+      {
+        id: ENTRY_2.id,
         status: 'SUCCESS',
       },
     ])
