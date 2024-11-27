@@ -4,9 +4,13 @@ import { type CommonEventDefinition, getMessageType } from '@message-queue-toolk
 import type { PrismaClient } from '@prisma/client'
 
 type ModelDelegate = {
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   create: (args: any) => Promise<any>
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   findMany: (args: any) => Promise<any>
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   createMany: (args: any) => Promise<any>
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   updateMany: (args: any) => Promise<any>
 }
 

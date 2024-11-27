@@ -58,9 +58,5 @@
     "outbox",
     "pattern"
   ],
-  "files": [
-    "README.md",
-    "LICENSE",
-    "dist/*"
-  ]
+  "files": ["README.md", "LICENSE", "dist/*"]
 }
