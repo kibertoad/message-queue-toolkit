@@ -25,11 +25,13 @@
     "db:update-client": "prisma generate --schema=./test/schema.prisma",
     "prepublishOnly": "npm run build:release"
   },
+  "dependencies": {
+    "@prisma/client": "^5.19.1"
+  },
   "peerDependencies": {
     "@message-queue-toolkit/core": ">=14.0.0",
     "@message-queue-toolkit/outbox-core": ">=0.1.0",
-    "@message-queue-toolkit/schemas": ">=4.0.0",
-    "@prisma/client": "^5.19.1"
+    "@message-queue-toolkit/schemas": ">=4.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "1.8.3",
