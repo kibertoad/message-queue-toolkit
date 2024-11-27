@@ -3,18 +3,27 @@ import type { OutboxStorage } from '@message-queue-toolkit/outbox-core/dist/lib/
 import { type CommonEventDefinition, getMessageType } from '@message-queue-toolkit/schemas'
 import type { PrismaClient } from '@prisma/client'
 
-export class OutboxPrismaAdapter<SupportedEvents extends CommonEventDefinition[]>
-  implements OutboxStorage<SupportedEvents>
+type ModelDelegate = {
+  create: (args: any) => Promise<any>
+  findMany: (args: any) => Promise<any>
+  createMany: (args: any) => Promise<any>
+  updateMany: (args: any) => Promise<any>
+}
+
+export class OutboxPrismaAdapter<
+  SupportedEvents extends CommonEventDefinition[],
+  ModelName extends keyof PrismaClient & string,
+> implements OutboxStorage<SupportedEvents>
 {
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly modelName: string,
+    private readonly modelName: ModelName,
   ) {}
 
   createEntry(
     outboxEntry: OutboxEntry<SupportedEvents[number]>,
   ): Promise<OutboxEntry<SupportedEvents[number]>> {
-    const prismaModel: PrismaClient[typeof this.modelName] = this.prisma[this.modelName]
+    const prismaModel = this.prisma[this.modelName] as unknown as ModelDelegate
 
     const messageType = getMessageType(outboxEntry.event)
     return prismaModel.create({
@@ -33,7 +42,7 @@ export class OutboxPrismaAdapter<SupportedEvents extends CommonEventDefinition[]
   async flush(outboxAccumulator: OutboxAccumulator<SupportedEvents>): Promise<void> {
     const entries = await outboxAccumulator.getEntries()
     const failedEntries = await outboxAccumulator.getFailedEntries()
-    const prismaModel: PrismaClient[typeof this.modelName] = this.prisma[this.modelName]
+    const prismaModel = this.prisma[this.modelName] as unknown as ModelDelegate
 
     const existingEntries = await prismaModel.findMany({
       where: {
@@ -43,12 +52,15 @@ export class OutboxPrismaAdapter<SupportedEvents extends CommonEventDefinition[]
       },
     })
 
-    await this.handleSuccesses(prismaModel, entries, existingEntries)
-    await this.handleFailures(prismaModel, failedEntries, existingEntries)
+    await this.prisma.$transaction(async (prisma) => {
+      const prismaModel = prisma[this.modelName] as ModelDelegate
+      await this.handleSuccesses(prismaModel, entries, existingEntries)
+      await this.handleFailures(prismaModel, failedEntries, existingEntries)
+    })
   }
 
   private async handleSuccesses(
-    prismaModel: PrismaClient[typeof this.modelName],
+    prismaModel: ModelDelegate,
     entries: OutboxEntry<SupportedEvents[number]>[],
     existingEntries: OutboxEntry<SupportedEvents[number]>[],
   ) {
@@ -88,7 +100,7 @@ export class OutboxPrismaAdapter<SupportedEvents extends CommonEventDefinition[]
   }
 
   private async handleFailures(
-    prismaModel: PrismaClient[typeof this.modelName],
+    prismaModel: ModelDelegate,
     entries: OutboxEntry<SupportedEvents[number]>[],
     existingEntries: OutboxEntry<SupportedEvents[number]>[],
   ) {
@@ -132,7 +144,9 @@ export class OutboxPrismaAdapter<SupportedEvents extends CommonEventDefinition[]
   }
 
   getEntries(maxRetryCount: number): Promise<OutboxEntry<SupportedEvents[number]>[]> {
-    return this.prisma[this.modelName].findMany({
+    const prismaModel = this.prisma[this.modelName] as unknown as ModelDelegate
+
+    return prismaModel.findMany({
       where: {
         retryCount: {
           lte: maxRetryCount,

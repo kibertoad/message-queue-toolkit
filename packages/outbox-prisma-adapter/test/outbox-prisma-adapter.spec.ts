@@ -24,7 +24,7 @@ type SupportedEvents = (typeof events)[keyof typeof events][]
 
 describe('outbox-prisma-adapter', () => {
   let prisma: PrismaClient
-  let outboxPrismaAdapter: OutboxPrismaAdapter<SupportedEvents>
+  let outboxPrismaAdapter: OutboxPrismaAdapter<SupportedEvents, 'outboxEntry'>
 
   const ENTRY_1 = {
     id: uuidv7(),
@@ -63,7 +63,10 @@ describe('outbox-prisma-adapter', () => {
       log: ['query'],
     })
 
-    outboxPrismaAdapter = new OutboxPrismaAdapter<SupportedEvents>(prisma, 'OutboxEntry')
+    outboxPrismaAdapter = new OutboxPrismaAdapter<SupportedEvents, 'outboxEntry'>(
+      prisma,
+      'outboxEntry',
+    )
 
     await prisma.$queryRaw`create schema if not exists prisma;`
     await prisma.$queryRaw`
