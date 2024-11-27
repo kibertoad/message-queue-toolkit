@@ -1,5 +1,8 @@
-import type { OutboxAccumulator, OutboxEntry } from '@message-queue-toolkit/outbox-core'
-import type { OutboxStorage } from '@message-queue-toolkit/outbox-core/dist/lib/storage'
+import type {
+  OutboxAccumulator,
+  OutboxEntry,
+  OutboxStorage,
+} from '@message-queue-toolkit/outbox-core'
 import { type CommonEventDefinition, getMessageType } from '@message-queue-toolkit/schemas'
 import type { PrismaClient } from '@prisma/client'
 
