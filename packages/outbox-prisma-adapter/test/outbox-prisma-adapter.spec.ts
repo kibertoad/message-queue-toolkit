@@ -206,4 +206,40 @@ describe('outbox-prisma-adapter', () => {
       },
     ])
   })
+
+  it("should change failed entries' status to 'FAILED' and increment retry count", async () => {
+    const accumulator = new InMemoryOutboxAccumulator<SupportedEvents>()
+    accumulator.addFailure(ENTRY_1)
+
+    await outboxPrismaAdapter.flush(accumulator)
+
+    const afterFirstFlush = await outboxPrismaAdapter.getEntries(10)
+    expect(afterFirstFlush).toMatchObject([
+      {
+        id: ENTRY_1.id,
+        status: 'FAILED',
+        retryCount: 1,
+      },
+    ])
+  })
+
+  it('should change failed EXISTING entries status to FAILED and increment retry count', async () => {
+    const accumulator = new InMemoryOutboxAccumulator<SupportedEvents>()
+    const failedEntry = { ...ENTRY_1, retryCount: 3, status: 'FAILED' } satisfies OutboxEntry<
+      SupportedEvents[number]
+    >
+    accumulator.addFailure(failedEntry)
+
+    await outboxPrismaAdapter.createEntry(failedEntry)
+    await outboxPrismaAdapter.flush(accumulator)
+
+    const afterFirstFlush = await outboxPrismaAdapter.getEntries(10)
+    expect(afterFirstFlush).toMatchObject([
+      {
+        id: failedEntry.id,
+        status: 'FAILED',
+        retryCount: 4,
+      },
+    ])
+  })
 })

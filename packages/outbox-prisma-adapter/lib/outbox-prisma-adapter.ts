@@ -25,23 +25,33 @@ export class OutboxPrismaAdapter<SupportedEvents extends CommonEventDefinition[]
         updated: outboxEntry.updated,
         data: outboxEntry.data,
         status: outboxEntry.status,
+        retryCount: outboxEntry.retryCount,
       },
     })
   }
 
   async flush(outboxAccumulator: OutboxAccumulator<SupportedEvents>): Promise<void> {
     const entries = await outboxAccumulator.getEntries()
-
+    const failedEntries = await outboxAccumulator.getFailedEntries()
     const prismaModel: PrismaClient[typeof this.modelName] = this.prisma[this.modelName]
 
     const existingEntries = await prismaModel.findMany({
       where: {
         id: {
-          in: entries.map((entry) => entry.id),
+          in: [...entries.map((entry) => entry.id), ...failedEntries.map((entry) => entry.id)],
         },
       },
     })
 
+    await this.handleSuccesses(prismaModel, entries, existingEntries)
+    await this.handleFailures(prismaModel, failedEntries, existingEntries)
+  }
+
+  private async handleSuccesses(
+    prismaModel: PrismaClient[typeof this.modelName],
+    entries: OutboxEntry<SupportedEvents[number]>[],
+    existingEntries: OutboxEntry<SupportedEvents[number]>[],
+  ) {
     const toCreate = entries.filter(
       (entry) => !existingEntries.some((existingEntry) => existingEntry.id === entry.id),
     )
@@ -49,28 +59,76 @@ export class OutboxPrismaAdapter<SupportedEvents extends CommonEventDefinition[]
       existingEntries.some((existingEntry) => existingEntry.id === entry.id),
     )
 
-    await prismaModel.createMany({
-      data: toCreate.map((entry) => ({
-        id: entry.id,
-        type: getMessageType(entry.event),
-        created: entry.created,
-        updated: new Date(),
-        data: entry.data,
-        status: 'SUCCESS',
-      })),
-    })
+    if (toCreate.length > 0) {
+      await prismaModel.createMany({
+        data: toCreate.map((entry) => ({
+          id: entry.id,
+          type: getMessageType(entry.event),
+          created: entry.created,
+          updated: new Date(),
+          data: entry.data,
+          status: 'SUCCESS',
+        })),
+      })
+    }
 
-    await prismaModel.updateMany({
-      where: {
-        id: {
-          in: toUpdate.map((entry) => entry.id),
+    if (toUpdate.length > 0) {
+      await prismaModel.updateMany({
+        where: {
+          id: {
+            in: toUpdate.map((entry) => entry.id),
+          },
         },
-      },
-      data: {
-        status: 'SUCCESS',
-        updated: new Date(),
-      },
-    })
+        data: {
+          status: 'SUCCESS',
+          updated: new Date(),
+        },
+      })
+    }
+  }
+
+  private async handleFailures(
+    prismaModel: PrismaClient[typeof this.modelName],
+    entries: OutboxEntry<SupportedEvents[number]>[],
+    existingEntries: OutboxEntry<SupportedEvents[number]>[],
+  ) {
+    const toCreate = entries.filter(
+      (entry) => !existingEntries.some((existingEntry) => existingEntry.id === entry.id),
+    )
+    const toUpdate = entries.filter((entry) =>
+      existingEntries.some((existingEntry) => existingEntry.id === entry.id),
+    )
+
+    if (toCreate.length > 0) {
+      await prismaModel.createMany({
+        data: toCreate.map((entry) => ({
+          id: entry.id,
+          type: getMessageType(entry.event),
+          created: entry.created,
+          updated: new Date(),
+          data: entry.data,
+          status: 'FAILED',
+          retryCount: 1,
+        })),
+      })
+    }
+
+    if (toUpdate.length > 0) {
+      await prismaModel.updateMany({
+        where: {
+          id: {
+            in: toUpdate.map((entry) => entry.id),
+          },
+        },
+        data: {
+          status: 'FAILED',
+          updated: new Date(),
+          retryCount: {
+            increment: 1,
+          },
+        },
+      })
+    }
   }
 
   getEntries(maxRetryCount: number): Promise<OutboxEntry<SupportedEvents[number]>[]> {
