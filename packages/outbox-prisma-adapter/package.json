@@ -25,13 +25,11 @@
     "db:update-client": "prisma generate --schema=./test/schema.prisma",
     "prepublishOnly": "npm run build:release"
   },
-  "dependencies": {
-    "@prisma/client": "^5.19.1"
-  },
   "peerDependencies": {
     "@message-queue-toolkit/core": ">=14.0.0",
     "@message-queue-toolkit/outbox-core": ">=0.1.0",
-    "@message-queue-toolkit/schemas": ">=4.0.0"
+    "@message-queue-toolkit/schemas": ">=4.0.0",
+    "@prisma/client": "^5.19.1"
   },
   "devDependencies": {
     "@biomejs/biome": "1.8.3",
@@ -39,6 +37,7 @@
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.0.4",
     "del-cli": "^5.1.0",
+    "@prisma/client": "^5.19.1",
     "prisma": "^5.19.1",
     "typescript": "^5.5.3",
     "uuidv7": "^1.0.2",
