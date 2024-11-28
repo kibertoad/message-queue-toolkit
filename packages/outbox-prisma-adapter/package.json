@@ -17,11 +17,12 @@
     "build:release": "del-cli dist && del-cli coverage && npm run lint && tsc --project tsconfig.release.json",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
-    "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
+    "test:ci": "npm run docker:start:dev && npm run db:wait && npm run test:coverage && npm run docker:stop:dev",
     "lint": "biome check . && tsc --project tsconfig.json --noEmit",
     "lint:fix": "biome check --write .",
     "docker:start:dev": "docker compose up -d",
     "docker:stop:dev": "docker compose down",
+    "db:wait": "while ! echo \"SELECT 1;\" | dotenv -c test -- prisma db execute --stdin; do sleep 1; done",
     "db:update-client": "prisma generate",
     "prepublishOnly": "npm run build:release"
   },
