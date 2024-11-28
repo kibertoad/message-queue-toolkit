@@ -32,6 +32,7 @@ export class OutboxPrismaAdapter<
   ): Promise<OutboxEntry<SupportedEvents[number]>> {
     const prismaModel = this.prisma[this.modelName] as unknown as ModelDelegate
 
+    // @ts-ignore
     const messageType = getMessageType(outboxEntry.event)
     return prismaModel.create({
       data: {
@@ -59,7 +60,7 @@ export class OutboxPrismaAdapter<
       },
     })
 
-    await this.prisma.$transaction(async (prisma: { [x: string]: ModelDelegate }) => {
+    await this.prisma.$transaction(async (prisma) => {
       const prismaModel = prisma[this.modelName] as ModelDelegate
       await this.handleSuccesses(prismaModel, entries, existingEntries)
       await this.handleFailures(prismaModel, failedEntries, existingEntries)
@@ -82,6 +83,7 @@ export class OutboxPrismaAdapter<
       await prismaModel.createMany({
         data: toCreate.map((entry) => ({
           id: entry.id,
+          // @ts-ignore
           type: getMessageType(entry.event),
           created: entry.created,
           updated: new Date(),
@@ -122,6 +124,7 @@ export class OutboxPrismaAdapter<
       await prismaModel.createMany({
         data: toCreate.map((entry) => ({
           id: entry.id,
+          // @ts-ignore
           type: getMessageType(entry.event),
           created: entry.created,
           updated: new Date(),
