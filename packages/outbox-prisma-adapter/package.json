@@ -29,6 +29,7 @@
     "@message-queue-toolkit/core": ">=14.0.0",
     "@message-queue-toolkit/outbox-core": ">=0.1.0",
     "@message-queue-toolkit/schemas": ">=4.0.0",
+    "prisma": "^5.22.0",
     "@prisma/client": "^5.19.1"
   },
   "devDependencies": {
@@ -60,9 +61,5 @@
     "outbox",
     "pattern"
   ],
-  "files": [
-    "README.md",
-    "LICENSE",
-    "dist/*"
-  ]
+  "files": ["README.md", "LICENSE", "dist/*"]
 }
