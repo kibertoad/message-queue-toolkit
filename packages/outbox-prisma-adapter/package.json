@@ -22,7 +22,7 @@
     "lint:fix": "biome check --write .",
     "docker:start:dev": "docker compose up -d",
     "docker:stop:dev": "docker compose down",
-    "db:wait": "while ! echo \"SELECT 1;\" | dotenv -c test -- prisma db execute --stdin; do sleep 1; done",
+    "db:wait": "while ! echo \"SELECT 1;\" | prisma db execute --stdin; do sleep 1; done",
     "db:update-client": "prisma generate",
     "prepublishOnly": "npm run build:release"
   },
