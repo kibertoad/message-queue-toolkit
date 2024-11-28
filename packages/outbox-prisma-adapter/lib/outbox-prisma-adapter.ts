@@ -59,7 +59,7 @@ export class OutboxPrismaAdapter<
       },
     })
 
-    await this.prisma.$transaction(async (prisma) => {
+    await this.prisma.$transaction(async (prisma: { [x: string]: ModelDelegate }) => {
       const prismaModel = prisma[this.modelName] as ModelDelegate
       await this.handleSuccesses(prismaModel, entries, existingEntries)
       await this.handleFailures(prismaModel, failedEntries, existingEntries)
