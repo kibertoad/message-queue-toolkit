@@ -32,7 +32,7 @@ jobs:
 
       - name: Build TS
         run: |
-          npm run build
+          ls node_modules && npm run build
 
       - name: Run Tests
         run: |
