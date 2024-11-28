@@ -34,11 +34,11 @@
   "devDependencies": {
     "@biomejs/biome": "1.8.3",
     "@kibertoad/biome-config": "^1.2.1",
+    "@prisma/client": "^5.22.0",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.0.4",
     "del-cli": "^5.1.0",
-    "@prisma/client": "^5.19.1",
-    "prisma": "^5.19.1",
+    "prisma": "^5.22.0",
     "typescript": "^5.5.3",
     "uuidv7": "^1.0.2",
     "vitest": "^2.0.4",
@@ -60,5 +60,9 @@
     "outbox",
     "pattern"
   ],
-  "files": ["README.md", "LICENSE", "dist/*"]
+  "files": [
+    "README.md",
+    "LICENSE",
+    "dist/*"
+  ]
 }
