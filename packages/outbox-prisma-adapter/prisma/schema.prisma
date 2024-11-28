@@ -17,5 +17,4 @@ model OutboxEntry {
 
 generator client {
   provider = "prisma-client-js"
-  output   = "./db-client"
 }

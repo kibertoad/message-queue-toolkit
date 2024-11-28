@@ -22,7 +22,7 @@
     "lint:fix": "biome check --write .",
     "docker:start:dev": "docker compose up -d",
     "docker:stop:dev": "docker compose down",
-    "db:update-client": "prisma generate --schema=./test/schema.prisma",
+    "db:update-client": "prisma generate",
     "prepublishOnly": "npm run build:release"
   },
   "peerDependencies": {
