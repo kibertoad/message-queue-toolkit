@@ -3,11 +3,11 @@ import {
   type CommonEventDefinition,
   enrichMessageSchemaWithBase,
 } from '@message-queue-toolkit/schemas'
+import { PrismaClient } from '@prisma/client'
 import { uuidv7 } from 'uuidv7'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { OutboxPrismaAdapter } from '../lib/outbox-prisma-adapter'
-import { PrismaClient } from './db-client'
 
 const events = {
   created: {
