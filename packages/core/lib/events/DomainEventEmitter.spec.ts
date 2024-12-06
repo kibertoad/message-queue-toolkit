@@ -431,6 +431,24 @@ describe('AutopilotEventEmitter', () => {
         false,
       )
     })
+
+    it('emits event to background even if foreground listener throws', async () => {
+      // Given
+      const fakeSyncListener = new FakeListener()
+      vi.spyOn(fakeSyncListener, 'handleEvent').mockRejectedValue(new Error('Test error'))
+      eventEmitter.on('entity.created', fakeSyncListener)
+
+      const fakeAsyncListener = new FakeListener()
+      eventEmitter.on('entity.created', fakeAsyncListener, true)
+
+      // When
+      const emittedEventPromise = eventEmitter.emit(TestEvents.created, createdEventPayload)
+
+      // Then
+      expect(emittedEventPromise).rejects.toThrow('Test error')
+      await eventEmitter.handlerSpy.waitForMessage({ type: 'entity.created' }, 'consumed')
+      expect(fakeAsyncListener.receivedEvents).toHaveLength(1)
+    })
   })
 
   describe('dispose', () => {
