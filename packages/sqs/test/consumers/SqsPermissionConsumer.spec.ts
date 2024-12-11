@@ -613,8 +613,7 @@ describe('SqsPermissionConsumer', () => {
                 QueueName: SqsPermissionConsumer.QUEUE_NAME,
               },
             },
-            concurrentConsumersAmount: 10,
-            logMessages: true,
+            concurrentConsumersAmount: 5,
           })
         }),
       })
@@ -646,12 +645,8 @@ describe('SqsPermissionConsumer', () => {
         }),
       )
 
-      await Promise.all(
-        messages.map(async (m) => {
-          await publisher.publish(m)
-          await consumer.handlerSpy.waitForMessageWithId(m.id, 'consumed')
-        }),
-      )
+      messages.map(m => publisher.publish(m))
+      await Promise.all(messages.map((m) => consumer.handlerSpy.waitForMessageWithId(m.id, 'consumed')))
 
       // Verifies that each message is executed only once
       expect(consumer.addCounter).toBe(messagesAmount)

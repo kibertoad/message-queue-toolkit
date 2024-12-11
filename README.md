@@ -100,6 +100,7 @@ Multi-schema consumers support multiple message types via handler configs. They 
         * `handlerSpy` - allow awaiting certain messages to be published (see [Handler Spies](#handler-spies) for more information);
         * `logMessages` - add logs for processed messages.
         * `payloadStoreConfig` - configuration for payload offloading. This option enables the external storage of large message payloads to comply with message size limitations of the queue system. For more details on setting this up, see [Payload Offloading](#payload-offloading).
+        * `concurrentConsumersAmount` - configuration for specifying the number of concurrent consumers to create. Available only for SQS consumers
 * `init()`, prepare consumer for use (e. g. establish all necessary connections);
 * `close()`, stop listening for messages and disconnect;
 * `start()`, which invokes `init()`.
