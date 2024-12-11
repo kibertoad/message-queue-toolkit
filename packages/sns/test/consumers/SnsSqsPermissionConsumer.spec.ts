@@ -3,8 +3,8 @@ import { ListTagsForResourceCommand, type SNSClient } from '@aws-sdk/client-sns'
 import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
-import { type AwilixContainer, asValue } from 'awilix'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { type AwilixContainer, asFunction, asValue } from 'awilix'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
@@ -12,6 +12,7 @@ import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import type { STSClient } from '@aws-sdk/client-sts'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '@message-queue-toolkit/sqs/dist/test/consumers/userConsumerSchemas'
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
 
 describe('SnsSqsPermissionConsumer', () => {
@@ -703,6 +704,65 @@ describe('SnsSqsPermissionConsumer', () => {
         expect(consumer.addCounter).toBe(1)
         expect(consumer.removeCounter).toBe(2)
       }, 10000)
+    })
+  })
+
+  describe('multiple consumers', () => {
+    let diContainer: AwilixContainer<Dependencies>
+
+    let publisher: SnsPermissionPublisher
+    let consumer: SnsSqsPermissionConsumer
+
+    beforeEach(async () => {
+      diContainer = await registerDependencies({
+        permissionConsumer: asFunction((dependencies) => {
+          return new SnsSqsPermissionConsumer(dependencies, {
+            creationConfig: {
+              topic: {
+                Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME,
+              },
+              queue: {
+                QueueName: SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
+              },
+              updateAttributesIfExists: true,
+            },
+            deletionConfig: {
+              deleteIfExists: true,
+            },
+            concurrentConsumersAmount: 10,
+          })
+        }),
+      })
+      publisher = diContainer.cradle.permissionPublisher
+      consumer = diContainer.cradle.permissionConsumer
+
+      await consumer.start()
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('process all messages properly', async () => {
+      const messagesAmount = 50
+      const messages: PERMISSIONS_ADD_MESSAGE_TYPE[] = Array.from({ length: messagesAmount }).map(
+        (_, i) => ({
+          id: `${i}`,
+          messageType: 'add',
+          timestamp: new Date().toISOString(),
+        }),
+      )
+
+      messages.map((m) => publisher.publish(m))
+      await Promise.all(
+        messages.map((m) => consumer.handlerSpy.waitForMessageWithId(m.id, 'consumed')),
+      )
+
+      // Verifies that each message is executed only once
+      expect(consumer.addCounter).toBe(messagesAmount)
+      // Verifies that no message is lost
+      expect(consumer.processedMessagesIds).toHaveLength(messagesAmount)
     })
   })
 
