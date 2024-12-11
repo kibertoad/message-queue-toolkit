@@ -21,7 +21,7 @@ import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
-import type { PERMISSIONS_ADD_MESSAGE_TYPE } from "./userConsumerSchemas";
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas'
 
 describe('SqsPermissionConsumer', () => {
   describe('init', () => {
@@ -606,7 +606,7 @@ describe('SqsPermissionConsumer', () => {
 
     beforeEach(async () => {
       diContainer = await registerDependencies({
-        permissionConsumer: asFunction(dependencies => {
+        permissionConsumer: asFunction((dependencies) => {
           return new SqsPermissionConsumer(dependencies, {
             creationConfig: {
               queue: {
@@ -616,7 +616,7 @@ describe('SqsPermissionConsumer', () => {
             concurrentConsumersAmount: 10,
             logMessages: true,
           })
-        })
+        }),
       })
       sqsClient = diContainer.cradle.sqsClient
       publisher = diContainer.cradle.permissionPublisher
@@ -638,16 +638,20 @@ describe('SqsPermissionConsumer', () => {
 
     it('process all messages properly', async () => {
       const messagesAmount = 100
-      const messages: PERMISSIONS_ADD_MESSAGE_TYPE[] = Array.from({ length: messagesAmount }).map((_, i) => ({
-        id: `${i}`,
-        messageType: 'add',
-        timestamp: new Date().toISOString(),
-      }))
+      const messages: PERMISSIONS_ADD_MESSAGE_TYPE[] = Array.from({ length: messagesAmount }).map(
+        (_, i) => ({
+          id: `${i}`,
+          messageType: 'add',
+          timestamp: new Date().toISOString(),
+        }),
+      )
 
-      await Promise.all(messages.map(async (m) => {
-        await publisher.publish(m)
-        await consumer.handlerSpy.waitForMessageWithId(m.id, 'consumed')
-      }))
+      await Promise.all(
+        messages.map(async (m) => {
+          await publisher.publish(m)
+          await consumer.handlerSpy.waitForMessageWithId(m.id, 'consumed')
+        }),
+      )
 
       // Verifies that each message is executed only once
       expect(consumer.addCounter).toBe(messagesAmount)

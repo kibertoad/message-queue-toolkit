@@ -115,7 +115,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
               }
               this.addCounter += context.incrementAmount
               this.processedMessagesIds.add(_message.id)
-              return Promise.resolve({result: 'success'})
+              return Promise.resolve({ result: 'success' })
             },
             {
               preHandlerBarrier: options.addPreHandlerBarrier,

@@ -181,14 +181,9 @@ export abstract class AbstractSqsConsumer<
 
     const visibilityTimeout = await this.getQueueVisibilityTimeout()
 
-    try {
-      this.consumers = Array.from({ length: this.concurrentConsumersAmount })
-        .map((_) => this.createConsumer({ visibilityTimeout }))
-    } catch (err) {
-      console.log(err)
-      console.log(this.consumers)
-    }
-
+    this.consumers = Array.from({ length: this.concurrentConsumersAmount }).map((_) =>
+      this.createConsumer({ visibilityTimeout }),
+    )
 
     for (const consumer of this.consumers) {
       consumer.on('error', (err) => {
@@ -283,7 +278,7 @@ export abstract class AbstractSqsConsumer<
   private stopExistingConsumers(abort?: boolean) {
     for (const consumer of this.consumers) {
       consumer.stop({
-        abort
+        abort,
       })
     }
   }

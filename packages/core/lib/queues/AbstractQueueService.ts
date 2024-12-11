@@ -170,10 +170,15 @@ export abstract class AbstractQueueService<
     messageId?: string,
   ) {
     const messageTimestamp = message ? this.tryToExtractTimestamp(message) : undefined
-    const messageProcessingMilliseconds = messageTimestamp ? Date.now() - messageTimestamp.getTime() : undefined
+    const messageProcessingMilliseconds = messageTimestamp
+      ? Date.now() - messageTimestamp.getTime()
+      : undefined
 
-    // @ts-ignore
-    const messageType = (message && this.messageTypeField in message) ? message[this.messageTypeField] : undefined
+    const messageType =
+      message && this.messageTypeField in message
+        ? // @ts-ignore
+          message[this.messageTypeField]
+        : undefined
 
     this.logger.debug(
       {
