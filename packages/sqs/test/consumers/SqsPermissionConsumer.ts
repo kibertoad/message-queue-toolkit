@@ -38,6 +38,7 @@ type SqsPermissionConsumerOptions = Pick<
     preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, number>,
   ) => Promise<Either<'retryLater', 'success'>>
   removePreHandlers?: Prehandler<SupportedMessages, ExecutionContext, PrehandlerOutput>[]
+  concurrentConsumersAmount?: number
 }
 
 type ExecutionContext = {
@@ -54,6 +55,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
 > {
   public addCounter = 0
   public removeCounter = 0
+  public processedMessagesIds: Set<string> = new Set()
   public static readonly QUEUE_NAME = 'user_permissions_multi'
 
   constructor(
@@ -97,6 +99,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
         consumerOverrides: options.consumerOverrides ?? {
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
         },
+        concurrentConsumersAmount: options.concurrentConsumersAmount,
         maxRetryDuration: options.maxRetryDuration,
         payloadStoreConfig: options.payloadStoreConfig,
         handlers: new MessageHandlerConfigBuilder<
@@ -111,9 +114,8 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
                 return Promise.resolve({ error: 'retryLater' })
               }
               this.addCounter += context.incrementAmount
-              return Promise.resolve({
-                result: 'success',
-              })
+              this.processedMessagesIds.add(_message.id)
+              return Promise.resolve({result: 'success'})
             },
             {
               preHandlerBarrier: options.addPreHandlerBarrier,

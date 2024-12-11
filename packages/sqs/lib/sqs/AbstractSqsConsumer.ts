@@ -63,6 +63,7 @@ export type SQSConsumerOptions<
     ConsumerOptions,
     'sqs' | 'queueUrl' | 'handler' | 'handleMessageBatch' | 'visibilityTimeout'
   >
+  concurrentConsumersAmount?: number
 }
 
 export abstract class AbstractSqsConsumer<
@@ -96,7 +97,8 @@ export abstract class AbstractSqsConsumer<
   >
   implements QueueConsumer
 {
-  private consumer?: Consumer
+  private consumers: Consumer[]
+  private readonly concurrentConsumersAmount: number
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
   private readonly consumerOptionsOverride: Partial<ConsumerOptions>
   private readonly handlerContainer: HandlerContainer<
@@ -129,7 +131,8 @@ export abstract class AbstractSqsConsumer<
     this.deadLetterQueueOptions = options.deadLetterQueue
     this.maxRetryDuration = options.maxRetryDuration ?? DEFAULT_MAX_RETRY_DURATION
     this.executionContext = executionContext
-
+    this.consumers = []
+    this.concurrentConsumersAmount = options.concurrentConsumersAmount ?? 1
     this._messageSchemaContainer = this.resolveConsumerMessageSchemaContainer(options)
     this.handlerContainer = new HandlerContainer<
       MessagePayloadType,
@@ -174,14 +177,39 @@ export abstract class AbstractSqsConsumer<
 
   public async start() {
     await this.init()
-    if (this.consumer) this.consumer.stop()
+    this.stopExistingConsumers()
 
     const visibilityTimeout = await this.getQueueVisibilityTimeout()
 
-    this.consumer = Consumer.create({
+    try {
+      this.consumers = Array.from({ length: this.concurrentConsumersAmount })
+        .map((_) => this.createConsumer({ visibilityTimeout }))
+    } catch (err) {
+      console.log(err)
+      console.log(this.consumers)
+    }
+
+
+    for (const consumer of this.consumers) {
+      consumer.on('error', (err) => {
+        this.handleError(err, {
+          queueName: this.queueName,
+        })
+      })
+      consumer.start()
+    }
+  }
+
+  public override async close(abort?: boolean): Promise<void> {
+    await super.close()
+    this.stopExistingConsumers(abort ?? false)
+  }
+
+  private createConsumer(options: { visibilityTimeout: number | undefined }): Consumer {
+    return Consumer.create({
       sqs: this.sqsClient,
       queueUrl: this.queueUrl,
-      visibilityTimeout,
+      visibilityTimeout: options.visibilityTimeout,
       messageAttributeNames: [`${PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX}*`],
       ...this.consumerOptionsOverride,
       handleMessage: async (message: SQSMessage) => {
@@ -250,21 +278,14 @@ export abstract class AbstractSqsConsumer<
         return Promise.reject(result.error)
       },
     })
-
-    this.consumer.on('error', (err) => {
-      this.handleError(err, {
-        queueName: this.queueName,
-      })
-    })
-
-    this.consumer.start()
   }
 
-  public override async close(abort?: boolean): Promise<void> {
-    await super.close()
-    this.consumer?.stop({
-      abort: abort ?? false,
-    })
+  private stopExistingConsumers(abort?: boolean) {
+    for (const consumer of this.consumers) {
+      consumer.stop({
+        abort
+      })
+    }
   }
 
   private async internalProcessMessage(
