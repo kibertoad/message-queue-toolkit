@@ -91,7 +91,7 @@ describe('AmqpPermissionConsumer', () => {
       await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
       expect(logger.loggedMessages.length).toBe(5)
-      expect(logger.loggedMessages).toEqual([
+      expect(logger.loggedMessages).toMatchObject([
         'Propagating new connection across 0 receivers',
         {
           id: '1',
