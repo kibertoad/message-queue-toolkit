@@ -645,8 +645,10 @@ describe('SqsPermissionConsumer', () => {
         }),
       )
 
-      messages.map(m => publisher.publish(m))
-      await Promise.all(messages.map((m) => consumer.handlerSpy.waitForMessageWithId(m.id, 'consumed')))
+      messages.map((m) => publisher.publish(m))
+      await Promise.all(
+        messages.map((m) => consumer.handlerSpy.waitForMessageWithId(m.id, 'consumed')),
+      )
 
       // Verifies that each message is executed only once
       expect(consumer.addCounter).toBe(messagesAmount)
