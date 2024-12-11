@@ -1,6 +1,6 @@
 services:
   localstack:
-    image: localstack/localstack:3.8.1
+    image: localstack/localstack:4.0.2
     network_mode: bridge
     hostname: localstack
     ports:

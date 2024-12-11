@@ -269,6 +269,17 @@ describe('SqsPermissionPublisher', () => {
       ).rejects.toThrow(/Unsupported message type: bad/)
     })
 
+    // See https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html
+    it('publish message with payload containing forbidden unicode character', async () => {
+      await expect(
+        permissionPublisher.publish({
+          id: '\uFFFF',
+          messageType: 'add',
+          timestamp: new Date().toISOString(),
+        } satisfies PERMISSIONS_ADD_MESSAGE_TYPE),
+      ).rejects.toThrow(/Error while publishing to SQS: Invalid characters found/)
+    })
+
     it('publishes a message', async () => {
       const { permissionPublisher } = diContainer.cradle
 

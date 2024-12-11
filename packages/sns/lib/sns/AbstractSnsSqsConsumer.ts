@@ -12,10 +12,12 @@ import { deleteSnsSqs, initSnsSqs } from '../utils/snsInitter'
 import { readSnsMessage } from '../utils/snsMessageReader'
 import type { SNSSubscriptionOptions } from '../utils/snsSubscriber'
 
+import type { STSClient } from '@aws-sdk/client-sts'
 import type { SNSCreationConfig, SNSOptions, SNSTopicLocatorType } from './AbstractSnsService'
 
 export type SNSSQSConsumerDependencies = SQSConsumerDependencies & {
   snsClient: SNSClient
+  stsClient: STSClient
 }
 export type SNSSQSCreationConfig = SQSCreationConfig & SNSCreationConfig
 
@@ -53,6 +55,7 @@ export abstract class AbstractSnsSqsConsumer<
 > {
   private readonly subscriptionConfig?: SNSSubscriptionOptions
   private readonly snsClient: SNSClient
+  private readonly stsClient: STSClient
 
   // @ts-ignore
   protected topicArn: string
@@ -74,6 +77,7 @@ export abstract class AbstractSnsSqsConsumer<
 
     this.subscriptionConfig = options.subscriptionConfig
     this.snsClient = dependencies.snsClient
+    this.stsClient = dependencies.stsClient
   }
 
   override async init(): Promise<void> {
@@ -81,6 +85,7 @@ export abstract class AbstractSnsSqsConsumer<
       await deleteSnsSqs(
         this.sqsClient,
         this.snsClient,
+        this.stsClient,
         this.deletionConfig,
         this.creationConfig.queue,
         this.creationConfig.topic,
@@ -95,6 +100,7 @@ export abstract class AbstractSnsSqsConsumer<
     const initSnsSqsResult = await initSnsSqs(
       this.sqsClient,
       this.snsClient,
+      this.stsClient,
       this.locatorConfig,
       this.creationConfig,
       this.subscriptionConfig,
