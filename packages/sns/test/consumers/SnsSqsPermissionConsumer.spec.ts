@@ -12,8 +12,8 @@ import { registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import type { STSClient } from '@aws-sdk/client-sts'
-import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '@message-queue-toolkit/sqs/dist/test/consumers/userConsumerSchemas'
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas'
 
 describe('SnsSqsPermissionConsumer', () => {
   describe('init', () => {
