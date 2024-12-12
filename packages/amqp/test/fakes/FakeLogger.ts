@@ -1,10 +1,15 @@
-import { deepClone } from '@lokalise/node-core'
-import type { Logger } from '@message-queue-toolkit/core'
+import { type CommonLogger, deepClone } from '@lokalise/node-core'
+import type { Bindings, ChildLoggerOptions } from 'pino'
+import type pino from 'pino'
 
-export class FakeLogger implements Logger {
+export class FakeLogger implements CommonLogger {
   public readonly loggedMessages: unknown[] = []
-  public readonly loggedWarnings: unknown[] = []
-  public readonly loggedErrors: unknown[] = []
+
+  public level: pino.LevelWithSilentOrString
+
+  constructor(level: pino.LevelWithSilentOrString = 'debug') {
+    this.level = level
+  }
 
   debug(obj: unknown) {
     this.saveLog(obj)
@@ -23,6 +28,19 @@ export class FakeLogger implements Logger {
   }
   warn(obj: unknown) {
     this.saveLog(obj)
+  }
+  silent(_obj: unknown) {
+    return
+  }
+
+  // Child has no effect for FakeLogger
+  child(_bindings: Bindings, options?: ChildLoggerOptions): CommonLogger {
+    return new FakeLogger(options?.level)
+  }
+
+  isLevelEnabled(_: pino.LevelWithSilentOrString): boolean {
+    // For FakeLogger we want to track all logs
+    return true
   }
 
   private saveLog(obj: unknown) {
