@@ -21,6 +21,7 @@ import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas'
 
 describe('SqsPermissionConsumer', () => {
   describe('init', () => {
@@ -593,6 +594,66 @@ describe('SqsPermissionConsumer', () => {
 
       expect(consumer.addCounter).toBe(1)
       expect(consumer.removeCounter).toBe(2)
+    })
+  })
+
+  describe('multiple consumers', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    let sqsClient: SQSClient
+
+    let publisher: SqsPermissionPublisher
+    let consumer: SqsPermissionConsumer
+
+    beforeEach(async () => {
+      diContainer = await registerDependencies({
+        permissionConsumer: asFunction((dependencies) => {
+          return new SqsPermissionConsumer(dependencies, {
+            creationConfig: {
+              queue: {
+                QueueName: SqsPermissionConsumer.QUEUE_NAME,
+              },
+            },
+            concurrentConsumersAmount: 5,
+          })
+        }),
+      })
+      sqsClient = diContainer.cradle.sqsClient
+      publisher = diContainer.cradle.permissionPublisher
+      consumer = diContainer.cradle.permissionConsumer
+
+      await consumer.start()
+
+      const command = new ReceiveMessageCommand({
+        QueueUrl: publisher.queueProps.url,
+      })
+      const reply = await sqsClient.send(command)
+      expect(reply.Messages).toBeUndefined()
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('process all messages properly', async () => {
+      const messagesAmount = 100
+      const messages: PERMISSIONS_ADD_MESSAGE_TYPE[] = Array.from({ length: messagesAmount }).map(
+        (_, i) => ({
+          id: `${i}`,
+          messageType: 'add',
+          timestamp: new Date().toISOString(),
+        }),
+      )
+
+      messages.map((m) => publisher.publish(m))
+      await Promise.all(
+        messages.map((m) => consumer.handlerSpy.waitForMessageWithId(m.id, 'consumed')),
+      )
+
+      // Verifies that each message is executed only once
+      expect(consumer.addCounter).toBe(messagesAmount)
+      // Verifies that no message is lost
+      expect(consumer.processedMessagesIds).toHaveLength(messagesAmount)
     })
   })
 
