@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/sqs",
-  "version": "17.3.0",
+  "version": "18.0.0",
   "private": false,
   "license": "MIT",
   "description": "SQS adapter for message-queue-toolkit",
@@ -25,7 +25,7 @@
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@lokalise/node-core": "^13.0.1",
+    "@lokalise/node-core": "^13.3.0",
     "sqs-consumer": "^11.1.0",
     "zod": "^3.23.8"
   },

@@ -1,5 +1,5 @@
-import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
-import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
+import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
+import type { TransactionObservabilityManager } from '@message-queue-toolkit/core'
 import {
   CommonMetadataFiller,
   EventRegistry,
@@ -81,7 +81,7 @@ export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
 export type TestEventPublishPayloadsType = z.infer<TestEventsType[number]['publisherSchema']>
 
 // @ts-ignore
-const TestLogger: Logger = console
+const TestLogger: CommonLogger = console
 
 export async function registerDependencies(
   config: AmqpConfig,
@@ -202,7 +202,7 @@ export async function registerDependencies(
 type DiConfig = NameAndRegistrationPair<Dependencies>
 
 export interface Dependencies {
-  logger: Logger
+  logger: CommonLogger
   amqpConnectionManager: AmqpConnectionManager
   awilixManager: AwilixManager
 

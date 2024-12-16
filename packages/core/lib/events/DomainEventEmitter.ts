@@ -1,4 +1,5 @@
 import {
+  type CommonLogger,
   type ErrorReporter,
   InternalError,
   type TransactionObservabilityManager,
@@ -11,7 +12,6 @@ import { resolveHandlerSpy } from '../queues/HandlerSpy'
 
 import { randomUUID } from 'node:crypto'
 import type { ConsumerMessageMetadataType } from '@message-queue-toolkit/schemas'
-import type { Logger } from '../types/MessageQueueTypes'
 import type { EventRegistry } from './EventRegistry'
 import type {
   AnyEventHandler,
@@ -26,7 +26,7 @@ import type {
 export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDefinition[]> = {
   eventRegistry: EventRegistry<SupportedEvents>
   metadataFiller: MetadataFiller
-  logger: Logger
+  logger: CommonLogger
   errorReporter?: ErrorReporter
   transactionObservabilityManager?: TransactionObservabilityManager
 }
@@ -39,7 +39,7 @@ type Handlers<T> = {
 export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]> {
   private readonly eventRegistry: EventRegistry<SupportedEvents>
   private readonly metadataFiller: MetadataFiller
-  private readonly logger: Logger
+  private readonly logger: CommonLogger
   private readonly errorReporter?: ErrorReporter
   private readonly transactionObservabilityManager?: TransactionObservabilityManager
   private readonly _handlerSpy?: HandlerSpy<

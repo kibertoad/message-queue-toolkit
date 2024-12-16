@@ -3,8 +3,6 @@ export type {
   AsyncPublisher,
   SyncPublisher,
   TransactionObservabilityManager,
-  Logger,
-  LogFn,
   SchemaMap,
   ExtraParams,
 } from './lib/types/MessageQueueTypes'

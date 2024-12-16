@@ -1,8 +1,8 @@
 import { S3 } from '@aws-sdk/client-s3'
 import { SNSClient } from '@aws-sdk/client-sns'
 import { SQSClient } from '@aws-sdk/client-sqs'
-import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
-import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
+import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
+import type { TransactionObservabilityManager } from '@message-queue-toolkit/core'
 import {
   CommonMetadataFiller,
   EventRegistry,
@@ -30,7 +30,7 @@ export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 export type DependencyOverrides = Partial<DiConfig>
 
 // @ts-ignore
-const TestLogger: Logger = console
+const TestLogger: CommonLogger = console
 
 export const TestEvents = {
   created: {
@@ -188,7 +188,7 @@ export async function registerDependencies(
 type DiConfig = Record<keyof Dependencies, Resolver<any>>
 
 export interface Dependencies {
-  logger: Logger
+  logger: CommonLogger
   sqsClient: SQSClient
   snsClient: SNSClient
   stsClient: STSClient

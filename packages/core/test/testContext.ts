@@ -1,8 +1,7 @@
-import type { ErrorReporter } from '@lokalise/node-core'
+import type { CommonLogger, ErrorReporter } from '@lokalise/node-core'
 import { type Resolver, asClass } from 'awilix'
 import { Lifetime, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
-import type { Logger } from 'pino'
 import pino from 'pino'
 import { z } from 'zod'
 
@@ -19,7 +18,7 @@ export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
 export type DependencyOverrides = Partial<DiConfig>
 
-const TestLogger: Logger = pino()
+const TestLogger: CommonLogger = pino()
 
 export const TestEvents = {
   created: {
@@ -100,7 +99,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
 type DiConfig = Record<keyof Dependencies, Resolver<any>>
 
 export interface Dependencies {
-  logger: Logger
+  logger: CommonLogger
   awilixManager: AwilixManager
 
   // vendor-specific dependencies

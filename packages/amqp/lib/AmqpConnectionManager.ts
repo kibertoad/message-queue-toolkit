@@ -1,6 +1,6 @@
-import type { Logger } from '@message-queue-toolkit/core'
 import type { Connection } from 'amqplib'
 
+import type { CommonLogger } from '@lokalise/node-core'
 import type { AmqpConfig } from './amqpConnectionResolver'
 import { resolveAmqpConnection } from './amqpConnectionResolver'
 
@@ -11,14 +11,14 @@ export type ConnectionReceiver = {
 
 export class AmqpConnectionManager {
   private readonly config: AmqpConfig
-  private readonly logger: Logger
+  private readonly logger: CommonLogger
   private readonly connectionReceivers: ConnectionReceiver[]
   private connection?: Connection
   public reconnectsActive: boolean
 
   public isReconnecting: boolean
 
-  constructor(config: AmqpConfig, logger: Logger) {
+  constructor(config: AmqpConfig, logger: CommonLogger) {
     this.config = config
     this.connectionReceivers = []
     this.reconnectsActive = true
