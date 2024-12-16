@@ -34,8 +34,8 @@ export class FakeLogger implements CommonLogger {
   }
 
   // Child has no effect for FakeLogger
-  child(_bindings: Bindings, options?: ChildLoggerOptions): CommonLogger {
-    return new FakeLogger(options?.level)
+  child(_bindings: Bindings, _options?: ChildLoggerOptions): CommonLogger {
+    return this
   }
 
   isLevelEnabled(_: pino.LevelWithSilentOrString): boolean {
