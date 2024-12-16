@@ -169,6 +169,10 @@ export abstract class AbstractQueueService<
     processingResult: MessageProcessingResult,
     messageId?: string,
   ) {
+    if (!this.logger.isLevelEnabled('debug')) {
+      return
+    }
+
     const messageTimestamp = message ? this.tryToExtractTimestamp(message) : undefined
     const messageProcessingMilliseconds = messageTimestamp
       ? Date.now() - messageTimestamp.getTime()
