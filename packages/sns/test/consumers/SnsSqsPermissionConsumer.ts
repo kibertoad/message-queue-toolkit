@@ -39,6 +39,7 @@ type SnsSqsPermissionConsumerOptions = Pick<
   | 'consumerOverrides'
   | 'maxRetryDuration'
   | 'payloadStoreConfig'
+  | 'concurrentConsumersAmount'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -65,6 +66,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
   public addBarrierCounter = 0
   public removeCounter = 0
   public preHandlerCounter = 0
+  public processedMessagesIds: Set<string> = new Set()
 
   constructor(
     dependencies: SNSSQSConsumerDependencies,
@@ -101,6 +103,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
             PERMISSIONS_ADD_MESSAGE_SCHEMA,
             (_message, context, _preHandlingOutputs) => {
               this.addCounter += context.incrementAmount
+              this.processedMessagesIds.add(_message.id)
               return Promise.resolve({ result: 'success' })
             },
             {
@@ -164,6 +167,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
           updateAttributesIfExists: false,
         },
         maxRetryDuration: options.maxRetryDuration,
+        concurrentConsumersAmount: options.concurrentConsumersAmount,
       },
       {
         incrementAmount: 1,

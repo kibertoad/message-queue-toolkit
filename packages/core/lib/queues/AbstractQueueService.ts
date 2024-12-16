@@ -165,14 +165,27 @@ export abstract class AbstractQueueService<
   }
 
   protected logProcessedMessage(
-    _message: MessagePayloadSchemas | null,
+    message: MessagePayloadSchemas | null,
     processingResult: MessageProcessingResult,
     messageId?: string,
   ) {
+    const messageTimestamp = message ? this.tryToExtractTimestamp(message) : undefined
+    const messageProcessingMilliseconds = messageTimestamp
+      ? Date.now() - messageTimestamp.getTime()
+      : undefined
+
+    const messageType =
+      message && this.messageTypeField in message
+        ? // @ts-ignore
+          message[this.messageTypeField]
+        : undefined
+
     this.logger.debug(
       {
         processingResult,
         messageId,
+        messageProcessingTime: messageProcessingMilliseconds,
+        messageType,
       },
       `Finished processing message ${messageId ?? `(unknown id)`}`,
     )
@@ -206,7 +219,6 @@ export abstract class AbstractQueueService<
     if (this.logMessages) {
       // @ts-ignore
       const resolvedMessageId: string | undefined = message?.[this.messageIdField] ?? messageId
-
       this.logProcessedMessage(message, processingResult, resolvedMessageId)
     }
   }

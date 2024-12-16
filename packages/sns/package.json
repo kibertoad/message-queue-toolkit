@@ -35,7 +35,7 @@
     "@aws-sdk/client-sts": "^3.632.0",
     "@message-queue-toolkit/core": ">=15.0.0",
     "@message-queue-toolkit/schemas": ">=2.0.0",
-    "@message-queue-toolkit/sqs": "^17.0.0"
+    "@message-queue-toolkit/sqs": "^17.3.0"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.670.0",
