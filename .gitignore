@@ -130,3 +130,6 @@ dist
 .pnp.*
 /.idea
 /package-lock.json
+
+# prisma
+db-client

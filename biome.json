@@ -1,12 +1,15 @@
 {
-	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-	"extends": ["./node_modules/@kibertoad/biome-config/configs/biome-package.json"],
-	"linter": {
-		"rules": {
-			"performance": {
-				"noBarrelFile": "off",
-				"noReExportAll": "off"
-			}
-		}
-	}
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": ["./node_modules/@kibertoad/biome-config/configs/biome-package.json"],
+  "linter": {
+    "rules": {
+      "performance": {
+        "noBarrelFile": "off",
+        "noReExportAll": "off"
+      }
+    }
+  },
+  "files": {
+    "ignore": ["db-client"]
+  }
 }
