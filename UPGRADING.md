@@ -1,6 +1,6 @@
 # Upgrading Guide
 
-## Upgrading from `17.0.0` to `18.0.0`
+## Upgrading </br> `core` `17.0.0` -> `18.0.0` </br> `sqs` `17.0.0` -> `18.0.0` </br> `sns` `18.0.0` -> `19.0.0` </br> `amqp` `16.0.0` -> `17.0.0`    
 
 ### Description of Breaking Changes
 - `logger` injectable dependency interface was replaced by `CommonLogger` from `@lokalise/node-core` package, It is compatible with on `pino` logger (https://github.com/pinojs/pino)
