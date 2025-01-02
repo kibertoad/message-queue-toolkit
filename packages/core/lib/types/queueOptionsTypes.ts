@@ -25,7 +25,7 @@ export type ProcessedMessageMetadata = {
 }
 
 export interface MessageMetricsManager {
-  registerProcessedMessage(metadata: ProcessedMessageMetadata): unknown
+  registerProcessedMessage(metadata: ProcessedMessageMetadata): void
 }
 
 export type QueueConsumerDependencies = {
