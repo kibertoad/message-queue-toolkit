@@ -7,7 +7,7 @@ import {
 } from '@aws-sdk/client-sqs'
 import { ReceiveMessageCommand, SendMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
-import type { BarrierResult } from '@message-queue-toolkit/core'
+import type { BarrierResult, ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction, asValue } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -317,6 +317,55 @@ describe('SqsPermissionConsumer', () => {
         },
       ])
       await newConsumer.close()
+    })
+  })
+
+  describe('metrics', () => {
+    let logger: FakeLogger
+    let diContainer: AwilixContainer<Dependencies>
+    let publisher: SqsPermissionPublisher
+
+    beforeEach(async () => {
+      logger = new FakeLogger()
+      diContainer = await registerDependencies({
+        logger: asFunction(() => logger),
+      })
+      await diContainer.cradle.permissionConsumer.close()
+      publisher = diContainer.cradle.permissionPublisher
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('registers metrics if metrics manager is provided', async () => {
+      const messagesRegisteredInMetrics: ProcessedMessageMetadata[] = []
+      const newConsumer = new SqsPermissionConsumer({
+        ...diContainer.cradle,
+        messageMetricsManager: {
+          registerProcessedMessage(metadata: ProcessedMessageMetadata): void {
+            messagesRegisteredInMetrics.push(metadata)
+          },
+        },
+      })
+      await newConsumer.start()
+
+      publisher.publish({
+        id: '1',
+        messageType: 'add',
+      })
+
+      await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+
+      expect(messagesRegisteredInMetrics).toStrictEqual([
+        {
+          messageId: '1',
+          messageType: 'add',
+          processingResult: 'consumed',
+          messageProcessingMilliseconds: expect.any(Number),
+        },
+      ])
     })
   })
 

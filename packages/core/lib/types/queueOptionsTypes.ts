@@ -5,11 +5,27 @@ import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer'
 import type { HandlerSpy, HandlerSpyParams } from '../queues/HandlerSpy'
 
-import type { Logger, TransactionObservabilityManager } from './MessageQueueTypes'
+import type {
+  Logger,
+  MessageProcessingResult,
+  TransactionObservabilityManager,
+} from './MessageQueueTypes'
 
 export type QueueDependencies = {
   errorReporter: ErrorReporter
   logger: Logger
+  messageMetricsManager?: MessageMetricsManager
+}
+
+export type ProcessedMessageMetadata = {
+  messageId: string
+  messageType: string
+  processingResult: MessageProcessingResult
+  messageProcessingMilliseconds?: number
+}
+
+export interface MessageMetricsManager {
+  registerProcessedMessage(metadata: ProcessedMessageMetadata): unknown
 }
 
 export type QueueConsumerDependencies = {

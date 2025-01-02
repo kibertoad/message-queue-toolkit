@@ -2,7 +2,11 @@ import { S3 } from '@aws-sdk/client-s3'
 import { SNSClient } from '@aws-sdk/client-sns'
 import { SQSClient } from '@aws-sdk/client-sqs'
 import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
-import type { Logger, TransactionObservabilityManager } from '@message-queue-toolkit/core'
+import type {
+  Logger,
+  MessageMetricsManager,
+  TransactionObservabilityManager,
+} from '@message-queue-toolkit/core'
 import {
   CommonMetadataFiller,
   EventRegistry,
@@ -166,6 +170,7 @@ export async function registerDependencies(
     transactionObservabilityManager: asFunction(() => {
       return undefined
     }, SINGLETON_CONFIG),
+    messageMetricsManager: asFunction(() => undefined, SINGLETON_CONFIG),
     errorReporter: asFunction(() => {
       return {
         report: () => {},
@@ -197,6 +202,7 @@ export interface Dependencies {
 
   // vendor-specific dependencies
   transactionObservabilityManager: TransactionObservabilityManager
+  messageMetricsManager: MessageMetricsManager
 
   errorReporter: ErrorReporter
   consumerErrorResolver: ErrorResolver

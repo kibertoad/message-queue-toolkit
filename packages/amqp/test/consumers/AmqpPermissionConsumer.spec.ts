@@ -1,4 +1,8 @@
-import { objectToBuffer, waitAndRetry } from '@message-queue-toolkit/core'
+import {
+  type ProcessedMessageMetadata,
+  objectToBuffer,
+  waitAndRetry,
+} from '@message-queue-toolkit/core'
 import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
@@ -106,6 +110,49 @@ describe('AmqpPermissionConsumer', () => {
         {
           messageId: '1',
           processingResult: 'consumed',
+        },
+      ])
+    })
+  })
+
+  describe('metrics', () => {
+    let logger: FakeLogger
+    let diContainer: AwilixContainer<Dependencies>
+    let publisher: AmqpPermissionPublisher
+    beforeAll(async () => {
+      logger = new FakeLogger()
+      diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
+        logger: asFunction(() => logger),
+      })
+      await diContainer.cradle.permissionConsumer.close()
+      publisher = diContainer.cradle.permissionPublisher
+    })
+
+    it('registers metrics if metrics manager is provided', async () => {
+      const messagesRegisteredInMetrics: ProcessedMessageMetadata[] = []
+      const newConsumer = new AmqpPermissionConsumer({
+        ...diContainer.cradle,
+        messageMetricsManager: {
+          registerProcessedMessage(metadata: ProcessedMessageMetadata): void {
+            messagesRegisteredInMetrics.push(metadata)
+          },
+        },
+      })
+      await newConsumer.start()
+
+      publisher.publish({
+        id: '1',
+        messageType: 'add',
+      })
+
+      await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+
+      expect(messagesRegisteredInMetrics).toStrictEqual([
+        {
+          messageId: '1',
+          messageType: 'add',
+          processingResult: 'consumed',
+          messageProcessingMilliseconds: expect.any(Number),
         },
       ])
     })

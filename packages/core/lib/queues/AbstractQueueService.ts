@@ -12,7 +12,13 @@ import type { OffloadedPayloadPointerPayload } from '../payload-store/offloadedP
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
 import { isDestroyable } from '../payload-store/payloadStoreTypes'
 import type { Logger, MessageProcessingResult } from '../types/MessageQueueTypes'
-import type { DeletionConfig, QueueDependencies, QueueOptions } from '../types/queueOptionsTypes'
+import type {
+  DeletionConfig,
+  MessageMetricsManager,
+  ProcessedMessageMetadata,
+  QueueDependencies,
+  QueueOptions,
+} from '../types/queueOptionsTypes'
 import { isRetryDateExceeded } from '../utils/dateUtils'
 import { streamWithKnownSizeToString } from '../utils/streamUtils'
 import { toDatePreprocessor } from '../utils/toDateProcessor'
@@ -79,6 +85,8 @@ export abstract class AbstractQueueService<
   protected readonly payloadStoreConfig?: Omit<PayloadStoreConfig, 'serializer'> &
     Required<Pick<PayloadStoreConfig, 'serializer'>>
   protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
+  protected readonly messageMetricsManager?: MessageMetricsManager
+
   protected isInitted: boolean
 
   get handlerSpy(): PublicHandlerSpy<MessagePayloadSchemas> {
@@ -90,9 +98,13 @@ export abstract class AbstractQueueService<
     return this._handlerSpy
   }
 
-  constructor({ errorReporter, logger }: DependenciesType, options: OptionsType) {
+  constructor(
+    { errorReporter, logger, messageMetricsManager }: DependenciesType,
+    options: OptionsType,
+  ) {
     this.errorReporter = errorReporter
     this.logger = logger
+    this.messageMetricsManager = messageMetricsManager
 
     this.messageIdField = options.messageIdField ?? 'id'
     this.messageTypeField = options.messageTypeField
@@ -164,33 +176,6 @@ export abstract class AbstractQueueService<
     this.logger.debug(messageLogEntry)
   }
 
-  protected logProcessedMessage(
-    message: MessagePayloadSchemas | null,
-    processingResult: MessageProcessingResult,
-    messageId?: string,
-  ) {
-    const messageTimestamp = message ? this.tryToExtractTimestamp(message) : undefined
-    const messageProcessingMilliseconds = messageTimestamp
-      ? Date.now() - messageTimestamp.getTime()
-      : undefined
-
-    const messageType =
-      message && this.messageTypeField in message
-        ? // @ts-ignore
-          message[this.messageTypeField]
-        : undefined
-
-    this.logger.debug(
-      {
-        processingResult,
-        messageId,
-        messageProcessingTime: messageProcessingMilliseconds,
-        messageType,
-      },
-      `Finished processing message ${messageId ?? `(unknown id)`}`,
-    )
-  }
-
   protected handleError(err: unknown, context?: Record<string, unknown>) {
     const logObject = resolveGlobalErrorLogObject(err)
     this.logger.error({
@@ -216,10 +201,51 @@ export abstract class AbstractQueueService<
         messageId,
       )
     }
+
+    if (!this.logMessages && !this.messageMetricsManager) {
+      return
+    }
+
+    const processedMessageMetadata = this.resolveProcessedMessageMetadata(
+      message,
+      processingResult,
+      messageId,
+    )
     if (this.logMessages) {
-      // @ts-ignore
-      const resolvedMessageId: string | undefined = message?.[this.messageIdField] ?? messageId
-      this.logProcessedMessage(message, processingResult, resolvedMessageId)
+      this.logger.debug(
+        processedMessageMetadata,
+        `Finished processing message ${processedMessageMetadata.messageId}`,
+      )
+    }
+    if (this.messageMetricsManager) {
+      this.messageMetricsManager.registerProcessedMessage(processedMessageMetadata)
+    }
+  }
+
+  protected resolveProcessedMessageMetadata(
+    message: MessagePayloadSchemas | null,
+    processingResult: MessageProcessingResult,
+    messageId?: string,
+  ): ProcessedMessageMetadata {
+    // @ts-ignore
+    const resolvedMessageId: string | undefined = message?.[this.messageIdField] ?? messageId
+
+    const messageTimestamp = message ? this.tryToExtractTimestamp(message) : undefined
+    const messageProcessingMilliseconds = messageTimestamp
+      ? Date.now() - messageTimestamp.getTime()
+      : undefined
+
+    const messageType =
+      message && this.messageTypeField in message
+        ? // @ts-ignore
+          message[this.messageTypeField]
+        : undefined
+
+    return {
+      processingResult,
+      messageId: resolvedMessageId ?? '(unknown id)',
+      messageProcessingMilliseconds,
+      messageType,
     }
   }
 
