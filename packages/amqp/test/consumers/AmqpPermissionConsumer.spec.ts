@@ -153,6 +153,10 @@ describe('AmqpPermissionConsumer', () => {
           messageType: 'add',
           processingResult: 'consumed',
           messageProcessingMilliseconds: expect.any(Number),
+          message: expect.objectContaining({
+            id: '1',
+            messageType: 'add',
+          }),
         },
       ])
     })
