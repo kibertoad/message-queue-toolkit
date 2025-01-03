@@ -20,7 +20,7 @@ import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SqsPermissionConsumer } from './SqsPermissionConsumer'
+import { SqsPermissionConsumer, type SupportedMessages } from './SqsPermissionConsumer'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas'
 
 describe('SqsPermissionConsumer', () => {
@@ -340,11 +340,11 @@ describe('SqsPermissionConsumer', () => {
     })
 
     it('registers metrics if metrics manager is provided', async () => {
-      const messagesRegisteredInMetrics: ProcessedMessageMetadata[] = []
+      const messagesRegisteredInMetrics: ProcessedMessageMetadata<SupportedMessages>[] = []
       const newConsumer = new SqsPermissionConsumer({
         ...diContainer.cradle,
         messageMetricsManager: {
-          registerProcessedMessage(metadata: ProcessedMessageMetadata): void {
+          registerProcessedMessage(metadata: ProcessedMessageMetadata<SupportedMessages>): void {
             messagesRegisteredInMetrics.push(metadata)
           },
         },
@@ -354,6 +354,9 @@ describe('SqsPermissionConsumer', () => {
       publisher.publish({
         id: '1',
         messageType: 'add',
+        metadata: {
+          schemaVersions: '1.0.0',
+        },
       })
 
       await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
@@ -364,6 +367,13 @@ describe('SqsPermissionConsumer', () => {
           messageType: 'add',
           processingResult: 'consumed',
           messageProcessingMilliseconds: expect.any(Number),
+          message: expect.objectContaining({
+            id: '1',
+            messageType: 'add',
+            metadata: {
+              schemaVersions: '1.0.0',
+            },
+          }),
         },
       ])
     })

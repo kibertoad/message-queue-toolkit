@@ -14,7 +14,7 @@ import {
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
 } from './userConsumerSchemas'
 
-type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
+export type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 
 type SqsPermissionConsumerOptions = Pick<
   SQSConsumerOptions<SupportedMessages, ExecutionContext, PrehandlerOutput>,

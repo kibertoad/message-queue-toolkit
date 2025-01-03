@@ -85,7 +85,7 @@ export abstract class AbstractQueueService<
   protected readonly payloadStoreConfig?: Omit<PayloadStoreConfig, 'serializer'> &
     Required<Pick<PayloadStoreConfig, 'serializer'>>
   protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
-  protected readonly messageMetricsManager?: MessageMetricsManager
+  protected readonly messageMetricsManager?: MessageMetricsManager<MessagePayloadSchemas>
 
   protected isInitted: boolean
 
@@ -192,6 +192,8 @@ export abstract class AbstractQueueService<
     processingResult: MessageProcessingResult,
     messageId?: string,
   ) {
+    const messageProcessedTimestamp = Date.now()
+
     if (this._handlerSpy) {
       this._handlerSpy.addProcessedMessage(
         {
@@ -209,6 +211,7 @@ export abstract class AbstractQueueService<
     const processedMessageMetadata = this.resolveProcessedMessageMetadata(
       message,
       processingResult,
+      messageProcessedTimestamp,
       messageId,
     )
     if (this.logMessages) {
@@ -225,14 +228,15 @@ export abstract class AbstractQueueService<
   protected resolveProcessedMessageMetadata(
     message: MessagePayloadSchemas | null,
     processingResult: MessageProcessingResult,
+    messageProcessedTimestamp: number,
     messageId?: string,
-  ): ProcessedMessageMetadata {
+  ): ProcessedMessageMetadata<MessagePayloadSchemas> {
     // @ts-ignore
     const resolvedMessageId: string | undefined = message?.[this.messageIdField] ?? messageId
 
     const messageTimestamp = message ? this.tryToExtractTimestamp(message) : undefined
     const messageProcessingMilliseconds = messageTimestamp
-      ? Date.now() - messageTimestamp.getTime()
+      ? messageProcessedTimestamp - messageTimestamp.getTime()
       : undefined
 
     const messageType =
@@ -246,6 +250,7 @@ export abstract class AbstractQueueService<
       messageId: resolvedMessageId ?? '(unknown id)',
       messageProcessingMilliseconds,
       messageType,
+      message,
     }
   }
 

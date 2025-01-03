@@ -17,15 +17,16 @@ export type QueueDependencies = {
   messageMetricsManager?: MessageMetricsManager
 }
 
-export type ProcessedMessageMetadata = {
+export type ProcessedMessageMetadata<MessagePayloadSchemas extends object = object> = {
   messageId: string
   messageType: string
   processingResult: MessageProcessingResult
+  message: MessagePayloadSchemas | null
   messageProcessingMilliseconds?: number
 }
 
-export interface MessageMetricsManager {
-  registerProcessedMessage(metadata: ProcessedMessageMetadata): void
+export interface MessageMetricsManager<MessagePayloadSchemas extends object = object> {
+  registerProcessedMessage(metadata: ProcessedMessageMetadata<MessagePayloadSchemas>): void
 }
 
 export type QueueConsumerDependencies = {
