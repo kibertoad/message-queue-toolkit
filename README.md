@@ -371,3 +371,19 @@ For example, in the case of S3, you can set up a lifecycle policy to delete old 
   ]
 }
 ```
+
+## Injectable dependencies
+
+As mentioned above, some classes accept `dependencies` parameter, which allows to provide custom dependencies to control the behaviour of specific functionalities.
+
+### MessageMetricsManager
+
+It can be provided to `AbstractQueueService` and classes that extend it. 
+
+It needs to implement the following methods:
+- `registerProcessedMessage` - it's executed once message is processed. As a parameter it accepts message processing metadata with the following properties:
+  - `messageId`
+  - `messageType`
+  - `processingResult` - can have one of the following values: `retryLater`, `consumed`, `published`, `error`, `invalid_message`
+  - `message` - whole message object
+  - `messageProcessingMilliseconds` - message processing time in milliseconds
