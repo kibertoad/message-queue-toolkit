@@ -12,8 +12,13 @@ import type { OffloadedPayloadPointerPayload } from '../payload-store/offloadedP
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
 import { isDestroyable } from '../payload-store/payloadStoreTypes'
 import type { MessageProcessingResult } from '../types/MessageQueueTypes'
-import type { DeletionConfig, MessageMetricsManager,
-  ProcessedMessageMetadata, QueueDependencies, QueueOptions } from '../types/queueOptionsTypes'
+import type {
+  DeletionConfig,
+  MessageMetricsManager,
+  ProcessedMessageMetadata,
+  QueueDependencies,
+  QueueOptions,
+} from '../types/queueOptionsTypes'
 import { isRetryDateExceeded } from '../utils/dateUtils'
 import { streamWithKnownSizeToString } from '../utils/streamUtils'
 import { toDatePreprocessor } from '../utils/toDateProcessor'

@@ -788,10 +788,7 @@ describe('SqsPermissionConsumer', () => {
         expect(consumer1Counter).toBe(1)
         expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)
 
-        await Promise.all([
-          consumer1.close(),
-          consumer2.close(),
-        ])
+        await Promise.all([consumer1.close(), consumer2.close()])
       },
       // This reduces flakiness in CI
       10000,

@@ -2,7 +2,10 @@ import { S3 } from '@aws-sdk/client-s3'
 import { SNSClient } from '@aws-sdk/client-sns'
 import { SQSClient } from '@aws-sdk/client-sqs'
 import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
-import type { MessageMetricsManager, TransactionObservabilityManager } from '@message-queue-toolkit/core'
+import type {
+  MessageMetricsManager,
+  TransactionObservabilityManager,
+} from '@message-queue-toolkit/core'
 import {
   CommonMetadataFiller,
   EventRegistry,
