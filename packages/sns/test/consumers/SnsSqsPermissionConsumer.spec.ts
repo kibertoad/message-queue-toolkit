@@ -841,6 +841,11 @@ describe('SnsSqsPermissionConsumer', () => {
 
         expect(consumer1Counter).toBe(1)
         expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)
+
+        await Promise.all([
+          consumer1.close(),
+          consumer2.close(),
+        ])
       },
       10000,
     )
@@ -911,6 +916,8 @@ describe('SnsSqsPermissionConsumer', () => {
         MessageBody: expect.stringContaining('"_internalNumberOfRetries":1'),
         DelaySeconds: 1,
       })
+
+      await consumer.close()
     })
   })
 })

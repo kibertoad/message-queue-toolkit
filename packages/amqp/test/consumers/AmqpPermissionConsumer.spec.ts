@@ -94,6 +94,8 @@ describe('AmqpPermissionConsumer', () => {
 
       await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
+      await newConsumer.close()
+
       expect(logger.loggedMessages.length).toBe(5)
       expect(logger.loggedMessages).toMatchObject([
         'Propagating new connection across 0 receivers',
@@ -147,6 +149,8 @@ describe('AmqpPermissionConsumer', () => {
 
       await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
+      await newConsumer.close()
+
       expect(messagesRegisteredInMetrics).toStrictEqual([
         {
           messageId: '1',
@@ -199,6 +203,8 @@ describe('AmqpPermissionConsumer', () => {
       await newConsumer.handlerSpy.waitForMessageWithId('3', 'retryLater')
       await newConsumer.handlerSpy.waitForMessageWithId('3', 'consumed')
 
+      await newConsumer.close()
+
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
     })
@@ -226,6 +232,8 @@ describe('AmqpPermissionConsumer', () => {
 
       await newConsumer.handlerSpy.waitForMessageWithId('4', 'retryLater')
       await newConsumer.handlerSpy.waitForMessageWithId('4', 'consumed')
+
+      await newConsumer.close()
 
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
@@ -489,6 +497,8 @@ describe('AmqpPermissionConsumer', () => {
       const jobSpy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
       expect(jobSpy.message).toEqual(message)
       expect(counter).toBeGreaterThan(2)
+
+      await consumer.close()
     })
 
     it('stuck on handler', async () => {
@@ -512,6 +522,8 @@ describe('AmqpPermissionConsumer', () => {
       const jobSpy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
       expect(jobSpy.message).toEqual(message)
       expect(counter).toBeGreaterThan(2)
+
+      await consumer.close()
     })
   })
 })
