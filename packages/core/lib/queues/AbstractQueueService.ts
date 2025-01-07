@@ -1,6 +1,6 @@
 import { types } from 'node:util'
 
-import type { Either, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
+import type { CommonLogger, Either, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema, ZodType } from 'zod'
@@ -11,14 +11,9 @@ import { OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA } from '../payload-store/offlo
 import type { OffloadedPayloadPointerPayload } from '../payload-store/offloadedPayloadMessageSchemas'
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
 import { isDestroyable } from '../payload-store/payloadStoreTypes'
-import type { Logger, MessageProcessingResult } from '../types/MessageQueueTypes'
-import type {
-  DeletionConfig,
-  MessageMetricsManager,
-  ProcessedMessageMetadata,
-  QueueDependencies,
-  QueueOptions,
-} from '../types/queueOptionsTypes'
+import type { MessageProcessingResult } from '../types/MessageQueueTypes'
+import type { DeletionConfig, MessageMetricsManager,
+  ProcessedMessageMetadata, QueueDependencies, QueueOptions } from '../types/queueOptionsTypes'
 import { isRetryDateExceeded } from '../utils/dateUtils'
 import { streamWithKnownSizeToString } from '../utils/streamUtils'
 import { toDatePreprocessor } from '../utils/toDateProcessor'
@@ -75,7 +70,7 @@ export abstract class AbstractQueueService<
   protected readonly messageTimestampField: string
 
   protected readonly errorReporter: ErrorReporter
-  public readonly logger: Logger
+  public readonly logger: CommonLogger
   protected readonly messageIdField: string
   protected readonly messageTypeField: string
   protected readonly logMessages: boolean
@@ -204,7 +199,8 @@ export abstract class AbstractQueueService<
       )
     }
 
-    if (!this.logMessages && !this.messageMetricsManager) {
+    const debugLoggingEnabled = this.logMessages && this.logger.isLevelEnabled('debug')
+    if (!debugLoggingEnabled && !this.messageMetricsManager) {
       return
     }
 
@@ -214,7 +210,7 @@ export abstract class AbstractQueueService<
       messageProcessedTimestamp,
       messageId,
     )
-    if (this.logMessages) {
+    if (debugLoggingEnabled) {
       this.logger.debug(
         processedMessageMetadata,
         `Finished processing message ${processedMessageMetadata.messageId}`,

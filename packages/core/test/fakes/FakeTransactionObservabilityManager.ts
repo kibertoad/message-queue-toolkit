@@ -8,4 +8,6 @@ export class FakeTransactionObservabilityManager implements TransactionObservabi
   startWithGroup() {}
 
   stop() {}
+
+  addCustomAttributes() {}
 }

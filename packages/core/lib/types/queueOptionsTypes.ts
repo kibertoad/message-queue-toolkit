@@ -1,19 +1,15 @@
-import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
+import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer'
 import type { HandlerSpy, HandlerSpyParams } from '../queues/HandlerSpy'
 
-import type {
-  Logger,
-  MessageProcessingResult,
-  TransactionObservabilityManager,
-} from './MessageQueueTypes'
+import type { MessageProcessingResult, TransactionObservabilityManager } from './MessageQueueTypes'
 
 export type QueueDependencies = {
   errorReporter: ErrorReporter
-  logger: Logger
+  logger: CommonLogger
   messageMetricsManager?: MessageMetricsManager
 }
 
@@ -49,6 +45,7 @@ export interface MessageMetricsManager<MessagePayloadSchemas extends object = ob
    * @param metadata - contains basic message processing metadata including processing result and time, as well as the whole message object
    */
   registerProcessedMessage(metadata: ProcessedMessageMetadata<MessagePayloadSchemas>): void
+  logger: CommonLogger
 }
 
 export type QueueConsumerDependencies = {

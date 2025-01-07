@@ -1,11 +1,7 @@
 import { S3 } from '@aws-sdk/client-s3'
 import { SQSClient } from '@aws-sdk/client-sqs'
-import type { ErrorReporter, ErrorResolver } from '@lokalise/node-core'
-import type {
-  Logger,
-  MessageMetricsManager,
-  TransactionObservabilityManager,
-} from '@message-queue-toolkit/core'
+import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
+import type { MessageMetricsManager, TransactionObservabilityManager } from '@message-queue-toolkit/core'
 import type { Resolver } from 'awilix'
 import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
@@ -21,7 +17,7 @@ export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 export type DependencyOverrides = Partial<DiConfig>
 
 // @ts-ignore
-const TestLogger: Logger = console
+const TestLogger: CommonLogger = console
 
 export async function registerDependencies(dependencyOverrides: DependencyOverrides = {}) {
   const diContainer = createContainer({
@@ -97,7 +93,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
 type DiConfig = Record<keyof Dependencies, Resolver<any>>
 
 export interface Dependencies {
-  logger: Logger
+  logger: CommonLogger
   sqsClient: SQSClient
   s3: S3
   awilixManager: AwilixManager

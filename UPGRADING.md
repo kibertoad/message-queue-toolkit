@@ -1,5 +1,18 @@
 # Upgrading Guide
 
+## Upgrading </br> `core` `17.0.0` -> `18.0.0` </br> `sqs` `17.0.0` -> `18.0.0` </br> `sns` `18.0.0` -> `19.0.0` </br> `amqp` `16.0.0` -> `17.0.0`    
+
+### Description of Breaking Changes
+- `logger` injectable dependency interface was replaced by `CommonLogger` from `@lokalise/node-core` package. It is compatible with `pino` logger (https://github.com/pinojs/pino)
+
+### Migration steps
+- If you are using `pino` logger, or any other logger compatible with `CommonLogger` interface, you don't need to do anything
+- Otherwise, there are serveral properties that need to be provided compared to the old interface:
+  - `level` - string defining configured minimal logging level
+  - `isLevelEnabled` - utility method for determining if a given log level will write to the destination.
+  - `child` - method for generating child logger instance with predefined properties
+  - `silent` - method used for logging when `silent` level is selected
+
 ## Upgrading from `12.0.0` to `13.0.0`
 
 ### Description of Breaking Change
