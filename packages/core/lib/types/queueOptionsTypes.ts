@@ -45,7 +45,6 @@ export interface MessageMetricsManager<MessagePayloadSchemas extends object = ob
    * @param metadata - contains basic message processing metadata including processing result and time, as well as the whole message object
    */
   registerProcessedMessage(metadata: ProcessedMessageMetadata<MessagePayloadSchemas>): void
-  logger: CommonLogger
 }
 
 export type QueueConsumerDependencies = {
