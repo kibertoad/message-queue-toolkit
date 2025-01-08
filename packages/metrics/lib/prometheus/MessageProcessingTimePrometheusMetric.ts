@@ -36,7 +36,7 @@ export class MessageProcessingTimePrometheusMetric<MessagePayloadSchemas extends
   private readonly metricParams: PrometheusMetricParams<MessagePayloadSchemas>
 
   /** Fallbacks to null if metrics are disabled on app level */
-  private readonly metric: Histogram<'messageType' | 'version'> | null
+  private readonly metric: Histogram<'messageType' | 'version'>
 
   /**
    * @param metricParams - metrics parameters (see PrometheusMetricParams)
@@ -51,8 +51,8 @@ export class MessageProcessingTimePrometheusMetric<MessagePayloadSchemas extends
   }
 
   registerProcessedMessage(metadata: ProcessedMessageMetadata<MessagePayloadSchemas>): void {
-    if (!this.metric || !metadata.messageProcessingMilliseconds) {
-      // Metrics not enabled or data not available, skipping
+    if (!metadata.messageProcessingMilliseconds) {
+      // Data not available, skipping
       return
     }
 
@@ -79,6 +79,7 @@ export class MessageProcessingTimePrometheusMetric<MessagePayloadSchemas extends
       name: this.metricParams.name,
       help: this.metricParams.helpDescription,
       buckets: this.metricParams.buckets,
+      labelNames: ['messageType', 'version'],
     })
   }
 }
