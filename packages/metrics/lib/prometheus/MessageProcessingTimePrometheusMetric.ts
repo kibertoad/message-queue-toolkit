@@ -27,7 +27,9 @@ type PrometheusMetricParams<T extends object> = {
   messageVersion?: string | MessageVersionGeneratingFunction<T>
 }
 
-type MessageVersionGeneratingFunction<T extends object> = ((messageMetadata: ProcessedMessageMetadata<T>) => string | undefined)
+type MessageVersionGeneratingFunction<T extends object> = (
+  messageMetadata: ProcessedMessageMetadata<T>,
+) => string | undefined
 
 /**
  * Implementation of MessageMetricsManager that can be used to register message processing time in Prometheus, utilizing Histogram
@@ -51,7 +53,8 @@ export class MessageProcessingTimePrometheusMetric<MessagePayloadSchemas extends
     client?: typeof promClient,
   ) {
     this.metricParams = metricParams
-    this.messageVersionGeneratingFunction = this.resolveMessageVersionGeneratingFunction(metricParams)
+    this.messageVersionGeneratingFunction =
+      this.resolveMessageVersionGeneratingFunction(metricParams)
     this.metric = this.registerMetric(client ?? promClient)
   }
 
