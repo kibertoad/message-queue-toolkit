@@ -27,7 +27,7 @@
   },
   "peerDependencies": {
     "@message-queue-toolkit/core": ">=18.1.0",
-    "prom-client": "^15.0.0"
+    "prom-client": ">=15.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
