@@ -1,8 +1,8 @@
+import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import * as promClient from 'prom-client'
 import type { Histogram } from 'prom-client'
 import { describe, expect, it, vi } from 'vitest'
 import { MessageProcessingTimePrometheusMetric } from './MessageProcessingTimePrometheusMetric'
-import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core';
 
 type TestMessageSchema = {
   id: string
@@ -25,7 +25,7 @@ describe('MessageProcessingTimePrometheusMetric', () => {
         messageVersion: (metadata: ProcessedMessageMetadata<TestMessageSchema>) => {
           registeredMessages.push(metadata) // Mocking it to check if value is registered properly
           return undefined
-        }
+        },
       },
       promClient,
     )
@@ -47,13 +47,14 @@ describe('MessageProcessingTimePrometheusMetric', () => {
       },
     ]
 
-    const processedMessageMetadataEntries: ProcessedMessageMetadata<TestMessageSchema>[] = messages.map(message => ({
-      messageId: message.id,
-      messageType: message.messageType,
-      processingResult: 'consumed',
-      message: message,
-      messageProcessingMilliseconds: 10,
-    }))
+    const processedMessageMetadataEntries: ProcessedMessageMetadata<TestMessageSchema>[] =
+      messages.map((message) => ({
+        messageId: message.id,
+        messageType: message.messageType,
+        processingResult: 'consumed',
+        message: message,
+        messageProcessingMilliseconds: 10,
+      }))
 
     for (const processedMessageMetadata of processedMessageMetadataEntries) {
       metric.registerProcessedMessage(processedMessageMetadata)
