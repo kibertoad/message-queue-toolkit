@@ -189,7 +189,7 @@ If
 
 Then the message is automatically nacked without requeueing by the abstract consumer and processing fails.
 
-> **_NOTE:_**  See [userConsumerSchemas.ts](./packages/sqs/test/consumers/userConsumerSchemas.ts) and [SqsPermissionsConsumer.spec.ts](./packages/sqs/test/consumers/SqsPermissionsConsumer.spec.ts) for a practical example.
+> **_NOTE:_**  See [userConsumerSchemas.ts](./packages/sqs/test/consumers/userConsumerSchemas.ts) and [SqsPermissionsConsumer.spec.ts](./packages/sqs/test/consumers/SqsPermissionConsumer.spec.ts) for a practical example.
 
 ### Barrier Pattern
 The barrier pattern facilitates the out-of-order message handling by retrying the message later if the system is not yet in the proper state to be able to process that message (e. g. some prerequisite messages have not yet arrived).
@@ -387,3 +387,5 @@ It needs to implement the following methods:
   - `processingResult` - can have one of the following values: `retryLater`, `consumed`, `published`, `error`, `invalid_message`
   - `message` - whole message object
   - `messageProcessingMilliseconds` - message processing time in milliseconds
+
+See [@message-queue-toolkit/metrics](packages/metrics/README.md) for concrete implementations
