@@ -24,8 +24,10 @@ type PrometheusMetricParams<T extends object> = {
   /**
    * Message version used as a label - can be static string or method resolving version based on payload
    */
-  messageVersion?: string | ((messageMetadata: ProcessedMessageMetadata<T>) => string | undefined)
+  messageVersion?: string | MessageVersionGeneratingFunction<T>
 }
+
+type MessageVersionGeneratingFunction<T extends object> = ((messageMetadata: ProcessedMessageMetadata<T>) => string | undefined)
 
 /**
  * Implementation of MessageMetricsManager that can be used to register message processing time in Prometheus, utilizing Histogram
@@ -38,6 +40,8 @@ export class MessageProcessingTimePrometheusMetric<MessagePayloadSchemas extends
   /** Fallbacks to null if metrics are disabled on app level */
   private readonly metric: Histogram<'messageType' | 'version'>
 
+  private readonly messageVersionGeneratingFunction: MessageVersionGeneratingFunction<MessagePayloadSchemas>
+
   /**
    * @param metricParams - metrics parameters (see PrometheusMetricParams)
    * @param client - use it to specify custom Prometheus client
@@ -47,6 +51,7 @@ export class MessageProcessingTimePrometheusMetric<MessagePayloadSchemas extends
     client?: typeof promClient,
   ) {
     this.metricParams = metricParams
+    this.messageVersionGeneratingFunction = this.resolveMessageVersionGeneratingFunction(metricParams)
     this.metric = this.registerMetric(client ?? promClient)
   }
 
@@ -59,10 +64,7 @@ export class MessageProcessingTimePrometheusMetric<MessagePayloadSchemas extends
     this.metric.observe(
       {
         messageType: metadata.messageType,
-        version:
-          typeof this.metricParams.messageVersion === 'function'
-            ? this.metricParams.messageVersion(metadata)
-            : this.metricParams.messageVersion,
+        version: this.messageVersionGeneratingFunction(metadata),
       },
       metadata.messageProcessingMilliseconds,
     )
@@ -81,5 +83,12 @@ export class MessageProcessingTimePrometheusMetric<MessagePayloadSchemas extends
       buckets: this.metricParams.buckets,
       labelNames: ['messageType', 'version'],
     })
+  }
+
+  private resolveMessageVersionGeneratingFunction(
+    metricParams: PrometheusMetricParams<MessagePayloadSchemas>,
+  ): MessageVersionGeneratingFunction<MessagePayloadSchemas> {
+    const messageVersion = metricParams.messageVersion
+    return typeof messageVersion === 'function' ? messageVersion : () => messageVersion
   }
 }
