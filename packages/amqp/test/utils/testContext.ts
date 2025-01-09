@@ -1,5 +1,8 @@
 import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
-import type { TransactionObservabilityManager } from '@message-queue-toolkit/core'
+import type {
+  MessageMetricsManager,
+  TransactionObservabilityManager,
+} from '@message-queue-toolkit/core'
 import {
   CommonMetadataFiller,
   EventRegistry,
@@ -181,6 +184,7 @@ export async function registerDependencies(
     transactionObservabilityManager: asFunction(() => {
       return undefined as unknown as TransactionObservabilityManager
     }, SINGLETON_CONFIG),
+    messageMetricsManager: asFunction(() => undefined, SINGLETON_CONFIG),
     errorReporter: asFunction(() => {
       return {
         report: () => {},
@@ -208,6 +212,7 @@ export interface Dependencies {
 
   // vendor-specific dependencies
   transactionObservabilityManager: TransactionObservabilityManager
+  messageMetricsManager?: MessageMetricsManager
 
   errorReporter: ErrorReporter
   consumerErrorResolver: ErrorResolver

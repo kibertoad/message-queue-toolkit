@@ -1,4 +1,8 @@
-import { objectToBuffer, waitAndRetry } from '@message-queue-toolkit/core'
+import {
+  type ProcessedMessageMetadata,
+  objectToBuffer,
+  waitAndRetry,
+} from '@message-queue-toolkit/core'
 import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
@@ -90,6 +94,8 @@ describe('AmqpPermissionConsumer', () => {
 
       await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
+      await newConsumer.close()
+
       expect(logger.loggedMessages.length).toBe(5)
       expect(logger.loggedMessages).toMatchObject([
         'Propagating new connection across 0 receivers',
@@ -106,6 +112,55 @@ describe('AmqpPermissionConsumer', () => {
         {
           messageId: '1',
           processingResult: 'consumed',
+        },
+      ])
+    })
+  })
+
+  describe('metrics', () => {
+    let logger: FakeLogger
+    let diContainer: AwilixContainer<Dependencies>
+    let publisher: AmqpPermissionPublisher
+    beforeAll(async () => {
+      logger = new FakeLogger()
+      diContainer = await registerDependencies(TEST_AMQP_CONFIG, {
+        logger: asFunction(() => logger),
+      })
+      await diContainer.cradle.permissionConsumer.close()
+      publisher = diContainer.cradle.permissionPublisher
+    })
+
+    it('registers metrics if metrics manager is provided', async () => {
+      const messagesRegisteredInMetrics: ProcessedMessageMetadata[] = []
+      const newConsumer = new AmqpPermissionConsumer({
+        ...diContainer.cradle,
+        messageMetricsManager: {
+          registerProcessedMessage(metadata: ProcessedMessageMetadata): void {
+            messagesRegisteredInMetrics.push(metadata)
+          },
+        },
+      })
+      await newConsumer.start()
+
+      publisher.publish({
+        id: '1',
+        messageType: 'add',
+      })
+
+      await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+
+      await newConsumer.close()
+
+      expect(messagesRegisteredInMetrics).toStrictEqual([
+        {
+          messageId: '1',
+          messageType: 'add',
+          processingResult: 'consumed',
+          messageProcessingMilliseconds: expect.any(Number),
+          message: expect.objectContaining({
+            id: '1',
+            messageType: 'add',
+          }),
         },
       ])
     })
@@ -148,6 +203,8 @@ describe('AmqpPermissionConsumer', () => {
       await newConsumer.handlerSpy.waitForMessageWithId('3', 'retryLater')
       await newConsumer.handlerSpy.waitForMessageWithId('3', 'consumed')
 
+      await newConsumer.close()
+
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
     })
@@ -175,6 +232,8 @@ describe('AmqpPermissionConsumer', () => {
 
       await newConsumer.handlerSpy.waitForMessageWithId('4', 'retryLater')
       await newConsumer.handlerSpy.waitForMessageWithId('4', 'consumed')
+
+      await newConsumer.close()
 
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
@@ -438,6 +497,8 @@ describe('AmqpPermissionConsumer', () => {
       const jobSpy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
       expect(jobSpy.message).toEqual(message)
       expect(counter).toBeGreaterThan(2)
+
+      await consumer.close()
     })
 
     it('stuck on handler', async () => {
@@ -461,6 +522,8 @@ describe('AmqpPermissionConsumer', () => {
       const jobSpy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
       expect(jobSpy.message).toEqual(message)
       expect(counter).toBeGreaterThan(2)
+
+      await consumer.close()
     })
   })
 })

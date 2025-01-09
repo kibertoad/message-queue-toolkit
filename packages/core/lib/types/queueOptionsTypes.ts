@@ -5,11 +5,46 @@ import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer'
 import type { HandlerSpy, HandlerSpyParams } from '../queues/HandlerSpy'
 
-import type { TransactionObservabilityManager } from './MessageQueueTypes'
+import type { MessageProcessingResult, TransactionObservabilityManager } from './MessageQueueTypes'
 
 export type QueueDependencies = {
   errorReporter: ErrorReporter
   logger: CommonLogger
+  messageMetricsManager?: MessageMetricsManager
+}
+
+export type ProcessedMessageMetadata<MessagePayloadSchemas extends object = object> = {
+  /**
+   * Id of the message accessed by `messageIdField`
+   */
+  messageId: string
+  /**
+   * Message type accessed by `messageTypeField`
+   */
+  messageType: string
+
+  /**
+   * Processing result status
+   */
+  processingResult: MessageProcessingResult
+
+  /**
+   * Original message object
+   */
+  message: MessagePayloadSchemas | null
+
+  /**
+   * Processing time in milliseconds
+   */
+  messageProcessingMilliseconds?: number
+}
+
+export interface MessageMetricsManager<MessagePayloadSchemas extends object = object> {
+  /**
+   * Executed once message is processed
+   * @param metadata - contains basic message processing metadata including processing result and time, as well as the whole message object
+   */
+  registerProcessedMessage(metadata: ProcessedMessageMetadata<MessagePayloadSchemas>): void
 }
 
 export type QueueConsumerDependencies = {

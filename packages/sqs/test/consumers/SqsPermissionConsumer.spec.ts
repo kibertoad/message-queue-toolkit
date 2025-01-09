@@ -7,7 +7,7 @@ import {
 } from '@aws-sdk/client-sqs'
 import { ReceiveMessageCommand, SendMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
-import type { BarrierResult } from '@message-queue-toolkit/core'
+import type { BarrierResult, ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction, asValue } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -20,7 +20,7 @@ import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext'
 import type { Dependencies } from '../utils/testContext'
 
-import { SqsPermissionConsumer } from './SqsPermissionConsumer'
+import { SqsPermissionConsumer, type SupportedMessages } from './SqsPermissionConsumer'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas'
 
 describe('SqsPermissionConsumer', () => {
@@ -317,6 +317,67 @@ describe('SqsPermissionConsumer', () => {
         },
       ])
       await newConsumer.close()
+    })
+  })
+
+  describe('metrics', () => {
+    let logger: FakeLogger
+    let diContainer: AwilixContainer<Dependencies>
+    let publisher: SqsPermissionPublisher
+
+    beforeEach(async () => {
+      logger = new FakeLogger()
+      diContainer = await registerDependencies({
+        logger: asFunction(() => logger),
+      })
+      await diContainer.cradle.permissionConsumer.close()
+      publisher = diContainer.cradle.permissionPublisher
+    })
+
+    afterEach(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('registers metrics if metrics manager is provided', async () => {
+      const messagesRegisteredInMetrics: ProcessedMessageMetadata<SupportedMessages>[] = []
+      const newConsumer = new SqsPermissionConsumer({
+        ...diContainer.cradle,
+        messageMetricsManager: {
+          registerProcessedMessage(metadata: ProcessedMessageMetadata<SupportedMessages>): void {
+            messagesRegisteredInMetrics.push(metadata)
+          },
+        },
+      })
+      await newConsumer.start()
+
+      publisher.publish({
+        id: '1',
+        messageType: 'add',
+        metadata: {
+          schemaVersions: '1.0.0',
+        },
+      })
+
+      await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+
+      await newConsumer.close()
+
+      expect(messagesRegisteredInMetrics).toStrictEqual([
+        {
+          messageId: '1',
+          messageType: 'add',
+          processingResult: 'consumed',
+          messageProcessingMilliseconds: expect.any(Number),
+          message: expect.objectContaining({
+            id: '1',
+            messageType: 'add',
+            metadata: {
+              schemaVersions: '1.0.0',
+            },
+          }),
+        },
+      ])
     })
   })
 
@@ -726,6 +787,8 @@ describe('SqsPermissionConsumer', () => {
 
         expect(consumer1Counter).toBe(1)
         expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)
+
+        await Promise.all([consumer1.close(), consumer2.close()])
       },
       // This reduces flakiness in CI
       10000,
@@ -822,6 +885,9 @@ describe('SqsPermissionConsumer', () => {
           }),
         ]),
       )
+
+      await publisher.close()
+      await consumer.close()
     })
   })
 })

@@ -1,9 +1,9 @@
 {
-  "name": "@message-queue-toolkit/core",
-  "version": "18.1.0",
+  "name": "@message-queue-toolkit/metrics",
+  "version": "1.0.0",
   "private": false,
   "license": "MIT",
-  "description": "Useful utilities, interfaces and base classes for message queue handling. Supports AMQP and SQS with a common abstraction on top currently",
+  "description": "Utilities for collecting metrics in message-queue-toolkit",
   "maintainers": [
     {
       "name": "Igor Savin",
@@ -19,28 +19,20 @@
     "lint:fix": "biome check --write .",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
-    "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
-    "docker:start:dev": "",
-    "docker:stop:dev": "",
+    "test:ci": "npm run test:coverage",
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@lokalise/node-core": "^13.3.0",
-    "@message-queue-toolkit/schemas": "^4.0.0",
-    "fast-equals": "^5.0.1",
-    "json-stream-stringify": "^3.1.6",
-    "tmp": "^0.2.3",
-    "toad-cache": "^3.7.0",
-    "zod": "^3.23.8"
+    "@lokalise/node-core": "^13.3.0"
+  },
+  "peerDependencies": {
+    "@message-queue-toolkit/core": ">=18.1.0",
+    "prom-client": ">=15.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@kibertoad/biome-config": "^1.2.1",
-    "@types/node": "^22.7.5",
-    "@types/tmp": "^0.2.6",
     "@vitest/coverage-v8": "^2.1.5",
-    "awilix": "^12.0.1",
-    "awilix-manager": "^5.4.0",
     "del-cli": "^6.0.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.5"
