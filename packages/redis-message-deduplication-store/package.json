@@ -1,9 +1,9 @@
 {
-  "name": "@message-queue-toolkit/sqs",
-  "version": "18.1.0",
+  "name": "@message-queue-toolkit/redis-message-deduplication-store",
+  "version": "1.0.0",
   "private": false,
   "license": "MIT",
-  "description": "SQS adapter for message-queue-toolkit",
+  "description": "Redis-based message deduplication store for message-queue-toolkit",
   "maintainers": [
     {
       "name": "Igor Savin",
@@ -18,42 +18,30 @@
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
-    "lint": "biome check && tsc --project tsconfig.json --noEmit",
+    "lint": "biome check . && tsc --project tsconfig.json --noEmit",
     "lint:fix": "biome check --write .",
     "docker:start:dev": "docker compose up -d",
     "docker:stop:dev": "docker compose down",
     "prepublishOnly": "npm run build:release"
   },
-  "dependencies": {
-    "@lokalise/node-core": "^13.3.0",
-    "sqs-consumer": "^11.1.0",
-    "zod": "^3.23.8"
-  },
+  "dependencies": {},
   "peerDependencies": {
-    "@aws-sdk/client-sqs": "^3.632.0",
-    "@message-queue-toolkit/core": ">=18.1.0"
+    "ioredis": "^5.3.2"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.670.0",
-    "@aws-sdk/client-sqs": "^3.670.0",
     "@biomejs/biome": "1.9.4",
     "@kibertoad/biome-config": "^1.2.1",
-    "@message-queue-toolkit/core": "*",
-    "@message-queue-toolkit/redis-message-deduplication-store": "*",
-    "@message-queue-toolkit/s3-payload-store": "*",
-    "@types/node": "^22.7.5",
-    "@vitest/coverage-v8": "^2.1.5",
-    "awilix": "^12.0.1",
-    "awilix-manager": "^5.1.0",
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^2.0.4",
     "del-cli": "^6.0.0",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.5"
+    "typescript": "^5.5.3",
+    "vitest": "^2.0.4"
   },
   "homepage": "https://github.com/kibertoad/message-queue-toolkit",
   "repository": {
     "type": "git",
     "url": "git://github.com/kibertoad/message-queue-toolkit.git"
   },
-  "keywords": ["message", "queue", "queues", "abstract", "common", "utils", "sqs"],
+  "keywords": ["message", "queue", "queues", "utils", "redis", "ioredis", "deduplication", "store"],
   "files": ["README.md", "LICENSE", "dist/*"]
 }

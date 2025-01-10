@@ -7,8 +7,8 @@ import type { ZodSchema, ZodType } from 'zod'
 
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
 import { jsonStreamStringifySerializer } from '../payload-store/JsonStreamStringifySerializer'
-import { OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA } from '../payload-store/offloadedPayloadMessageSchemas'
 import type { OffloadedPayloadPointerPayload } from '../payload-store/offloadedPayloadMessageSchemas'
+import { OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA } from '../payload-store/offloadedPayloadMessageSchemas'
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
 import { isDestroyable } from '../payload-store/payloadStoreTypes'
 import type { MessageProcessingResult } from '../types/MessageQueueTypes'
@@ -23,6 +23,7 @@ import { isRetryDateExceeded } from '../utils/dateUtils'
 import { streamWithKnownSizeToString } from '../utils/streamUtils'
 import { toDatePreprocessor } from '../utils/toDateProcessor'
 
+import type { MessageDeduplicationConfig } from '../message-deduplication/messageDeduplicationTypes'
 import type {
   BarrierCallback,
   BarrierResult,
@@ -84,8 +85,9 @@ export abstract class AbstractQueueService<
   protected readonly deletionConfig?: DeletionConfig
   protected readonly payloadStoreConfig?: Omit<PayloadStoreConfig, 'serializer'> &
     Required<Pick<PayloadStoreConfig, 'serializer'>>
-  protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
+  protected readonly messageDeduplicationConfig?: MessageDeduplicationConfig
   protected readonly messageMetricsManager?: MessageMetricsManager<MessagePayloadSchemas>
+  protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
 
   protected isInitted: boolean
 
@@ -118,6 +120,7 @@ export abstract class AbstractQueueService<
           ...options.payloadStoreConfig,
         }
       : undefined
+    this.messageDeduplicationConfig = options.messageDeduplicationConfig
 
     this.logMessages = options.logMessages ?? false
     this._handlerSpy = resolveHandlerSpy<MessagePayloadSchemas>(options)
@@ -517,5 +520,33 @@ export abstract class AbstractQueueService<
     } catch (e) {
       return { error: new Error('Failed to parse serialized offloaded payload', { cause: e }) }
     }
+  }
+
+  /** Retrieves cache key from deduplication store and checks if it exists */
+  protected async isMessageDuplicated(message: MessagePayloadSchemas): Promise<boolean> {
+    if (!this.messageDeduplicationConfig) {
+      return false
+    }
+
+    const cacheKey = this.messageDeduplicationConfig.deduplicationKeyGenerator.generate(message)
+    const retrievedCacheKey =
+      await this.messageDeduplicationConfig.deduplicationStore.retrieveCacheKey(cacheKey)
+
+    return retrievedCacheKey !== null
+  }
+
+  /** Stores cache key in deduplication store */
+  protected async deduplicateMessage(message: MessagePayloadSchemas): Promise<void> {
+    if (!this.messageDeduplicationConfig) {
+      return
+    }
+
+    const cacheKey = this.messageDeduplicationConfig.deduplicationKeyGenerator.generate(message)
+
+    await this.messageDeduplicationConfig.deduplicationStore.storeCacheKey(
+      cacheKey,
+      new Date().toISOString(),
+      this.messageDeduplicationConfig.deduplicationWindowSeconds,
+    )
   }
 }

@@ -17,7 +17,6 @@ import type { ZodSchema } from 'zod'
 import type { SQSMessage } from '../types/MessageTypes'
 import { resolveOutgoingMessageAttributes } from '../utils/messageUtils'
 import { calculateOutgoingMessageSize } from '../utils/sqsUtils'
-
 import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
 
@@ -76,8 +75,14 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         calculateOutgoingMessageSize(message),
       )
 
+      const isMessageDuplicated = await this.isMessageDuplicated(parsedMessage)
+      if (isMessageDuplicated) {
+        return
+      }
+
       await this.sendMessage(maybeOffloadedPayloadMessage, options)
       this.handleMessageProcessed(parsedMessage, 'published')
+      await this.deduplicateMessage(parsedMessage)
     } catch (error) {
       const err = error as Error
       this.handleError(err)

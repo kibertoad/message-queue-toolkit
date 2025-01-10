@@ -5,6 +5,7 @@ import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer'
 import type { HandlerSpy, HandlerSpyParams } from '../queues/HandlerSpy'
 
+import type { MessageDeduplicationConfig } from '../message-deduplication/messageDeduplicationTypes'
 import type { MessageProcessingResult, TransactionObservabilityManager } from './MessageQueueTypes'
 
 export type QueueDependencies = {
@@ -60,6 +61,7 @@ export type CommonQueueOptions = {
   logMessages?: boolean
   deletionConfig?: DeletionConfig
   payloadStoreConfig?: PayloadStoreConfig
+  messageDeduplicationConfig?: MessageDeduplicationConfig
 }
 
 export type CommonCreationConfigType = {

@@ -1,10 +1,7 @@
 import { S3 } from '@aws-sdk/client-s3'
 import { SQSClient } from '@aws-sdk/client-sqs'
 import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
-import type {
-  MessageMetricsManager,
-  TransactionObservabilityManager,
-} from '@message-queue-toolkit/core'
+import type { MessageMetricsManager, TransactionObservabilityManager, } from '@message-queue-toolkit/core'
 import type { Resolver } from 'awilix'
 import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
@@ -13,7 +10,9 @@ import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResol
 import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 
+import { Redis } from 'ioredis'
 import { TEST_AWS_CONFIG } from './testAwsConfig'
+import { TEST_REDIS_CONFIG } from './testRedisConfig'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -56,6 +55,37 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
     consumerErrorResolver: asFunction(() => {
       return new SqsConsumerErrorResolver()
     }),
+
+    redis: asFunction(
+      () => {
+        const redisConfig = TEST_REDIS_CONFIG
+
+        return new Redis({
+          host: redisConfig.host,
+          db: redisConfig.db,
+          port: redisConfig.port,
+          username: redisConfig.username,
+          password: redisConfig.password,
+          connectTimeout: redisConfig.connectTimeout,
+          commandTimeout: redisConfig.commandTimeout,
+          tls: redisConfig.useTls ? {} : undefined,
+          maxRetriesPerRequest: null,
+          lazyConnect: true, // connect handled by asyncInit
+        })
+      },
+      {
+        asyncInitPriority: 0, // starting at the very beginning
+        asyncInit: 'connect',
+        dispose: (redis) => {
+          return new Promise((resolve) => {
+            void redis.quit((_err, result) => {
+              return resolve(result)
+            })
+          })
+        },
+        lifetime: Lifetime.SINGLETON,
+      },
+    ),
 
     permissionConsumer: asClass(SqsPermissionConsumer, {
       lifetime: Lifetime.SINGLETON,
@@ -100,6 +130,7 @@ export interface Dependencies {
   sqsClient: SQSClient
   s3: S3
   awilixManager: AwilixManager
+  redis: Redis
 
   // vendor-specific dependencies
   transactionObservabilityManager: TransactionObservabilityManager

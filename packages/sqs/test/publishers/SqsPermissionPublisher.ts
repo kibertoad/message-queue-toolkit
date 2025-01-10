@@ -24,7 +24,12 @@ export class SqsPermissionPublisher extends AbstractSqsPublisher<SupportedMessag
     dependencies: SQSDependencies,
     options?: Pick<
       QueuePublisherOptions<SQSCreationConfig, SQSQueueLocatorType, SupportedMessages>,
-      'creationConfig' | 'locatorConfig' | 'deletionConfig' | 'logMessages' | 'payloadStoreConfig'
+      | 'creationConfig'
+      | 'locatorConfig'
+      | 'deletionConfig'
+      | 'logMessages'
+      | 'payloadStoreConfig'
+      | 'messageDeduplicationConfig'
     >,
   ) {
     super(dependencies, {
@@ -45,6 +50,7 @@ export class SqsPermissionPublisher extends AbstractSqsPublisher<SupportedMessag
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
       messageTypeField: 'messageType',
       payloadStoreConfig: options?.payloadStoreConfig,
+      messageDeduplicationConfig: options?.messageDeduplicationConfig,
     })
   }
 
