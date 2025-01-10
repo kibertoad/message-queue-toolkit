@@ -8,7 +8,7 @@ export interface MessageDeduplicationStore {
 }
 
 export type MessageDeduplicationConfig = {
-  /** How many seconds to keep the deduplication key in the cache */
+  /** How many seconds to keep the deduplication key in the store */
   deduplicationWindowSeconds: number
 
   /** The generator to use for generating deduplication keys */

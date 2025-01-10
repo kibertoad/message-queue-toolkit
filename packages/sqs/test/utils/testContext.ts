@@ -1,7 +1,10 @@
 import { S3 } from '@aws-sdk/client-s3'
 import { SQSClient } from '@aws-sdk/client-sqs'
 import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
-import type { MessageMetricsManager, TransactionObservabilityManager, } from '@message-queue-toolkit/core'
+import type {
+  MessageMetricsManager,
+  TransactionObservabilityManager,
+} from '@message-queue-toolkit/core'
 import type { Resolver } from 'awilix'
 import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
