@@ -21,19 +21,19 @@ export class RedisMessageDeduplicationStore implements MessageDeduplicationStore
     this.config = config
   }
 
-  async storeCacheKey(key: string, value: string, ttlSeconds: number): Promise<void> {
-    const cacheKey = this.getCacheKeyWithOptionalPrefix(key)
+  async storeKey(key: string, value: string, ttlSeconds: number): Promise<void> {
+    const keyWithPrefix = this.getKeyWithOptionalPrefix(key)
 
-    await this.redis.set(cacheKey, value, 'EX', ttlSeconds)
+    await this.redis.set(keyWithPrefix, value, 'EX', ttlSeconds)
   }
 
-  retrieveCacheKey(key: string): Promise<string | null> {
-    const cacheKey = this.getCacheKeyWithOptionalPrefix(key)
+  retrieveKey(key: string): Promise<string | null> {
+    const keyWithPrefix = this.getKeyWithOptionalPrefix(key)
 
-    return this.redis.get(cacheKey)
+    return this.redis.get(keyWithPrefix)
   }
 
-  private getCacheKeyWithOptionalPrefix(key: string): string {
+  private getKeyWithOptionalPrefix(key: string): string {
     return this.config?.keyPrefix?.length ? `${this.config.keyPrefix}:${key}` : key
   }
 }

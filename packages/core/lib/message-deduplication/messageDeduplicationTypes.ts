@@ -3,8 +3,8 @@ export interface MessageDeduplicationKeyGenerator<MessageType extends object = o
 }
 
 export interface MessageDeduplicationStore {
-  storeCacheKey(key: string, value: string, ttlSeconds: number): Promise<void>
-  retrieveCacheKey(key: string): Promise<string | null>
+  storeKey(key: string, value: string, ttlSeconds: number): Promise<void>
+  retrieveKey(key: string): Promise<string | null>
 }
 
 export type MessageDeduplicationConfig = {

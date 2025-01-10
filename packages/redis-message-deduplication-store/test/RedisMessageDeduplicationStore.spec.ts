@@ -33,13 +33,13 @@ describe('RedisMessageDeduplicationStore', () => {
     await cleanRedis(redis)
   })
 
-  describe('storeCacheKey', () => {
-    it('stores a cache key in Redis with provided value and ttl', async () => {
+  describe('storeKey', () => {
+    it('stores a key in Redis with provided value and ttl', async () => {
       const key = 'test_key'
       const value = 'test_value'
       const ttlSeconds = 60
 
-      await store.storeCacheKey(key, value, ttlSeconds)
+      await store.storeKey(key, value, ttlSeconds)
 
       const storedValue = await redis.get(`${KEY_PREFIX}:${key}`)
       expect(storedValue).toBe(value)
@@ -49,15 +49,15 @@ describe('RedisMessageDeduplicationStore', () => {
     })
   })
 
-  describe('retrieveCacheKey', () => {
-    it('retrieves a cache key from Redis', async () => {
+  describe('retrieveKey', () => {
+    it('retrieves a key from Redis', async () => {
       const key = 'test_key'
       const value = 'test_value'
       const ttlSeconds = 60
 
       await redis.set(`${KEY_PREFIX}:${key}`, value, 'EX', ttlSeconds)
 
-      const retrievedValue = await store.retrieveCacheKey(key)
+      const retrievedValue = await store.retrieveKey(key)
 
       expect(retrievedValue).toBe(value)
     })

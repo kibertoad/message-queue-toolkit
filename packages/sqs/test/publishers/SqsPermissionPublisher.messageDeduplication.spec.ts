@@ -56,7 +56,7 @@ describe('SqsPermissionPublisher', () => {
       await diContainer.dispose()
     })
 
-    it('writes cache key to redis using provided deduplication function and publishes message', async () => {
+    it('writes deduplication key to store using provided deduplication function and publishes message', async () => {
       const message = {
         id: '1',
         messageType: 'add',
@@ -69,13 +69,13 @@ describe('SqsPermissionPublisher', () => {
       expect(spy.message).toEqual(message)
       expect(spy.processingResult).toBe('published')
 
-      const cacheKey = await messageDeduplicationStore.retrieveCacheKey(
+      const deduplicationKey = await messageDeduplicationStore.retrieveKey(
         messageDeduplicationKeyGenerator.generate(message),
       )
-      expect(cacheKey).not.toBeNull()
+      expect(deduplicationKey).not.toBeNull()
     })
 
-    it('does not publish the same message if cache key already exists', async () => {
+    it('does not publish the same message if deduplication key already exists', async () => {
       const message = {
         id: '1',
         messageType: 'add',
@@ -101,7 +101,7 @@ describe('SqsPermissionPublisher', () => {
       expect(spySecondCall).toBeUndefined()
     })
 
-    it('publishing messages that produce different cache keys does not affect each other', async () => {
+    it('publishing messages that produce different deduplication keys does not affect each other', async () => {
       const message1 = {
         id: '1',
         messageType: 'add',

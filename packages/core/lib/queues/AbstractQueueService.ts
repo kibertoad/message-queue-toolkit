@@ -522,29 +522,31 @@ export abstract class AbstractQueueService<
     }
   }
 
-  /** Retrieves cache key from deduplication store and checks if it exists */
+  /** Checks for an existence of deduplication key in deduplication store */
   protected async isMessageDuplicated(message: MessagePayloadSchemas): Promise<boolean> {
     if (!this.messageDeduplicationConfig) {
       return false
     }
 
-    const cacheKey = this.messageDeduplicationConfig.deduplicationKeyGenerator.generate(message)
-    const retrievedCacheKey =
-      await this.messageDeduplicationConfig.deduplicationStore.retrieveCacheKey(cacheKey)
+    const deduplicationKey =
+      this.messageDeduplicationConfig.deduplicationKeyGenerator.generate(message)
+    const deduplicationValue =
+      await this.messageDeduplicationConfig.deduplicationStore.retrieveKey(deduplicationKey)
 
-    return retrievedCacheKey !== null
+    return deduplicationValue !== null
   }
 
-  /** Stores cache key in deduplication store */
+  /** Stores deduplication key in deduplication store */
   protected async deduplicateMessage(message: MessagePayloadSchemas): Promise<void> {
     if (!this.messageDeduplicationConfig) {
       return
     }
 
-    const cacheKey = this.messageDeduplicationConfig.deduplicationKeyGenerator.generate(message)
+    const deduplicationKey =
+      this.messageDeduplicationConfig.deduplicationKeyGenerator.generate(message)
 
-    await this.messageDeduplicationConfig.deduplicationStore.storeCacheKey(
-      cacheKey,
+    await this.messageDeduplicationConfig.deduplicationStore.storeKey(
+      deduplicationKey,
       new Date().toISOString(),
       this.messageDeduplicationConfig.deduplicationWindowSeconds,
     )
