@@ -39,9 +39,17 @@ describe('SqsPermissionPublisher', () => {
     beforeEach(() => {
       publisher = new SqsPermissionPublisher(diContainer.cradle, {
         messageDeduplicationConfig: {
-          deduplicationWindowSeconds: 10,
-          deduplicationKeyGenerator: messageDeduplicationKeyGenerator,
           deduplicationStore: messageDeduplicationStore,
+          messageTypeToConfigMap: {
+            add: {
+              deduplicationWindowSeconds: 10,
+              deduplicationKeyGenerator: messageDeduplicationKeyGenerator,
+            },
+            remove: {
+              deduplicationWindowSeconds: 10,
+              deduplicationKeyGenerator: messageDeduplicationKeyGenerator,
+            },
+          },
         },
       })
     })
@@ -102,13 +110,14 @@ describe('SqsPermissionPublisher', () => {
     })
 
     it('publishing messages that produce different deduplication keys does not affect each other', async () => {
+      // The IDs are the same, but there are different key generation strategies producing unique deduplication keys
       const message1 = {
-        id: '1',
+        id: 'id',
         messageType: 'add',
         timestamp: new Date().toISOString(),
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
       const message2 = {
-        id: '2',
+        id: 'id',
         messageType: 'remove',
         timestamp: new Date().toISOString(),
       } satisfies PERMISSIONS_REMOVE_MESSAGE_TYPE
@@ -116,7 +125,7 @@ describe('SqsPermissionPublisher', () => {
       // Message 1 is published
       await publisher.publish(message1)
 
-      const spyFirstCall = await publisher.handlerSpy.waitForMessageWithId('1', 'published')
+      const spyFirstCall = await publisher.handlerSpy.waitForMessageWithId('id', 'published')
       expect(spyFirstCall.message).toEqual(message1)
       expect(spyFirstCall.processingResult).toBe('published')
 
@@ -126,9 +135,74 @@ describe('SqsPermissionPublisher', () => {
       // Message 2 is published
       await publisher.publish(message2)
 
-      const spySecondCall = await publisher.handlerSpy.waitForMessageWithId('2', 'published')
+      const spySecondCall = await publisher.handlerSpy.waitForMessageWithId('id', 'published')
       expect(spySecondCall.message).toEqual(message2)
       expect(spySecondCall.processingResult).toBe('published')
+    })
+
+    it('works only for event types that are configured', async () => {
+      const customPublisher = new SqsPermissionPublisher(diContainer.cradle, {
+        messageDeduplicationConfig: {
+          deduplicationStore: messageDeduplicationStore,
+          messageTypeToConfigMap: {
+            add: {
+              deduplicationWindowSeconds: 10,
+              deduplicationKeyGenerator: messageDeduplicationKeyGenerator,
+            },
+            // 'remove' is not configured on purpose
+          },
+        },
+      })
+      const message1 = {
+        id: 'id',
+        messageType: 'add',
+        timestamp: new Date().toISOString(),
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+      const message2 = {
+        id: 'id',
+        messageType: 'remove',
+        timestamp: new Date().toISOString(),
+      } satisfies PERMISSIONS_REMOVE_MESSAGE_TYPE
+
+      // Message 1 is published
+      await customPublisher.publish(message1)
+
+      const spyFirstCall = await customPublisher.handlerSpy.waitForMessageWithId('id', 'published')
+      expect(spyFirstCall.message).toEqual(message1)
+      expect(spyFirstCall.processingResult).toBe('published')
+
+      // Clear the spy, so we can check for the subsequent call
+      customPublisher.handlerSpy.clear()
+
+      // Message 1 is not published for the subsequent call (deduplication works)
+      await customPublisher.publish(message1)
+
+      const spySecondCall = customPublisher.handlerSpy.checkForMessage({
+        messageType: 'add',
+      })
+      expect(spySecondCall).toBeUndefined()
+
+      // Clear the spy, so we can check for the subsequent call
+      customPublisher.handlerSpy.clear()
+
+      // Message 2 is published
+      await customPublisher.publish(message2)
+
+      const spyThirdCall = await customPublisher.handlerSpy.waitForMessageWithId('id', 'published')
+      expect(spyThirdCall.message).toEqual(message2)
+      expect(spyThirdCall.processingResult).toBe('published')
+
+      // Clear the spy, so we can check for the subsequent call
+      customPublisher.handlerSpy.clear()
+
+      // Message 2 is published for the subsequent call (deduplication does not work)
+      await customPublisher.publish(message2)
+
+      const spyFourthCall = await customPublisher.handlerSpy.waitForMessageWithId('id', 'published')
+      expect(spyFourthCall.message).toEqual(message2)
+      expect(spyFourthCall.processingResult).toBe('published')
+
+      await customPublisher.close()
     })
   })
 })

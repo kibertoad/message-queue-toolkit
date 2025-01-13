@@ -528,8 +528,17 @@ export abstract class AbstractQueueService<
       return false
     }
 
+    // @ts-ignore
+    const messageType = message[this.messageTypeField] as string
+
+    if (!this.messageDeduplicationConfig.messageTypeToConfigMap[messageType]) {
+      return false
+    }
+
     const deduplicationKey =
-      this.messageDeduplicationConfig.deduplicationKeyGenerator.generate(message)
+      this.messageDeduplicationConfig.messageTypeToConfigMap[
+        messageType
+      ].deduplicationKeyGenerator.generate(message)
     const deduplicationValue =
       await this.messageDeduplicationConfig.deduplicationStore.retrieveKey(deduplicationKey)
 
@@ -542,13 +551,23 @@ export abstract class AbstractQueueService<
       return
     }
 
+    // @ts-ignore
+    const messageType = message[this.messageTypeField] as string
+
+    if (!this.messageDeduplicationConfig.messageTypeToConfigMap[messageType]) {
+      return
+    }
+
     const deduplicationKey =
-      this.messageDeduplicationConfig.deduplicationKeyGenerator.generate(message)
+      this.messageDeduplicationConfig.messageTypeToConfigMap[
+        messageType
+      ].deduplicationKeyGenerator.generate(message)
 
     await this.messageDeduplicationConfig.deduplicationStore.storeKey(
       deduplicationKey,
       new Date().toISOString(),
-      this.messageDeduplicationConfig.deduplicationWindowSeconds,
+      this.messageDeduplicationConfig.messageTypeToConfigMap[messageType]
+        .deduplicationWindowSeconds,
     )
   }
 }

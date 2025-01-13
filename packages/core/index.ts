@@ -80,6 +80,7 @@ export {
 } from './lib/payload-store/offloadedPayloadMessageSchemas'
 export type {
   MessageDeduplicationConfig,
+  MessageDeduplicationMessageTypeConfig,
   MessageDeduplicationStore,
   MessageDeduplicationKeyGenerator,
 } from './lib/message-deduplication/messageDeduplicationTypes'
