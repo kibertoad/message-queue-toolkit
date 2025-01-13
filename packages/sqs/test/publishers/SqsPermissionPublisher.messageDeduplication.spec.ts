@@ -73,7 +73,7 @@ describe('SqsPermissionPublisher', () => {
 
       await publisher.publish(message)
 
-      const spy = await publisher.handlerSpy.waitForMessageWithId('1', 'published')
+      const spy = await publisher.handlerSpy.waitForMessageWithId('1')
       expect(spy.message).toEqual(message)
       expect(spy.processingResult).toBe('published')
 
@@ -93,7 +93,7 @@ describe('SqsPermissionPublisher', () => {
       // Message is published for the initial call
       await publisher.publish(message)
 
-      const spyFirstCall = await publisher.handlerSpy.waitForMessageWithId('1', 'published')
+      const spyFirstCall = await publisher.handlerSpy.waitForMessageWithId('1')
       expect(spyFirstCall.message).toEqual(message)
       expect(spyFirstCall.processingResult).toBe('published')
 
@@ -125,7 +125,7 @@ describe('SqsPermissionPublisher', () => {
       // Message 1 is published
       await publisher.publish(message1)
 
-      const spyFirstCall = await publisher.handlerSpy.waitForMessageWithId('id', 'published')
+      const spyFirstCall = await publisher.handlerSpy.waitForMessageWithId('id')
       expect(spyFirstCall.message).toEqual(message1)
       expect(spyFirstCall.processingResult).toBe('published')
 
@@ -135,7 +135,7 @@ describe('SqsPermissionPublisher', () => {
       // Message 2 is published
       await publisher.publish(message2)
 
-      const spySecondCall = await publisher.handlerSpy.waitForMessageWithId('id', 'published')
+      const spySecondCall = await publisher.handlerSpy.waitForMessageWithId('id')
       expect(spySecondCall.message).toEqual(message2)
       expect(spySecondCall.processingResult).toBe('published')
     })
@@ -164,10 +164,10 @@ describe('SqsPermissionPublisher', () => {
         timestamp: new Date().toISOString(),
       } satisfies PERMISSIONS_REMOVE_MESSAGE_TYPE
 
-      // Message 1 is published
+      // Message 1 is published for the initial call
       await customPublisher.publish(message1)
 
-      const spyFirstCall = await customPublisher.handlerSpy.waitForMessageWithId('id', 'published')
+      const spyFirstCall = await customPublisher.handlerSpy.waitForMessageWithId('id')
       expect(spyFirstCall.message).toEqual(message1)
       expect(spyFirstCall.processingResult).toBe('published')
 
@@ -185,10 +185,10 @@ describe('SqsPermissionPublisher', () => {
       // Clear the spy, so we can check for the subsequent call
       customPublisher.handlerSpy.clear()
 
-      // Message 2 is published
+      // Message 2 is published for the initial call
       await customPublisher.publish(message2)
 
-      const spyThirdCall = await customPublisher.handlerSpy.waitForMessageWithId('id', 'published')
+      const spyThirdCall = await customPublisher.handlerSpy.waitForMessageWithId('id')
       expect(spyThirdCall.message).toEqual(message2)
       expect(spyThirdCall.processingResult).toBe('published')
 
@@ -198,7 +198,7 @@ describe('SqsPermissionPublisher', () => {
       // Message 2 is published for the subsequent call (deduplication does not work)
       await customPublisher.publish(message2)
 
-      const spyFourthCall = await customPublisher.handlerSpy.waitForMessageWithId('id', 'published')
+      const spyFourthCall = await customPublisher.handlerSpy.waitForMessageWithId('id')
       expect(spyFourthCall.message).toEqual(message2)
       expect(spyFourthCall.processingResult).toBe('published')
 

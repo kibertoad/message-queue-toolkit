@@ -75,8 +75,13 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         () => calculateOutgoingMessageSize(updatedMessage),
       )
 
+      if (await this.isMessageDuplicated(parsedMessage)) {
+        return
+      }
+
       await this.sendMessage(maybeOffloadedPayloadMessage, options)
       this.handleMessageProcessed(parsedMessage, 'published')
+      await this.deduplicateMessage(parsedMessage)
     } catch (error) {
       const err = error as Error
       this.handleError(err)
