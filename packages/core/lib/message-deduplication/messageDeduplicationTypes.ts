@@ -15,10 +15,10 @@ export type MessageDeduplicationMessageTypeConfig = {
   deduplicationKeyGenerator: MessageDeduplicationKeyGenerator
 }
 
-export type MessageDeduplicationConfig<MessageType extends string = string> = {
+export type MessageDeduplicationConfig = {
   /** The store to use for storage and retrieval of deduplication keys */
   deduplicationStore: MessageDeduplicationStore
 
   /** The configuration for deduplication for each message type */
-  messageTypeToConfigMap: Record<MessageType, MessageDeduplicationMessageTypeConfig>
+  messageTypeToConfigMap: Record<string, MessageDeduplicationMessageTypeConfig>
 }
