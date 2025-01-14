@@ -531,7 +531,7 @@ export abstract class AbstractQueueService<
       return false
     }
 
-    // @ts-ignore
+    // @ts-expect-error
     const messageType = message[this.messageTypeField] as string
 
     if (!this.messageDeduplicationConfig.messageTypeToConfigMap[messageType]) {
@@ -554,7 +554,7 @@ export abstract class AbstractQueueService<
       return
     }
 
-    // @ts-ignore
+    // @ts-expect-error
     const messageType = message[this.messageTypeField] as string
 
     if (!this.messageDeduplicationConfig.messageTypeToConfigMap[messageType]) {
