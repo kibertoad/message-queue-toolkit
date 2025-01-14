@@ -23,6 +23,7 @@ import { isRetryDateExceeded } from '../utils/dateUtils'
 import { streamWithKnownSizeToString } from '../utils/streamUtils'
 import { toDatePreprocessor } from '../utils/toDateProcessor'
 
+import { MESSAGE_DEDUPLICATION_MESSAGE_TYPE_SCHEMA } from '../message-deduplication/messageDeduplicationSchemas'
 import type { MessageDeduplicationConfig } from '../message-deduplication/messageDeduplicationTypes'
 import type {
   BarrierCallback,
@@ -120,7 +121,9 @@ export abstract class AbstractQueueService<
           ...options.payloadStoreConfig,
         }
       : undefined
-    this.messageDeduplicationConfig = options.messageDeduplicationConfig
+    this.messageDeduplicationConfig = this.getValidateMessageDeduplicationConfig(
+      options.messageDeduplicationConfig,
+    )
 
     this.logMessages = options.logMessages ?? false
     this._handlerSpy = resolveHandlerSpy<MessagePayloadSchemas>(options)
@@ -569,5 +572,26 @@ export abstract class AbstractQueueService<
       this.messageDeduplicationConfig.messageTypeToConfigMap[messageType]
         .deduplicationWindowSeconds,
     )
+  }
+
+  private getValidateMessageDeduplicationConfig(
+    messageDeduplicationConfig?: MessageDeduplicationConfig,
+  ): MessageDeduplicationConfig | undefined {
+    if (!messageDeduplicationConfig) {
+      return undefined
+    }
+
+    for (const messageConfig of Object.values(messageDeduplicationConfig.messageTypeToConfigMap)) {
+      const messageTypeToConfigMapParseResult =
+        MESSAGE_DEDUPLICATION_MESSAGE_TYPE_SCHEMA.safeParse(messageConfig)
+
+      if (messageTypeToConfigMapParseResult.error) {
+        throw new Error(
+          `Invalid message deduplication config provided: ${messageTypeToConfigMapParseResult.error.toString()}`,
+        )
+      }
+    }
+
+    return messageDeduplicationConfig
   }
 }

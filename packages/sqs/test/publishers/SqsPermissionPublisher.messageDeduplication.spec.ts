@@ -205,4 +205,46 @@ describe('SqsPermissionPublisher', () => {
       await customPublisher.close()
     })
   })
+
+  describe('init', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    let messageDeduplicationStore: RedisMessageDeduplicationStore
+    let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
+
+    beforeAll(async () => {
+      diContainer = await registerDependencies({
+        permissionPublisher: asValue(() => undefined),
+        permissionConsumer: asValue(() => undefined),
+      })
+      messageDeduplicationStore = new RedisMessageDeduplicationStore(
+        {
+          redis: diContainer.cradle.redis,
+        },
+        { keyPrefix: TEST_DEDUPLICATION_KEY_PREFIX },
+      )
+      messageDeduplicationKeyGenerator = new PermissionMessageDeduplicationKeyGenerator()
+    })
+
+    afterAll(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('throws error if invalid message deduplication config is provided', () => {
+      expect(
+        () =>
+          new SqsPermissionPublisher(diContainer.cradle, {
+            messageDeduplicationConfig: {
+              deduplicationStore: messageDeduplicationStore,
+              messageTypeToConfigMap: {
+                add: {
+                  deduplicationWindowSeconds: -1,
+                  deduplicationKeyGenerator: messageDeduplicationKeyGenerator,
+                },
+              },
+            },
+          }),
+      ).toThrowError(/Invalid message deduplication config provided/)
+    })
+  })
 })
