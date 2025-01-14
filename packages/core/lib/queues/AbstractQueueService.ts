@@ -525,53 +525,35 @@ export abstract class AbstractQueueService<
     }
   }
 
-  /** Checks for an existence of deduplication key in deduplication store */
-  protected async isMessageDuplicated(message: MessagePayloadSchemas): Promise<boolean> {
+  /**
+   * Checks if message is duplicated.
+   * If it is not, stores deduplication key in the store and returns false. Returns true otherwise.
+   */
+  protected async deduplicateMessage(
+    message: MessagePayloadSchemas,
+  ): Promise<{ isDuplicated: boolean }> {
     if (!this.messageDeduplicationConfig) {
-      return false
+      return { isDuplicated: false }
     }
 
     // @ts-expect-error
     const messageType = message[this.messageTypeField] as string
 
     if (!this.messageDeduplicationConfig.messageTypeToConfigMap[messageType]) {
-      return false
+      return { isDuplicated: false }
     }
 
-    const deduplicationKey =
-      this.messageDeduplicationConfig.messageTypeToConfigMap[
-        messageType
-      ].deduplicationKeyGenerator.generate(message)
-    const deduplicationValue =
-      await this.messageDeduplicationConfig.deduplicationStore.retrieveKey(deduplicationKey)
+    const deduplicationKeyStored =
+      await this.messageDeduplicationConfig.deduplicationStore.setIfNotExists(
+        this.messageDeduplicationConfig.messageTypeToConfigMap[
+          messageType
+        ].deduplicationKeyGenerator.generate(message),
+        new Date().toISOString(),
+        this.messageDeduplicationConfig.messageTypeToConfigMap[messageType]
+          .deduplicationWindowSeconds,
+      )
 
-    return deduplicationValue !== null
-  }
-
-  /** Stores deduplication key in deduplication store */
-  protected async deduplicateMessage(message: MessagePayloadSchemas): Promise<void> {
-    if (!this.messageDeduplicationConfig) {
-      return
-    }
-
-    // @ts-expect-error
-    const messageType = message[this.messageTypeField] as string
-
-    if (!this.messageDeduplicationConfig.messageTypeToConfigMap[messageType]) {
-      return
-    }
-
-    const deduplicationKey =
-      this.messageDeduplicationConfig.messageTypeToConfigMap[
-        messageType
-      ].deduplicationKeyGenerator.generate(message)
-
-    await this.messageDeduplicationConfig.deduplicationStore.storeKey(
-      deduplicationKey,
-      new Date().toISOString(),
-      this.messageDeduplicationConfig.messageTypeToConfigMap[messageType]
-        .deduplicationWindowSeconds,
-    )
+    return { isDuplicated: !deduplicationKeyStored }
   }
 
   private getValidateMessageDeduplicationConfig(

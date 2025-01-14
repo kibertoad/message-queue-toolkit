@@ -390,7 +390,7 @@ It needs to implement the following methods:
 
 See [@message-queue-toolkit/metrics](packages/metrics/README.md) for concrete implementations
 
-## Producer-level deduplication
+## Producer-level message deduplication
 
 Producer-level message deduplication is a mechanism that prevents the same message from being sent to the queue multiple times.
 It is useful when you want to ensure that a message is published only once, regardless of how many times it is sent.

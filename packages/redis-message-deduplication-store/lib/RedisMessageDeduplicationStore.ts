@@ -21,13 +21,14 @@ export class RedisMessageDeduplicationStore implements MessageDeduplicationStore
     this.config = config
   }
 
-  async storeKey(key: string, value: string, ttlSeconds: number): Promise<void> {
+  async setIfNotExists(key: string, value: string, ttlSeconds: number): Promise<boolean> {
     const keyWithPrefix = this.getKeyWithOptionalPrefix(key)
+    const result = await this.redis.set(keyWithPrefix, value, 'EX', ttlSeconds, 'NX')
 
-    await this.redis.set(keyWithPrefix, value, 'EX', ttlSeconds)
+    return result === 'OK'
   }
 
-  retrieveKey(key: string): Promise<string | null> {
+  getByKey(key: string): Promise<string | null> {
     const keyWithPrefix = this.getKeyWithOptionalPrefix(key)
 
     return this.redis.get(keyWithPrefix)

@@ -33,13 +33,15 @@ describe('RedisMessageDeduplicationStore', () => {
     await cleanRedis(redis)
   })
 
-  describe('storeKey', () => {
-    it('stores a key in Redis with provided value and ttl', async () => {
+  describe('setIfNotExists', () => {
+    it('in case key does not exist, it stores it and returns true', async () => {
       const key = 'test_key'
       const value = 'test_value'
       const ttlSeconds = 60
 
-      await store.storeKey(key, value, ttlSeconds)
+      const result = await store.setIfNotExists(key, value, ttlSeconds)
+
+      expect(result).toBe(true)
 
       const storedValue = await redis.get(`${KEY_PREFIX}:${key}`)
       expect(storedValue).toBe(value)
@@ -47,19 +49,38 @@ describe('RedisMessageDeduplicationStore', () => {
       const storedTtl = await redis.ttl(`${KEY_PREFIX}:${key}`)
       expect(storedTtl).toBeLessThanOrEqual(ttlSeconds)
     })
-  })
 
-  describe('retrieveKey', () => {
-    it('retrieves a key from Redis', async () => {
+    it('in case key exists, it does not store it and returns false', async () => {
       const key = 'test_key'
       const value = 'test_value'
-      const ttlSeconds = 60
+      await redis.set(`${KEY_PREFIX}:${key}`, value, 'EX', 120)
 
-      await redis.set(`${KEY_PREFIX}:${key}`, value, 'EX', ttlSeconds)
+      const result = await store.setIfNotExists(key, value, 60)
 
-      const retrievedValue = await store.retrieveKey(key)
+      expect(result).toBe(false)
 
-      expect(retrievedValue).toBe(value)
+      const storedTtl = await redis.ttl(`${KEY_PREFIX}:${key}`)
+      expect(storedTtl).toBeGreaterThan(60)
+    })
+  })
+
+  describe('getByKey', () => {
+    it('in case key exists, it returns the value', async () => {
+      const key = 'test_key'
+      const value = 'test_value'
+      await redis.set(`${KEY_PREFIX}:${key}`, value)
+
+      const result = await store.getByKey(key)
+
+      expect(result).toBe(value)
+    })
+
+    it('in case key does not exist, it returns null', async () => {
+      const key = 'test_key'
+
+      const result = await store.getByKey(key)
+
+      expect(result).toBeNull()
     })
   })
 })

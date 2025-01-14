@@ -3,8 +3,14 @@ export interface MessageDeduplicationKeyGenerator<Message extends object = objec
 }
 
 export interface MessageDeduplicationStore {
-  storeKey(key: string, value: string, ttlSeconds: number): Promise<void>
-  retrieveKey(key: string): Promise<string | null>
+  /**
+   * Stores a deduplication key in case it does not already exist.
+   * Returns true if the key was stored, false if it already existed.
+   */
+  setIfNotExists(key: string, value: string, ttlSeconds: number): Promise<boolean>
+
+  /** Retrieves value associated with deduplication key */
+  getByKey(key: string): Promise<string | null>
 }
 
 export type MessageDeduplicationMessageTypeConfig = {

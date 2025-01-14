@@ -77,10 +77,10 @@ describe('SqsPermissionPublisher', () => {
       expect(spy.message).toEqual(message)
       expect(spy.processingResult).toBe('published')
 
-      const deduplicationKey = await messageDeduplicationStore.retrieveKey(
+      const deduplicationKeyValue = await messageDeduplicationStore.getByKey(
         messageDeduplicationKeyGenerator.generate(message),
       )
-      expect(deduplicationKey).not.toBeNull()
+      expect(deduplicationKeyValue).not.toBeNull()
     })
 
     it('does not publish the same message if deduplication key already exists', async () => {

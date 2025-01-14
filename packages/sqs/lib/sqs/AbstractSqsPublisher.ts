@@ -75,13 +75,12 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         calculateOutgoingMessageSize(message),
       )
 
-      if (await this.isMessageDuplicated(parsedMessage)) {
+      if ((await this.deduplicateMessage(parsedMessage)).isDuplicated) {
         return
       }
 
       await this.sendMessage(maybeOffloadedPayloadMessage, options)
       this.handleMessageProcessed(parsedMessage, 'published')
-      await this.deduplicateMessage(parsedMessage)
     } catch (error) {
       const err = error as Error
       this.handleError(err)
