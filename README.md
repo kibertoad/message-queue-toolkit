@@ -390,14 +390,14 @@ It needs to implement the following methods:
 
 See [@message-queue-toolkit/metrics](packages/metrics/README.md) for concrete implementations
 
-## Producer-level message deduplication
+## Publisher-level message deduplication
 
-Producer-level message deduplication is a mechanism that prevents the same message from being sent to the queue multiple times.
+Publisher-level message deduplication is a mechanism that prevents the same message from being sent to the queue multiple times.
 It is useful when you want to ensure that a message is published only once, regardless of how many times it is sent.
 
-Note that in case of some queuing systems, such as standard SQS, producer-level deduplication is not sufficient to guarantee that a message is **processed** only once.
+Note that in case of some queuing systems, such as standard SQS, publisher-level deduplication is not sufficient to guarantee that a message is **processed** only once.
 This is because standard SQS has an at-least-once delivery guarantee, which means that a message can be delivered more than once.
-In such cases, producer-level deduplication should be combined with consumer-level one.
+In such cases, publisher-level deduplication should be combined with consumer-level one.
 
 ### Configuration
 
@@ -409,7 +409,7 @@ In such cases, producer-level deduplication should be combined with consumer-lev
 2. **Configure your setup:**
     ```typescript
     import { Redis } from 'ioredis'
-    import { RedisDeduplicationStore } from '@message-queue-toolkit/redis-deduplication-store'
+    import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
     import { MessageDeduplicationKeyGenerator } from '@message-queue-toolkit/core'
 
     const redisClient = new Redis({
@@ -422,7 +422,7 @@ In such cases, producer-level deduplication should be combined with consumer-lev
       { keyPrefix: 'optional-key-prefix' }, // used to prefix deduplication keys
     )
 
-    // Producer-level deduplication allows you to provide custom strategies of deduplication key generation for each message type
+    // Publisher-level deduplication allows you to provide custom strategies of deduplication key generation for each message type
     // In this example we'll provide just one strategy for one message type - 'dummy'
     class DummyMessageDeduplicationKeyGenerator implements MessageDeduplicationKeyGenerator<DummyEvent> {
       generateKey(message: DummyEvent): string {
@@ -453,7 +453,3 @@ In such cases, producer-level deduplication should be combined with consumer-lev
         }
     }
     ```
-
-
-
-
