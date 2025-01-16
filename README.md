@@ -36,6 +36,7 @@ They implement the following public methods:
         * `handlerSpy` - allow awaiting certain messages to be published (see [Handler Spies](#handler-spies) for more information);
         * `logMessages` - add logs for processed messages.
         * `payloadStoreConfig` - configuration for payload offloading. This option enables the external storage of large message payloads to comply with message size limitations of the queue system. For more details on setting this up, see [Payload Offloading](#payload-offloading).
+        * `messageDeduplicationConfig` - configuration for store-based message deduplication on publisher level. For more details on setting this up, see [Publisher-level message deduplication](#publisher-level-message-deduplication).
 * `init()`, prepare publisher for use (e. g. establish all necessary connections);
 * `close()`, stop publisher use (e. g. disconnect);
 * `publish()`, send a message to a queue or topic. It accepts the following parameters:
