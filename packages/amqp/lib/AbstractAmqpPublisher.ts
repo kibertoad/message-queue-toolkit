@@ -157,5 +157,9 @@ export abstract class AbstractAmqpPublisher<
   override processMessage(): Promise<Either<'retryLater', 'success'>> {
     throw new Error('Not implemented for publisher')
   }
+
+  protected override queueMessageForRetry(): Promise<void> {
+    throw new Error('Not implemented for publisher')
+  }
   /* c8 ignore stop */
 }

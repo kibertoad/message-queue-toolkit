@@ -8,9 +8,9 @@ import type { Dependencies } from '../utils/testContext'
 import { registerDependencies } from '../utils/testContext'
 
 import type { MessageDeduplicationKeyGenerator } from '@message-queue-toolkit/core'
-import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
+import { RedisPublisherMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
+import { PermissionMessageDeduplicationKeyGenerator } from '../utils/PermissionMessageDeduplicationKeyGenerator'
 import { cleanRedis } from '../utils/cleanRedis'
-import { PermissionMessageDeduplicationKeyGenerator } from './PermissionMessageDeduplicationKeyGenerator'
 import { SqsPermissionPublisher } from './SqsPermissionPublisher'
 
 const TEST_DEDUPLICATION_KEY_PREFIX = 'test_key_prefix'
@@ -19,7 +19,7 @@ describe('SqsPermissionPublisher', () => {
   describe('publish', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisher
-    let messageDeduplicationStore: RedisMessageDeduplicationStore
+    let messageDeduplicationStore: RedisPublisherMessageDeduplicationStore
     let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
 
     beforeAll(async () => {
@@ -27,7 +27,7 @@ describe('SqsPermissionPublisher', () => {
         permissionPublisher: asValue(() => undefined),
         permissionConsumer: asValue(() => undefined),
       })
-      messageDeduplicationStore = new RedisMessageDeduplicationStore(
+      messageDeduplicationStore = new RedisPublisherMessageDeduplicationStore(
         {
           redis: diContainer.cradle.redis,
         },
@@ -38,7 +38,7 @@ describe('SqsPermissionPublisher', () => {
 
     beforeEach(() => {
       publisher = new SqsPermissionPublisher(diContainer.cradle, {
-        messageDeduplicationConfig: {
+        producerMessageDeduplicationConfig: {
           deduplicationStore: messageDeduplicationStore,
           messageTypeToConfigMap: {
             add: {
@@ -142,7 +142,7 @@ describe('SqsPermissionPublisher', () => {
 
     it('works only for event types that are configured', async () => {
       const customPublisher = new SqsPermissionPublisher(diContainer.cradle, {
-        messageDeduplicationConfig: {
+        producerMessageDeduplicationConfig: {
           deduplicationStore: messageDeduplicationStore,
           messageTypeToConfigMap: {
             add: {
@@ -208,7 +208,7 @@ describe('SqsPermissionPublisher', () => {
 
   describe('init', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let messageDeduplicationStore: RedisMessageDeduplicationStore
+    let messageDeduplicationStore: RedisPublisherMessageDeduplicationStore
     let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
 
     beforeAll(async () => {
@@ -216,7 +216,7 @@ describe('SqsPermissionPublisher', () => {
         permissionPublisher: asValue(() => undefined),
         permissionConsumer: asValue(() => undefined),
       })
-      messageDeduplicationStore = new RedisMessageDeduplicationStore(
+      messageDeduplicationStore = new RedisPublisherMessageDeduplicationStore(
         {
           redis: diContainer.cradle.redis,
         },
@@ -234,7 +234,7 @@ describe('SqsPermissionPublisher', () => {
       expect(
         () =>
           new SqsPermissionPublisher(diContainer.cradle, {
-            messageDeduplicationConfig: {
+            producerMessageDeduplicationConfig: {
               deduplicationStore: messageDeduplicationStore,
               messageTypeToConfigMap: {
                 add: {
@@ -244,7 +244,7 @@ describe('SqsPermissionPublisher', () => {
               },
             },
           }),
-      ).toThrowError(/Invalid message deduplication config provided/)
+      ).toThrowError(/Invalid publisher message deduplication config provided/)
     })
   })
 })

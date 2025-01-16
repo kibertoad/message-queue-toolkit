@@ -1,17 +1,17 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { Redis } from 'ioredis'
-import { RedisMessageDeduplicationStore } from '../lib/RedisMessageDeduplicationStore'
+import { RedisPublisherMessageDeduplicationStore } from '../lib/RedisPublisherMessageDeduplicationStore'
 import { cleanRedis } from './utils/cleanRedis'
 import { TEST_REDIS_CONFIG } from './utils/testRedisConfig'
 
 const KEY_PREFIX = 'test_key_prefix'
 
-describe('RedisMessageDeduplicationStore', () => {
+describe('RedisPublisherMessageDeduplicationStore', () => {
   const redisConfig = TEST_REDIS_CONFIG
 
   let redis: Redis
-  let store: RedisMessageDeduplicationStore
+  let store: RedisPublisherMessageDeduplicationStore
 
   beforeAll(() => {
     redis = new Redis({
@@ -26,7 +26,7 @@ describe('RedisMessageDeduplicationStore', () => {
       maxRetriesPerRequest: null,
       lazyConnect: false,
     })
-    store = new RedisMessageDeduplicationStore({ redis }, { keyPrefix: KEY_PREFIX })
+    store = new RedisPublisherMessageDeduplicationStore({ redis }, { keyPrefix: KEY_PREFIX })
   })
 
   afterEach(async () => {

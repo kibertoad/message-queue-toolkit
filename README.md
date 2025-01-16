@@ -410,16 +410,16 @@ In such cases, publisher-level deduplication should be combined with consumer-le
 2. **Configure your setup:**
     ```typescript
     import { Redis } from 'ioredis'
-    import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
+    import { RedisPublisherMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
     import { MessageDeduplicationKeyGenerator } from '@message-queue-toolkit/core'
 
     const redisClient = new Redis({
         // your redis configuration
     })
 
-    // Create a new instance of RedisMessageDeduplicationStore
-    messageDeduplicationStore = new RedisMessageDeduplicationStore(
-      { redis: redisclient },
+    // Create a new instance of RedisPublisherMessageDeduplicationStore
+    messageDeduplicationStore = new RedisPublisherMessageDeduplicationStore(
+      { redis: redisClient },
       { keyPrefix: 'optional-key-prefix' }, // used to prefix deduplication keys
     )
 

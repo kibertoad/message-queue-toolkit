@@ -4,6 +4,12 @@ export default defineConfig({
   test: {
     globals: true,
     watch: false,
+    poolOptions: {
+      threads: {
+        singleThread: true,
+      },
+    },
+    pool: 'threads',
     environment: 'node',
     reporters: ['default'],
     coverage: {

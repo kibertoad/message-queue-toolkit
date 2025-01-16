@@ -1,5 +1,5 @@
 import type { MessageDeduplicationKeyGenerator } from '@message-queue-toolkit/core'
-import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
+import { RedisPublisherMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import { type AwilixContainer, asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { cleanRedis } from '../../test/utils/cleanRedis'
@@ -18,7 +18,7 @@ describe('SnsPermissionPublisher', () => {
   describe('publish', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SnsPermissionPublisher
-    let messageDeduplicationStore: RedisMessageDeduplicationStore
+    let messageDeduplicationStore: RedisPublisherMessageDeduplicationStore
     let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
 
     beforeAll(async () => {
@@ -28,7 +28,7 @@ describe('SnsPermissionPublisher', () => {
         },
         false,
       )
-      messageDeduplicationStore = new RedisMessageDeduplicationStore(
+      messageDeduplicationStore = new RedisPublisherMessageDeduplicationStore(
         {
           redis: diContainer.cradle.redis,
         },
@@ -39,7 +39,7 @@ describe('SnsPermissionPublisher', () => {
 
     beforeEach(() => {
       publisher = new SnsPermissionPublisher(diContainer.cradle, {
-        messageDeduplicationConfig: {
+        producerMessageDeduplicationConfig: {
           deduplicationStore: messageDeduplicationStore,
           messageTypeToConfigMap: {
             add: {
