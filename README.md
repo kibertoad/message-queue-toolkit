@@ -36,7 +36,7 @@ They implement the following public methods:
         * `handlerSpy` - allow awaiting certain messages to be published (see [Handler Spies](#handler-spies) for more information);
         * `logMessages` - add logs for processed messages.
         * `payloadStoreConfig` - configuration for payload offloading. This option enables the external storage of large message payloads to comply with message size limitations of the queue system. For more details on setting this up, see [Payload Offloading](#payload-offloading).
-        * `messageDeduplicationConfig` - configuration for store-based message deduplication on publisher level. For more details on setting this up, see [Publisher-level message deduplication](#publisher-level-message-deduplication).
+        * `publisherMessageDeduplicationConfig` - configuration for store-based message deduplication on publisher level. For more details on setting this up, see [Publisher-level message deduplication](#publisher-level-message-deduplication).
 * `init()`, prepare publisher for use (e. g. establish all necessary connections);
 * `close()`, stop publisher use (e. g. disconnect);
 * `publish()`, send a message to a queue or topic. It accepts the following parameters:
@@ -102,6 +102,7 @@ Multi-schema consumers support multiple message types via handler configs. They 
         * `logMessages` - add logs for processed messages.
         * `payloadStoreConfig` - configuration for payload offloading. This option enables the external storage of large message payloads to comply with message size limitations of the queue system. For more details on setting this up, see [Payload Offloading](#payload-offloading).
         * `concurrentConsumersAmount` - configuration for specifying the number of concurrent consumers to create. Available only for SQS and SNS consumers
+        * `consumerMessageDeduplicationConfig` - configuration for store-based message deduplication on consumer level. For more details on setting this up, see [Consumer-level message deduplication](#consumer-level-message-deduplication).
 * `init()`, prepare consumer for use (e. g. establish all necessary connections);
 * `close()`, stop listening for messages and disconnect;
 * `start()`, which invokes `init()`.
@@ -441,9 +442,70 @@ In such cases, publisher-level deduplication should be combined with consumer-le
                 // rest of the configuration
                 messageDeduplicationConfig: {
                   deduplicationStore: messageDeduplicationStore,
-                  messageTypeToConfigMap: {
+                  publisherMessageTypeToConfigMap: {
                     dummy: {
                       deduplicationWindowSeconds: 10,
+                      deduplicationKeyGenerator: dummyMessageDeduplicationKeyGenerator,
+                    },
+                    // In case there are other event types available, you can provide their deduplication strategies here
+                    // If strategy for certain message type is not provided, deduplication will not be performed for this message type
+                  },
+                },
+            })
+        }
+    }
+    ```
+
+## Consumer-level message deduplication
+
+Consumer-level message deduplication is a mechanism that prevents the same message from being processed multiple times.
+It is useful when you want to be sure that message is processed only once, regardless of how many times it is received.
+
+### Configuration
+
+1. **Install a deduplication store implementation (Redis in example)**:
+    ```bash
+    npm install @message-queue-toolkit/redis-deduplication-store
+    ```
+   
+2. **Configure your setup:**
+    ```typescript
+    import { Redis } from 'ioredis'
+    import { RedisConsumerMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
+    import { MessageDeduplicationKeyGenerator } from '@message-queue-toolkit/core'
+
+    const redisClient = new Redis({
+        // your redis configuration
+    })
+
+    // Create a new instance of RedisConsumerMessageDeduplicationStore
+    messageDeduplicationStore = new RedisConsumerMessageDeduplicationStore(
+      { redis: diContainer.cradle.redis },
+      { keyPrefix: 'optional-key-prefix' }, // used to prefix deduplication keys
+    )
+   
+    // Consumer-level deduplication allows you to provide custom strategies of deduplication key generation for each message type
+    // In this example we'll provide just one strategy for one message type - 'dummy'
+    class DummyMessageDeduplicationKeyGenerator implements MessageDeduplicationKeyGenerator<DummyEvent> {
+      generateKey(message: DummyEvent): string {
+        return message.id
+      }
+    }
+   
+    const dummyMessageDeduplicationKeyGenerator = new DummyMessageDeduplicationKeyGenerator()
+   
+    export class MyConsumer extends AbstractSqsConsumer<> {
+        constructor(
+            // dependencies and options
+        ) {
+            super(dependencies, {
+                // rest of the configuration
+                messageDeduplicationConfig: {
+                  deduplicationStore: messageDeduplicationStore,
+                  consumerMessageTypeToConfigMap: {
+                    dummy: {
+                      deduplicationWindowSeconds: 10,
+                      maximumProcessingTimeSeconds: 5,
                       deduplicationKeyGenerator: dummyMessageDeduplicationKeyGenerator,
                     },
                     // In case there are other event types available, you can provide their deduplication strategies here
