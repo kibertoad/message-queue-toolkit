@@ -13,12 +13,12 @@ export interface MessageDeduplicationStore {
   getByKey(key: string): Promise<string | null>
 }
 
-export type MessageDeduplicationMessageTypeConfig = {
+export type MessageDeduplicationMessageTypeConfig<Message extends object = object> = {
   /** How many seconds to keep the deduplication key in the store for a particular message type */
   deduplicationWindowSeconds: number
 
   /** The generator to use for generating deduplication keys for a particular message type */
-  deduplicationKeyGenerator: MessageDeduplicationKeyGenerator
+  deduplicationKeyGenerator: MessageDeduplicationKeyGenerator<Message>
 }
 
 export type MessageDeduplicationConfig = {

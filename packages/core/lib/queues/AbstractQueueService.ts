@@ -525,6 +525,17 @@ export abstract class AbstractQueueService<
     }
   }
 
+  protected isDeduplicationEnabled(message: MessagePayloadSchemas): boolean {
+    if (!this.messageDeduplicationConfig) {
+      return false
+    }
+
+    // @ts-expect-error
+    const messageType = message[this.messageTypeField] as string
+
+    return !!this.messageDeduplicationConfig.messageTypeToConfigMap[messageType]
+  }
+
   /**
    * Checks if message is duplicated.
    * If it is not, stores deduplication key in the store and returns false. Returns true otherwise.

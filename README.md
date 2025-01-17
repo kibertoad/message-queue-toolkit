@@ -419,7 +419,7 @@ In such cases, publisher-level deduplication should be combined with consumer-le
 
     // Create a new instance of RedisMessageDeduplicationStore
     messageDeduplicationStore = new RedisMessageDeduplicationStore(
-      { redis: diContainer.cradle.redis },
+      { redis: redisclient },
       { keyPrefix: 'optional-key-prefix' }, // used to prefix deduplication keys
     )
 

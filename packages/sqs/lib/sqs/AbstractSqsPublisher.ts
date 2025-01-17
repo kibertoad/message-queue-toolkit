@@ -75,7 +75,10 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         calculateOutgoingMessageSize(message),
       )
 
-      if ((await this.deduplicateMessage(parsedMessage)).isDuplicated) {
+      if (
+        this.isDeduplicationEnabled(message) &&
+        (await this.deduplicateMessage(parsedMessage)).isDuplicated
+      ) {
         return
       }
 

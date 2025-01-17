@@ -75,7 +75,10 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         () => calculateOutgoingMessageSize(updatedMessage),
       )
 
-      if ((await this.deduplicateMessage(parsedMessage)).isDuplicated) {
+      if (
+        this.isDeduplicationEnabled(message) &&
+        (await this.deduplicateMessage(parsedMessage)).isDuplicated
+      ) {
         return
       }
 
