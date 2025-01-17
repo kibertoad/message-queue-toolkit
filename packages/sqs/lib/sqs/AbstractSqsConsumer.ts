@@ -2,7 +2,6 @@ import { SendMessageCommand, SetQueueAttributesCommand } from '@aws-sdk/client-s
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import {
   type BarrierResult,
-  ConsumerMessageDeduplicationCheckStatus,
   type DeadLetterQueueOptions,
   HandlerContainer,
   type MessageSchemaContainer,
@@ -224,9 +223,11 @@ export abstract class AbstractSqsConsumer<
         }
         const { parsedMessage, originalMessage } = deserializedMessage.result
 
-        const deduplicationResult = await this.deduplicateMessageBeforeProcessing(parsedMessage)
-        if (deduplicationResult === ConsumerMessageDeduplicationCheckStatus.SKIP) {
-          return message
+        if (this.isPublisherDeduplicationEnabled(parsedMessage)) {
+          const lockAcquired = await this.tryToAcquireLockForProcessing(parsedMessage)
+          if (!lockAcquired) {
+            return
+          }
         }
 
         // @ts-ignore
@@ -257,7 +258,7 @@ export abstract class AbstractSqsConsumer<
         // success
         if (result.result) {
           this.handleMessageProcessed(originalMessage, 'consumed')
-          await this.deduplicateMessageAfterProcessing(parsedMessage, true)
+          await this.updateLockAfterProcessing(parsedMessage, true)
           return message
         }
 
@@ -274,7 +275,7 @@ export abstract class AbstractSqsConsumer<
         }
 
         this.handleMessageProcessed(parsedMessage, 'error')
-        await this.deduplicateMessageAfterProcessing(parsedMessage, false)
+        await this.updateLockAfterProcessing(parsedMessage, false)
         return Promise.reject(result.error)
       },
     })

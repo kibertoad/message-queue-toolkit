@@ -25,7 +25,6 @@ import { toDatePreprocessor } from '../utils/toDateProcessor'
 
 import { MESSAGE_DEDUPLICATION_MESSAGE_TYPE_SCHEMA } from '../message-deduplication/messageDeduplicationSchemas'
 import {
-  ConsumerMessageDeduplicationCheckStatus,
   type ConsumerMessageDeduplicationConfig,
   ConsumerMessageDeduplicationKeyStatus,
   type PublisherMessageDeduplicationConfig,
@@ -536,7 +535,7 @@ export abstract class AbstractQueueService<
     }
   }
 
-  protected isDeduplicationEnabledOnPublisherSide(message: MessagePayloadSchemas): boolean {
+  protected isPublisherDeduplicationEnabled(message: MessagePayloadSchemas): boolean {
     if (!this.publisherMessageDeduplicationConfig) {
       return false
     }
@@ -548,10 +547,10 @@ export abstract class AbstractQueueService<
   }
 
   /**
-   * Checks if message is duplicated.
+   * Checks if message is duplicated before publishing.
    * If it is not, stores deduplication key in the store and returns false. Returns true otherwise.
    */
-  protected async deduplicateMessageOnPublisherSide(
+  protected async deduplicateMessageBeforePublishing(
     message: MessagePayloadSchemas,
   ): Promise<{ isDuplicated: boolean }> {
     if (!this.publisherMessageDeduplicationConfig) {
@@ -578,11 +577,24 @@ export abstract class AbstractQueueService<
     return { isDuplicated: !deduplicationKeyStored }
   }
 
-  protected async deduplicateMessageBeforeProcessing(
-    message: MessagePayloadSchemas,
-  ): Promise<ConsumerMessageDeduplicationCheckStatus> {
+  protected isConsumerDeduplicationEnabled(message: MessagePayloadSchemas): boolean {
     if (!this.consumerMessageDeduplicationConfig) {
-      return ConsumerMessageDeduplicationCheckStatus.PROCESS
+      return false
+    }
+
+    // @ts-expect-error
+    const messageType = message[this.messageTypeField] as string
+
+    return !!this.consumerMessageDeduplicationConfig.messageTypeToConfigMap[messageType]
+  }
+
+  /**
+   * Tries to acquire lock for processing the message.
+   * Returns true in case if lock has been acquired and message can be processed. Returns false otherwise.
+   */
+  protected async tryToAcquireLockForProcessing(message: MessagePayloadSchemas): Promise<boolean> {
+    if (!this.consumerMessageDeduplicationConfig) {
+      return true
     }
 
     // @ts-expect-error
@@ -591,7 +603,7 @@ export abstract class AbstractQueueService<
       this.consumerMessageDeduplicationConfig.messageTypeToConfigMap[messageType]
 
     if (!deduplicationConfig) {
-      return ConsumerMessageDeduplicationCheckStatus.PROCESS
+      return true
     }
 
     const deduplicationKey = deduplicationConfig.deduplicationKeyGenerator.generate(message)
@@ -602,9 +614,9 @@ export abstract class AbstractQueueService<
       Math.round(deduplicationConfig.maximumProcessingTimeSeconds * 2),
     )
 
-    // Deduplication key doesn't exist - mark message as processable
+    // Deduplication key doesn't exist - we can process the message
     if (result) {
-      return ConsumerMessageDeduplicationCheckStatus.PROCESS
+      return true
     }
 
     const deduplicationKeyStatus =
@@ -612,7 +624,7 @@ export abstract class AbstractQueueService<
 
     // Message was already processed
     if (deduplicationKeyStatus === ConsumerMessageDeduplicationKeyStatus.PROCESSED) {
-      return ConsumerMessageDeduplicationCheckStatus.SKIP
+      return false
     }
 
     const deduplicationKeyTtl =
@@ -623,21 +635,25 @@ export abstract class AbstractQueueService<
       deduplicationKeyTtl &&
       deduplicationKeyTtl <= deduplicationConfig.maximumProcessingTimeSeconds
     ) {
-      // Extend deduplication key TTL
+      // Extend deduplication key TTL and take over processing
       await this.consumerMessageDeduplicationConfig.deduplicationStore.updateKeyTtl(
         deduplicationKey,
         Math.round(deduplicationConfig.maximumProcessingTimeSeconds * 2),
       )
-      return ConsumerMessageDeduplicationCheckStatus.PROCESS
+      return true
     }
 
     // Message is still being processed within the expected time
     // Queue it for next check
     await this.queueMessageForRetry(message)
-    return ConsumerMessageDeduplicationCheckStatus.SKIP
+    return false
   }
 
-  protected async deduplicateMessageAfterProcessing(
+  /**
+   * If message was processed successfully, marks deduplication key as processed and extends its TTL.
+   * If message processing failed, removes deduplication key to allow for retries.
+   */
+  protected async updateLockAfterProcessing(
     message: MessagePayloadSchemas,
     messageProcessedSuccessfully: boolean,
   ): Promise<void> {

@@ -52,7 +52,7 @@ export interface ConsumerMessageDeduplicationStore {
   deleteKey(key: string): Promise<void>
 }
 
-export type ConsumerMessageDeduplicationMessageTypeConfig = {
+export type ConsumerMessageDeduplicationMessageTypeConfig<Message extends object = object> = {
   /** How many seconds to keep the deduplication key in the store for a particular message type after message is successfully processed */
   deduplicationWindowSeconds: number
 
@@ -60,7 +60,7 @@ export type ConsumerMessageDeduplicationMessageTypeConfig = {
   maximumProcessingTimeSeconds: number
 
   /** The generator to use for generating deduplication keys for a particular message type */
-  deduplicationKeyGenerator: MessageDeduplicationKeyGenerator
+  deduplicationKeyGenerator: MessageDeduplicationKeyGenerator<Message>
 }
 
 export type ConsumerMessageDeduplicationConfig = {
@@ -74,9 +74,4 @@ export type ConsumerMessageDeduplicationConfig = {
 export enum ConsumerMessageDeduplicationKeyStatus {
   PROCESSING = 'PROCESSING',
   PROCESSED = 'PROCESSED',
-}
-
-export enum ConsumerMessageDeduplicationCheckStatus {
-  PROCESS = 'PROCESS',
-  SKIP = 'SKIP',
 }

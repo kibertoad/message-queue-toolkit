@@ -78,13 +78,12 @@ export {
   OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA,
   isOffloadedPayloadPointerPayload,
 } from './lib/payload-store/offloadedPayloadMessageSchemas'
-export {
-  type PublisherMessageDeduplicationConfig,
-  type PublisherMessageDeduplicationMessageTypeConfig,
-  type PublisherMessageDeduplicationStore,
-  type MessageDeduplicationKeyGenerator,
-  type ConsumerMessageDeduplicationConfig,
-  type ConsumerMessageDeduplicationMessageTypeConfig,
-  type ConsumerMessageDeduplicationStore,
-  ConsumerMessageDeduplicationCheckStatus,
+export type {
+  PublisherMessageDeduplicationConfig,
+  PublisherMessageDeduplicationMessageTypeConfig,
+  PublisherMessageDeduplicationStore,
+  MessageDeduplicationKeyGenerator,
+  ConsumerMessageDeduplicationConfig,
+  ConsumerMessageDeduplicationMessageTypeConfig,
+  ConsumerMessageDeduplicationStore,
 } from './lib/message-deduplication/messageDeduplicationTypes'

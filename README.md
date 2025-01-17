@@ -480,7 +480,7 @@ It is useful when you want to be sure that message is processed only once, regar
 
     // Create a new instance of RedisConsumerMessageDeduplicationStore
     messageDeduplicationStore = new RedisConsumerMessageDeduplicationStore(
-      { redis: diContainer.cradle.redis },
+      { redis: redisClient },
       { keyPrefix: 'optional-key-prefix' }, // used to prefix deduplication keys
     )
    

@@ -76,8 +76,8 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       )
 
       if (
-        this.isDeduplicationEnabledOnPublisherSide(message) &&
-        (await this.deduplicateMessageOnPublisherSide(parsedMessage)).isDuplicated
+        this.isPublisherDeduplicationEnabled(message) &&
+        (await this.deduplicateMessageBeforePublishing(parsedMessage)).isDuplicated
       ) {
         return
       }
