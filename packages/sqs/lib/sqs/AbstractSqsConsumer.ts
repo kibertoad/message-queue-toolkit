@@ -223,7 +223,7 @@ export abstract class AbstractSqsConsumer<
         }
         const { parsedMessage, originalMessage } = deserializedMessage.result
 
-        if (this.isPublisherDeduplicationEnabled(parsedMessage)) {
+        if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
           const lockAcquired = await this.tryToAcquireLockForProcessing(parsedMessage)
           if (!lockAcquired) {
             return
@@ -258,7 +258,9 @@ export abstract class AbstractSqsConsumer<
         // success
         if (result.result) {
           this.handleMessageProcessed(originalMessage, 'consumed')
-          await this.updateLockAfterProcessing(parsedMessage, true)
+          if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
+            await this.updateLockAfterProcessing(parsedMessage, true)
+          }
           return message
         }
 
@@ -275,7 +277,9 @@ export abstract class AbstractSqsConsumer<
         }
 
         this.handleMessageProcessed(parsedMessage, 'error')
-        await this.updateLockAfterProcessing(parsedMessage, false)
+        if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
+          await this.updateLockAfterProcessing(parsedMessage, false)
+        }
         return Promise.reject(result.error)
       },
     })
