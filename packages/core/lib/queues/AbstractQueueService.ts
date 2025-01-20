@@ -611,7 +611,7 @@ export abstract class AbstractQueueService<
     const result = await this.consumerMessageDeduplicationConfig.deduplicationStore.setIfNotExists(
       deduplicationKey,
       ConsumerMessageDeduplicationKeyStatus.PROCESSING,
-      Math.round(deduplicationConfig.maximumProcessingTimeSeconds * 2),
+      deduplicationConfig.maximumProcessingTimeSeconds,
     )
 
     // Deduplication key doesn't exist - we can process the message
@@ -625,22 +625,6 @@ export abstract class AbstractQueueService<
     // Message was already processed
     if (deduplicationKeyStatus === ConsumerMessageDeduplicationKeyStatus.PROCESSED) {
       return false
-    }
-
-    const deduplicationKeyTtl =
-      await this.consumerMessageDeduplicationConfig.deduplicationStore.getKeyTtl(deduplicationKey)
-
-    // Message got stuck in processing
-    if (
-      deduplicationKeyTtl &&
-      deduplicationKeyTtl <= deduplicationConfig.maximumProcessingTimeSeconds
-    ) {
-      // Extend deduplication key TTL and take over processing
-      await this.consumerMessageDeduplicationConfig.deduplicationStore.updateKeyTtl(
-        deduplicationKey,
-        Math.round(deduplicationConfig.maximumProcessingTimeSeconds * 2),
-      )
-      return true
     }
 
     // Message is still being processed within the expected time
@@ -674,7 +658,7 @@ export abstract class AbstractQueueService<
 
     if (messageProcessedSuccessfully) {
       // Mark the deduplication key as processed and extend its TTL
-      await this.consumerMessageDeduplicationConfig.deduplicationStore.updateKeyTtlAndValue(
+      await this.consumerMessageDeduplicationConfig.deduplicationStore.setOrUpdate(
         deduplicationKey,
         ConsumerMessageDeduplicationKeyStatus.PROCESSED,
         deduplicationConfig.deduplicationWindowSeconds,

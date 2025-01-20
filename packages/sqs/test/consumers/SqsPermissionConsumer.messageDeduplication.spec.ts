@@ -185,9 +185,8 @@ describe('SqsPermissionConsumer', () => {
         expect(secondConsumptionResult).toBeUndefined()
 
         // We're expiring the deduplication key, so we do not have to wait for the deduplication window to pass
-        await messageDeduplicationStore.updateKeyTtl(
+        await messageDeduplicationStore.deleteKey(
           messageDeduplicationKeyGenerator.generate(message),
-          0,
         )
 
         // Clear the spy, so we can check subsequent call

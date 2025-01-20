@@ -42,11 +42,8 @@ export interface ConsumerMessageDeduplicationStore {
   /** Retrieves TTL of the deduplication key */
   getKeyTtl(key: string): Promise<number | null>
 
-  /** Updates TTL of the deduplication key */
-  updateKeyTtl(key: string, ttlSeconds: number): Promise<void>
-
-  /** Updates TTL of the deduplication key and its value */
-  updateKeyTtlAndValue(key: string, value: string, ttlSeconds: number): Promise<void>
+  /** Sets a value for the deduplication key or updates it if it already exists */
+  setOrUpdate(key: string, value: string, ttlSeconds: number): Promise<void>
 
   /** Deletes the deduplication key */
   deleteKey(key: string): Promise<void>

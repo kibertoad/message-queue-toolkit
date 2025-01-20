@@ -104,42 +104,33 @@ describe('RedisConsumerMessageDeduplicationStore', () => {
     })
   })
 
-  describe('updateKeyTtl', () => {
-    it('in case key exists, it updates the ttl', async () => {
-      const key = 'test_key'
-      const value = 'test_value'
-      await redis.set(`${KEY_PREFIX}:${key}`, value, 'EX', 60)
-
-      await store.updateKeyTtl(key, 120)
-
-      const storedTtl = await redis.ttl(`${KEY_PREFIX}:${key}`)
-      expect(storedTtl).toBeGreaterThan(60)
-    })
-
-    it('in case key does not exist, it does nothing', async () => {
-      const key = 'test_key'
-
-      await store.updateKeyTtl(key, 120)
-
-      const storedTtl = await redis.ttl(`${KEY_PREFIX}:${key}`)
-      expect(storedTtl).toBe(-2) // -2 means key does not exist
-    })
-  })
-
-  describe('updateKeyTtlAndValue', () => {
-    it('updates the ttl and value of the key', async () => {
+  describe('setOrUpdate', () => {
+    it('updates the ttl and value of the key if it exists', async () => {
       const key = 'test_key'
       const value = 'test_value'
       await redis.set(`${KEY_PREFIX}:${key}`, value, 'EX', 60)
 
       const newValue = 'new_test_value'
-      await store.updateKeyTtlAndValue(key, newValue, 120)
+      await store.setOrUpdate(key, newValue, 120)
 
       const storedValue = await redis.get(`${KEY_PREFIX}:${key}`)
       expect(storedValue).toBe(newValue)
 
       const storedTtl = await redis.ttl(`${KEY_PREFIX}:${key}`)
       expect(storedTtl).toBeGreaterThan(60)
+    })
+
+    it('stores the key if it does not exist', async () => {
+      const key = 'test_key'
+      const value = 'test_value'
+
+      await store.setOrUpdate(key, value, 60)
+
+      const storedValue = await redis.get(`${KEY_PREFIX}:${key}`)
+      expect(storedValue).toBe(value)
+
+      const storedTtl = await redis.ttl(`${KEY_PREFIX}:${key}`)
+      expect(storedTtl).toBeLessThanOrEqual(60)
     })
   })
 

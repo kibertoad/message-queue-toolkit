@@ -42,13 +42,7 @@ export class RedisConsumerMessageDeduplicationStore implements ConsumerMessageDe
     return ttl >= 0 ? ttl : null
   }
 
-  async updateKeyTtl(key: string, ttlSeconds: number): Promise<void> {
-    const keyWithPrefix = this.getKeyWithOptionalPrefix(key)
-
-    await this.redis.expire(keyWithPrefix, ttlSeconds)
-  }
-
-  async updateKeyTtlAndValue(key: string, value: string, ttlSeconds: number): Promise<void> {
+  async setOrUpdate(key: string, value: string, ttlSeconds: number): Promise<void> {
     const keyWithPrefix = this.getKeyWithOptionalPrefix(key)
 
     await this.redis.set(keyWithPrefix, value, 'EX', ttlSeconds)
