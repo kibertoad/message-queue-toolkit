@@ -1,5 +1,20 @@
 # Upgrading Guide
 
+## Upgrading </br> `core` `18.0.0` -> `19.0.0` </br> `sqs` `18.0.0` -> `19.0.0` </br> `sns` `19.0.0` -> `20.0.0` </br> `amqp` `17.0.0` -> `18.0.0`
+
+### Description of Breaking Changes
+In `AbstractQueueService`:
+- `handleMessageProcessed` method signature has changed. It now accepts 2 additional parameters:
+  - `messageProcessingStartTimestamp` - timestamp in milliseconds used to calculate message processing time
+  - `queueName` - name of the queue or topic on which message is consumed or published
+- `resolveProcessedMessageMetadata` was made private
+
+### Migration steps
+If you are extending `AbstractQueueService` and calling `handleMessageProcessed` manually, you need to provide additional parameters, e.g.:
+```typescript
+this.handleMessageProcessed(message, 'consumed', messageProcessingStartTimestamp, queueName)
+```
+
 ## Upgrading </br> `core` `17.0.0` -> `18.0.0` </br> `sqs` `17.0.0` -> `18.0.0` </br> `sns` `18.0.0` -> `19.0.0` </br> `amqp` `16.0.0` -> `17.0.0`    
 
 ### Description of Breaking Changes
