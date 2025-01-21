@@ -10,6 +10,7 @@ import type { Dependencies } from '../utils/testContext'
 import { registerDependencies } from '../utils/testContext'
 
 import { setTimeout } from 'node:timers/promises'
+import { waitAndRetry } from '@lokalise/node-core'
 import { ConsumerMessageDeduplicationKeyStatus } from '@message-queue-toolkit/core/dist/lib/message-deduplication/messageDeduplicationTypes'
 import { RedisConsumerMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import { PermissionMessageDeduplicationKeyGenerator } from '../utils/PermissionMessageDeduplicationKeyGenerator'
@@ -86,11 +87,8 @@ describe('SqsPermissionConsumer', () => {
         await publisher.publish(message)
 
         // Message is successfully processed during the first consumption
-        const firstConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(
-          message.id,
-          'consumed',
-        )
-        expect(firstConsumptionResult.message).toMatchObject(message)
+        const firstConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message.id)
+        expect(firstConsumptionResult.processingResult).toBe('consumed')
 
         // Clear the spy, so we can check subsequent call
         consumer.handlerSpy.clear()
@@ -98,10 +96,8 @@ describe('SqsPermissionConsumer', () => {
         await publisher.publish(message)
 
         // Message is not processed due to deduplication
-        const secondConsumptionResult = consumer.handlerSpy.checkForMessage({
-          messageType: 'add',
-        })
-        expect(secondConsumptionResult).toBeUndefined()
+        const secondConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message.id)
+        expect(secondConsumptionResult.processingResult).toBe('duplicate')
 
         await consumer.close()
       })
@@ -111,6 +107,12 @@ describe('SqsPermissionConsumer', () => {
           consumerMessageDeduplicationConfig,
           consumerOverrides: {
             terminateVisibilityTimeout: false, // Setting it to false to let consumer process the next message rather than keep retrying the first one indefinitely
+          },
+          addHandlerOverride: (message) => {
+            if ((message as PERMISSIONS_ADD_MESSAGE_TYPE)?.metadata?.forceConsumerToThrow) {
+              throw new Error('Forced error')
+            }
+            return Promise.resolve({ result: 'success' })
           },
         })
         await consumer.start()
@@ -167,11 +169,8 @@ describe('SqsPermissionConsumer', () => {
         await publisher.publish(message)
 
         // Message is successfully processed during the first consumption
-        const firstConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(
-          message.id,
-          'consumed',
-        )
-        expect(firstConsumptionResult.message).toMatchObject(message)
+        const firstConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message.id)
+        expect(firstConsumptionResult.processingResult).toBe('consumed')
 
         // Clear the spy, so we can check subsequent call
         consumer.handlerSpy.clear()
@@ -179,10 +178,8 @@ describe('SqsPermissionConsumer', () => {
         await publisher.publish(message)
 
         // Message is not processed due to deduplication
-        const secondConsumptionResult = consumer.handlerSpy.checkForMessage({
-          messageType: 'add',
-        })
-        expect(secondConsumptionResult).toBeUndefined()
+        const secondConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message.id)
+        expect(secondConsumptionResult.processingResult).toBe('duplicate')
 
         // We're expiring the deduplication key, so we do not have to wait for the deduplication window to pass
         await messageDeduplicationStore.deleteKey(
@@ -195,11 +192,8 @@ describe('SqsPermissionConsumer', () => {
         await publisher.publish(message)
 
         // Message is successfully processed after deduplication key has expired
-        const thirdConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(
-          message.id,
-          'consumed',
-        )
-        expect(thirdConsumptionResult.message).toMatchObject(message)
+        const thirdConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message.id)
+        expect(thirdConsumptionResult.processingResult).toBe('consumed')
 
         await consumer.close()
       })
@@ -210,19 +204,22 @@ describe('SqsPermissionConsumer', () => {
           messageTypeToConfigMap: {
             add: {
               ...consumerMessageDeduplicationConfig.messageTypeToConfigMap.add,
-              maximumProcessingTimeSeconds: 1,
+              maximumProcessingTimeSeconds: 2,
             },
           },
         } satisfies ConsumerMessageDeduplicationConfig
         const consumer1 = new SqsPermissionConsumer(diContainer.cradle, {
           consumerMessageDeduplicationConfig: consumerMessageDeduplicationConfigOverrides,
-          delayConsumerProcessingMs: 2000, // Delaying he first consumer processing to ensure that the second consumer takes over
+          addHandlerOverride: async () => {
+            await setTimeout(5000)
+            return Promise.resolve({ result: 'success' })
+          },
         })
         await consumer1.start()
         const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
           consumerMessageDeduplicationConfig: consumerMessageDeduplicationConfigOverrides,
         })
-        await consumer2.start()
+        // Not starting consumer 2 yet
 
         const message = {
           id: '1',
@@ -231,43 +228,34 @@ describe('SqsPermissionConsumer', () => {
 
         await publisher.publish(message)
 
-        // Consumer 1 is still processing the message
-        const firstConsumptionResult = consumer1.handlerSpy.checkForMessage({
-          id: message.id,
-        })
-        expect(firstConsumptionResult).toBeUndefined()
+        // Wait until consumer 1 acquires lock and then simulate its fatal failure by force disposing it
+        const deduplicationKey = messageDeduplicationKeyGenerator.generate(message)
+        await waitAndRetry(async () => {
+          const key = await messageDeduplicationStore.getByKey(deduplicationKey)
 
-        // Clear the spy, so we can check subsequent call
-        consumer1.handlerSpy.clear()
-
-        // Consumer 2 cannot take the processing at this point - it has to wait for the maximum processing time to pass
-        const secondConsumptionResult = consumer2.handlerSpy.checkForMessage({
-          id: message.id,
+          return key !== null
         })
-        expect(secondConsumptionResult).toBeUndefined()
+        await consumer1.close(true)
+
+        // Start consumer 2 and publish the same message again
+        await consumer2.start()
+        await publisher.publish(message)
+
+        // Consumer 2 cannot take over the processing at this point - it has to wait for the maximum processing time to pass
+        const secondConsumptionResult = await consumer2.handlerSpy.waitForMessageWithId(message.id)
+        expect(secondConsumptionResult.processingResult).toBe('duplicate')
 
         // Clear the spy, so we can check subsequent call
         consumer2.handlerSpy.clear()
 
-        // Simulating consumer 1 fatal failure by force disposing it
-        await consumer1.close(true)
-
-        // Wait for the maximum processing time to let consumer 2 take over the message processing
-        await setTimeout(1000)
-
         // Consumer 2 has taken over the message processing
-        const thirdConsumptionResult = await consumer2.handlerSpy.waitForMessageWithId(message.id)
+        const thirdConsumptionResult = await consumer2.handlerSpy.waitForMessageWithId(
+          message.id,
+          'consumed',
+        )
         expect(thirdConsumptionResult.message).toMatchObject(message)
 
-        // Start consumer 1 again and make sure it does not process the message (as it was already processed by consumer 2)
-        await consumer1.start()
-
-        const fourthConsumptionResult = consumer1.handlerSpy.checkForMessage({
-          id: message.id,
-        })
-        expect(fourthConsumptionResult).toBeUndefined()
-
-        await Promise.all([consumer1.close(), consumer2.close()])
+        await consumer2.close()
       })
 
       it('consumes messages with different deduplication keys', async () => {
@@ -288,11 +276,8 @@ describe('SqsPermissionConsumer', () => {
         await publisher.publish(message1)
 
         // Message 1 is successfully processed during the first consumption
-        const firstConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(
-          message1.id,
-          'consumed',
-        )
-        expect(firstConsumptionResult.message).toMatchObject(message1)
+        const firstConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message1.id)
+        expect(firstConsumptionResult.processingResult).toBe('consumed')
 
         // Clear the spy, so we can check subsequent call
         consumer.handlerSpy.clear()
@@ -300,11 +285,8 @@ describe('SqsPermissionConsumer', () => {
         await publisher.publish(message2)
 
         // Message 2 is successfully processed during the second consumption
-        const secondConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(
-          message2.id,
-          'consumed',
-        )
-        expect(secondConsumptionResult.message).toMatchObject(message2)
+        const secondConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message2.id)
+        expect(secondConsumptionResult.processingResult).toBe('consumed')
 
         await consumer.close()
       })
@@ -325,11 +307,8 @@ describe('SqsPermissionConsumer', () => {
         await publisher.publish(message)
 
         // Message is successfully processed during the first consumption
-        const firstConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(
-          message.id,
-          'consumed',
-        )
-        expect(firstConsumptionResult.message).toMatchObject(message)
+        const firstConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message.id)
+        expect(firstConsumptionResult.processingResult).toBe('consumed')
 
         // Clear the spy, so we can check subsequent call
         consumer.handlerSpy.clear()
@@ -337,11 +316,8 @@ describe('SqsPermissionConsumer', () => {
         await publisher.publish(message)
 
         // Message is successfully processed during the second consumption
-        const secondConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(
-          message.id,
-          'consumed',
-        )
-        expect(secondConsumptionResult.message).toMatchObject(message)
+        const secondConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message.id)
+        expect(secondConsumptionResult.processingResult).toBe('consumed')
 
         await consumer.close()
       })

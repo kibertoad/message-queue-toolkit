@@ -1,4 +1,3 @@
-import { setTimeout } from 'node:timers/promises'
 import type { Either } from '@lokalise/node-core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import type { BarrierResult, PreHandlingOutputs, Prehandler } from '@message-queue-toolkit/core'
@@ -39,9 +38,13 @@ type SqsPermissionConsumerOptions = Pick<
     context: ExecutionContext,
     preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, number>,
   ) => Promise<Either<'retryLater', 'success'>>
+  addHandlerOverride?: (
+    message: SupportedMessages,
+    context: ExecutionContext,
+    preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, number>,
+  ) => Promise<Either<'retryLater', 'success'>>
   removePreHandlers?: Prehandler<SupportedMessages, ExecutionContext, PrehandlerOutput>[]
   concurrentConsumersAmount?: number
-  delayConsumerProcessingMs?: number // Custom option used for tests only. It delays the processing of the message by the consumer by the specified amount of milliseconds
 }
 
 type ExecutionContext = {
@@ -71,18 +74,27 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
       },
     },
   ) {
-    const defaultRemoveHandler = async (
+    const defaultRemoveHandler = (
       _message: SupportedMessages,
       context: ExecutionContext,
       _preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, number>,
     ): Promise<Either<'retryLater', 'success'>> => {
       this.removeCounter += context.incrementAmount
-      if (options.delayConsumerProcessingMs) {
-        await setTimeout(options.delayConsumerProcessingMs)
-      }
       return Promise.resolve({
         result: 'success',
       })
+    }
+    const defaultAddHandler = (
+      message: SupportedMessages,
+      context: ExecutionContext,
+      barrierOutput: PreHandlingOutputs<PrehandlerOutput, number>,
+    ): Promise<Either<'retryLater', 'success'>> => {
+      if (options.addPreHandlerBarrier && !barrierOutput) {
+        return Promise.resolve({ error: 'retryLater' })
+      }
+      this.addCounter += context.incrementAmount
+      this.processedMessagesIds.add(message.id)
+      return Promise.resolve({ result: 'success' })
     }
 
     super(
@@ -116,20 +128,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
         >()
           .addConfig(
             PERMISSIONS_ADD_MESSAGE_SCHEMA,
-            async (message, context, barrierOutput) => {
-              if (options.delayConsumerProcessingMs) {
-                await setTimeout(options.delayConsumerProcessingMs)
-              }
-              if (message.metadata?.forceConsumerToThrow) {
-                return Promise.reject(new Error('Forced error'))
-              }
-              if (options.addPreHandlerBarrier && !barrierOutput) {
-                return Promise.resolve({ error: 'retryLater' })
-              }
-              this.addCounter += context.incrementAmount
-              this.processedMessagesIds.add(message.id)
-              return Promise.resolve({ result: 'success' })
-            },
+            options.addHandlerOverride ?? defaultAddHandler,
             {
               preHandlerBarrier: options.addPreHandlerBarrier,
               preHandlers: [

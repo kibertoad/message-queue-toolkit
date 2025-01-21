@@ -614,7 +614,7 @@ export abstract class AbstractQueueService<
       deduplicationConfig.maximumProcessingTimeSeconds,
     )
 
-    // Deduplication key doesn't exist - we can process the message
+    // Deduplication key was just created meaning the lock was acquired and message can be processed
     if (result) {
       return true
     }

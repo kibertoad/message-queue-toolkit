@@ -226,6 +226,11 @@ export abstract class AbstractSqsConsumer<
         if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
           const lockAcquired = await this.tryToAcquireLockForProcessing(parsedMessage)
           if (!lockAcquired) {
+            this.handleMessageProcessed(
+              originalMessage,
+              'duplicate',
+              this.tryToExtractId(message).result,
+            )
             return
           }
         }
