@@ -10,6 +10,10 @@ Metrics that use [Prometheus](https://prometheus.io/) toolkit and [prom-client](
 
 Implementation of `MessageMetricsManager` that can be injected into `AbstractQueueService` from `@message-queue-toolkit/core`.
 
-It uses [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram) metric to collect message processing times with `messageType` and `version` labels.
+It uses [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram) metric to collect message processing times with labels:
+- `messageType` - message type
+- `version` - message version
+- `queue` - name of the queue or topic
+- `result` - processing result
 
 See [MessageProcessingTimePrometheusMetric.ts](lib/prometheus/MessageProcessingTimePrometheusMetric.ts) for available parameters.

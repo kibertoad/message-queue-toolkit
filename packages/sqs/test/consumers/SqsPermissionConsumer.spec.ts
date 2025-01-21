@@ -369,6 +369,7 @@ describe('SqsPermissionConsumer', () => {
           messageType: 'add',
           processingResult: 'consumed',
           messageProcessingMilliseconds: expect.any(Number),
+          queueName: SqsPermissionConsumer.QUEUE_NAME,
           message: expect.objectContaining({
             id: '1',
             messageType: 'add',

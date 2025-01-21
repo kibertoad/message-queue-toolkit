@@ -190,6 +190,8 @@ export abstract class AbstractQueueService<
   protected handleMessageProcessed(
     message: MessagePayloadSchemas | null,
     processingResult: MessageProcessingResult,
+    messageProcessingStartTimestamp: number,
+    queueName: string,
     messageId?: string,
   ) {
     const messageProcessedTimestamp = Date.now()
@@ -212,7 +214,9 @@ export abstract class AbstractQueueService<
     const processedMessageMetadata = this.resolveProcessedMessageMetadata(
       message,
       processingResult,
+      messageProcessingStartTimestamp,
       messageProcessedTimestamp,
+      queueName,
       messageId,
     )
     if (debugLoggingEnabled) {
@@ -226,19 +230,18 @@ export abstract class AbstractQueueService<
     }
   }
 
-  protected resolveProcessedMessageMetadata(
+  private resolveProcessedMessageMetadata(
     message: MessagePayloadSchemas | null,
     processingResult: MessageProcessingResult,
+    messageProcessingStartTimestamp: number,
     messageProcessedTimestamp: number,
+    queueName: string,
     messageId?: string,
   ): ProcessedMessageMetadata<MessagePayloadSchemas> {
     // @ts-ignore
     const resolvedMessageId: string | undefined = message?.[this.messageIdField] ?? messageId
-
-    const messageTimestamp = message ? this.tryToExtractTimestamp(message) : undefined
-    const messageProcessingMilliseconds = messageTimestamp
-      ? messageProcessedTimestamp - messageTimestamp.getTime()
-      : undefined
+    const messageProcessingMilliseconds =
+      messageProcessedTimestamp - messageProcessingStartTimestamp
 
     const messageType =
       message && this.messageTypeField in message
@@ -251,6 +254,7 @@ export abstract class AbstractQueueService<
       messageId: resolvedMessageId ?? '(unknown id)',
       messageProcessingMilliseconds,
       messageType,
+      queueName,
       message,
     }
   }

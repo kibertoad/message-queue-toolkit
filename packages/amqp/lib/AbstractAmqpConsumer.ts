@@ -134,11 +134,18 @@ export abstract class AbstractAmqpConsumer<
         return
       }
 
+      const messageProcessingStartTimestamp = Date.now()
       const deserializedMessage = this.deserializeMessage(message)
       if (deserializedMessage.error === 'abort') {
         this.channel.nack(message, false, false)
         const messageId = this.tryToExtractId(message)
-        this.handleMessageProcessed(null, 'invalid_message', messageId.result)
+        this.handleMessageProcessed(
+          null,
+          'invalid_message',
+          messageProcessingStartTimestamp,
+          this.queueName,
+          messageId.result,
+        )
         return
       }
       const { originalMessage, parsedMessage } = deserializedMessage.result
@@ -161,7 +168,12 @@ export abstract class AbstractAmqpConsumer<
         .then((result) => {
           if (result.result === 'success') {
             this.channel.ack(message)
-            this.handleMessageProcessed(parsedMessage, 'consumed')
+            this.handleMessageProcessed(
+              parsedMessage,
+              'consumed',
+              messageProcessingStartTimestamp,
+              this.queueName,
+            )
             return
           }
 
@@ -169,18 +181,33 @@ export abstract class AbstractAmqpConsumer<
           if (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
             // TODO: Add retry delay + republish message updating internal properties
             this.channel.nack(message, false, true)
-            this.handleMessageProcessed(parsedMessage, 'retryLater')
+            this.handleMessageProcessed(
+              parsedMessage,
+              'retryLater',
+              messageProcessingStartTimestamp,
+              this.queueName,
+            )
           } else {
             // ToDo move message to DLQ once it is implemented
             this.channel.ack(message)
-            this.handleMessageProcessed(parsedMessage, 'error')
+            this.handleMessageProcessed(
+              parsedMessage,
+              'error',
+              messageProcessingStartTimestamp,
+              this.queueName,
+            )
           }
         })
         .catch((err) => {
           // ToDo we need sanity check to stop trying at some point, perhaps some kind of Redis counter
           // If we fail due to unknown reason, let's retry
           this.channel.nack(message, false, true)
-          this.handleMessageProcessed(parsedMessage, 'retryLater')
+          this.handleMessageProcessed(
+            parsedMessage,
+            'retryLater',
+            messageProcessingStartTimestamp,
+            this.queueName,
+          )
           this.handleError(err)
         })
         .finally(() => {

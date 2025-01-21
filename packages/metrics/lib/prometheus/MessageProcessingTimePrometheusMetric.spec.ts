@@ -53,6 +53,7 @@ describe('MessageProcessingTimePrometheusMetric', () => {
         messageType: message.messageType,
         processingResult: 'consumed',
         message: message,
+        queueName: 'test-queue',
         messageProcessingMilliseconds: 10,
       }))
 
@@ -94,6 +95,7 @@ describe('MessageProcessingTimePrometheusMetric', () => {
       messageType: message.messageType,
       processingResult: 'consumed',
       message: message,
+      queueName: 'test-queue',
       messageProcessingMilliseconds: 111,
     })
 
@@ -103,6 +105,8 @@ describe('MessageProcessingTimePrometheusMetric', () => {
         labels: {
           messageType: 'test',
           version: undefined,
+          result: 'consumed',
+          queue: 'test-queue',
         },
         value: 111,
       },
@@ -130,6 +134,7 @@ describe('MessageProcessingTimePrometheusMetric', () => {
     )
 
     // When
+    const queueName = 'test-queue'
     const messages: TestMessageSchema[] = [
       {
         id: '1',
@@ -152,6 +157,7 @@ describe('MessageProcessingTimePrometheusMetric', () => {
         messageType: message.messageType,
         processingResult: 'consumed',
         message: message,
+        queueName,
         messageProcessingMilliseconds: 10,
       })
     }
@@ -162,6 +168,8 @@ describe('MessageProcessingTimePrometheusMetric', () => {
         labels: {
           messageType: 'test',
           version: undefined,
+          result: 'consumed',
+          queue: queueName,
         },
         value: 10,
       },
@@ -169,6 +177,8 @@ describe('MessageProcessingTimePrometheusMetric', () => {
         labels: {
           messageType: 'test',
           version: '1.0.0',
+          result: 'consumed',
+          queue: queueName,
         },
         value: 10,
       },
@@ -204,6 +214,7 @@ describe('MessageProcessingTimePrometheusMetric', () => {
       messageId: message.id,
       messageType: message.messageType,
       processingResult: 'consumed',
+      queueName: 'test-queue',
       message: message,
     })
 

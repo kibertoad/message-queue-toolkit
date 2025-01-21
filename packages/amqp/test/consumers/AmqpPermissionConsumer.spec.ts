@@ -156,6 +156,7 @@ describe('AmqpPermissionConsumer', () => {
           messageId: '1',
           messageType: 'add',
           processingResult: 'consumed',
+          queueName: AmqpPermissionConsumer.QUEUE_NAME,
           messageProcessingMilliseconds: expect.any(Number),
           message: expect.objectContaining({
             id: '1',

@@ -34,6 +34,11 @@ export type ProcessedMessageMetadata<MessagePayloadSchemas extends object = obje
   message: MessagePayloadSchemas | null
 
   /**
+   * Name of the queue processing the message
+   */
+  queueName: string
+
+  /**
    * Processing time in milliseconds
    */
   messageProcessingMilliseconds?: number
