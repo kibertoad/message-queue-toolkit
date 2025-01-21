@@ -103,10 +103,9 @@ describe('SqsPermissionPublisher', () => {
       // Message is not published for the subsequent call
       await publisher.publish(message)
 
-      const spySecondCall = publisher.handlerSpy.checkForMessage({
-        messageType: 'add',
-      })
-      expect(spySecondCall).toBeUndefined()
+      const spySecondCall = await publisher.handlerSpy.waitForMessageWithId('1')
+      expect(spySecondCall.message).toEqual(message)
+      expect(spySecondCall.processingResult).toBe('duplicate')
     })
 
     it('publishing messages that produce different deduplication keys does not affect each other', async () => {
@@ -177,10 +176,9 @@ describe('SqsPermissionPublisher', () => {
       // Message 1 is not published for the subsequent call (deduplication works)
       await customPublisher.publish(message1)
 
-      const spySecondCall = customPublisher.handlerSpy.checkForMessage({
-        messageType: 'add',
-      })
-      expect(spySecondCall).toBeUndefined()
+      const spySecondCall = await customPublisher.handlerSpy.waitForMessageWithId('id')
+      expect(spySecondCall.message).toEqual(message1)
+      expect(spySecondCall.processingResult).toBe('duplicate')
 
       // Clear the spy, so we can check for the subsequent call
       customPublisher.handlerSpy.clear()

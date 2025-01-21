@@ -79,6 +79,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         this.isPublisherDeduplicationEnabled(message) &&
         (await this.deduplicateMessageBeforePublishing(parsedMessage)).isDuplicated
       ) {
+        this.handleMessageProcessed(parsedMessage, 'duplicate')
         return
       }
 

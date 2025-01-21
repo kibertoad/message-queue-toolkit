@@ -131,12 +131,10 @@ describe('SnsPublisherManager', () => {
         message,
       )
 
-      const spySecondCall = publisherManager
+      const spySecondCall = await publisherManager
         .handlerSpy(TestEvents.created.snsTopic)
-        .checkForMessage({
-          id: publishedMessageSecondCall.id,
-        })
-      expect(spySecondCall).toBeUndefined()
+        .waitForMessageWithId(publishedMessageSecondCall.id)
+      expect(spySecondCall.processingResult).toBe('duplicate')
     })
 
     it('works only for event types that are configured', async () => {
@@ -175,12 +173,10 @@ describe('SnsPublisherManager', () => {
         message1,
       )
 
-      const spySecondCall = publisherManager
+      const spySecondCall = await publisherManager
         .handlerSpy(TestEvents.created.snsTopic)
-        .checkForMessage({
-          id: publishedMessageSecondCall.id,
-        })
-      expect(spySecondCall).toBeUndefined()
+        .waitForMessageWithId(publishedMessageSecondCall.id)
+      expect(spySecondCall.processingResult).toBe('duplicate')
 
       // Clear the spy, so we can check for the subsequent call
       publisherManager.handlerSpy(TestEvents.created.snsTopic).clear()

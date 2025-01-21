@@ -96,10 +96,8 @@ describe('SnsPermissionPublisher', () => {
       // Message is not published for the subsequent call
       await publisher.publish(message)
 
-      const spySecondCall = publisher.handlerSpy.checkForMessage({
-        id: message.id,
-      })
-      expect(spySecondCall).toBeUndefined()
+      const spySecondCall = await publisher.handlerSpy.waitForMessageWithId(message.id)
+      expect(spySecondCall.processingResult).toBe('duplicate')
     })
 
     it('works only for event types that are configured', async () => {
@@ -124,10 +122,8 @@ describe('SnsPermissionPublisher', () => {
       // Message 1 is not published for the subsequent call (deduplication works)
       await publisher.publish(message1)
 
-      const spySecondCall = publisher.handlerSpy.checkForMessage({
-        id: message1.id,
-      })
-      expect(spySecondCall).toBeUndefined()
+      const spySecondCall = await publisher.handlerSpy.waitForMessageWithId(message1.id)
+      expect(spySecondCall.processingResult).toBe('duplicate')
 
       // Clear the spy, so we can check for the subsequent call
       publisher.handlerSpy.clear()
