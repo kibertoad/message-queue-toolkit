@@ -194,7 +194,7 @@ export abstract class AbstractQueueService<
     queueName: string,
     messageId?: string,
   ) {
-    const messageProcessedTimestamp = Date.now()
+    const messageProcessingEndTimestamp = Date.now()
 
     if (this._handlerSpy) {
       this._handlerSpy.addProcessedMessage(
@@ -215,7 +215,7 @@ export abstract class AbstractQueueService<
       message,
       processingResult,
       messageProcessingStartTimestamp,
-      messageProcessedTimestamp,
+      messageProcessingEndTimestamp,
       queueName,
       messageId,
     )
@@ -234,15 +234,14 @@ export abstract class AbstractQueueService<
     message: MessagePayloadSchemas | null,
     processingResult: MessageProcessingResult,
     messageProcessingStartTimestamp: number,
-    messageProcessedTimestamp: number,
+    messageProcessingEndTimestamp: number,
     queueName: string,
     messageId?: string,
   ): ProcessedMessageMetadata<MessagePayloadSchemas> {
     // @ts-ignore
     const resolvedMessageId: string | undefined = message?.[this.messageIdField] ?? messageId
-    const messageProcessingMilliseconds =
-      messageProcessedTimestamp - messageProcessingStartTimestamp
 
+    const messageTimestamp = message ? this.tryToExtractTimestamp(message)?.getTime() : undefined
     const messageType =
       message && this.messageTypeField in message
         ? // @ts-ignore
@@ -252,10 +251,12 @@ export abstract class AbstractQueueService<
     return {
       processingResult,
       messageId: resolvedMessageId ?? '(unknown id)',
-      messageProcessingMilliseconds,
       messageType,
       queueName,
       message,
+      messageTimestamp,
+      messageProcessingStartTimestamp,
+      messageProcessingEndTimestamp,
     }
   }
 

@@ -32,17 +32,17 @@ type MessageVersionGeneratingFunction<T extends object> = (
 ) => string | undefined
 
 /**w
- * Implementation of MessageMetricsManager that can be used to register message processing time in Prometheus, utilizing Histogram
+ * Implementation of MessageMetricsManager that can be used to register message processing measurements in Prometheus utilizing Histogram
  */
-export class MessageProcessingTimePrometheusMetric<MessagePayloadSchemas extends object>
+export abstract class MessageProcessingPrometheusMetric<MessagePayloadSchemas extends object>
   implements MessageMetricsManager<MessagePayloadSchemas>
 {
-  private readonly metricParams: PrometheusMetricParams<MessagePayloadSchemas>
+  protected readonly metricParams: PrometheusMetricParams<MessagePayloadSchemas>
 
   /** Fallbacks to null if metrics are disabled on app level */
-  private readonly metric: Histogram<'messageType' | 'version' | 'queue' | 'result'>
+  protected readonly metric: Histogram<'messageType' | 'version' | 'queue' | 'result'>
 
-  private readonly messageVersionGeneratingFunction: MessageVersionGeneratingFunction<MessagePayloadSchemas>
+  protected readonly messageVersionGeneratingFunction: MessageVersionGeneratingFunction<MessagePayloadSchemas>
 
   /**
    * @param metricParams - metrics parameters (see PrometheusMetricParams)
@@ -58,8 +58,14 @@ export class MessageProcessingTimePrometheusMetric<MessagePayloadSchemas extends
     this.metric = this.registerMetric(client ?? promClient)
   }
 
+  protected abstract calculateObservedValue(
+    metadata: ProcessedMessageMetadata<MessagePayloadSchemas>,
+  ): number | null
+
   registerProcessedMessage(metadata: ProcessedMessageMetadata<MessagePayloadSchemas>): void {
-    if (!metadata.messageProcessingMilliseconds) {
+    const observedValue: number | null = this.calculateObservedValue(metadata)
+
+    if (observedValue === null) {
       // Data not available, skipping
       return
     }
@@ -71,7 +77,7 @@ export class MessageProcessingTimePrometheusMetric<MessagePayloadSchemas extends
         queue: metadata.queueName,
         result: metadata.processingResult,
       },
-      metadata.messageProcessingMilliseconds,
+      observedValue,
     )
   }
 
@@ -90,7 +96,7 @@ export class MessageProcessingTimePrometheusMetric<MessagePayloadSchemas extends
     })
   }
 
-  private resolveMessageVersionGeneratingFunction(
+  protected resolveMessageVersionGeneratingFunction(
     metricParams: PrometheusMetricParams<MessagePayloadSchemas>,
   ): MessageVersionGeneratingFunction<MessagePayloadSchemas> {
     const messageVersion = metricParams.messageVersion

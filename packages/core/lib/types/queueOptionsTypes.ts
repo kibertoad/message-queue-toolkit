@@ -39,9 +39,20 @@ export type ProcessedMessageMetadata<MessagePayloadSchemas extends object = obje
   queueName: string
 
   /**
-   * Processing time in milliseconds
+   * The timestamp when the message was sent initially, in milliseconds since the epoch
    */
-  messageProcessingMilliseconds?: number
+  messageTimestamp: number | undefined
+
+  /**
+   * The timestamp when the processing of the message begins, in milliseconds since the epoch
+   * Note: for publishers the value may be smaller than messageTimestamp
+   */
+  messageProcessingStartTimestamp: number
+
+  /**
+   * The timestamp when the processing of the message ends, in milliseconds since the epoch
+   */
+  messageProcessingEndTimestamp: number
 }
 
 export interface MessageMetricsManager<MessagePayloadSchemas extends object = object> {

@@ -3,17 +3,42 @@
 ## Upgrading </br> `core` `18.0.0` -> `19.0.0` </br> `sqs` `18.0.0` -> `19.0.0` </br> `sns` `19.0.0` -> `20.0.0` </br> `amqp` `17.0.0` -> `18.0.0`
 
 ### Description of Breaking Changes
-In `AbstractQueueService`:
-- `handleMessageProcessed` method signature has changed. It now accepts 2 additional parameters:
-  - `messageProcessingStartTimestamp` - timestamp in milliseconds used to calculate message processing time
-  - `queueName` - name of the queue or topic on which message is consumed or published
-- `resolveProcessedMessageMetadata` was made private
+- In `AbstractQueueService`:
+  - `handleMessageProcessed` method signature has changed. It now accepts 2 additional parameters:
+    - `messageProcessingStartTimestamp` - timestamp in milliseconds used to calculate message processing time
+    - `queueName` - name of the queue or topic on which message is consumed or published
+  - `resolveProcessedMessageMetadata` was made private
+
+- `ProcessedMessageMetadata` type used in `MessageMetricsManager` has changed:
+  - `messageProcessingMilliseconds` property was removed
+  - the following properties were added:
+    - `messageTimestamp`
+    - `messageProcessingStartTimestamp`
+    - `messageProcessingEndTimestamp`
+
+- Because of the change above, `@message-queue-toolkit/metrics@1.0.0` is not compatible with the new version.
 
 ### Migration steps
-If you are extending `AbstractQueueService` and calling `handleMessageProcessed` manually, you need to provide additional parameters, e.g.:
-```typescript
-this.handleMessageProcessed(message, 'consumed', messageProcessingStartTimestamp, queueName)
-```
+- If you are using custom implementation of `MessageMetricsManager`, you may need to adjust it to the new properties in `ProcessedMessageMetadata`
+
+- If you are extending `AbstractQueueService` and calling `handleMessageProcessed` manually, you need to provide additional parameters, e.g.:
+    ```typescript
+    this.handleMessageProcessed(message, 'consumed', messageProcessingStartTimestamp, queueName)
+    ```
+
+- If you are using features from `@message-queue-toolkit/metrics@1.0.0`, upgrade to `@message-queue-toolkit/metrics@2.0.0` and follow the migration guide below.
+
+## Upgrading `metrics` from `1.0.0 `to `2.0.0`
+
+### Description of Breaking Changes
+- `MessageProcessingTimePrometheusMetric` class was replaced by 2 classes:
+    - `MessageProcessingTimeMetric` - registers elapsed time from start to the end of processing
+    - `MessageLifetimeMetric` - registers elapsed time from message creation to the end of processing
+
+### Migration steps
+- If you are using `MessageProcessingTimePrometheusMetric`, replace it with one of the metrics mentioned above, depending on what do you want to measure.
+  **Note:** if you want to keep current measurements, use `MessageLifetimeMetric`.
+  If you want to use both metrics, use `MessageProcessingMultiMetrics` (see: [README.md](packages/metrics/README.md))
 
 ## Upgrading </br> `core` `17.0.0` -> `18.0.0` </br> `sqs` `17.0.0` -> `18.0.0` </br> `sns` `18.0.0` -> `19.0.0` </br> `amqp` `16.0.0` -> `17.0.0`    
 
