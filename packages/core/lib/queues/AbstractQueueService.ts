@@ -27,7 +27,9 @@ import { MESSAGE_DEDUPLICATION_MESSAGE_TYPE_SCHEMA } from '../message-deduplicat
 import {
   type ConsumerMessageDeduplicationConfig,
   ConsumerMessageDeduplicationKeyStatus,
+  type ConsumerMessageDeduplicationMessageTypeConfig,
   type PublisherMessageDeduplicationConfig,
+  type PublisherMessageDeduplicationMessageTypeConfig,
 } from '../message-deduplication/messageDeduplicationTypes'
 import type {
   BarrierCallback,
@@ -536,14 +538,7 @@ export abstract class AbstractQueueService<
   }
 
   protected isPublisherDeduplicationEnabled(message: MessagePayloadSchemas): boolean {
-    if (!this.publisherMessageDeduplicationConfig) {
-      return false
-    }
-
-    // @ts-expect-error
-    const messageType = message[this.messageTypeField] as string
-
-    return !!this.publisherMessageDeduplicationConfig.messageTypeToConfigMap[messageType]
+    return !!this.getPublisherDeduplicationConfigForMessage(message)
   }
 
   /**
@@ -553,39 +548,27 @@ export abstract class AbstractQueueService<
   protected async deduplicateMessageBeforePublishing(
     message: MessagePayloadSchemas,
   ): Promise<{ isDuplicated: boolean }> {
-    if (!this.publisherMessageDeduplicationConfig) {
+    const messageDeduplicationConfig = this.getPublisherDeduplicationConfigForMessage(message)
+
+    if (!messageDeduplicationConfig) {
       return { isDuplicated: false }
     }
 
-    // @ts-expect-error
-    const messageType = message[this.messageTypeField] as string
-
-    if (!this.publisherMessageDeduplicationConfig.messageTypeToConfigMap[messageType]) {
-      return { isDuplicated: false }
-    }
+    const publisherDeduplicationConfig = this
+      .publisherMessageDeduplicationConfig as PublisherMessageDeduplicationConfig
 
     const deduplicationKeyStored =
-      await this.publisherMessageDeduplicationConfig.deduplicationStore.setIfNotExists(
-        this.publisherMessageDeduplicationConfig.messageTypeToConfigMap[
-          messageType
-        ].deduplicationKeyGenerator.generate(message),
+      await publisherDeduplicationConfig.deduplicationStore.setIfNotExists(
+        messageDeduplicationConfig.deduplicationKeyGenerator.generate(message),
         new Date().toISOString(),
-        this.publisherMessageDeduplicationConfig.messageTypeToConfigMap[messageType]
-          .deduplicationWindowSeconds,
+        messageDeduplicationConfig.deduplicationWindowSeconds,
       )
 
     return { isDuplicated: !deduplicationKeyStored }
   }
 
   protected isConsumerDeduplicationEnabled(message: MessagePayloadSchemas): boolean {
-    if (!this.consumerMessageDeduplicationConfig) {
-      return false
-    }
-
-    // @ts-expect-error
-    const messageType = message[this.messageTypeField] as string
-
-    return !!this.consumerMessageDeduplicationConfig.messageTypeToConfigMap[messageType]
+    return !!this.getConsumerDeduplicationConfigForMessage(message)
   }
 
   /**
@@ -593,25 +576,20 @@ export abstract class AbstractQueueService<
    * Returns true in case if lock has been acquired and message can be processed. Returns false otherwise.
    */
   protected async tryToAcquireLockForProcessing(message: MessagePayloadSchemas): Promise<boolean> {
-    if (!this.consumerMessageDeduplicationConfig) {
+    const messageDeduplicationConfig = this.getConsumerDeduplicationConfigForMessage(message)
+
+    if (!messageDeduplicationConfig) {
       return true
     }
 
-    // @ts-expect-error
-    const messageType = message[this.messageTypeField] as string
-    const deduplicationConfig =
-      this.consumerMessageDeduplicationConfig.messageTypeToConfigMap[messageType]
+    const consumerDeduplicationConfig = this
+      .consumerMessageDeduplicationConfig as ConsumerMessageDeduplicationConfig
+    const deduplicationKey = messageDeduplicationConfig.deduplicationKeyGenerator.generate(message)
 
-    if (!deduplicationConfig) {
-      return true
-    }
-
-    const deduplicationKey = deduplicationConfig.deduplicationKeyGenerator.generate(message)
-
-    const result = await this.consumerMessageDeduplicationConfig.deduplicationStore.setIfNotExists(
+    const result = await consumerDeduplicationConfig.deduplicationStore.setIfNotExists(
       deduplicationKey,
       ConsumerMessageDeduplicationKeyStatus.PROCESSING,
-      deduplicationConfig.maximumProcessingTimeSeconds,
+      messageDeduplicationConfig.maximumProcessingTimeSeconds,
     )
 
     // Deduplication key was just created meaning the lock was acquired and message can be processed
@@ -620,7 +598,7 @@ export abstract class AbstractQueueService<
     }
 
     const deduplicationKeyStatus =
-      await this.consumerMessageDeduplicationConfig.deduplicationStore.getByKey(deduplicationKey)
+      await consumerDeduplicationConfig.deduplicationStore.getByKey(deduplicationKey)
 
     // Message was already processed
     if (deduplicationKeyStatus === ConsumerMessageDeduplicationKeyStatus.PROCESSED) {
@@ -641,32 +619,53 @@ export abstract class AbstractQueueService<
     message: MessagePayloadSchemas,
     messageProcessedSuccessfully: boolean,
   ): Promise<void> {
-    if (!this.consumerMessageDeduplicationConfig) {
+    const messageDeduplicationConfig = this.getConsumerDeduplicationConfigForMessage(message)
+
+    if (!messageDeduplicationConfig) {
       return
+    }
+
+    const consumerDeduplicationConfig = this
+      .consumerMessageDeduplicationConfig as ConsumerMessageDeduplicationConfig
+    const deduplicationKey = messageDeduplicationConfig.deduplicationKeyGenerator.generate(message)
+
+    if (messageProcessedSuccessfully) {
+      // Mark the deduplication key as processed and extend its TTL
+      await consumerDeduplicationConfig.deduplicationStore.setOrUpdate(
+        deduplicationKey,
+        ConsumerMessageDeduplicationKeyStatus.PROCESSED,
+        messageDeduplicationConfig.deduplicationWindowSeconds,
+      )
+    } else {
+      // Remove deduplication key, so message can be retried
+      await consumerDeduplicationConfig.deduplicationStore.deleteKey(deduplicationKey)
+    }
+  }
+
+  private getPublisherDeduplicationConfigForMessage(
+    message: MessagePayloadSchemas,
+  ): PublisherMessageDeduplicationMessageTypeConfig | undefined {
+    if (!this.publisherMessageDeduplicationConfig) {
+      return undefined
     }
 
     // @ts-expect-error
     const messageType = message[this.messageTypeField] as string
-    const deduplicationConfig =
-      this.consumerMessageDeduplicationConfig.messageTypeToConfigMap[messageType]
 
-    if (!deduplicationConfig) {
-      return
+    return this.publisherMessageDeduplicationConfig.messageTypeToConfigMap[messageType] ?? undefined
+  }
+
+  private getConsumerDeduplicationConfigForMessage(
+    message: MessagePayloadSchemas,
+  ): ConsumerMessageDeduplicationMessageTypeConfig | undefined {
+    if (!this.consumerMessageDeduplicationConfig) {
+      return undefined
     }
 
-    const deduplicationKey = deduplicationConfig.deduplicationKeyGenerator.generate(message)
+    // @ts-expect-error
+    const messageType = message[this.messageTypeField] as string
 
-    if (messageProcessedSuccessfully) {
-      // Mark the deduplication key as processed and extend its TTL
-      await this.consumerMessageDeduplicationConfig.deduplicationStore.setOrUpdate(
-        deduplicationKey,
-        ConsumerMessageDeduplicationKeyStatus.PROCESSED,
-        deduplicationConfig.deduplicationWindowSeconds,
-      )
-    } else {
-      // Remove deduplication key, so message can be retried
-      await this.consumerMessageDeduplicationConfig.deduplicationStore.deleteKey(deduplicationKey)
-    }
+    return this.consumerMessageDeduplicationConfig.messageTypeToConfigMap[messageType] ?? undefined
   }
 
   private getValidatedMessageDeduplicationConfig<

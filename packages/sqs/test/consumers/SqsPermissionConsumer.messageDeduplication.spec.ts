@@ -11,7 +11,7 @@ import { registerDependencies } from '../utils/testContext'
 
 import { setTimeout } from 'node:timers/promises'
 import { waitAndRetry } from '@lokalise/node-core'
-import { ConsumerMessageDeduplicationKeyStatus } from '@message-queue-toolkit/core/dist/lib/message-deduplication/messageDeduplicationTypes'
+import { ConsumerMessageDeduplicationKeyStatus } from '@message-queue-toolkit/core'
 import { RedisConsumerMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import { PermissionMessageDeduplicationKeyGenerator } from '../utils/PermissionMessageDeduplicationKeyGenerator'
 import { cleanRedis } from '../utils/cleanRedis'
