@@ -5,7 +5,10 @@ export interface MessageDeduplicationKeyGenerator<Message extends object = objec
 export interface PublisherMessageDeduplicationStore {
   /**
    * Stores a deduplication key in case it does not already exist.
-   * Returns true if the key was stored, false if it already existed.
+   * @param {string} key - deduplication key
+   * @param {string} value - value to store
+   * @param {number} ttlSeconds - time to live in seconds
+   * @returns {boolean} - true if the key was stored, false if it already existed
    */
   setIfNotExists(key: string, value: string, ttlSeconds: number): Promise<boolean>
 
@@ -32,14 +35,22 @@ export type PublisherMessageDeduplicationConfig = {
 export interface ConsumerMessageDeduplicationStore {
   /**
    * Stores a deduplication key in case it does not already exist.
-   * Returns true if the key was stored, false if it already existed.
+   * @param {string} key - deduplication key
+   * @param {string} value - value to store
+   * @param {number} ttlSeconds - time to live in seconds
+   * @returns {boolean} - true if the key was stored, false if it already existed
    */
   setIfNotExists(key: string, value: string, ttlSeconds: number): Promise<boolean>
 
   /** Retrieves value associated with deduplication key */
   getByKey(key: string): Promise<string | null>
 
-  /** Retrieves TTL of the deduplication key */
+  /**
+   * Retrieves TTL of the deduplication key
+   *
+   * @param {string} key - deduplication key
+   * @returns {number|null} - TTL of the deduplication key in seconds or null if the key does not exist
+   */
   getKeyTtl(key: string): Promise<number | null>
 
   /** Sets a value for the deduplication key or updates it if it already exists */
