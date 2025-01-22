@@ -2,7 +2,7 @@ import {
   CommonMetadataFiller,
   type MessageDeduplicationKeyGenerator,
 } from '@message-queue-toolkit/core'
-import { RedisPublisherMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
+import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import { type AwilixContainer, asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { TestEventDeduplicationKeyGenerator } from '../../test/publishers/TestEventDeduplicationKeyGenerator'
@@ -24,7 +24,7 @@ describe('SnsPublisherManager', () => {
     CommonSnsPublisher<TestEventPublishPayloadsType>,
     TestEventsType
   >
-  let messageDeduplicationStore: RedisPublisherMessageDeduplicationStore
+  let messageDeduplicationStore: RedisMessageDeduplicationStore
   let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
 
   beforeAll(async () => {
@@ -34,7 +34,7 @@ describe('SnsPublisherManager', () => {
       },
       false,
     )
-    messageDeduplicationStore = new RedisPublisherMessageDeduplicationStore(
+    messageDeduplicationStore = new RedisMessageDeduplicationStore(
       {
         redis: diContainer.cradle.redis,
       },

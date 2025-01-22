@@ -8,7 +8,7 @@ import type { Dependencies } from '../utils/testContext'
 import { registerDependencies } from '../utils/testContext'
 
 import type { MessageDeduplicationKeyGenerator } from '@message-queue-toolkit/core'
-import { RedisPublisherMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
+import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import { PermissionMessageDeduplicationKeyGenerator } from '../utils/PermissionMessageDeduplicationKeyGenerator'
 import { cleanRedis } from '../utils/cleanRedis'
 import { SqsPermissionPublisher } from './SqsPermissionPublisher'
@@ -19,7 +19,7 @@ describe('SqsPermissionPublisher', () => {
   describe('publish', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisher
-    let messageDeduplicationStore: RedisPublisherMessageDeduplicationStore
+    let messageDeduplicationStore: RedisMessageDeduplicationStore
     let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
 
     beforeAll(async () => {
@@ -27,7 +27,7 @@ describe('SqsPermissionPublisher', () => {
         permissionPublisher: asValue(() => undefined),
         permissionConsumer: asValue(() => undefined),
       })
-      messageDeduplicationStore = new RedisPublisherMessageDeduplicationStore(
+      messageDeduplicationStore = new RedisMessageDeduplicationStore(
         {
           redis: diContainer.cradle.redis,
         },
@@ -206,7 +206,7 @@ describe('SqsPermissionPublisher', () => {
 
   describe('init', () => {
     let diContainer: AwilixContainer<Dependencies>
-    let messageDeduplicationStore: RedisPublisherMessageDeduplicationStore
+    let messageDeduplicationStore: RedisMessageDeduplicationStore
     let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
 
     beforeAll(async () => {
@@ -214,7 +214,7 @@ describe('SqsPermissionPublisher', () => {
         permissionPublisher: asValue(() => undefined),
         permissionConsumer: asValue(() => undefined),
       })
-      messageDeduplicationStore = new RedisPublisherMessageDeduplicationStore(
+      messageDeduplicationStore = new RedisMessageDeduplicationStore(
         {
           redis: diContainer.cradle.redis,
         },

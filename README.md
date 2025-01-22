@@ -417,15 +417,15 @@ Instead, you should either enable content-based deduplication on the queue or pa
 2. **Configure your setup:**
     ```typescript
     import { Redis } from 'ioredis'
-    import { RedisPublisherMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
+    import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
     import { MessageDeduplicationKeyGenerator } from '@message-queue-toolkit/core'
 
     const redisClient = new Redis({
         // your redis configuration
     })
 
-    // Create a new instance of RedisPublisherMessageDeduplicationStore
-    messageDeduplicationStore = new RedisPublisherMessageDeduplicationStore(
+    // Create a new instance of RedisMessageDeduplicationStore
+    messageDeduplicationStore = new RedisMessageDeduplicationStore(
       { redis: redisClient },
       { keyPrefix: 'optional-key-prefix' }, // used to prefix deduplication keys
     )
@@ -487,15 +487,15 @@ Instead, you should either enable content-based deduplication on the queue or pa
 2. **Configure your setup:**
     ```typescript
     import { Redis } from 'ioredis'
-    import { RedisConsumerMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
+    import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
     import { MessageDeduplicationKeyGenerator } from '@message-queue-toolkit/core'
 
     const redisClient = new Redis({
         // your redis configuration
     })
 
-    // Create a new instance of RedisConsumerMessageDeduplicationStore
-    messageDeduplicationStore = new RedisConsumerMessageDeduplicationStore(
+    // Create a new instance of RedisMessageDeduplicationStore
+    messageDeduplicationStore = new RedisMessageDeduplicationStore(
       { redis: redisClient },
       { keyPrefix: 'optional-key-prefix' }, // used to prefix deduplication keys
     )

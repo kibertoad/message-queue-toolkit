@@ -12,7 +12,7 @@ import { registerDependencies } from '../utils/testContext'
 import { setTimeout } from 'node:timers/promises'
 import { waitAndRetry } from '@lokalise/node-core'
 import { ConsumerMessageDeduplicationKeyStatus } from '@message-queue-toolkit/core'
-import { RedisConsumerMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
+import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import { PermissionMessageDeduplicationKeyGenerator } from '../utils/PermissionMessageDeduplicationKeyGenerator'
 import { cleanRedis } from '../utils/cleanRedis'
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
@@ -25,7 +25,7 @@ const TEST_DEDUPLICATION_KEY_PREFIX = 'test_key_prefix'
 
 describe('SqsPermissionConsumer', () => {
   let diContainer: AwilixContainer<Dependencies>
-  let messageDeduplicationStore: RedisConsumerMessageDeduplicationStore
+  let messageDeduplicationStore: RedisMessageDeduplicationStore
   let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
   let consumerMessageDeduplicationConfig: ConsumerMessageDeduplicationConfig
 
@@ -36,7 +36,7 @@ describe('SqsPermissionConsumer', () => {
       permissionConsumer: asValue(() => undefined),
     })
     publisher = diContainer.cradle.permissionPublisher
-    messageDeduplicationStore = new RedisConsumerMessageDeduplicationStore(
+    messageDeduplicationStore = new RedisMessageDeduplicationStore(
       {
         redis: diContainer.cradle.redis,
       },

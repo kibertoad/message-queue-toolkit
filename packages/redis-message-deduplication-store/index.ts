@@ -1,2 +1,1 @@
-export * from './lib/RedisPublisherMessageDeduplicationStore'
-export * from './lib/RedisConsumerMessageDeduplicationStore'
+export * from './lib/RedisMessageDeduplicationStore'
