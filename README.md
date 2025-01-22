@@ -392,14 +392,17 @@ It needs to implement the following methods:
 
 See [@message-queue-toolkit/metrics](packages/metrics/README.md) for concrete implementations
 
-## Publisher-level message deduplication
+## Publisher-level store-based message deduplication
 
-Publisher-level message deduplication is a mechanism that prevents the same message from being sent to the queue multiple times.
+Publisher-level store-based message deduplication is a mechanism that prevents the same message from being sent to the queue multiple times.
 It is useful when you want to ensure that a message is published only once, regardless of how many times it is sent.
 
 Note that in case of some queuing systems, such as standard SQS, publisher-level deduplication is not sufficient to guarantee that a message is **processed** only once.
 This is because standard SQS has an at-least-once delivery guarantee, which means that a message can be delivered more than once.
 In such cases, publisher-level deduplication should be combined with consumer-level one.
+
+In case you would like to use SQS FIFO deduplication feature, this feature won't handle it for you.
+Instead, you should either enable content-based deduplication on the queue or pass `MessageDeduplicationId` within message options when publishing a message.
 
 ### Configuration
 
@@ -456,10 +459,13 @@ In such cases, publisher-level deduplication should be combined with consumer-le
     }
     ```
 
-## Consumer-level message deduplication
+## Consumer-level store-based message deduplication
 
-Consumer-level message deduplication is a mechanism that prevents the same message from being processed multiple times.
+Consumer-level store-based message deduplication is a mechanism that prevents the same message from being processed multiple times.
 It is useful when you want to be sure that message is processed only once, regardless of how many times it is received.
+
+In case you would like to use SQS FIFO deduplication feature, this feature won't handle it for you.
+Instead, you should either enable content-based deduplication on the queue or pass `MessageDeduplicationId` within message options when publishing a message.
 
 ### Configuration
 
