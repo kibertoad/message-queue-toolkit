@@ -557,14 +557,14 @@ export abstract class AbstractQueueService<
     const publisherDeduplicationConfig = this
       .publisherMessageDeduplicationConfig as PublisherMessageDeduplicationConfig
 
-    const deduplicationKeyStored =
+    const wasDeduplicationKeyStored =
       await publisherDeduplicationConfig.deduplicationStore.setIfNotExists(
         messageDeduplicationConfig.deduplicationKeyGenerator.generate(message),
         new Date().toISOString(),
         messageDeduplicationConfig.deduplicationWindowSeconds,
       )
 
-    return { isDuplicated: !deduplicationKeyStored }
+    return { isDuplicated: !wasDeduplicationKeyStored }
   }
 
   protected isConsumerDeduplicationEnabled(message: MessagePayloadSchemas): boolean {
