@@ -187,13 +187,14 @@ export abstract class AbstractQueueService<
     }
   }
 
-  protected handleMessageProcessed(
-    message: MessagePayloadSchemas | null,
-    processingResult: MessageProcessingResult,
-    messageProcessingStartTimestamp: number,
-    queueName: string,
-    messageId?: string,
-  ) {
+  protected handleMessageProcessed(params: {
+    message: MessagePayloadSchemas | null
+    processingResult: MessageProcessingResult
+    messageProcessingStartTimestamp: number
+    queueName: string
+    messageId?: string
+  }) {
+    const { message, processingResult, messageId } = params
     const messageProcessingEndTimestamp = Date.now()
 
     if (this._handlerSpy) {
@@ -214,9 +215,9 @@ export abstract class AbstractQueueService<
     const processedMessageMetadata = this.resolveProcessedMessageMetadata(
       message,
       processingResult,
-      messageProcessingStartTimestamp,
+      params.messageProcessingStartTimestamp,
       messageProcessingEndTimestamp,
-      queueName,
+      params.queueName,
       messageId,
     )
     if (debugLoggingEnabled) {

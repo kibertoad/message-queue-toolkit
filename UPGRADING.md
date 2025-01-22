@@ -4,7 +4,7 @@
 
 ### Description of Breaking Changes
 - In `AbstractQueueService`:
-  - `handleMessageProcessed` method signature has changed. It now accepts 2 additional parameters:
+  - `handleMessageProcessed` method signature has changed. Parameters are now passed as an object, and 2 additional properties were added:
     - `messageProcessingStartTimestamp` - timestamp in milliseconds used to calculate message processing time
     - `queueName` - name of the queue or topic on which message is consumed or published
   - `resolveProcessedMessageMetadata` was made private
@@ -21,9 +21,14 @@
 ### Migration steps
 - If you are using custom implementation of `MessageMetricsManager`, you may need to adjust it to the new properties in `ProcessedMessageMetadata`
 
-- If you are extending `AbstractQueueService` and calling `handleMessageProcessed` manually, you need to provide additional parameters, e.g.:
+- If you are extending `AbstractQueueService` and calling `handleMessageProcessed` manually, you need to adjust it to the new signature, e.g.:
+  - from:  
     ```typescript
     this.handleMessageProcessed(message, 'consumed', messageProcessingStartTimestamp, queueName)
+    ```
+  - to:
+    ```typescript
+    this.handleMessageProcessed({ message, processingResult: 'consumed', messageProcessingStartTimestamp, queueName })
     ```
 
 - If you are using features from `@message-queue-toolkit/metrics@1.0.0`, upgrade to `@message-queue-toolkit/metrics@2.0.0` and follow the migration guide below.

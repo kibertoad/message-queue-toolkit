@@ -80,12 +80,12 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
 
       const topicName =
         this.locatorConfig?.topicName ?? this.creationConfig?.topic?.Name ?? 'unknown'
-      this.handleMessageProcessed(
-        parsedMessage,
-        'published',
+      this.handleMessageProcessed({
+        message: parsedMessage,
+        processingResult: 'published',
         messageProcessingStartTimestamp,
-        topicName,
-      )
+        queueName: topicName,
+      })
     } catch (error) {
       const err = error as Error
       this.handleError(err)

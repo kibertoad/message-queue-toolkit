@@ -78,12 +78,12 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       )
 
       await this.sendMessage(maybeOffloadedPayloadMessage, options)
-      this.handleMessageProcessed(
-        parsedMessage,
-        'published',
+      this.handleMessageProcessed({
+        message: parsedMessage,
+        processingResult: 'published',
         messageProcessingStartTimestamp,
-        this.queueName,
-      )
+        queueName: this.queueName,
+      })
     } catch (error) {
       const err = error as Error
       this.handleError(err)
