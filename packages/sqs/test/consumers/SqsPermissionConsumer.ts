@@ -26,6 +26,7 @@ type SqsPermissionConsumerOptions = Pick<
   | 'consumerOverrides'
   | 'maxRetryDuration'
   | 'payloadStoreConfig'
+  | 'consumerMessageDeduplicationConfig'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -34,6 +35,11 @@ type SqsPermissionConsumerOptions = Pick<
   ) => Promise<BarrierResult<number>>
   removeHandlerOverride?: (
     _message: SupportedMessages,
+    context: ExecutionContext,
+    preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, number>,
+  ) => Promise<Either<'retryLater', 'success'>>
+  addHandlerOverride?: (
+    message: SupportedMessages,
     context: ExecutionContext,
     preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, number>,
   ) => Promise<Either<'retryLater', 'success'>>
@@ -78,6 +84,18 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
         result: 'success',
       })
     }
+    const defaultAddHandler = (
+      message: SupportedMessages,
+      context: ExecutionContext,
+      barrierOutput: PreHandlingOutputs<PrehandlerOutput, number>,
+    ): Promise<Either<'retryLater', 'success'>> => {
+      if (options.addPreHandlerBarrier && !barrierOutput) {
+        return Promise.resolve({ error: 'retryLater' })
+      }
+      this.addCounter += context.incrementAmount
+      this.processedMessagesIds.add(message.id)
+      return Promise.resolve({ result: 'success' })
+    }
 
     super(
       dependencies,
@@ -102,6 +120,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
         concurrentConsumersAmount: options.concurrentConsumersAmount,
         maxRetryDuration: options.maxRetryDuration,
         payloadStoreConfig: options.payloadStoreConfig,
+        consumerMessageDeduplicationConfig: options.consumerMessageDeduplicationConfig,
         handlers: new MessageHandlerConfigBuilder<
           SupportedMessages,
           ExecutionContext,
@@ -109,14 +128,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
         >()
           .addConfig(
             PERMISSIONS_ADD_MESSAGE_SCHEMA,
-            (_message, context, barrierOutput) => {
-              if (options.addPreHandlerBarrier && !barrierOutput) {
-                return Promise.resolve({ error: 'retryLater' })
-              }
-              this.addCounter += context.incrementAmount
-              this.processedMessagesIds.add(_message.id)
-              return Promise.resolve({ result: 'success' })
-            },
+            options.addHandlerOverride ?? defaultAddHandler,
             {
               preHandlerBarrier: options.addPreHandlerBarrier,
               preHandlers: [

@@ -18,7 +18,10 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<SupportedTypes>
     dependencies: SNSDependencies,
     options?: Pick<
       SNSOptions,
-      'creationConfig' | 'locatorConfig' | 'payloadStoreConfig' | 'messageDeduplicationConfig'
+      | 'creationConfig'
+      | 'locatorConfig'
+      | 'payloadStoreConfig'
+      | 'producerMessageDeduplicationConfig'
     >,
   ) {
     super(dependencies, {
@@ -36,7 +39,7 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<SupportedTypes>
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
       handlerSpy: true,
       messageTypeField: 'messageType',
-      messageDeduplicationConfig: options?.messageDeduplicationConfig,
+      producerMessageDeduplicationConfig: options?.producerMessageDeduplicationConfig,
     })
   }
 

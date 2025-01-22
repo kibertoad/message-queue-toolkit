@@ -76,9 +76,10 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
       )
 
       if (
-        this.isDeduplicationEnabled(message) &&
-        (await this.deduplicateMessage(parsedMessage)).isDuplicated
+        this.isPublisherDeduplicationEnabled(message) &&
+        (await this.deduplicateMessageBeforePublishing(parsedMessage)).isDuplicated
       ) {
+        this.handleMessageProcessed(parsedMessage, 'duplicate')
         return
       }
 
@@ -125,6 +126,10 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     throw new Error('Not implemented for publisher')
   }
 
+  protected override queueMessageForRetry(): Promise<void> {
+    throw new Error('Not implemented for publisher')
+  }
+
   override processMessage(): Promise<Either<'retryLater', 'success'>> {
     throw new Error('Not implemented for publisher')
   }
@@ -142,6 +147,5 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     })
     await this.snsClient.send(command)
   }
-
   /* c8 ignore stop */
 }

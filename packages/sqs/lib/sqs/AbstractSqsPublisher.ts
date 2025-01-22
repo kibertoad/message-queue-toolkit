@@ -76,9 +76,10 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       )
 
       if (
-        this.isDeduplicationEnabled(message) &&
-        (await this.deduplicateMessage(parsedMessage)).isDuplicated
+        this.isPublisherDeduplicationEnabled(message) &&
+        (await this.deduplicateMessageBeforePublishing(parsedMessage)).isDuplicated
       ) {
+        this.handleMessageProcessed(parsedMessage, 'duplicate')
         return
       }
 
@@ -124,6 +125,11 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
   override processMessage(): Promise<Either<'retryLater', 'success'>> {
     throw new Error('Not implemented for publisher')
   }
+
+  protected override queueMessageForRetry(): Promise<void> {
+    throw new Error('Not implemented for publisher')
+  }
+
   /* c8 ignore stop */
 
   protected override resolveSchema(

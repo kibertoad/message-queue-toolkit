@@ -79,8 +79,11 @@ export {
   isOffloadedPayloadPointerPayload,
 } from './lib/payload-store/offloadedPayloadMessageSchemas'
 export type {
-  MessageDeduplicationConfig,
-  MessageDeduplicationMessageTypeConfig,
-  MessageDeduplicationStore,
+  PublisherMessageDeduplicationConfig,
+  PublisherMessageDeduplicationMessageTypeConfig,
+  PublisherMessageDeduplicationStore,
   MessageDeduplicationKeyGenerator,
+  ConsumerMessageDeduplicationConfig,
+  ConsumerMessageDeduplicationMessageTypeConfig,
+  ConsumerMessageDeduplicationStore,
 } from './lib/message-deduplication/messageDeduplicationTypes'

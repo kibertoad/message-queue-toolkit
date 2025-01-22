@@ -2,7 +2,7 @@ import {
   CommonMetadataFiller,
   type MessageDeduplicationKeyGenerator,
 } from '@message-queue-toolkit/core'
-import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
+import { RedisPublisherMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import { type AwilixContainer, asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { TestEventDeduplicationKeyGenerator } from '../../test/publishers/TestEventDeduplicationKeyGenerator'
@@ -24,7 +24,7 @@ describe('SnsPublisherManager', () => {
     CommonSnsPublisher<TestEventPublishPayloadsType>,
     TestEventsType
   >
-  let messageDeduplicationStore: RedisMessageDeduplicationStore
+  let messageDeduplicationStore: RedisPublisherMessageDeduplicationStore
   let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
 
   beforeAll(async () => {
@@ -34,7 +34,7 @@ describe('SnsPublisherManager', () => {
       },
       false,
     )
-    messageDeduplicationStore = new RedisMessageDeduplicationStore(
+    messageDeduplicationStore = new RedisPublisherMessageDeduplicationStore(
       {
         redis: diContainer.cradle.redis,
       },
@@ -56,7 +56,7 @@ describe('SnsPublisherManager', () => {
         creationConfig: {
           updateAttributesIfExists: true,
         },
-        messageDeduplicationConfig: {
+        producerMessageDeduplicationConfig: {
           deduplicationStore: messageDeduplicationStore,
           messageTypeToConfigMap: {
             'entity.created': {
@@ -131,12 +131,10 @@ describe('SnsPublisherManager', () => {
         message,
       )
 
-      const spySecondCall = publisherManager
+      const spySecondCall = await publisherManager
         .handlerSpy(TestEvents.created.snsTopic)
-        .checkForMessage({
-          id: publishedMessageSecondCall.id,
-        })
-      expect(spySecondCall).toBeUndefined()
+        .waitForMessageWithId(publishedMessageSecondCall.id)
+      expect(spySecondCall.processingResult).toBe('duplicate')
     })
 
     it('works only for event types that are configured', async () => {
@@ -175,12 +173,10 @@ describe('SnsPublisherManager', () => {
         message1,
       )
 
-      const spySecondCall = publisherManager
+      const spySecondCall = await publisherManager
         .handlerSpy(TestEvents.created.snsTopic)
-        .checkForMessage({
-          id: publishedMessageSecondCall.id,
-        })
-      expect(spySecondCall).toBeUndefined()
+        .waitForMessageWithId(publishedMessageSecondCall.id)
+      expect(spySecondCall.processingResult).toBe('duplicate')
 
       // Clear the spy, so we can check for the subsequent call
       publisherManager.handlerSpy(TestEvents.created.snsTopic).clear()

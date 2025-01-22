@@ -1,18 +1,20 @@
 import { SendMessageCommand, SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
-import type {
-  BarrierResult,
-  DeadLetterQueueOptions,
-  MessageSchemaContainer,
-  ParseMessageResult,
-  PreHandlingOutputs,
-  Prehandler,
-  QueueConsumer,
-  QueueConsumerDependencies,
-  QueueConsumerOptions,
-  TransactionObservabilityManager,
+import {
+  type BarrierResult,
+  type DeadLetterQueueOptions,
+  HandlerContainer,
+  type MessageSchemaContainer,
+  type ParseMessageResult,
+  type PreHandlingOutputs,
+  type Prehandler,
+  type QueueConsumer,
+  type QueueConsumerDependencies,
+  type QueueConsumerOptions,
+  type TransactionObservabilityManager,
+  isMessageError,
+  parseMessage,
 } from '@message-queue-toolkit/core'
-import { HandlerContainer, isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer/src/types'
 
@@ -207,6 +209,7 @@ export abstract class AbstractSqsConsumer<
       visibilityTimeout: options.visibilityTimeout,
       messageAttributeNames: [`${PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX}*`],
       ...this.consumerOptionsOverride,
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
       handleMessage: async (message: SQSMessage) => {
         if (message === null) return
 
@@ -219,6 +222,18 @@ export abstract class AbstractSqsConsumer<
           return
         }
         const { parsedMessage, originalMessage } = deserializedMessage.result
+
+        if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
+          const lockAcquired = await this.tryToAcquireLockForProcessing(parsedMessage)
+          if (!lockAcquired) {
+            this.handleMessageProcessed(
+              originalMessage,
+              'duplicate',
+              this.tryToExtractId(message).result,
+            )
+            return
+          }
+        }
 
         // @ts-ignore
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -248,18 +263,15 @@ export abstract class AbstractSqsConsumer<
         // success
         if (result.result) {
           this.handleMessageProcessed(originalMessage, 'consumed')
+          if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
+            await this.updateLockAfterProcessing(parsedMessage, true)
+          }
           return message
         }
 
         if (result.error === 'retryLater') {
           if (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
-            await this.sqsClient.send(
-              new SendMessageCommand({
-                QueueUrl: this.queueUrl,
-                DelaySeconds: this.getMessageRetryDelayInSeconds(originalMessage),
-                MessageBody: JSON.stringify(this.updateInternalProperties(originalMessage)),
-              }),
-            )
+            await this.queueMessageForRetry(originalMessage)
             this.handleMessageProcessed(parsedMessage, 'retryLater')
           } else {
             await this.failProcessing(message)
@@ -270,6 +282,9 @@ export abstract class AbstractSqsConsumer<
         }
 
         this.handleMessageProcessed(parsedMessage, 'error')
+        if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
+          await this.updateLockAfterProcessing(parsedMessage, false)
+        }
         return Promise.reject(result.error)
       },
     })
@@ -365,6 +380,16 @@ export abstract class AbstractSqsConsumer<
 
   protected override resolveMessage(message: SQSMessage) {
     return readSqsMessage(message, this.errorResolver)
+  }
+
+  protected override async queueMessageForRetry(message: MessagePayloadType): Promise<void> {
+    await this.sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: this.queueUrl,
+        DelaySeconds: this.getMessageRetryDelayInSeconds(message),
+        MessageBody: JSON.stringify(this.updateInternalProperties(message)),
+      }),
+    )
   }
 
   protected async resolveMaybeOffloadedPayloadMessage(message: SQSMessage) {

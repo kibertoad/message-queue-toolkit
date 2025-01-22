@@ -14,6 +14,7 @@ export type MessageProcessingResult =
   | 'published'
   | 'error'
   | 'invalid_message'
+  | 'duplicate'
 
 export interface SyncPublisher<MessagePayloadType extends object, MessageOptions> {
   handlerSpy: PublicHandlerSpy<MessagePayloadType>

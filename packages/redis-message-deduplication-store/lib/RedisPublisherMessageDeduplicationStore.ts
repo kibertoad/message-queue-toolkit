@@ -1,21 +1,21 @@
-import type { MessageDeduplicationStore } from '@message-queue-toolkit/core'
+import type { PublisherMessageDeduplicationStore } from '@message-queue-toolkit/core'
 import type { Redis } from 'ioredis'
 
-export type RedisMessageDeduplicationStoreDependencies = {
+export type RedisPublisherMessageDeduplicationStoreDependencies = {
   redis: Redis
 }
 
-export type RedisMessageDeduplicationStoreConfig = {
+export type RedisPublisherMessageDeduplicationStoreConfig = {
   keyPrefix?: string
 }
 
-export class RedisMessageDeduplicationStore implements MessageDeduplicationStore {
+export class RedisPublisherMessageDeduplicationStore implements PublisherMessageDeduplicationStore {
   private readonly redis: Redis
-  private readonly config: RedisMessageDeduplicationStoreConfig
+  private readonly config: RedisPublisherMessageDeduplicationStoreConfig
 
   constructor(
-    dependencies: RedisMessageDeduplicationStoreDependencies,
-    config: RedisMessageDeduplicationStoreConfig,
+    dependencies: RedisPublisherMessageDeduplicationStoreDependencies,
+    config: RedisPublisherMessageDeduplicationStoreConfig,
   ) {
     this.redis = dependencies.redis
     this.config = config

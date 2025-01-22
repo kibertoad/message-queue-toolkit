@@ -1,17 +1,17 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { Redis } from 'ioredis'
-import { RedisMessageDeduplicationStore } from '../lib/RedisMessageDeduplicationStore'
+import { RedisConsumerMessageDeduplicationStore } from '../lib/RedisConsumerMessageDeduplicationStore'
 import { cleanRedis } from './utils/cleanRedis'
 import { TEST_REDIS_CONFIG } from './utils/testRedisConfig'
 
 const KEY_PREFIX = 'test_key_prefix'
 
-describe('RedisMessageDeduplicationStore', () => {
+describe('RedisConsumerMessageDeduplicationStore', () => {
   const redisConfig = TEST_REDIS_CONFIG
 
   let redis: Redis
-  let store: RedisMessageDeduplicationStore
+  let store: RedisConsumerMessageDeduplicationStore
 
   beforeAll(() => {
     redis = new Redis({
@@ -26,7 +26,7 @@ describe('RedisMessageDeduplicationStore', () => {
       maxRetriesPerRequest: null,
       lazyConnect: false,
     })
-    store = new RedisMessageDeduplicationStore({ redis }, { keyPrefix: KEY_PREFIX })
+    store = new RedisConsumerMessageDeduplicationStore({ redis }, { keyPrefix: KEY_PREFIX })
   })
 
   afterEach(async () => {
@@ -81,6 +81,69 @@ describe('RedisMessageDeduplicationStore', () => {
       const result = await store.getByKey(key)
 
       expect(result).toBeNull()
+    })
+  })
+
+  describe('getKeyTtl', () => {
+    it('in case key exists, it returns the ttl', async () => {
+      const key = 'test_key'
+      const value = 'test_value'
+      await redis.set(`${KEY_PREFIX}:${key}`, value, 'EX', 60)
+
+      const result = await store.getKeyTtl(key)
+
+      expect(result).toBeLessThanOrEqual(60)
+    })
+
+    it('in case key does not exist, it returns null', async () => {
+      const key = 'test_key'
+
+      const result = await store.getKeyTtl(key)
+
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('setOrUpdate', () => {
+    it('updates the ttl and value of the key if it exists', async () => {
+      const key = 'test_key'
+      const value = 'test_value'
+      await redis.set(`${KEY_PREFIX}:${key}`, value, 'EX', 60)
+
+      const newValue = 'new_test_value'
+      await store.setOrUpdate(key, newValue, 120)
+
+      const storedValue = await redis.get(`${KEY_PREFIX}:${key}`)
+      expect(storedValue).toBe(newValue)
+
+      const storedTtl = await redis.ttl(`${KEY_PREFIX}:${key}`)
+      expect(storedTtl).toBeGreaterThan(60)
+    })
+
+    it('stores the key if it does not exist', async () => {
+      const key = 'test_key'
+      const value = 'test_value'
+
+      await store.setOrUpdate(key, value, 60)
+
+      const storedValue = await redis.get(`${KEY_PREFIX}:${key}`)
+      expect(storedValue).toBe(value)
+
+      const storedTtl = await redis.ttl(`${KEY_PREFIX}:${key}`)
+      expect(storedTtl).toBeLessThanOrEqual(60)
+    })
+  })
+
+  describe('deleteKey', () => {
+    it('deletes the key', async () => {
+      const key = 'test_key'
+      const value = 'test_value'
+      await redis.set(`${KEY_PREFIX}:${key}`, value)
+
+      await store.deleteKey(key)
+
+      const storedValue = await redis.get(`${KEY_PREFIX}:${key}`)
+      expect(storedValue).toBeNull()
     })
   })
 })
