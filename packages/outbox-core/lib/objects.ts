@@ -15,8 +15,7 @@ export type OutboxEntryStatus = 'CREATED' | 'ACKED' | 'SUCCESS' | 'FAILED'
 
 export type OutboxEntry<SupportedEvent extends CommonEventDefinition> = {
   id: string
-  event: SupportedEvent
-  data: Omit<CommonEventDefinitionPublisherSchemaType<SupportedEvent>, 'type'>
+  event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>
   precedingMessageMetadata?: Partial<ConsumerMessageMetadataType>
   status: OutboxEntryStatus
   created: Date

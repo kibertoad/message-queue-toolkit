@@ -6,6 +6,7 @@ import type {
   ConsumerMessageMetadataType,
   DomainEventEmitter,
 } from '@message-queue-toolkit/core'
+import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/schemas'
 import { PromisePool } from '@supercharge/promise-pool'
 import { uuidv7 } from 'uuidv7'
 import type { OutboxAccumulator } from './accumulators'
@@ -50,7 +51,11 @@ export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
       .withConcurrency(this.outboxProcessorConfiguration.emitBatchSize)
       .process(async (entry) => {
         try {
-          await eventEmitter.emit(entry.event, entry.data, entry.precedingMessageMetadata)
+          const event = entry.event
+
+          const schema = { ...enrichMessageSchemaWithBase(event.type, event.payload) }
+
+          await eventEmitter.emit(schema, entry.event, entry.precedingMessageMetadata)
           await outboxAccumulator.add(entry)
         } catch (e) {
           context.logger.error({ error: e }, 'Failed to process outbox entry.')
@@ -133,14 +138,12 @@ export class OutboxEventEmitter<SupportedEvents extends CommonEventDefinition[]>
    * @param precedingMessageMetadata
    */
   public async emit<SupportedEvent extends SupportedEvents[number]>(
-    supportedEvent: SupportedEvent,
-    data: Omit<CommonEventDefinitionPublisherSchemaType<SupportedEvent>, 'type'>,
+    data: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
     precedingMessageMetadata?: Partial<ConsumerMessageMetadataType>,
   ) {
     await this.storage.createEntry({
       id: uuidv7(),
-      event: supportedEvent,
-      data,
+      event: data,
       precedingMessageMetadata,
       status: 'CREATED',
       created: new Date(),
