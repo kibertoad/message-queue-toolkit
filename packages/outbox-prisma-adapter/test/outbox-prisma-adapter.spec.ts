@@ -28,15 +28,15 @@ describe('outbox-prisma-adapter', () => {
 
   const ENTRY_1 = {
     id: uuidv7(),
-    event: events.created,
     status: 'CREATED',
-    data: {
+    event: {
       id: uuidv7(),
       payload: {
         message: 'TEST EVENT',
       },
       metadata: {},
       timestamp: new Date().toISOString(),
+      type: 'entity.created',
     },
     retryCount: 0,
     created: new Date(),
@@ -44,13 +44,13 @@ describe('outbox-prisma-adapter', () => {
 
   const ENTRY_2 = {
     id: uuidv7(),
-    event: events.created,
     status: 'CREATED',
-    data: {
+    event: {
       id: uuidv7(),
       payload: {
         message: 'TEST EVENT 2',
       },
+      type: 'entity.created',
       metadata: {},
       timestamp: new Date().toISOString(),
     },
@@ -76,7 +76,7 @@ describe('outbox-prisma-adapter', () => {
         created TIMESTAMP NOT NULL,
         updated TIMESTAMP,
         retry_count INT NOT NULL DEFAULT 0,
-        data JSONB NOT NULL,
+        event JSONB NOT NULL,
         status TEXT NOT NULL
       )
     `
@@ -95,13 +95,13 @@ describe('outbox-prisma-adapter', () => {
   it('creates entry in DB via outbox storage implementation', async () => {
     await outboxPrismaAdapter.createEntry({
       id: uuidv7(),
-      event: events.created,
       status: 'CREATED',
-      data: {
+      event: {
         id: uuidv7(),
         payload: {
           message: 'TEST EVENT',
         },
+        type: 'entity.created',
         metadata: {},
         timestamp: new Date().toISOString(),
       },
@@ -118,11 +118,12 @@ describe('outbox-prisma-adapter', () => {
         created: expect.any(Date),
         updated: expect.any(Date),
         retryCount: 0,
-        data: {
+        event: {
           id: expect.any(String),
           payload: {
             message: 'TEST EVENT',
           },
+          type: 'entity.created',
           metadata: {},
           timestamp: expect.any(String),
         },

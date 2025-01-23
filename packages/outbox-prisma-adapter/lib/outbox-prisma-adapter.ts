@@ -3,7 +3,7 @@ import type {
   OutboxEntry,
   OutboxStorage,
 } from '@message-queue-toolkit/outbox-core'
-import { type CommonEventDefinition, getMessageType } from '@message-queue-toolkit/schemas'
+import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { PrismaClient } from '@prisma/client'
 
 type ModelDelegate = {
@@ -33,14 +33,13 @@ export class OutboxPrismaAdapter<
     const prismaModel = this.prisma[this.modelName] as unknown as ModelDelegate
 
     // @ts-ignore
-    const messageType = getMessageType(outboxEntry.event)
     return prismaModel.create({
       data: {
         id: outboxEntry.id,
-        type: messageType,
+        type: outboxEntry.event.type,
         created: outboxEntry.created,
         updated: outboxEntry.updated,
-        data: outboxEntry.data,
+        event: outboxEntry.event,
         status: outboxEntry.status,
         retryCount: outboxEntry.retryCount,
       },
@@ -84,10 +83,10 @@ export class OutboxPrismaAdapter<
         data: toCreate.map((entry) => ({
           id: entry.id,
           // @ts-ignore
-          type: getMessageType(entry.event),
+          type: entry.event.type,
           created: entry.created,
           updated: new Date(),
-          data: entry.data,
+          event: entry.event,
           status: 'SUCCESS',
         })),
       })
@@ -124,11 +123,10 @@ export class OutboxPrismaAdapter<
       await prismaModel.createMany({
         data: toCreate.map((entry) => ({
           id: entry.id,
-          // @ts-ignore
-          type: getMessageType(entry.event),
+          type: entry.event.type,
           created: entry.created,
           updated: new Date(),
-          data: entry.data,
+          event: entry.event,
           status: 'FAILED',
           retryCount: 1,
         })),

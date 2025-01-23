@@ -9,7 +9,7 @@ model OutboxEntry {
   updated    DateTime @default(now()) @updatedAt
   type       String
   retryCount Int      @default(0) @map("retry_count")
-  data       Json
+  event      Json
   status     String
 
   @@map("outbox_entry")
