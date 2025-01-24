@@ -38,7 +38,7 @@ describe('SqsPermissionPublisher', () => {
 
     beforeEach(() => {
       publisher = new SqsPermissionPublisher(diContainer.cradle, {
-        producerMessageDeduplicationConfig: {
+        publisherMessageDeduplicationConfig: {
           deduplicationStore: messageDeduplicationStore,
           messageTypeToConfigMap: {
             add: {
@@ -141,7 +141,7 @@ describe('SqsPermissionPublisher', () => {
 
     it('works only for event types that are configured', async () => {
       const customPublisher = new SqsPermissionPublisher(diContainer.cradle, {
-        producerMessageDeduplicationConfig: {
+        publisherMessageDeduplicationConfig: {
           deduplicationStore: messageDeduplicationStore,
           messageTypeToConfigMap: {
             add: {
@@ -232,7 +232,7 @@ describe('SqsPermissionPublisher', () => {
       expect(
         () =>
           new SqsPermissionPublisher(diContainer.cradle, {
-            producerMessageDeduplicationConfig: {
+            publisherMessageDeduplicationConfig: {
               deduplicationStore: messageDeduplicationStore,
               messageTypeToConfigMap: {
                 add: {

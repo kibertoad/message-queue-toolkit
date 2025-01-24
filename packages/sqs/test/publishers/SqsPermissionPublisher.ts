@@ -29,7 +29,7 @@ export class SqsPermissionPublisher extends AbstractSqsPublisher<SupportedMessag
       | 'deletionConfig'
       | 'logMessages'
       | 'payloadStoreConfig'
-      | 'producerMessageDeduplicationConfig'
+      | 'publisherMessageDeduplicationConfig'
     >,
   ) {
     super(dependencies, {
@@ -50,7 +50,7 @@ export class SqsPermissionPublisher extends AbstractSqsPublisher<SupportedMessag
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
       messageTypeField: 'messageType',
       payloadStoreConfig: options?.payloadStoreConfig,
-      producerMessageDeduplicationConfig: options?.producerMessageDeduplicationConfig,
+      publisherMessageDeduplicationConfig: options?.publisherMessageDeduplicationConfig,
     })
   }
 

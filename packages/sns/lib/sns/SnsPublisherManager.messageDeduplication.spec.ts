@@ -56,7 +56,7 @@ describe('SnsPublisherManager', () => {
         creationConfig: {
           updateAttributesIfExists: true,
         },
-        producerMessageDeduplicationConfig: {
+        publisherMessageDeduplicationConfig: {
           deduplicationStore: messageDeduplicationStore,
           messageTypeToConfigMap: {
             'entity.created': {

@@ -39,7 +39,7 @@ describe('SnsPermissionPublisher', () => {
 
     beforeEach(() => {
       publisher = new SnsPermissionPublisher(diContainer.cradle, {
-        producerMessageDeduplicationConfig: {
+        publisherMessageDeduplicationConfig: {
           deduplicationStore: messageDeduplicationStore,
           messageTypeToConfigMap: {
             add: {

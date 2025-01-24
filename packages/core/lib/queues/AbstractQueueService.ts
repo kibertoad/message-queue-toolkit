@@ -129,7 +129,7 @@ export abstract class AbstractQueueService<
         }
       : undefined
     this.publisherMessageDeduplicationConfig = this.getValidatedMessageDeduplicationConfig(
-      options.producerMessageDeduplicationConfig,
+      options.publisherMessageDeduplicationConfig,
     )
     this.consumerMessageDeduplicationConfig = this.getValidatedMessageDeduplicationConfig(
       options.consumerMessageDeduplicationConfig,

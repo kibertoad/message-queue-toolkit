@@ -64,7 +64,7 @@ export type CommonQueueOptions = {
   logMessages?: boolean
   deletionConfig?: DeletionConfig
   payloadStoreConfig?: PayloadStoreConfig
-  producerMessageDeduplicationConfig?: PublisherMessageDeduplicationConfig
+  publisherMessageDeduplicationConfig?: PublisherMessageDeduplicationConfig
   consumerMessageDeduplicationConfig?: ConsumerMessageDeduplicationConfig
 }
 
