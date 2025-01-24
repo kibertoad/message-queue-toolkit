@@ -4,17 +4,36 @@ import type {
   OutboxStorage,
 } from '@message-queue-toolkit/outbox-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
-import type { PrismaClient } from '@prisma/client'
+import type { Prisma, PrismaClient } from '@prisma/client'
 
-type ModelDelegate = {
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  create: (args: any) => Promise<any>
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  findMany: (args: any) => Promise<any>
+export type EnrichedOutboxEntry<Event extends CommonEventDefinition> = OutboxEntry<Event> & {
+  type: string
+}
+
+type ModelDelegate<Event extends CommonEventDefinition> = {
+  create: (args: { data: EnrichedOutboxEntry<Event> }) => Promise<EnrichedOutboxEntry<Event>>
+  findMany: (args: {
+    where:
+      | Partial<EnrichedOutboxEntry<Event>>
+      | {
+          id?: Prisma.StringFilter
+          retryCount?: Prisma.IntFilter
+        }
+  }) => Promise<EnrichedOutboxEntry<Event>[]>
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   createMany: (args: any) => Promise<any>
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  updateMany: (args: any) => Promise<any>
+  updateMany: (args: {
+    where: {
+      id: {
+        in: string[]
+      }
+    }
+    data:
+      | Partial<OutboxEntry<Event>>
+      | {
+          retryCount?: number | Prisma.IntFieldUpdateOperationsInput
+        }
+  }) => Promise<void>
 }
 
 export class OutboxPrismaAdapter<
@@ -30,9 +49,10 @@ export class OutboxPrismaAdapter<
   createEntry(
     outboxEntry: OutboxEntry<SupportedEvents[number]>,
   ): Promise<OutboxEntry<SupportedEvents[number]>> {
-    const prismaModel = this.prisma[this.modelName] as unknown as ModelDelegate
+    const prismaModel = this.prisma[this.modelName] as unknown as ModelDelegate<
+      SupportedEvents[number]
+    >
 
-    // @ts-ignore
     return prismaModel.create({
       data: {
         id: outboxEntry.id,
@@ -49,7 +69,9 @@ export class OutboxPrismaAdapter<
   async flush(outboxAccumulator: OutboxAccumulator<SupportedEvents>): Promise<void> {
     const entries = await outboxAccumulator.getEntries()
     const failedEntries = await outboxAccumulator.getFailedEntries()
-    const prismaModel = this.prisma[this.modelName] as unknown as ModelDelegate
+    const prismaModel = this.prisma[this.modelName] as unknown as ModelDelegate<
+      SupportedEvents[number]
+    >
 
     const existingEntries = await prismaModel.findMany({
       where: {
@@ -60,14 +82,16 @@ export class OutboxPrismaAdapter<
     })
 
     await this.prisma.$transaction(async (prisma) => {
-      const prismaModel = prisma[this.modelName] as ModelDelegate
+      const prismaModel = prisma[this.modelName] as unknown as ModelDelegate<
+        SupportedEvents[number]
+      >
       await this.handleSuccesses(prismaModel, entries, existingEntries)
       await this.handleFailures(prismaModel, failedEntries, existingEntries)
     })
   }
 
   private async handleSuccesses(
-    prismaModel: ModelDelegate,
+    prismaModel: ModelDelegate<SupportedEvents[number]>,
     entries: OutboxEntry<SupportedEvents[number]>[],
     existingEntries: OutboxEntry<SupportedEvents[number]>[],
   ) {
@@ -108,7 +132,7 @@ export class OutboxPrismaAdapter<
   }
 
   private async handleFailures(
-    prismaModel: ModelDelegate,
+    prismaModel: ModelDelegate<SupportedEvents[number]>,
     entries: OutboxEntry<SupportedEvents[number]>[],
     existingEntries: OutboxEntry<SupportedEvents[number]>[],
   ) {
@@ -152,7 +176,9 @@ export class OutboxPrismaAdapter<
   }
 
   getEntries(maxRetryCount: number): Promise<OutboxEntry<SupportedEvents[number]>[]> {
-    const prismaModel = this.prisma[this.modelName] as unknown as ModelDelegate
+    const prismaModel = this.prisma[this.modelName] as unknown as ModelDelegate<
+      SupportedEvents[number]
+    >
 
     return prismaModel.findMany({
       where: {

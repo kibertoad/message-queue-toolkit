@@ -38,6 +38,7 @@ describe('outbox-prisma-adapter', () => {
       timestamp: new Date().toISOString(),
       type: 'entity.created',
     },
+    type: 'entity.created',
     retryCount: 0,
     created: new Date(),
   } satisfies OutboxEntry<SupportedEvents[number]>
@@ -54,6 +55,7 @@ describe('outbox-prisma-adapter', () => {
       metadata: {},
       timestamp: new Date().toISOString(),
     },
+    type: 'entity.created',
     retryCount: 0,
     created: new Date(),
   } satisfies OutboxEntry<SupportedEvents[number]>
@@ -105,6 +107,7 @@ describe('outbox-prisma-adapter', () => {
         metadata: {},
         timestamp: new Date().toISOString(),
       },
+      type: 'entity.created',
       retryCount: 0,
       created: new Date(),
     } satisfies OutboxEntry<SupportedEvents[number]>)
