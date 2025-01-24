@@ -91,7 +91,7 @@ describe('outbox', () => {
   })
 
   it('saves outbox entry to storage', async () => {
-    await outboxEventEmitter.emit(TestEvents.created, createdEventPayload, {
+    await outboxEventEmitter.emit(createdEventPayload, {
       correlationId: randomUUID(),
     })
 
@@ -101,7 +101,7 @@ describe('outbox', () => {
   })
 
   it('saves outbox entry and process it', async () => {
-    await outboxEventEmitter.emit(TestEvents.created, createdEventPayload, {
+    await outboxEventEmitter.emit(createdEventPayload, {
       correlationId: randomUUID(),
     })
 
@@ -140,7 +140,7 @@ describe('outbox', () => {
       }),
     )
 
-    await outboxEventEmitter.emit(TestEvents.created, createdEventPayload, {
+    await outboxEventEmitter.emit(createdEventPayload, {
       correlationId: randomUUID(),
     })
 
@@ -184,7 +184,7 @@ describe('outbox', () => {
     })
 
     //Persist the event
-    await outboxEventEmitter.emit(TestEvents.created, createdEventPayload, {
+    await outboxEventEmitter.emit(createdEventPayload, {
       correlationId: randomUUID(),
     })
 
@@ -229,7 +229,7 @@ describe('outbox', () => {
   it("doesn't emit event again if it's already present in accumulator", async () => {
     const mockedEventEmitter = vi.spyOn(eventEmitter, 'emit')
 
-    await outboxEventEmitter.emit(TestEvents.created, createdEventPayload, {
+    await outboxEventEmitter.emit(createdEventPayload, {
       correlationId: randomUUID(),
     })
 

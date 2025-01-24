@@ -1,9 +1,9 @@
 {
-  "name": "@message-queue-toolkit/outbox-core",
-  "version": "0.2.0",
+  "name": "@message-queue-toolkit/outbox-prisma-adapter",
+  "version": "0.1.0",
   "private": false,
   "license": "MIT",
-  "description": "Outbox pattern implementation for message queue toolkit",
+  "description": "OutboxStorage implementation for @message-queue-toolkit/outbox-core package.",
   "maintainers": [
     {
       "name": "Igor Savin",
@@ -13,31 +13,36 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "del-cli dist && tsc",
+    "build": "del-cli dist && npm run db:update-client && tsc",
     "build:release": "del-cli dist && del-cli coverage && npm run lint && tsc --project tsconfig.release.json",
     "test": "vitest",
-    "test:coverage": "npm test -- --coverage",
+    "test:coverage": "npm run docker:start:dev && npm run db:wait && npm test -- --coverage && npm run docker:stop:dev",
     "test:ci": "npm run test:coverage",
     "lint": "biome check . && tsc --project tsconfig.json --noEmit",
     "lint:fix": "biome check --write .",
+    "docker:start:dev": "docker compose up -d",
+    "docker:stop:dev": "docker compose down",
+    "db:wait": "while ! echo \"SELECT 1;\" | prisma db execute --stdin; do sleep 1; done",
+    "db:update-client": "prisma generate",
     "prepublishOnly": "npm run build:release"
-  },
-  "dependencies": {
-    "@lokalise/background-jobs-common": "^9.0.0",
-    "@supercharge/promise-pool": "^3.2.0",
-    "uuidv7": "^1.0.2"
   },
   "peerDependencies": {
     "@message-queue-toolkit/core": ">=14.0.0",
-    "@message-queue-toolkit/schemas": ">=4.0.0"
+    "@message-queue-toolkit/outbox-core": ">=0.1.0",
+    "@message-queue-toolkit/schemas": ">=4.0.0",
+    "prisma": "^5.22.0",
+    "@prisma/client": "^5.19.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.4",
+    "@biomejs/biome": "1.8.3",
     "@kibertoad/biome-config": "^1.2.1",
+    "@prisma/client": "^5.22.0",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^2.0.4",
-    "del-cli": "^6.0.0",
+    "del-cli": "^5.1.0",
+    "prisma": "^5.22.0",
     "typescript": "^5.5.3",
+    "uuidv7": "^1.0.2",
     "vitest": "^2.0.4",
     "zod": "^3.23.8"
   },

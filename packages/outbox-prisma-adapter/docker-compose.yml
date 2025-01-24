@@ -1,0 +1,10 @@
+services:
+
+    postgres:
+        image: postgres:16.2
+        environment:
+            POSTGRES_USER: prisma
+            POSTGRES_PASSWORD: prisma
+            POSTGRES_DB: prisma
+        ports:
+            - 5432:5432
