@@ -20,8 +20,7 @@ type ModelDelegate<Event extends CommonEventDefinition> = {
           retryCount?: Prisma.IntFilter
         }
   }) => Promise<EnrichedOutboxEntry<Event>[]>
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  createMany: (args: any) => Promise<any>
+  createMany: (args: { data: EnrichedOutboxEntry<Event>[] }) => Promise<void>
   updateMany: (args: {
     where: {
       id: {
@@ -106,12 +105,12 @@ export class OutboxPrismaAdapter<
       await prismaModel.createMany({
         data: toCreate.map((entry) => ({
           id: entry.id,
-          // @ts-ignore
           type: entry.event.type,
           created: entry.created,
           updated: new Date(),
           event: entry.event,
           status: 'SUCCESS',
+          retryCount: entry.retryCount,
         })),
       })
     }
