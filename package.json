@@ -1,17 +1,19 @@
 {
   "name": "@message-queue-toolkit/parent",
   "version": "1.0.0",
-  "dependencies": {
-  },
+  "workspaces": ["packages/*"],
   "scripts": {
-    "build": "npm run build --workspaces",
-    "lint": "npm run lint --workspaces",
-    "lint:fix": "npm run lint:fix --workspaces",
-    "test:ci": "npm run test:coverage --workspaces",
+    "build": "turbo run build",
+    "lint": "turbo run lint --continue",
+    "lint:fix": "turbo run lint:fix --continue",
+    "test:ci": "turbo run test:ci",
+    "clean": "turbo run clean",
     "docker:start": "docker compose up -d",
     "docker:stop": "docker compose down"
   },
-  "workspaces": [
-    "packages/*"
-  ]
+  "dependencies": {},
+  "devDependencies": {
+    "turbo": "^2.3.4"
+  },
+  "packageManager": "npm@10.7.0"
 }
