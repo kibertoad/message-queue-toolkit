@@ -6,7 +6,7 @@
     "build": "turbo run build",
     "lint": "turbo run lint --continue",
     "lint:fix": "turbo run lint:fix --continue",
-    "test:ci": "turbo run test:ci",
+    "test:ci": "turbo run test:coverage",
     "clean": "turbo run clean",
     "docker:start": "docker compose up -d",
     "docker:stop": "docker compose down"
