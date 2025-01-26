@@ -23,13 +23,17 @@ import { isRetryDateExceeded } from '../utils/dateUtils'
 import { streamWithKnownSizeToString } from '../utils/streamUtils'
 import { toDatePreprocessor } from '../utils/toDateProcessor'
 
-import { MESSAGE_DEDUPLICATION_MESSAGE_TYPE_SCHEMA } from '../message-deduplication/messageDeduplicationSchemas'
 import {
-  type ConsumerMessageDeduplicationConfig,
+  CONSUMER_MESSAGE_DEDUPLICATION_MESSAGE_TYPE_SCHEMA,
+  PUBLISHER_MESSAGE_DEDUPLICATION_MESSAGE_TYPE_SCHEMA,
+} from '../message-deduplication/messageDeduplicationSchemas'
+import {
   ConsumerMessageDeduplicationKeyStatus,
   type ConsumerMessageDeduplicationMessageTypeConfig,
-  type PublisherMessageDeduplicationConfig,
+  type ConsumerMessageDeduplicationStore,
+  type MessageDeduplicationConfig,
   type PublisherMessageDeduplicationMessageTypeConfig,
+  type PublisherMessageDeduplicationStore,
 } from '../message-deduplication/messageDeduplicationTypes'
 import type {
   BarrierCallback,
@@ -57,6 +61,16 @@ export type ResolvedMessage = {
   body: unknown
   attributes?: Record<string, unknown>
 }
+
+type PublisherMessageDeduplicationConfig = MessageDeduplicationConfig<
+  PublisherMessageDeduplicationStore,
+  PublisherMessageDeduplicationMessageTypeConfig
+>
+
+type ConsumerMessageDeduplicationConfig = MessageDeduplicationConfig<
+  ConsumerMessageDeduplicationStore,
+  ConsumerMessageDeduplicationMessageTypeConfig
+>
 
 export abstract class AbstractQueueService<
   MessagePayloadSchemas extends object,
@@ -538,7 +552,10 @@ export abstract class AbstractQueueService<
   }
 
   protected isPublisherDeduplicationEnabled(message: MessagePayloadSchemas): boolean {
-    return !!this.getPublisherDeduplicationConfigForMessage(message)
+    return !!this.getDeduplicationConfigForMessage(
+      message,
+      this.publisherMessageDeduplicationConfig,
+    )
   }
 
   /**
@@ -548,7 +565,10 @@ export abstract class AbstractQueueService<
   protected async deduplicateMessageBeforePublishing(
     message: MessagePayloadSchemas,
   ): Promise<{ isDuplicated: boolean }> {
-    const messageDeduplicationConfig = this.getPublisherDeduplicationConfigForMessage(message)
+    const messageDeduplicationConfig = this.getDeduplicationConfigForMessage(
+      message,
+      this.publisherMessageDeduplicationConfig,
+    )
 
     if (!messageDeduplicationConfig) {
       return { isDuplicated: false }
@@ -568,7 +588,7 @@ export abstract class AbstractQueueService<
   }
 
   protected isConsumerDeduplicationEnabled(message: MessagePayloadSchemas): boolean {
-    return !!this.getConsumerDeduplicationConfigForMessage(message)
+    return !!this.getDeduplicationConfigForMessage(message, this.consumerMessageDeduplicationConfig)
   }
 
   /**
@@ -576,7 +596,10 @@ export abstract class AbstractQueueService<
    * Returns true in case if lock has been acquired and message can be processed. Returns false otherwise.
    */
   protected async tryToAcquireLockForProcessing(message: MessagePayloadSchemas): Promise<boolean> {
-    const messageDeduplicationConfig = this.getConsumerDeduplicationConfigForMessage(message)
+    const messageDeduplicationConfig = this.getDeduplicationConfigForMessage(
+      message,
+      this.consumerMessageDeduplicationConfig,
+    )
 
     if (!messageDeduplicationConfig) {
       return true
@@ -619,7 +642,10 @@ export abstract class AbstractQueueService<
     message: MessagePayloadSchemas,
     messageProcessedSuccessfully: boolean,
   ): Promise<void> {
-    const messageDeduplicationConfig = this.getConsumerDeduplicationConfigForMessage(message)
+    const messageDeduplicationConfig = this.getDeduplicationConfigForMessage(
+      message,
+      this.consumerMessageDeduplicationConfig,
+    )
 
     if (!messageDeduplicationConfig) {
       return
@@ -642,46 +668,41 @@ export abstract class AbstractQueueService<
     }
   }
 
-  private getPublisherDeduplicationConfigForMessage(
+  private getDeduplicationConfigForMessage<
+    ConfigType extends ConsumerMessageDeduplicationConfig | PublisherMessageDeduplicationConfig,
+  >(
     message: MessagePayloadSchemas,
-  ): PublisherMessageDeduplicationMessageTypeConfig | undefined {
-    if (!this.publisherMessageDeduplicationConfig) {
+    deduplicationConfig: ConfigType | undefined,
+  ): ConfigType['messageTypeToConfigMap'][string] | undefined {
+    if (!deduplicationConfig) {
       return undefined
     }
 
     // @ts-expect-error
     const messageType = message[this.messageTypeField] as string
 
-    return this.publisherMessageDeduplicationConfig.messageTypeToConfigMap[messageType] ?? undefined
-  }
-
-  private getConsumerDeduplicationConfigForMessage(
-    message: MessagePayloadSchemas,
-  ): ConsumerMessageDeduplicationMessageTypeConfig | undefined {
-    if (!this.consumerMessageDeduplicationConfig) {
-      return undefined
-    }
-
-    // @ts-expect-error
-    const messageType = message[this.messageTypeField] as string
-
-    return this.consumerMessageDeduplicationConfig.messageTypeToConfigMap[messageType] ?? undefined
+    return (
+      (deduplicationConfig.messageTypeToConfigMap[
+        messageType
+      ] as ConfigType['messageTypeToConfigMap'][string]) ?? undefined
+    )
   }
 
   private getValidatedMessageDeduplicationConfig<
-    ConfigType extends PublisherMessageDeduplicationConfig | ConsumerMessageDeduplicationConfig,
+    ConfigType extends ConsumerMessageDeduplicationConfig | PublisherMessageDeduplicationConfig,
   >(messageDeduplicationConfig?: ConfigType): ConfigType | undefined {
     if (!messageDeduplicationConfig) {
       return undefined
     }
 
     for (const messageConfig of Object.values(messageDeduplicationConfig.messageTypeToConfigMap)) {
-      const messageTypeToConfigMapParseResult =
-        MESSAGE_DEDUPLICATION_MESSAGE_TYPE_SCHEMA.safeParse(messageConfig)
+      const isConsumerConfig = 'maximumProcessingTimeSeconds' in messageConfig
+      const messageTypeSchema = isConsumerConfig
+        ? CONSUMER_MESSAGE_DEDUPLICATION_MESSAGE_TYPE_SCHEMA
+        : PUBLISHER_MESSAGE_DEDUPLICATION_MESSAGE_TYPE_SCHEMA
+      const messageTypeToConfigMapParseResult = messageTypeSchema.safeParse(messageConfig)
 
       if (messageTypeToConfigMapParseResult.error) {
-        const isConsumerConfig = 'maximumProcessingTimeSeconds' in messageConfig
-
         throw new Error(
           `Invalid ${isConsumerConfig ? 'consumer' : 'publisher'} message deduplication config provided: ${messageTypeToConfigMapParseResult.error.message}`,
         )

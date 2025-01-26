@@ -1,5 +1,7 @@
 import type {
-  ConsumerMessageDeduplicationConfig,
+  ConsumerMessageDeduplicationMessageTypeConfig,
+  ConsumerMessageDeduplicationStore,
+  MessageDeduplicationConfig,
   MessageDeduplicationKeyGenerator,
 } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
@@ -23,12 +25,16 @@ import type {
 
 const TEST_DEDUPLICATION_KEY_PREFIX = 'test_key_prefix'
 
+type ConsumerMessageDeduplicationConfig = MessageDeduplicationConfig<
+  ConsumerMessageDeduplicationStore,
+  ConsumerMessageDeduplicationMessageTypeConfig
+>
+
 describe('SqsPermissionConsumer', () => {
   let diContainer: AwilixContainer<Dependencies>
   let messageDeduplicationStore: RedisMessageDeduplicationStore
   let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
   let consumerMessageDeduplicationConfig: ConsumerMessageDeduplicationConfig
-
   let publisher: SqsPermissionPublisher
 
   beforeAll(async () => {

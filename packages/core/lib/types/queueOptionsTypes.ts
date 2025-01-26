@@ -6,8 +6,11 @@ import type { MessageHandlerConfig } from '../queues/HandlerContainer'
 import type { HandlerSpy, HandlerSpyParams } from '../queues/HandlerSpy'
 
 import type {
-  ConsumerMessageDeduplicationConfig,
-  PublisherMessageDeduplicationConfig,
+  ConsumerMessageDeduplicationMessageTypeConfig,
+  ConsumerMessageDeduplicationStore,
+  MessageDeduplicationConfig,
+  PublisherMessageDeduplicationMessageTypeConfig,
+  PublisherMessageDeduplicationStore,
 } from '../message-deduplication/messageDeduplicationTypes'
 import type { MessageProcessingResult, TransactionObservabilityManager } from './MessageQueueTypes'
 
@@ -64,8 +67,14 @@ export type CommonQueueOptions = {
   logMessages?: boolean
   deletionConfig?: DeletionConfig
   payloadStoreConfig?: PayloadStoreConfig
-  publisherMessageDeduplicationConfig?: PublisherMessageDeduplicationConfig
-  consumerMessageDeduplicationConfig?: ConsumerMessageDeduplicationConfig
+  publisherMessageDeduplicationConfig?: MessageDeduplicationConfig<
+    PublisherMessageDeduplicationStore,
+    PublisherMessageDeduplicationMessageTypeConfig
+  >
+  consumerMessageDeduplicationConfig?: MessageDeduplicationConfig<
+    ConsumerMessageDeduplicationStore,
+    ConsumerMessageDeduplicationMessageTypeConfig
+  >
 }
 
 export type CommonCreationConfigType = {
