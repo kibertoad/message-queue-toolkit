@@ -1,5 +1,5 @@
 import { type AwilixContainer, asValue } from 'awilix'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
@@ -49,6 +49,7 @@ describe('SqsPermissionPublisher', () => {
     })
 
     afterEach(async () => {
+      vi.restoreAllMocks()
       await cleanRedis(diContainer.cradle.redis)
       await publisher.close()
     })
@@ -198,6 +199,25 @@ describe('SqsPermissionPublisher', () => {
       expect(spyFourthCall.processingResult).toBe('published')
 
       await customPublisher.close()
+    })
+
+    it('in case of errors on deduplication store level, it does not prevent message from being published', async () => {
+      const message = {
+        id: '1',
+        messageType: 'add',
+        timestamp: new Date().toISOString(),
+        deduplicationId: '1',
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+      vi.spyOn(messageDeduplicationStore, 'setIfNotExists').mockRejectedValue(
+        new Error('Dummy error'),
+      )
+
+      await publisher.publish(message)
+
+      const spy = await publisher.handlerSpy.waitForMessageWithId('1')
+      expect(spy.message).toEqual(message)
+      expect(spy.processingResult).toBe('published')
     })
   })
 

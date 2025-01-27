@@ -5,7 +5,7 @@ import type {
 } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies } from '../utils/testContext'
@@ -62,6 +62,7 @@ describe('SqsPermissionConsumer', () => {
   })
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     await cleanRedis(diContainer.cradle.redis)
     await publisher.close()
   })
@@ -293,6 +294,29 @@ describe('SqsPermissionConsumer', () => {
         // Message 2 is successfully processed during the second consumption
         const secondConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message2.id)
         expect(secondConsumptionResult.processingResult).toBe('consumed')
+
+        await consumer.close()
+      })
+
+      it('in case of errors on deduplication store level, it does not prevent message processing', async () => {
+        const consumer = new SqsPermissionConsumer(diContainer.cradle, {
+          consumerMessageDeduplicationConfig,
+        })
+        await consumer.start()
+
+        const message = {
+          id: '1',
+          messageType: 'add',
+          deduplicationId: '1',
+        } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+        vi.spyOn(messageDeduplicationStore, 'setIfNotExists').mockRejectedValue(
+          new Error('Dummy error'),
+        )
+
+        await publisher.publish(message)
+
+        const spy = await consumer.handlerSpy.waitForMessageWithId('1')
+        expect(spy.processingResult).toBe('consumed')
 
         await consumer.close()
       })

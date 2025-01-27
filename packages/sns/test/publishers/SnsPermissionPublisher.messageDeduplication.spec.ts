@@ -1,6 +1,6 @@
 import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import { type AwilixContainer, asValue } from 'awilix'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
@@ -48,6 +48,7 @@ describe('SnsPermissionPublisher', () => {
     })
 
     afterEach(async () => {
+      vi.restoreAllMocks()
       await cleanRedis(diContainer.cradle.redis)
     })
 
@@ -140,6 +141,23 @@ describe('SnsPermissionPublisher', () => {
 
       const spyFourthCall = await publisher.handlerSpy.waitForMessageWithId(message2.id)
       expect(spyFourthCall.processingResult).toBe('published')
+    })
+
+    it('in case of errors on deduplication store level, it does not prevent message from being published', async () => {
+      const message = {
+        id: '1',
+        messageType: 'add',
+        deduplicationId: '1',
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+      vi.spyOn(messageDeduplicationStore, 'setIfNotExists').mockRejectedValue(
+        new Error('Dummy error'),
+      )
+
+      await publisher.publish(message)
+
+      const spy = await publisher.handlerSpy.waitForMessageWithId(message.id)
+      expect(spy.processingResult).toBe('published')
     })
   })
 })

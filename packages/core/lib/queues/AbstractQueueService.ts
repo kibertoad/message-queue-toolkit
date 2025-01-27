@@ -590,14 +590,19 @@ export abstract class AbstractQueueService<
     const publisherDeduplicationConfig = this
       .publisherMessageDeduplicationConfig as PublisherMessageDeduplicationConfig
 
-    const wasDeduplicationKeyStored =
-      await publisherDeduplicationConfig.deduplicationStore.setIfNotExists(
-        deduplicationId,
-        new Date().toISOString(),
-        messageDeduplicationConfig.deduplicationWindowSeconds,
-      )
+    try {
+      const wasDeduplicationKeyStored =
+        await publisherDeduplicationConfig.deduplicationStore.setIfNotExists(
+          deduplicationId,
+          new Date().toISOString(),
+          messageDeduplicationConfig.deduplicationWindowSeconds,
+        )
 
-    return { isDuplicated: !wasDeduplicationKeyStored }
+      return { isDuplicated: !wasDeduplicationKeyStored }
+    } catch (err) {
+      this.handleError(err)
+      return { isDuplicated: false }
+    }
   }
 
   protected isConsumerDeduplicationEnabled(message: MessagePayloadSchemas): boolean {
@@ -623,29 +628,34 @@ export abstract class AbstractQueueService<
     const consumerDeduplicationConfig = this
       .consumerMessageDeduplicationConfig as ConsumerMessageDeduplicationConfig
 
-    const result = await consumerDeduplicationConfig.deduplicationStore.setIfNotExists(
-      deduplicationId,
-      ConsumerMessageDeduplicationKeyStatus.PROCESSING,
-      messageDeduplicationConfig.maximumProcessingTimeSeconds,
-    )
+    try {
+      const result = await consumerDeduplicationConfig.deduplicationStore.setIfNotExists(
+        deduplicationId,
+        ConsumerMessageDeduplicationKeyStatus.PROCESSING,
+        messageDeduplicationConfig.maximumProcessingTimeSeconds,
+      )
 
-    // Deduplication key was just created meaning the lock was acquired and message can be processed
-    if (result) {
+      // Deduplication key was just created meaning the lock was acquired and message can be processed
+      if (result) {
+        return true
+      }
+
+      const deduplicationKeyStatus =
+        await consumerDeduplicationConfig.deduplicationStore.getByKey(deduplicationId)
+
+      // Message was already processed
+      if (deduplicationKeyStatus === ConsumerMessageDeduplicationKeyStatus.PROCESSED) {
+        return false
+      }
+
+      // Message is still being processed within the expected time
+      // Queue it for next check
+      await this.queueMessageForRetry(message)
+      return false
+    } catch (err) {
+      this.handleError(err)
       return true
     }
-
-    const deduplicationKeyStatus =
-      await consumerDeduplicationConfig.deduplicationStore.getByKey(deduplicationId)
-
-    // Message was already processed
-    if (deduplicationKeyStatus === ConsumerMessageDeduplicationKeyStatus.PROCESSED) {
-      return false
-    }
-
-    // Message is still being processed within the expected time
-    // Queue it for next check
-    await this.queueMessageForRetry(message)
-    return false
   }
 
   /**
@@ -670,16 +680,21 @@ export abstract class AbstractQueueService<
     const consumerDeduplicationConfig = this
       .consumerMessageDeduplicationConfig as ConsumerMessageDeduplicationConfig
 
-    if (messageProcessedSuccessfully) {
-      // Mark the deduplication key as processed and extend its TTL
-      await consumerDeduplicationConfig.deduplicationStore.setOrUpdate(
-        deduplicationId,
-        ConsumerMessageDeduplicationKeyStatus.PROCESSED,
-        messageDeduplicationConfig.deduplicationWindowSeconds,
-      )
-    } else {
-      // Remove deduplication key, so message can be retried
-      await consumerDeduplicationConfig.deduplicationStore.deleteKey(deduplicationId)
+    try {
+      if (messageProcessedSuccessfully) {
+        // Mark the deduplication key as processed and extend its TTL
+        await consumerDeduplicationConfig.deduplicationStore.setOrUpdate(
+          deduplicationId,
+          ConsumerMessageDeduplicationKeyStatus.PROCESSED,
+          messageDeduplicationConfig.deduplicationWindowSeconds,
+        )
+      } else {
+        // Remove deduplication key, so message can be retried
+        await consumerDeduplicationConfig.deduplicationStore.deleteKey(deduplicationId)
+      }
+    } catch (err) {
+      this.handleError(err)
+      return
     }
   }
 
