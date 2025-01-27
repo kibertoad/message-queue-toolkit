@@ -1,15 +1,13 @@
-import type { MessageDeduplicationKeyGenerator } from '@message-queue-toolkit/core'
 import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import { type AwilixContainer, asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { cleanRedis } from '../../test/utils/cleanRedis'
-import type { Dependencies } from '../../test/utils/testContext'
-import { registerDependencies } from '../../test/utils/testContext'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
 } from '../consumers/userConsumerSchemas'
-import { PermissionMessageDeduplicationKeyGenerator } from './PermissionMessageDeduplicationKeyGenerator'
+import { cleanRedis } from '../utils/cleanRedis'
+import type { Dependencies } from '../utils/testContext'
+import { registerDependencies } from '../utils/testContext'
 import { SnsPermissionPublisher } from './SnsPermissionPublisher'
 
 const TEST_DEDUPLICATION_KEY_PREFIX = 'test_key_prefix'
@@ -19,7 +17,6 @@ describe('SnsPermissionPublisher', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SnsPermissionPublisher
     let messageDeduplicationStore: RedisMessageDeduplicationStore
-    let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
 
     beforeAll(async () => {
       diContainer = await registerDependencies(
@@ -34,7 +31,6 @@ describe('SnsPermissionPublisher', () => {
         },
         { keyPrefix: TEST_DEDUPLICATION_KEY_PREFIX },
       )
-      messageDeduplicationKeyGenerator = new PermissionMessageDeduplicationKeyGenerator()
     })
 
     beforeEach(() => {
@@ -43,7 +39,6 @@ describe('SnsPermissionPublisher', () => {
           deduplicationStore: messageDeduplicationStore,
           messageTypeToConfigMap: {
             add: {
-              deduplicationKeyGenerator: messageDeduplicationKeyGenerator,
               deduplicationWindowSeconds: 10,
             },
             // 'remove' is not configured on purpose
@@ -62,9 +57,11 @@ describe('SnsPermissionPublisher', () => {
     })
 
     it('publishes a message and writes deduplication key to store when message type is configured with deduplication', async () => {
+      const deduplicationId = '1'
       const message = {
         id: '1',
         messageType: 'add',
+        deduplicationId,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await publisher.publish(message)
@@ -72,9 +69,7 @@ describe('SnsPermissionPublisher', () => {
       const spy = await publisher.handlerSpy.waitForMessageWithId(message.id)
       expect(spy.processingResult).toBe('published')
 
-      const deduplicationKeyValue = await messageDeduplicationStore.getByKey(
-        messageDeduplicationKeyGenerator.generate(message),
-      )
+      const deduplicationKeyValue = await messageDeduplicationStore.getByKey(deduplicationId)
       expect(deduplicationKeyValue).not.toBeNull()
     })
 
@@ -82,6 +77,7 @@ describe('SnsPermissionPublisher', () => {
       const message = {
         id: '1',
         messageType: 'add',
+        deduplicationId: '1',
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       // Message is published for the initial call
@@ -104,10 +100,12 @@ describe('SnsPermissionPublisher', () => {
       const message1 = {
         id: '1',
         messageType: 'add',
+        deduplicationId: '1',
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
       const message2 = {
         id: '1',
         messageType: 'remove',
+        deduplicationId: '1', // Even though it's set, the message type is not configured on a publisher level - deduplication should not work
       } satisfies PERMISSIONS_REMOVE_MESSAGE_TYPE
 
       // Message 1 is published for the initial call

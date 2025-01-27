@@ -40,6 +40,7 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<SupportedTypes>
       handlerSpy: true,
       messageTypeField: 'messageType',
       publisherMessageDeduplicationConfig: options?.publisherMessageDeduplicationConfig,
+      messageDeduplicationIdField: 'deduplicationId',
     })
   }
 

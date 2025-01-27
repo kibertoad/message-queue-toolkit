@@ -5,6 +5,7 @@ export const PERMISSIONS_MESSAGE_SCHEMA = z.object({
   messageType: z.enum(['add', 'remove']),
   permissions: z.array(z.string()).nonempty().describe('List of user permissions'),
   timestamp: z.string().optional(),
+  deduplicationId: z.string().optional(),
 })
 
 export const PERMISSIONS_ADD_MESSAGE_SCHEMA = z.object({
@@ -13,6 +14,7 @@ export const PERMISSIONS_ADD_MESSAGE_SCHEMA = z.object({
   messageType: z.literal('add'),
   timestamp: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  deduplicationId: z.string().optional(),
 })
 
 export const PERMISSIONS_REMOVE_MESSAGE_SCHEMA = z.object({
@@ -20,6 +22,7 @@ export const PERMISSIONS_REMOVE_MESSAGE_SCHEMA = z.object({
   preHandlerIncrement: z.optional(z.number()),
   messageType: z.literal('remove'),
   timestamp: z.string().optional(),
+  deduplicationId: z.string().optional(),
 })
 
 export type PERMISSIONS_MESSAGE_TYPE = z.infer<typeof PERMISSIONS_MESSAGE_SCHEMA>

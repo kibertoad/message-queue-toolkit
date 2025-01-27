@@ -81,7 +81,6 @@ export {
 export {
   type PublisherMessageDeduplicationMessageTypeConfig,
   type PublisherMessageDeduplicationStore,
-  type MessageDeduplicationKeyGenerator,
   type MessageDeduplicationConfig,
   type ConsumerMessageDeduplicationMessageTypeConfig,
   type ConsumerMessageDeduplicationStore,

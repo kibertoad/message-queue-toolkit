@@ -3,10 +3,6 @@ import type {
   PublisherMessageDeduplicationMessageType,
 } from './messageDeduplicationSchemas'
 
-export interface MessageDeduplicationKeyGenerator<Message extends object = object> {
-  generate(message: Message): string
-}
-
 export interface PublisherMessageDeduplicationStore {
   /**
    * Stores a deduplication key in case it does not already exist.
@@ -21,10 +17,8 @@ export interface PublisherMessageDeduplicationStore {
   getByKey(key: string): Promise<string | null>
 }
 
-export type PublisherMessageDeduplicationMessageTypeConfig<Message extends object = object> = {
-  /** The generator to use for generating deduplication keys for a particular message type */
-  deduplicationKeyGenerator: MessageDeduplicationKeyGenerator<Message>
-} & PublisherMessageDeduplicationMessageType
+export type PublisherMessageDeduplicationMessageTypeConfig =
+  PublisherMessageDeduplicationMessageType
 
 export interface ConsumerMessageDeduplicationStore extends PublisherMessageDeduplicationStore {
   /**
@@ -42,10 +36,7 @@ export interface ConsumerMessageDeduplicationStore extends PublisherMessageDedup
   deleteKey(key: string): Promise<void>
 }
 
-export type ConsumerMessageDeduplicationMessageTypeConfig<Message extends object = object> = {
-  /** The generator to use for generating deduplication keys for a particular message type */
-  deduplicationKeyGenerator: MessageDeduplicationKeyGenerator<Message>
-} & ConsumerMessageDeduplicationMessageType
+export type ConsumerMessageDeduplicationMessageTypeConfig = ConsumerMessageDeduplicationMessageType
 
 export type MessageDeduplicationConfig<
   TStore extends ConsumerMessageDeduplicationStore | PublisherMessageDeduplicationStore,

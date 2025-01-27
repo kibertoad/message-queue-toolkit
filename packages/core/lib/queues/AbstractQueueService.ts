@@ -100,6 +100,7 @@ export abstract class AbstractQueueService<
   public readonly logger: CommonLogger
   protected readonly messageIdField: string
   protected readonly messageTypeField: string
+  protected readonly messageDeduplicationIdField: string
   protected readonly logMessages: boolean
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
@@ -133,6 +134,7 @@ export abstract class AbstractQueueService<
     this.messageIdField = options.messageIdField ?? 'id'
     this.messageTypeField = options.messageTypeField
     this.messageTimestampField = options.messageTimestampField ?? 'timestamp'
+    this.messageDeduplicationIdField = options.messageDeduplicationIdField ?? 'deduplicationId'
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig
@@ -276,10 +278,17 @@ export abstract class AbstractQueueService<
           message[this.messageTypeField]
         : undefined
 
+    const messageDeduplicationId =
+      message && this.messageDeduplicationIdField in message
+        ? // @ts-ignore
+          message[this.messageDeduplicationId]
+        : undefined
+
     return {
       processingResult,
       messageId: resolvedMessageId ?? '(unknown id)',
       messageProcessingMilliseconds,
+      messageDeduplicationId,
       messageType,
       message,
     }
@@ -500,6 +509,8 @@ export abstract class AbstractQueueService<
       [this.messageTypeField]: message[this.messageTypeField],
       // @ts-ignore
       [this.messageTimestampField]: message[this.messageTimestampField],
+      // @ts-ignore
+      [this.messageDeduplicationIdField]: message[this.messageDeduplicationIdField],
     }
   }
 
@@ -569,8 +580,10 @@ export abstract class AbstractQueueService<
       message,
       this.publisherMessageDeduplicationConfig,
     )
+    // @ts-expect-error
+    const deduplicationId = message[this.messageDeduplicationIdField] as string | undefined
 
-    if (!messageDeduplicationConfig) {
+    if (!messageDeduplicationConfig || !deduplicationId) {
       return { isDuplicated: false }
     }
 
@@ -579,7 +592,7 @@ export abstract class AbstractQueueService<
 
     const wasDeduplicationKeyStored =
       await publisherDeduplicationConfig.deduplicationStore.setIfNotExists(
-        messageDeduplicationConfig.deduplicationKeyGenerator.generate(message),
+        deduplicationId,
         new Date().toISOString(),
         messageDeduplicationConfig.deduplicationWindowSeconds,
       )
@@ -600,17 +613,18 @@ export abstract class AbstractQueueService<
       message,
       this.consumerMessageDeduplicationConfig,
     )
+    // @ts-expect-error
+    const deduplicationId = message[this.messageDeduplicationIdField] as string | undefined
 
-    if (!messageDeduplicationConfig) {
+    if (!messageDeduplicationConfig || !deduplicationId) {
       return true
     }
 
     const consumerDeduplicationConfig = this
       .consumerMessageDeduplicationConfig as ConsumerMessageDeduplicationConfig
-    const deduplicationKey = messageDeduplicationConfig.deduplicationKeyGenerator.generate(message)
 
     const result = await consumerDeduplicationConfig.deduplicationStore.setIfNotExists(
-      deduplicationKey,
+      deduplicationId,
       ConsumerMessageDeduplicationKeyStatus.PROCESSING,
       messageDeduplicationConfig.maximumProcessingTimeSeconds,
     )
@@ -621,7 +635,7 @@ export abstract class AbstractQueueService<
     }
 
     const deduplicationKeyStatus =
-      await consumerDeduplicationConfig.deduplicationStore.getByKey(deduplicationKey)
+      await consumerDeduplicationConfig.deduplicationStore.getByKey(deduplicationId)
 
     // Message was already processed
     if (deduplicationKeyStatus === ConsumerMessageDeduplicationKeyStatus.PROCESSED) {
@@ -646,25 +660,26 @@ export abstract class AbstractQueueService<
       message,
       this.consumerMessageDeduplicationConfig,
     )
+    // @ts-expect-error
+    const deduplicationId = message[this.messageDeduplicationIdField] as string | undefined
 
-    if (!messageDeduplicationConfig) {
+    if (!messageDeduplicationConfig || !deduplicationId) {
       return
     }
 
     const consumerDeduplicationConfig = this
       .consumerMessageDeduplicationConfig as ConsumerMessageDeduplicationConfig
-    const deduplicationKey = messageDeduplicationConfig.deduplicationKeyGenerator.generate(message)
 
     if (messageProcessedSuccessfully) {
       // Mark the deduplication key as processed and extend its TTL
       await consumerDeduplicationConfig.deduplicationStore.setOrUpdate(
-        deduplicationKey,
+        deduplicationId,
         ConsumerMessageDeduplicationKeyStatus.PROCESSED,
         messageDeduplicationConfig.deduplicationWindowSeconds,
       )
     } else {
       // Remove deduplication key, so message can be retried
-      await consumerDeduplicationConfig.deduplicationStore.deleteKey(deduplicationKey)
+      await consumerDeduplicationConfig.deduplicationStore.deleteKey(deduplicationId)
     }
   }
 

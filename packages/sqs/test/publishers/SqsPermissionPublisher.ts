@@ -51,6 +51,7 @@ export class SqsPermissionPublisher extends AbstractSqsPublisher<SupportedMessag
       messageTypeField: 'messageType',
       payloadStoreConfig: options?.payloadStoreConfig,
       publisherMessageDeduplicationConfig: options?.publisherMessageDeduplicationConfig,
+      messageDeduplicationIdField: 'deduplicationId',
     })
   }
 

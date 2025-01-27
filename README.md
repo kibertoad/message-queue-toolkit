@@ -418,7 +418,6 @@ Instead, you should either enable content-based deduplication on the queue or pa
     ```typescript
     import { Redis } from 'ioredis'
     import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
-    import { MessageDeduplicationKeyGenerator } from '@message-queue-toolkit/core'
 
     const redisClient = new Redis({
         // your redis configuration
@@ -429,29 +428,19 @@ Instead, you should either enable content-based deduplication on the queue or pa
       { redis: redisClient },
       { keyPrefix: 'optional-key-prefix' }, // used to prefix deduplication keys
     )
-
-    // Publisher-level deduplication allows you to provide custom strategies of deduplication key generation for each message type
-    // In this example we'll provide just one strategy for one message type - 'dummy'
-    class DummyMessageDeduplicationKeyGenerator implements MessageDeduplicationKeyGenerator<DummyEvent> {
-      generateKey(message: DummyEvent): string {
-        return message.id
-      }
-    }
-
-    const dummyMessageDeduplicationKeyGenerator = new DummyMessageDeduplicationKeyGenerator()
-
+   
     export class MyPublisher extends AbstractSqsPublisher<> {
         constructor(
             // dependencies and options
         ) {
             super(dependencies, {
                 // rest of the configuration
+                messageDeduplicationIdField: 'deduplicationId', // field in the message that contains unique deduplication id
                 messageDeduplicationConfig: {
                   deduplicationStore: messageDeduplicationStore,
                   publisherMessageTypeToConfigMap: {
                     dummy: {
                       deduplicationWindowSeconds: 10,
-                      deduplicationKeyGenerator: dummyMessageDeduplicationKeyGenerator,
                     },
                     // In case there are other event types available, you can provide their deduplication strategies here
                     // If strategy for certain message type is not provided, deduplication will not be performed for this message type
@@ -488,7 +477,6 @@ Instead, you should either enable content-based deduplication on the queue or pa
     ```typescript
     import { Redis } from 'ioredis'
     import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
-    import { MessageDeduplicationKeyGenerator } from '@message-queue-toolkit/core'
 
     const redisClient = new Redis({
         // your redis configuration
@@ -516,13 +504,16 @@ Instead, you should either enable content-based deduplication on the queue or pa
         ) {
             super(dependencies, {
                 // rest of the configuration
+                newPublisherOptions: {
+                  // rest of publisher options
+                  messageDeduplicationIdField: 'deduplicationId', // field in the message that contains unique deduplication id 
+                },
                 messageDeduplicationConfig: {
                   deduplicationStore: messageDeduplicationStore,
                   consumerMessageTypeToConfigMap: {
                     dummy: {
                       deduplicationWindowSeconds: 10,
                       maximumProcessingTimeSeconds: 5,
-                      deduplicationKeyGenerator: dummyMessageDeduplicationKeyGenerator,
                     },
                     // In case there are other event types available, you can provide their deduplication strategies here
                     // If strategy for certain message type is not provided, deduplication will not be performed for this message type

@@ -42,7 +42,6 @@ export const TestEvents = {
     ...enrichMessageSchemaWithBase(
       'entity.created',
       z.object({
-        entityId: z.string(),
         newData: z.string(),
       }),
     ),
@@ -54,7 +53,6 @@ export const TestEvents = {
     ...enrichMessageSchemaWithBase(
       'entity.updated',
       z.object({
-        entityId: z.string(),
         updatedData: z.string(),
       }),
     ),

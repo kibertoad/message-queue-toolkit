@@ -2,7 +2,6 @@ import type {
   ConsumerMessageDeduplicationMessageTypeConfig,
   ConsumerMessageDeduplicationStore,
   MessageDeduplicationConfig,
-  MessageDeduplicationKeyGenerator,
 } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
@@ -15,7 +14,6 @@ import { setTimeout } from 'node:timers/promises'
 import { waitAndRetry } from '@lokalise/node-core'
 import { ConsumerMessageDeduplicationKeyStatus } from '@message-queue-toolkit/core'
 import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
-import { PermissionMessageDeduplicationKeyGenerator } from '../utils/PermissionMessageDeduplicationKeyGenerator'
 import { cleanRedis } from '../utils/cleanRedis'
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
 import type {
@@ -33,7 +31,6 @@ type ConsumerMessageDeduplicationConfig = MessageDeduplicationConfig<
 describe('SqsPermissionConsumer', () => {
   let diContainer: AwilixContainer<Dependencies>
   let messageDeduplicationStore: RedisMessageDeduplicationStore
-  let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
   let consumerMessageDeduplicationConfig: ConsumerMessageDeduplicationConfig
   let publisher: SqsPermissionPublisher
 
@@ -48,12 +45,10 @@ describe('SqsPermissionConsumer', () => {
       },
       { keyPrefix: TEST_DEDUPLICATION_KEY_PREFIX },
     )
-    messageDeduplicationKeyGenerator = new PermissionMessageDeduplicationKeyGenerator()
     consumerMessageDeduplicationConfig = {
       deduplicationStore: messageDeduplicationStore,
       messageTypeToConfigMap: {
         add: {
-          deduplicationKeyGenerator: messageDeduplicationKeyGenerator,
           deduplicationWindowSeconds: 30,
           maximumProcessingTimeSeconds: 10,
         },
@@ -88,6 +83,7 @@ describe('SqsPermissionConsumer', () => {
         const message = {
           id: '1',
           messageType: 'add',
+          deduplicationId: '1',
         } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
         await publisher.publish(message)
@@ -123,9 +119,11 @@ describe('SqsPermissionConsumer', () => {
         })
         await consumer.start()
 
+        const deduplicationId = '1'
         const message = {
           id: '1',
           messageType: 'add',
+          deduplicationId,
         } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
         await publisher.publish({
@@ -149,10 +147,9 @@ describe('SqsPermissionConsumer', () => {
         expect(secondConsumptionResult.processingResult).toBe('consumed')
 
         // Ensure deduplication key exists and has correct TTL to prevent the same message from being processed again within the deduplication window
-        const deduplicationKey = messageDeduplicationKeyGenerator.generate(message)
-        const deduplicationValue = await messageDeduplicationStore.getByKey(deduplicationKey)
+        const deduplicationValue = await messageDeduplicationStore.getByKey(deduplicationId)
         expect(deduplicationValue).toBe(ConsumerMessageDeduplicationKeyStatus.PROCESSED)
-        const deduplicationKeyTtl = await messageDeduplicationStore.getKeyTtl(deduplicationKey)
+        const deduplicationKeyTtl = await messageDeduplicationStore.getKeyTtl(deduplicationId)
         expect(deduplicationKeyTtl).toBeGreaterThan(
           consumerMessageDeduplicationConfig.messageTypeToConfigMap.add.deduplicationWindowSeconds -
             5,
@@ -167,9 +164,11 @@ describe('SqsPermissionConsumer', () => {
         })
         await consumer.start()
 
+        const deduplicationId = '1'
         const message = {
           id: '1',
           messageType: 'add',
+          deduplicationId,
         } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
         await publisher.publish(message)
@@ -188,9 +187,7 @@ describe('SqsPermissionConsumer', () => {
         expect(secondConsumptionResult.processingResult).toBe('duplicate')
 
         // We're expiring the deduplication key, so we do not have to wait for the deduplication window to pass
-        await messageDeduplicationStore.deleteKey(
-          messageDeduplicationKeyGenerator.generate(message),
-        )
+        await messageDeduplicationStore.deleteKey(deduplicationId)
 
         // Clear the spy, so we can check subsequent call
         consumer.handlerSpy.clear()
@@ -227,17 +224,18 @@ describe('SqsPermissionConsumer', () => {
         })
         // Not starting consumer 2 yet
 
+        const deduplicationId = '1'
         const message = {
           id: '1',
           messageType: 'add',
+          deduplicationId,
         } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
         await publisher.publish(message)
 
         // Wait until consumer 1 acquires lock and then simulate its fatal failure by force disposing it
-        const deduplicationKey = messageDeduplicationKeyGenerator.generate(message)
         await waitAndRetry(async () => {
-          const key = await messageDeduplicationStore.getByKey(deduplicationKey)
+          const key = await messageDeduplicationStore.getByKey(deduplicationId)
 
           return key !== null
         })
@@ -273,10 +271,12 @@ describe('SqsPermissionConsumer', () => {
         const message1 = {
           id: '1',
           messageType: 'add',
+          deduplicationId: '1',
         } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
         const message2 = {
           id: '2',
           messageType: 'add',
+          deduplicationId: '2',
         } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
         await publisher.publish(message1)
@@ -339,7 +339,6 @@ describe('SqsPermissionConsumer', () => {
               deduplicationStore: messageDeduplicationStore,
               messageTypeToConfigMap: {
                 add: {
-                  deduplicationKeyGenerator: messageDeduplicationKeyGenerator,
                   maximumProcessingTimeSeconds: -1,
                   deduplicationWindowSeconds: -1,
                 },

@@ -41,7 +41,6 @@ describe('SnsPublisherManager', () => {
       // When
       const publishedMessage = await publisherManager.publish(TestEvents.created.snsTopic, {
         payload: {
-          entityId: '1',
           newData: 'msg',
         },
         type: 'entity.created',
@@ -79,7 +78,6 @@ describe('SnsPublisherManager', () => {
       await expect(
         publisherManager.publish(TestEvents.created.snsTopic, {
           payload: {
-            entityId: '1',
             // @ts-expect-error This should be causing a compilation error
             updatedData: 'edwe',
           },
@@ -106,7 +104,6 @@ describe('SnsPublisherManager', () => {
           // @ts-expect-error Testing error scenario
           type: 'dummy.type',
           payload: {
-            entityId: '1',
             newData: 'msg',
           },
         }),
@@ -160,7 +157,6 @@ describe('SnsPublisherManager', () => {
         id: messageId,
         type: 'entity.created',
         payload: {
-          entityId: '1',
           newData: 'msg',
         },
       })

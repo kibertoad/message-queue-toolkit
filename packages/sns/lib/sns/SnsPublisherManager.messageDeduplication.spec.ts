@@ -1,11 +1,7 @@
-import {
-  CommonMetadataFiller,
-  type MessageDeduplicationKeyGenerator,
-} from '@message-queue-toolkit/core'
+import { CommonMetadataFiller } from '@message-queue-toolkit/core'
 import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import { type AwilixContainer, asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { TestEventDeduplicationKeyGenerator } from '../../test/publishers/TestEventDeduplicationKeyGenerator'
 import { cleanRedis } from '../../test/utils/cleanRedis'
 import type {
   Dependencies,
@@ -25,7 +21,6 @@ describe('SnsPublisherManager', () => {
     TestEventsType
   >
   let messageDeduplicationStore: RedisMessageDeduplicationStore
-  let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
 
   beforeAll(async () => {
     diContainer = await registerDependencies(
@@ -40,7 +35,6 @@ describe('SnsPublisherManager', () => {
       },
       { keyPrefix: TEST_DEDUPLICATION_KEY_PREFIX },
     )
-    messageDeduplicationKeyGenerator = new TestEventDeduplicationKeyGenerator()
   })
 
   beforeEach(() => {
@@ -53,6 +47,7 @@ describe('SnsPublisherManager', () => {
         handlerSpy: true,
         messageIdField: 'id',
         messageTypeField: 'type',
+        messageDeduplicationIdField: 'deduplicationId',
         creationConfig: {
           updateAttributesIfExists: true,
         },
@@ -60,7 +55,6 @@ describe('SnsPublisherManager', () => {
           deduplicationStore: messageDeduplicationStore,
           messageTypeToConfigMap: {
             'entity.created': {
-              deduplicationKeyGenerator: messageDeduplicationKeyGenerator,
               deduplicationWindowSeconds: 10,
             },
             // 'entity.update' is not configured on purpose
@@ -81,12 +75,13 @@ describe('SnsPublisherManager', () => {
 
   describe('publish', () => {
     it('publishes a message and writes deduplication key to store when message type is configured with deduplication', async () => {
+      const deduplicationId = '1'
       const message = {
         payload: {
-          entityId: '1',
           newData: 'msg',
         },
         type: 'entity.created',
+        deduplicationId,
       } satisfies TestEventPublishPayloadsType
 
       const publishedMessage = await publisherManager.publish(TestEvents.created.snsTopic, message)
@@ -96,19 +91,17 @@ describe('SnsPublisherManager', () => {
         .waitForMessageWithId(publishedMessage.id)
       expect(spy.processingResult).toBe('published')
 
-      const deduplicationKeyValue = await messageDeduplicationStore.getByKey(
-        messageDeduplicationKeyGenerator.generate(message),
-      )
+      const deduplicationKeyValue = await messageDeduplicationStore.getByKey(deduplicationId)
       expect(deduplicationKeyValue).not.toBeNull()
     })
 
     it('does not publish the same message if deduplication key already exists', async () => {
       const message = {
         payload: {
-          entityId: '1',
           newData: 'msg',
         },
         type: 'entity.created',
+        deduplicationId: '1',
       } satisfies TestEventPublishPayloadsType
 
       // Message is published for the initial call
@@ -140,17 +133,17 @@ describe('SnsPublisherManager', () => {
     it('works only for event types that are configured', async () => {
       const message1 = {
         payload: {
-          entityId: '1',
           newData: 'msg',
         },
         type: 'entity.created',
+        deduplicationId: '1',
       } satisfies TestEventPublishPayloadsType
       const message2 = {
         payload: {
-          entityId: '1',
           updatedData: 'msg',
         },
         type: 'entity.updated',
+        deduplicationId: '1', // Even though it's set, the message type is not configured on a publisher level - deduplication should not work
       } satisfies TestEventPublishPayloadsType
 
       // Message 1 is published for the initial call

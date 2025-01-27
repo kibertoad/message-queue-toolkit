@@ -7,9 +7,7 @@ import type {
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies } from '../utils/testContext'
 
-import type { MessageDeduplicationKeyGenerator } from '@message-queue-toolkit/core'
 import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
-import { PermissionMessageDeduplicationKeyGenerator } from '../utils/PermissionMessageDeduplicationKeyGenerator'
 import { cleanRedis } from '../utils/cleanRedis'
 import { SqsPermissionPublisher } from './SqsPermissionPublisher'
 
@@ -20,7 +18,6 @@ describe('SqsPermissionPublisher', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisher
     let messageDeduplicationStore: RedisMessageDeduplicationStore
-    let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
 
     beforeAll(async () => {
       diContainer = await registerDependencies({
@@ -33,7 +30,6 @@ describe('SqsPermissionPublisher', () => {
         },
         { keyPrefix: TEST_DEDUPLICATION_KEY_PREFIX },
       )
-      messageDeduplicationKeyGenerator = new PermissionMessageDeduplicationKeyGenerator()
     })
 
     beforeEach(() => {
@@ -43,11 +39,9 @@ describe('SqsPermissionPublisher', () => {
           messageTypeToConfigMap: {
             add: {
               deduplicationWindowSeconds: 10,
-              deduplicationKeyGenerator: messageDeduplicationKeyGenerator,
             },
             remove: {
               deduplicationWindowSeconds: 10,
-              deduplicationKeyGenerator: messageDeduplicationKeyGenerator,
             },
           },
         },
@@ -64,11 +58,13 @@ describe('SqsPermissionPublisher', () => {
       await diContainer.dispose()
     })
 
-    it('writes deduplication key to store using provided deduplication function and publishes message', async () => {
+    it('writes deduplication key to store and publishes message', async () => {
+      const deduplicationId = '1'
       const message = {
         id: '1',
         messageType: 'add',
         timestamp: new Date().toISOString(),
+        deduplicationId,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await publisher.publish(message)
@@ -77,9 +73,7 @@ describe('SqsPermissionPublisher', () => {
       expect(spy.message).toEqual(message)
       expect(spy.processingResult).toBe('published')
 
-      const deduplicationKeyValue = await messageDeduplicationStore.getByKey(
-        messageDeduplicationKeyGenerator.generate(message),
-      )
+      const deduplicationKeyValue = await messageDeduplicationStore.getByKey(deduplicationId)
       expect(deduplicationKeyValue).not.toBeNull()
     })
 
@@ -88,6 +82,7 @@ describe('SqsPermissionPublisher', () => {
         id: '1',
         messageType: 'add',
         timestamp: new Date().toISOString(),
+        deduplicationId: '1',
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       // Message is published for the initial call
@@ -108,17 +103,18 @@ describe('SqsPermissionPublisher', () => {
       expect(spySecondCall.processingResult).toBe('duplicate')
     })
 
-    it('publishing messages that produce different deduplication keys does not affect each other', async () => {
-      // The IDs are the same, but there are different key generation strategies producing unique deduplication keys
+    it('publishing messages with different deduplication keys does not affect each other', async () => {
       const message1 = {
         id: 'id',
         messageType: 'add',
         timestamp: new Date().toISOString(),
+        deduplicationId: '1',
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
       const message2 = {
         id: 'id',
         messageType: 'remove',
         timestamp: new Date().toISOString(),
+        deduplicationId: '2',
       } satisfies PERMISSIONS_REMOVE_MESSAGE_TYPE
 
       // Message 1 is published
@@ -146,7 +142,6 @@ describe('SqsPermissionPublisher', () => {
           messageTypeToConfigMap: {
             add: {
               deduplicationWindowSeconds: 10,
-              deduplicationKeyGenerator: messageDeduplicationKeyGenerator,
             },
             // 'remove' is not configured on purpose
           },
@@ -156,11 +151,13 @@ describe('SqsPermissionPublisher', () => {
         id: 'id',
         messageType: 'add',
         timestamp: new Date().toISOString(),
+        deduplicationId: '1',
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
       const message2 = {
         id: 'id',
         messageType: 'remove',
         timestamp: new Date().toISOString(),
+        deduplicationId: '1', // Even though it's set, the message type is not configured on a publisher level - deduplication should not work
       } satisfies PERMISSIONS_REMOVE_MESSAGE_TYPE
 
       // Message 1 is published for the initial call
@@ -207,7 +204,6 @@ describe('SqsPermissionPublisher', () => {
   describe('init', () => {
     let diContainer: AwilixContainer<Dependencies>
     let messageDeduplicationStore: RedisMessageDeduplicationStore
-    let messageDeduplicationKeyGenerator: MessageDeduplicationKeyGenerator
 
     beforeAll(async () => {
       diContainer = await registerDependencies({
@@ -220,7 +216,6 @@ describe('SqsPermissionPublisher', () => {
         },
         { keyPrefix: TEST_DEDUPLICATION_KEY_PREFIX },
       )
-      messageDeduplicationKeyGenerator = new PermissionMessageDeduplicationKeyGenerator()
     })
 
     afterAll(async () => {
@@ -237,7 +232,6 @@ describe('SqsPermissionPublisher', () => {
               messageTypeToConfigMap: {
                 add: {
                   deduplicationWindowSeconds: -1,
-                  deduplicationKeyGenerator: messageDeduplicationKeyGenerator,
                 },
               },
             },
