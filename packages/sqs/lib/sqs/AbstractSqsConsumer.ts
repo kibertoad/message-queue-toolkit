@@ -210,12 +210,20 @@ export abstract class AbstractSqsConsumer<
       handleMessage: async (message: SQSMessage) => {
         if (message === null) return
 
+        const messageProcessingStartTimestamp = Date.now()
+
         const deserializedMessage = await this.deserializeMessage(message)
         if (deserializedMessage.error === 'abort') {
           await this.failProcessing(message)
 
           const messageId = this.tryToExtractId(message)
-          this.handleMessageProcessed(null, 'invalid_message', messageId.result)
+          this.handleMessageProcessed({
+            message: null,
+            processingResult: 'invalid_message',
+            messageProcessingStartTimestamp,
+            queueName: this.queueName,
+            messageId: messageId.result,
+          })
           return
         }
         const { parsedMessage, originalMessage } = deserializedMessage.result
@@ -247,7 +255,12 @@ export abstract class AbstractSqsConsumer<
 
         // success
         if (result.result) {
-          this.handleMessageProcessed(originalMessage, 'consumed')
+          this.handleMessageProcessed({
+            message: originalMessage,
+            processingResult: 'consumed',
+            messageProcessingStartTimestamp,
+            queueName: this.queueName,
+          })
           return message
         }
 
@@ -260,16 +273,31 @@ export abstract class AbstractSqsConsumer<
                 MessageBody: JSON.stringify(this.updateInternalProperties(originalMessage)),
               }),
             )
-            this.handleMessageProcessed(parsedMessage, 'retryLater')
+            this.handleMessageProcessed({
+              message: parsedMessage,
+              processingResult: 'retryLater',
+              messageProcessingStartTimestamp,
+              queueName: this.queueName,
+            })
           } else {
             await this.failProcessing(message)
-            this.handleMessageProcessed(parsedMessage, 'error')
+            this.handleMessageProcessed({
+              message: parsedMessage,
+              processingResult: 'error',
+              messageProcessingStartTimestamp,
+              queueName: this.queueName,
+            })
           }
 
           return message
         }
 
-        this.handleMessageProcessed(parsedMessage, 'error')
+        this.handleMessageProcessed({
+          message: parsedMessage,
+          processingResult: 'error',
+          messageProcessingStartTimestamp,
+          queueName: this.queueName,
+        })
         return Promise.reject(result.error)
       },
     })
