@@ -44,13 +44,13 @@ export type ProcessedMessageMetadata<MessagePayloadSchemas extends object = obje
   messageTimestamp: number | undefined
 
   /**
-   * The timestamp when the processing of the message begins, in milliseconds since the epoch
+   * The timestamp when the processing of the message began, in milliseconds since the epoch
    * Note: for publishers the value may be smaller than messageTimestamp
    */
   messageProcessingStartTimestamp: number
 
   /**
-   * The timestamp when the processing of the message ends, in milliseconds since the epoch
+   * The timestamp when the processing of the message ended, in milliseconds since the epoch
    */
   messageProcessingEndTimestamp: number
 }
