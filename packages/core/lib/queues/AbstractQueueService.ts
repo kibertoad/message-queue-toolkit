@@ -635,14 +635,14 @@ export abstract class AbstractQueueService<
       .consumerMessageDeduplicationConfig as ConsumerMessageDeduplicationConfig
 
     try {
-      const result = await consumerDeduplicationConfig.deduplicationStore.setIfNotExists(
+      const wasLockAcquired = await consumerDeduplicationConfig.deduplicationStore.setIfNotExists(
         deduplicationId,
         ConsumerMessageDeduplicationKeyStatus.PROCESSING,
         messageDeduplicationConfig.maximumProcessingTimeSeconds,
       )
 
       // Deduplication key was just created meaning the lock was acquired and message can be processed
-      if (result) {
+      if (wasLockAcquired) {
         return true
       }
 
