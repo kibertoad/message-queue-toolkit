@@ -9,6 +9,7 @@ export type RedisMessageDeduplicationStoreDependencies = {
 }
 
 export type RedisMessageDeduplicationStoreConfig = {
+  /** Optional prefix for the keys in the store, useful for namespacing and differentiating between deduplication store and other data */
   keyPrefix?: string
 }
 
