@@ -61,6 +61,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     }
 
     try {
+      const messageProcessingStartTimestamp = Date.now()
       const parsedMessage = messageSchemaResult.result.parse(message)
 
       if (this.logMessages) {
@@ -79,12 +80,22 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         this.isPublisherDeduplicationEnabled(message) &&
         (await this.deduplicateMessageBeforePublishing(parsedMessage)).isDuplicated
       ) {
-        this.handleMessageProcessed(parsedMessage, 'duplicate')
+        this.handleMessageProcessed({
+          message: parsedMessage,
+          processingResult: 'duplicate',
+          messageProcessingStartTimestamp,
+          queueName: this.queueName,
+        })
         return
       }
 
       await this.sendMessage(maybeOffloadedPayloadMessage, options)
-      this.handleMessageProcessed(parsedMessage, 'published')
+      this.handleMessageProcessed({
+        message: parsedMessage,
+        processingResult: 'published',
+        messageProcessingStartTimestamp,
+        queueName: this.queueName,
+      })
     } catch (error) {
       const err = error as Error
       this.handleError(err)

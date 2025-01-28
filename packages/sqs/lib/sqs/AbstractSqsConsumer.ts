@@ -213,12 +213,20 @@ export abstract class AbstractSqsConsumer<
       handleMessage: async (message: SQSMessage) => {
         if (message === null) return
 
+        const messageProcessingStartTimestamp = Date.now()
+
         const deserializedMessage = await this.deserializeMessage(message)
         if (deserializedMessage.error === 'abort') {
           await this.failProcessing(message)
 
           const messageId = this.tryToExtractId(message)
-          this.handleMessageProcessed(null, 'invalid_message', messageId.result)
+          this.handleMessageProcessed({
+            message: null,
+            processingResult: 'invalid_message',
+            messageProcessingStartTimestamp,
+            queueName: this.queueName,
+            messageId: messageId.result,
+          })
           return
         }
         const { parsedMessage, originalMessage } = deserializedMessage.result
@@ -226,11 +234,13 @@ export abstract class AbstractSqsConsumer<
         if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
           const lockAcquired = await this.tryToAcquireLockForProcessing(parsedMessage)
           if (!lockAcquired) {
-            this.handleMessageProcessed(
-              originalMessage,
-              'duplicate',
-              this.tryToExtractId(message).result,
-            )
+            this.handleMessageProcessed({
+              message: originalMessage,
+              processingResult: 'duplicate',
+              messageProcessingStartTimestamp,
+              queueName: this.queueName,
+              messageId: this.tryToExtractId(message).result,
+            })
             return
           }
         }
@@ -262,7 +272,12 @@ export abstract class AbstractSqsConsumer<
 
         // success
         if (result.result) {
-          this.handleMessageProcessed(originalMessage, 'consumed')
+          this.handleMessageProcessed({
+            message: originalMessage,
+            processingResult: 'consumed',
+            messageProcessingStartTimestamp,
+            queueName: this.queueName,
+          })
           if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
             await this.updateLockAfterProcessing(parsedMessage, true)
           }
@@ -272,16 +287,31 @@ export abstract class AbstractSqsConsumer<
         if (result.error === 'retryLater') {
           if (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
             await this.queueMessageForRetry(originalMessage)
-            this.handleMessageProcessed(parsedMessage, 'retryLater')
+            this.handleMessageProcessed({
+              message: parsedMessage,
+              processingResult: 'retryLater',
+              messageProcessingStartTimestamp,
+              queueName: this.queueName,
+            })
           } else {
             await this.failProcessing(message)
-            this.handleMessageProcessed(parsedMessage, 'error')
+            this.handleMessageProcessed({
+              message: parsedMessage,
+              processingResult: 'error',
+              messageProcessingStartTimestamp,
+              queueName: this.queueName,
+            })
           }
 
           return message
         }
 
-        this.handleMessageProcessed(parsedMessage, 'error')
+        this.handleMessageProcessed({
+          message: parsedMessage,
+          processingResult: 'error',
+          messageProcessingStartTimestamp,
+          queueName: this.queueName,
+        })
         if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
           await this.updateLockAfterProcessing(parsedMessage, false)
         }

@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/amqp",
-  "version": "17.2.0",
+  "version": "18.1.0",
   "private": false,
   "license": "MIT",
   "description": "AMQP adapter for message-queue-toolkit",
@@ -29,7 +29,7 @@
     "zod": "^3.23.8"
   },
   "peerDependencies": {
-    "@message-queue-toolkit/core": ">=18.2.0",
+    "@message-queue-toolkit/core": ">=19.1.0",
     "@message-queue-toolkit/schemas": ">=2.0.0",
     "amqplib": "^0.10.3"
   },
@@ -42,7 +42,7 @@
     "@vitest/coverage-v8": "^2.1.5",
     "amqplib": "^0.10.4",
     "awilix": "^12.0.1",
-    "awilix-manager": "^5.4.0",
+    "awilix-manager": "^6.0.0",
     "del-cli": "^6.0.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.5"

@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/core",
-  "version": "18.2.0",
+  "version": "19.1.0",
   "private": false,
   "license": "MIT",
   "description": "Useful utilities, interfaces and base classes for message queue handling. Supports AMQP and SQS with a common abstraction on top currently",
@@ -40,7 +40,7 @@
     "@types/tmp": "^0.2.6",
     "@vitest/coverage-v8": "^2.1.5",
     "awilix": "^12.0.1",
-    "awilix-manager": "^5.4.0",
+    "awilix-manager": "^6.0.0",
     "del-cli": "^6.0.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.5"

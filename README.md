@@ -388,7 +388,10 @@ It needs to implement the following methods:
   - `messageType`
   - `processingResult` - can have one of the following values: `retryLater`, `consumed`, `published`, `error`, `invalid_message`
   - `message` - whole message object
-  - `messageProcessingMilliseconds` - message processing time in milliseconds
+  - `queueName` - name of the queue or topic on which message is consumed or published
+  - `messageTimestamp` - the timestamp when the message was sent initially
+  - `messageProcessingStartTimestamp` - the timestamp when the processing of the message started
+  - `messageProcessingEndTimestamp` - the timestamp when the processing of the message finished
 
 See [@message-queue-toolkit/metrics](packages/metrics/README.md) for concrete implementations
 

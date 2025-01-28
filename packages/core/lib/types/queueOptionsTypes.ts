@@ -41,9 +41,25 @@ export type ProcessedMessageMetadata<MessagePayloadSchemas extends object = obje
   message: MessagePayloadSchemas | null
 
   /**
-   * Processing time in milliseconds
+   * Name of the queue processing the message
    */
-  messageProcessingMilliseconds?: number
+  queueName: string
+
+  /**
+   * The timestamp when the message was sent initially, in milliseconds since the epoch
+   */
+  messageTimestamp: number | undefined
+
+  /**
+   * The timestamp when the processing of the message began, in milliseconds since the epoch
+   * Note: for publishers the value may be smaller than messageTimestamp
+   */
+  messageProcessingStartTimestamp: number
+
+  /**
+   * The timestamp when the processing of the message ended, in milliseconds since the epoch
+   */
+  messageProcessingEndTimestamp: number
 
   /**
    * Deduplication id used for the message in case deduplication is enabled

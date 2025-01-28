@@ -61,7 +61,10 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     }
 
     try {
+      const messageProcessingStartTimestamp = Date.now()
       const parsedMessage = messageSchemaResult.result.parse(message)
+      const topicName =
+        this.locatorConfig?.topicName ?? this.creationConfig?.topic?.Name ?? 'unknown'
 
       if (this.logMessages) {
         // @ts-ignore
@@ -79,12 +82,23 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         this.isPublisherDeduplicationEnabled(message) &&
         (await this.deduplicateMessageBeforePublishing(parsedMessage)).isDuplicated
       ) {
-        this.handleMessageProcessed(parsedMessage, 'duplicate')
+        this.handleMessageProcessed({
+          message: parsedMessage,
+          processingResult: 'duplicate',
+          messageProcessingStartTimestamp,
+          queueName: topicName,
+        })
         return
       }
 
       await this.sendMessage(maybeOffloadedPayloadMessage, options)
-      this.handleMessageProcessed(parsedMessage, 'published')
+
+      this.handleMessageProcessed({
+        message: parsedMessage,
+        processingResult: 'published',
+        messageProcessingStartTimestamp,
+        queueName: topicName,
+      })
     } catch (error) {
       const err = error as Error
       this.handleError(err)
