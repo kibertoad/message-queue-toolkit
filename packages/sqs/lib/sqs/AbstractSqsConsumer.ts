@@ -232,8 +232,8 @@ export abstract class AbstractSqsConsumer<
         const { parsedMessage, originalMessage } = deserializedMessage.result
 
         if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
-          const lockAcquired = await this.tryToAcquireLockForProcessing(parsedMessage)
-          if (!lockAcquired) {
+          const wasLockAcquired = await this.tryToAcquireLockForProcessing(parsedMessage)
+          if (!wasLockAcquired) {
             this.handleMessageProcessed({
               message: originalMessage,
               processingResult: 'duplicate',

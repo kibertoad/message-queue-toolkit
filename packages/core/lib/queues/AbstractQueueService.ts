@@ -607,6 +607,7 @@ export abstract class AbstractQueueService<
       return { isDuplicated: !wasDeduplicationKeyStored }
     } catch (err) {
       this.handleError(err)
+      // In case of errors, we treat the message as not duplicated to enable publishing
       return { isDuplicated: false }
     }
   }
@@ -660,6 +661,7 @@ export abstract class AbstractQueueService<
       return false
     } catch (err) {
       this.handleError(err)
+      // In case of errors, true is returned to allow for message processing
       return true
     }
   }
