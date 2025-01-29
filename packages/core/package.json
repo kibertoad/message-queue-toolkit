@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/core",
-  "version": "19.0.0",
+  "version": "19.1.0",
   "private": false,
   "license": "MIT",
   "description": "Useful utilities, interfaces and base classes for message queue handling. Supports AMQP and SQS with a common abstraction on top currently",
@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "@lokalise/node-core": "^13.3.0",
-    "@message-queue-toolkit/schemas": "^4.0.0",
+    "@message-queue-toolkit/schemas": "^5.0.0",
     "fast-equals": "^5.0.1",
     "json-stream-stringify": "^3.1.6",
     "tmp": "^0.2.3",

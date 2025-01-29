@@ -9,7 +9,7 @@ export const OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA = z
     offloadedPayloadPointer: z.string().min(1),
     offloadedPayloadSize: z.number().int().positive(),
   })
-  // Pass-through allows to pass message ID, type and timestamp that are using dynamic keys.
+  // Pass-through allows to pass message ID, type, timestamp and message-deduplication-related fields that are using dynamic keys.
   .passthrough()
 
 export type OffloadedPayloadPointerPayload = z.infer<

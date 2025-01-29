@@ -5,10 +5,24 @@ import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema, ZodType } from 'zod'
 
+import {
+  MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA,
+  type MessageDeduplicationOptions,
+} from '@message-queue-toolkit/schemas'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
+import {
+  AcquireLockTimeoutError,
+  DEFAULT_MESSAGE_DEDUPLICATION_OPTIONS,
+  DeduplicationRequester,
+  type MessageDeduplicationConfig,
+  type ReleasableLock,
+  noopReleasableLock,
+} from '../message-deduplication/messageDeduplicationTypes'
 import { jsonStreamStringifySerializer } from '../payload-store/JsonStreamStringifySerializer'
-import { OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA } from '../payload-store/offloadedPayloadMessageSchemas'
-import type { OffloadedPayloadPointerPayload } from '../payload-store/offloadedPayloadMessageSchemas'
+import {
+  OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA,
+  type OffloadedPayloadPointerPayload,
+} from '../payload-store/offloadedPayloadMessageSchemas'
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
 import { isDestroyable } from '../payload-store/payloadStoreTypes'
 import type { MessageProcessingResult } from '../types/MessageQueueTypes'
@@ -22,7 +36,6 @@ import type {
 import { isRetryDateExceeded } from '../utils/dateUtils'
 import { streamWithKnownSizeToString } from '../utils/streamUtils'
 import { toDatePreprocessor } from '../utils/toDateProcessor'
-
 import type {
   BarrierCallback,
   BarrierResult,
@@ -73,6 +86,14 @@ export abstract class AbstractQueueService<
    * a infinite `retryLater` loop
    */
   protected readonly messageTimestampField: string
+  /**
+   * Used to know the message deduplication id
+   */
+  protected readonly messageDeduplicationIdField
+  /**
+   * Used to know the store-based message deduplication options
+   */
+  protected readonly messageDeduplicationOptionsField: string
 
   protected readonly errorReporter: ErrorReporter
   public readonly logger: CommonLogger
@@ -84,8 +105,9 @@ export abstract class AbstractQueueService<
   protected readonly deletionConfig?: DeletionConfig
   protected readonly payloadStoreConfig?: Omit<PayloadStoreConfig, 'serializer'> &
     Required<Pick<PayloadStoreConfig, 'serializer'>>
-  protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
+  protected readonly messageDeduplicationConfig?: MessageDeduplicationConfig
   protected readonly messageMetricsManager?: MessageMetricsManager<MessagePayloadSchemas>
+  protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
 
   protected isInitted: boolean
 
@@ -109,6 +131,9 @@ export abstract class AbstractQueueService<
     this.messageIdField = options.messageIdField ?? 'id'
     this.messageTypeField = options.messageTypeField
     this.messageTimestampField = options.messageTimestampField ?? 'timestamp'
+    this.messageDeduplicationIdField = options.messageDeduplicationIdField ?? 'deduplicationId'
+    this.messageDeduplicationOptionsField =
+      options.messageDeduplicationOptionsField ?? 'deduplicationOptions'
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig
@@ -118,6 +143,7 @@ export abstract class AbstractQueueService<
           ...options.payloadStoreConfig,
         }
       : undefined
+    this.messageDeduplicationConfig = options.messageDeduplicationConfig
 
     this.logMessages = options.logMessages ?? false
     this._handlerSpy = resolveHandlerSpy<MessagePayloadSchemas>(options)
@@ -248,6 +274,11 @@ export abstract class AbstractQueueService<
         ? // @ts-ignore
           message[this.messageTypeField]
         : undefined
+    const messageDeduplicationId =
+      message && this.messageDeduplicationIdField in message
+        ? // @ts-ignore
+          message[this.messageDeduplicationId]
+        : undefined
 
     return {
       processingResult,
@@ -256,6 +287,7 @@ export abstract class AbstractQueueService<
       queueName,
       message,
       messageTimestamp,
+      messageDeduplicationId,
       messageProcessingStartTimestamp,
       messageProcessingEndTimestamp,
     }
@@ -474,6 +506,10 @@ export abstract class AbstractQueueService<
       [this.messageTypeField]: message[this.messageTypeField],
       // @ts-ignore
       [this.messageTimestampField]: message[this.messageTimestampField],
+      // @ts-ignore
+      [this.messageDeduplicationIdField]: message[this.messageDeduplicationIdField],
+      // @ts-ignore
+      [this.messageDeduplicationOptionsField]: message[this.messageDeduplicationOptionsField],
     }
   }
 
@@ -522,6 +558,130 @@ export abstract class AbstractQueueService<
       return { result: JSON.parse(serializedOffloadedPayloadString) }
     } catch (e) {
       return { error: new Error('Failed to parse serialized offloaded payload', { cause: e }) }
+    }
+  }
+
+  /**
+   * Checks if the message is duplicated against the deduplication store.
+   * Returns true if the message is duplicated.
+   * Returns false if message is not duplicated or deduplication config is missing.
+   */
+  protected async isMessageDuplicated(
+    message: MessagePayloadSchemas,
+    requester: DeduplicationRequester,
+  ): Promise<boolean> {
+    if (!this.isDeduplicationEnabledForMessage(message)) {
+      return false
+    }
+
+    const deduplicationId = this.getMessageDeduplicationId(message) as string
+    const deduplicationConfig = this.messageDeduplicationConfig as MessageDeduplicationConfig
+
+    try {
+      return await deduplicationConfig.deduplicationStore.keyExists(
+        `${requester.toString()}:${deduplicationId}`,
+      )
+    } catch (err) {
+      this.handleError(err)
+      // In case of errors, we treat the message as not duplicated to enable further processing
+      return false
+    }
+  }
+
+  /**
+   * Checks if the message is duplicated.
+   * If it's not, stores the deduplication key in the deduplication store and returns false.
+   * If it is, returns true.
+   * If deduplication config is not provided, always returns false to allow further processing of the message.
+   */
+  protected async deduplicateMessage(
+    message: MessagePayloadSchemas,
+    requester: DeduplicationRequester,
+  ): Promise<{ isDuplicated: boolean }> {
+    if (!this.isDeduplicationEnabledForMessage(message)) {
+      return { isDuplicated: false }
+    }
+
+    const deduplicationId = this.getMessageDeduplicationId(message) as string
+    const { deduplicationWindowSeconds } = this.getParsedMessageDeduplicationOptions(message)
+    const deduplicationConfig = this.messageDeduplicationConfig as MessageDeduplicationConfig
+
+    try {
+      const wasDeduplicationKeyStored = await deduplicationConfig.deduplicationStore.setIfNotExists(
+        `${requester.toString()}:${deduplicationId}`,
+        new Date().toISOString(),
+        deduplicationWindowSeconds,
+      )
+
+      return { isDuplicated: !wasDeduplicationKeyStored }
+    } catch (err) {
+      this.handleError(err)
+      // In case of errors, we treat the message as not duplicated to enable further processing
+      return { isDuplicated: false }
+    }
+  }
+
+  /**
+   * Acquires exclusive lock for the message to prevent concurrent processing.
+   * If lock was acquired successfully, returns a lock object that should be released after processing.
+   * If lock couldn't be acquired due to timeout (meaning another process acquired it earlier), returns AcquireLockTimeoutError
+   * If lock couldn't be acquired for any other reasons or if deduplication config is not provided, always returns a lock object that does nothing, so message processing can continue.
+   */
+  protected async acquireLockForMessage(
+    message: MessagePayloadSchemas,
+  ): Promise<Either<AcquireLockTimeoutError, ReleasableLock>> {
+    if (!this.isDeduplicationEnabledForMessage(message)) {
+      return { result: noopReleasableLock }
+    }
+
+    const deduplicationId = this.getMessageDeduplicationId(message) as string
+    const deduplicationOptions = this.getParsedMessageDeduplicationOptions(message)
+    const deduplicationConfig = this.messageDeduplicationConfig as MessageDeduplicationConfig
+
+    const acquireLockResult = await deduplicationConfig.deduplicationStore.acquireLock(
+      `${DeduplicationRequester.Consumer.toString()}:${deduplicationId}`,
+      deduplicationOptions,
+    )
+
+    if (acquireLockResult.error && !(acquireLockResult.error instanceof AcquireLockTimeoutError)) {
+      this.handleError(acquireLockResult.error)
+      return { result: noopReleasableLock }
+    }
+
+    return acquireLockResult
+  }
+
+  protected isDeduplicationEnabledForMessage(message: MessagePayloadSchemas): boolean {
+    return !!this.messageDeduplicationConfig && !!this.getMessageDeduplicationId(message)
+  }
+
+  protected getMessageDeduplicationId(message: MessagePayloadSchemas): string | undefined {
+    // @ts-ignore
+    return message[this.messageDeduplicationIdField]
+  }
+
+  private getParsedMessageDeduplicationOptions(
+    message: MessagePayloadSchemas,
+  ): Required<MessageDeduplicationOptions> {
+    const parsedOptions = MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA.safeParse(
+      // @ts-expect-error
+      message[this.messageDeduplicationOptionsField] ?? {},
+    )
+
+    if (parsedOptions.error) {
+      this.logger.warn(
+        { error: parsedOptions.error.message },
+        `${this.messageDeduplicationOptionsField} contains one or more invalid values, falling back to default options`,
+      )
+
+      return DEFAULT_MESSAGE_DEDUPLICATION_OPTIONS
+    }
+
+    return {
+      ...DEFAULT_MESSAGE_DEDUPLICATION_OPTIONS,
+      ...Object.fromEntries(
+        Object.entries(parsedOptions.data).filter(([_, value]) => value !== undefined),
+      ),
     }
   }
 }
