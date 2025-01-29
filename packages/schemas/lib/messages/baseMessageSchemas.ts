@@ -36,6 +36,7 @@ type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string>
       timestamp: ZodString
       type: ZodLiteral<Z>
       deduplicationId: ZodOptional<ZodString>
+      deduplicationWindowSeconds: z.ZodOptional<z.ZodNumber>
       payload: T
       metadata: ZodObject<
         {
@@ -56,6 +57,7 @@ type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string>
       timestamp: ZodOptional<ZodString>
       type: ZodLiteral<Z>
       deduplicationId: ZodOptional<ZodString>
+      deduplicationWindowSeconds: z.ZodOptional<z.ZodNumber>
       payload: T
       metadata: ZodOptional<
         ZodObject<

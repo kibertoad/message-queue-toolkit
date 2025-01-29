@@ -26,7 +26,8 @@ type SqsPermissionConsumerOptions = Pick<
   | 'consumerOverrides'
   | 'maxRetryDuration'
   | 'payloadStoreConfig'
-  | 'consumerMessageDeduplicationConfig'
+  | 'messageDeduplicationConfig'
+  | 'enableConsumerDeduplication'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -120,7 +121,10 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
         concurrentConsumersAmount: options.concurrentConsumersAmount,
         maxRetryDuration: options.maxRetryDuration,
         payloadStoreConfig: options.payloadStoreConfig,
-        consumerMessageDeduplicationConfig: options.consumerMessageDeduplicationConfig,
+        messageDeduplicationConfig: options.messageDeduplicationConfig,
+        enableConsumerDeduplication: options.enableConsumerDeduplication,
+        messageDeduplicationIdField: 'deduplicationId',
+        messageDeduplicationWindowSecondsField: 'deduplicationWindowSeconds',
         handlers: new MessageHandlerConfigBuilder<
           SupportedMessages,
           ExecutionContext,

@@ -79,10 +79,10 @@ export {
   isOffloadedPayloadPointerPayload,
 } from './lib/payload-store/offloadedPayloadMessageSchemas'
 export {
-  type PublisherMessageDeduplicationMessageTypeConfig,
-  type PublisherMessageDeduplicationStore,
+  type MessageDeduplicationStore,
   type MessageDeduplicationConfig,
-  type ConsumerMessageDeduplicationMessageTypeConfig,
-  type ConsumerMessageDeduplicationStore,
-  ConsumerMessageDeduplicationKeyStatus,
+  type ReleasableLock,
+  DeduplicationRequester,
+  AcquireLockTimeoutError,
+  noopReleasableLock,
 } from './lib/message-deduplication/messageDeduplicationTypes'

@@ -180,7 +180,7 @@ export abstract class AbstractAmqpConsumer<
           // requeue the message if maxRetryDuration is not exceeded, else ack it to avoid infinite loop
           if (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
             // TODO: Add retry delay + republish message updating internal properties
-            this.queueMessageForRetry(originalMessage)
+            this.channel.nack(message as Message, false, true)
             this.handleMessageProcessed({
               message: parsedMessage,
               processingResult: 'retryLater',
@@ -293,10 +293,6 @@ export abstract class AbstractAmqpConsumer<
       resolve,
       reject,
     )
-  }
-
-  protected override queueMessageForRetry(message: MessagePayloadType): void {
-    this.channel.nack(message as Message, false, true)
   }
 
   private deserializeMessage(

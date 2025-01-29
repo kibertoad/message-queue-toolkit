@@ -36,7 +36,10 @@ They implement the following public methods:
         * `handlerSpy` - allow awaiting certain messages to be published (see [Handler Spies](#handler-spies) for more information);
         * `logMessages` - add logs for processed messages.
         * `payloadStoreConfig` - configuration for payload offloading. This option enables the external storage of large message payloads to comply with message size limitations of the queue system. For more details on setting this up, see [Payload Offloading](#payload-offloading).
-        * `publisherMessageDeduplicationConfig` - configuration for store-based message deduplication on publisher level. For more details on setting this up, see [Publisher-level message deduplication](#publisher-level-message-deduplication).
+        * `messageDeduplicationConfig` - configuration for store-based message deduplication on publisher level. For more details on setting this up, see [Publisher-level store-based-message deduplication](#publisher-level-store-based-message-deduplication).
+        * `enablePublisherDeduplication` - enable store-based publisher-level deduplication. For more details on setting this up, see [Publisher-level store-based-message deduplication](#publisher-level-store-based-message-deduplication).
+        * `messageDeduplicationIdField` - which field in the message contains the deduplication id (by default it is `deduplicationId`). This field needs to be defined as `z.string` in the schema. For more details on setting this up, see [Publisher-level store-based-message deduplication](#publisher-level-store-based-message-deduplication).
+        * `messageDeduplicationWindowSecondsField` - which field in the message contains the deduplication window (by default it is `deduplicationWindowSeconds`). This field needs to be defined as `z.number` in the schema. For more details on setting this up, see [Publisher-level store-based-message deduplication](#publisher-level-store-based-message-deduplication).
 * `init()`, prepare publisher for use (e. g. establish all necessary connections);
 * `close()`, stop publisher use (e. g. disconnect);
 * `publish()`, send a message to a queue or topic. It accepts the following parameters:
@@ -102,7 +105,10 @@ Multi-schema consumers support multiple message types via handler configs. They 
         * `logMessages` - add logs for processed messages.
         * `payloadStoreConfig` - configuration for payload offloading. This option enables the external storage of large message payloads to comply with message size limitations of the queue system. For more details on setting this up, see [Payload Offloading](#payload-offloading).
         * `concurrentConsumersAmount` - configuration for specifying the number of concurrent consumers to create. Available only for SQS and SNS consumers
-        * `consumerMessageDeduplicationConfig` - configuration for store-based message deduplication on consumer level. For more details on setting this up, see [Consumer-level message deduplication](#consumer-level-message-deduplication).
+        * `messageDeduplicationConfig` - configuration for store-based message deduplication on consumer level. For more details on setting this up, see [Consumer-level store-based-message deduplication](#consumer-level-store-based-message-deduplication).
+        * `enableConsumerDeduplication` - enable store-based consumer-level deduplication. For more details on setting this up, see [Consumer-level store-based-message deduplication](#consumer-level-store-based-message-deduplication).
+        * `messageDeduplicationIdField` - which field in the message contains the deduplication id (by default it is `deduplicationId`). This field needs to be defined as `z.string` in the schema. For more details on setting this up, see [Consumer-level store-based-message deduplication](#consumer-level-store-based-message-deduplication).
+        * `messageDeduplicationWindowSecondsField` - which field in the message contains the deduplication window (by default it is `deduplicationWindowSeconds`). This field needs to be defined as `z.number` in the schema. For more details on setting this up, see [Consumer-level store-based-message deduplication](#consumer-level-store-based-message-deduplication).
 * `init()`, prepare consumer for use (e. g. establish all necessary connections);
 * `close()`, stop listening for messages and disconnect;
 * `start()`, which invokes `init()`.
@@ -392,30 +398,39 @@ It needs to implement the following methods:
   - `messageTimestamp` - the timestamp when the message was sent initially
   - `messageProcessingStartTimestamp` - the timestamp when the processing of the message started
   - `messageProcessingEndTimestamp` - the timestamp when the processing of the message finished
+  - `messageDeduplicationId` - the deduplication id of the message, in case deduplication is enabled
+  - `messageDeduplicationWindowSeconds` - the deduplication window of the message, in case deduplication is enabled
 
 See [@message-queue-toolkit/metrics](packages/metrics/README.md) for concrete implementations
 
-## Publisher-level store-based message deduplication
+## Store-based message deduplication
+
+There are 2 types of store-based message deduplication: publisher-level and consumer-level.
+
+### Publisher-level store-based message deduplication
 
 Publisher-level store-based message deduplication is a mechanism that prevents the same message from being sent to the queue multiple times.
-It is useful when you want to ensure that a message is published only once, regardless of how many times it is sent.
+It is useful when you want to ensure that a message is published only once in a specified period of time, regardless of how many times it is sent.
 
 The mechanism relies on:
 1. a deduplication store, which is used to store deduplication keys for a certain period of time
-2. a deduplication key, which must be generated and passed as the message property (`messageDeduplicationIdField` property of publisher configuration lets you specify the field in the message that contains the deduplication id). A good deduplication key should be unique for each message and should not change between retries. It should also be relatively short to avoid unnecessary storage costs.
+2. a deduplication key, which uniquely identifies a message
+3. a deduplication window, which is a period of time during which a deduplication key is stored in the store
 
 Note that in case of some queuing systems, such as standard SQS, publisher-level deduplication is not sufficient to guarantee that a message is **processed** only once.
 This is because standard SQS has an at-least-once delivery guarantee, which means that a message can be delivered more than once.
 In such cases, publisher-level deduplication should be combined with consumer-level one.
 
-In case you would like to use SQS FIFO deduplication feature, this feature won't handle it for you.
+The keys stored in the deduplication stored are prefixed with `publisher:` to avoid conflicts with consumer-level deduplication keys in case they are both enabled and the same duplication store is used.
+
+In case you would like to use SQS FIFO deduplication feature, store-based deduplication won't handle it for you.
 Instead, you should either enable content-based deduplication on the queue or pass `MessageDeduplicationId` within message options when publishing a message.
 
-### Configuration
+#### Configuration
 
 1. **Install a deduplication store implementation (Redis in example)**:
     ```bash
-    npm install @message-queue-toolkit/redis-deduplication-store
+    npm install @message-queue-toolkit/redis-message-deduplication-store
     ```
 
 2. **Configure your setup:**
@@ -428,59 +443,70 @@ Instead, you should either enable content-based deduplication on the queue or pa
     })
 
     // Create a new instance of RedisMessageDeduplicationStore
-    messageDeduplicationStore = new RedisMessageDeduplicationStore(
-      { redis: redisClient },
-      { keyPrefix: 'optional-key-prefix' }, // used to prefix deduplication keys
-    )
-   
+    messageDeduplicationStore = new RedisMessageDeduplicationStore({ redis: redisClient })
+
+    // Configure messages publisher
     export class MyPublisher extends AbstractSqsPublisher<> {
         constructor(
             // dependencies and options
         ) {
             super(dependencies, {
                 // rest of the configuration
-                messageDeduplicationIdField: 'deduplicationId', // field in the message that contains unique deduplication id
+                enablePublisherDeduplication: true, // enable publisher-level deduplication
+                messageDeduplicationIdField: 'deduplicationId', // provide a field name in the message that contains unique deduplication id
+                messageDeduplicationWindowSecondsField: 'deduplicationWindowSeconds', // provide a field name in the message that contains deduplication window
                 messageDeduplicationConfig: {
-                  deduplicationStore: messageDeduplicationStore,
-                  publisherMessageTypeToConfigMap: {
-                    dummy: {
-                      deduplicationWindowSeconds: 10,
-                    },
-                    // In case there are other event types available, you can provide their deduplication strategies here
-                    // If strategy for certain message type is not provided, deduplication will not be performed for this message type
-                  },
+                  deduplicationStore: messageDeduplicationStore, // provide an instance of deduplication store
                 },
             })
         }
     }
+
+    // Create a publisher and publish a message
+    const publisher = new MyPublisher(dependencies, options)
+    await publisher.init()
+
+    // Publish a message and deduplicate it for the next 60 seconds
+    await publisher.publish({ 
+        // rest of the message payload
+        deduplicationId: 'unique-id',
+        deduplicationWindowSeconds: 60, // in case of invalid value or missing field, default value is used (10 seconds)
+    })
+
+   // You can also publish messages without deduplication, by simply ommitting deduplicationId field
+    await publisher.publish({ 
+        // message payload
+    })
     ```
 
-## Consumer-level store-based message deduplication
+### Consumer-level store-based message deduplication
 
 Consumer-level store-based message deduplication is a mechanism that prevents the same message from being processed multiple times.
-It is useful when you want to be sure that message is processed only once, regardless of how many times it is received.
+It is useful when you want to be sure that message is processed only once in a specified period of time, regardless of how many times it is received.
 
 The mechanism relies on:
 1. a deduplication store, which is used to store deduplication keys for a certain period of time.
-2. a deduplication key, which should be stored as part of the message before publishing it (`messageDeduplicationIdField` property of `newPublisherOptions` lets you specify the field in the message that contains the deduplication id)
+2. a deduplication key, which uniquely identifies a message
+3. a deduplication window, which is a period of time during which a deduplication key is stored in the store
 
-In case the key doesn't exist in the store, key is stored with status `PROCESSING` in the store for a certain period of time (i.e. `maximumProcessingTimeSeconds`) and the message is processed.
-Upon successful processing, deduplication key TTL is updated to `deduplicationWindowSeconds` to prevent processing the same message again. The value is updated to `PROCESSED`.
-In case of errors handled gracefully by a consumer, deduplication key is removed from the store to allow instant reprocessing of the message.
-In case of unexpected errors, the message will be retried again after deduplication key TTL expires.
-In case of another consumer trying to process the same message while its status is `PROCESSING`, the message will be retried again according to `queueMessageForRetry` method which can be override by the consumer.
-In case of another consumer trying to process the same message while its status is `PROCESSED`, the message will be considered as a duplicate and will be ignored.
+The consumer with store-based message deduplication enabled starts by checking if the deduplication key exists in the store.
+If it does, message is considered as a duplicate and is ignored.
+Otherwise, the consumer acquires an exclusive lock, which guarantees that only it can process the message.
+In case of redis-based deduplication store, `redis-semaphore` is used which handles keeping lock alive when consumer is processing the message, and releasing it when processing is done.
+Upon successful message processing, deduplication key is stored in the store for a certain period of time (i.e. `deduplicationWindowSeconds`) to prevent processing the same message again.
 
-In case you would like to use SQS FIFO deduplication feature, this feature won't handle it for you.
+The keys stored in the deduplication stored are prefixed with `consumer:` to avoid conflicts with publisher-level deduplication keys in case they are both enabled and the same duplication store is used.
+
+In case you would like to use SQS FIFO deduplication feature, store-based deduplication won't handle it for you.
 Instead, you should either enable content-based deduplication on the queue or pass `MessageDeduplicationId` within message options when publishing a message.
 
-### Configuration
+#### Configuration
 
 1. **Install a deduplication store implementation (Redis in example)**:
     ```bash
-    npm install @message-queue-toolkit/redis-deduplication-store
+    npm install @message-queue-toolkit/redis-message-deduplication-store
     ```
-   
+
 2. **Configure your setup:**
     ```typescript
     import { Redis } from 'ioredis'
@@ -491,43 +517,36 @@ Instead, you should either enable content-based deduplication on the queue or pa
     })
 
     // Create a new instance of RedisMessageDeduplicationStore
-    messageDeduplicationStore = new RedisMessageDeduplicationStore(
-      { redis: redisClient },
-      { keyPrefix: 'optional-key-prefix' }, // used to prefix deduplication keys
-    )
-   
-    // Consumer-level deduplication allows you to provide custom strategies of deduplication key generation for each message type
-    // In this example we'll provide just one strategy for one message type - 'dummy'
-    class DummyMessageDeduplicationKeyGenerator implements MessageDeduplicationKeyGenerator<DummyEvent> {
-      generateKey(message: DummyEvent): string {
-        return message.id
-      }
-    }
-   
-    const dummyMessageDeduplicationKeyGenerator = new DummyMessageDeduplicationKeyGenerator()
-   
+    messageDeduplicationStore = new RedisMessageDeduplicationStore({ redis: redisClient })
+
     export class MyConsumer extends AbstractSqsConsumer<> {
         constructor(
             // dependencies and options
         ) {
             super(dependencies, {
-                // rest of the configuration
-                newPublisherOptions: {
-                  // rest of publisher options
-                  messageDeduplicationIdField: 'deduplicationId', // field in the message that contains unique deduplication id 
-                },
+                enableConsumerDeduplication: true, // enable consuemer-level deduplication
+                messageDeduplicationIdField: 'deduplicationId', // provide a field name in the message that contains unique deduplication id
+                messageDeduplicationWindowSecondsField: 'deduplicationWindowSeconds', // provide a field name in the message that contains deduplication window
                 messageDeduplicationConfig: {
-                  deduplicationStore: messageDeduplicationStore,
-                  consumerMessageTypeToConfigMap: {
-                    dummy: {
-                      deduplicationWindowSeconds: 10,
-                      maximumProcessingTimeSeconds: 5,
-                    },
-                    // In case there are other event types available, you can provide their deduplication strategies here
-                    // If strategy for certain message type is not provided, deduplication will not be performed for this message type
-                  },
+                  deduplicationStore: messageDeduplicationStore, // provide an instance of deduplication store
                 },
             })
         }
     }
+
+    // Create a consumer and start listening for messages
+    const consumer = new MyConsumer(dependencies, options)
+    await consumer.init()
+
+    // Publish a message, so that consumer can process it
+    publisher.publish({
+        // rest of the message payload
+        deduplicationId: 'unique-id',
+        deduplicationWindowSeconds: 60, // in case of invalid value or missing field, default value is used (10 seconds)
+    })
+
+   // You can also consume messages without deduplication, by simply ommitting deduplicationId field while publishing
+    publisher.publish({ 
+        // message payload
+    })
     ```

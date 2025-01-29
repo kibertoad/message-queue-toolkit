@@ -12,8 +12,6 @@ import { TestEvents, registerDependencies } from '../../test/utils/testContext'
 import { type CommonSnsPublisher, CommonSnsPublisherFactory } from './CommonSnsPublisherFactory'
 import { SnsPublisherManager } from './SnsPublisherManager'
 
-const TEST_DEDUPLICATION_KEY_PREFIX = 'test_key_prefix'
-
 describe('SnsPublisherManager', () => {
   let diContainer: AwilixContainer<Dependencies>
   let publisherManager: SnsPublisherManager<
@@ -29,12 +27,9 @@ describe('SnsPublisherManager', () => {
       },
       false,
     )
-    messageDeduplicationStore = new RedisMessageDeduplicationStore(
-      {
-        redis: diContainer.cradle.redis,
-      },
-      { keyPrefix: TEST_DEDUPLICATION_KEY_PREFIX },
-    )
+    messageDeduplicationStore = new RedisMessageDeduplicationStore({
+      redis: diContainer.cradle.redis,
+    })
   })
 
   beforeEach(() => {
@@ -47,19 +42,15 @@ describe('SnsPublisherManager', () => {
         handlerSpy: true,
         messageIdField: 'id',
         messageTypeField: 'type',
-        messageDeduplicationIdField: 'deduplicationId',
         creationConfig: {
           updateAttributesIfExists: true,
         },
-        publisherMessageDeduplicationConfig: {
+        messageDeduplicationIdField: 'deduplicationId',
+        messageDeduplicationWindowSecondsField: 'deduplicationWindowSeconds',
+        messageDeduplicationConfig: {
           deduplicationStore: messageDeduplicationStore,
-          messageTypeToConfigMap: {
-            'entity.created': {
-              deduplicationWindowSeconds: 10,
-            },
-            // 'entity.update' is not configured on purpose
-          },
         },
+        enablePublisherDeduplication: true,
       },
     })
   })
@@ -74,7 +65,7 @@ describe('SnsPublisherManager', () => {
   })
 
   describe('publish', () => {
-    it('publishes a message and writes deduplication key to store when message type is configured with deduplication', async () => {
+    it('publishes a message and stores deduplication id when message contains deduplication details', async () => {
       const deduplicationId = '1'
       const message = {
         payload: {
@@ -82,6 +73,7 @@ describe('SnsPublisherManager', () => {
         },
         type: 'entity.created',
         deduplicationId,
+        deduplicationWindowSeconds: 10,
       } satisfies TestEventPublishPayloadsType
 
       const publishedMessage = await publisherManager.publish(TestEvents.created.snsTopic, message)
@@ -91,17 +83,20 @@ describe('SnsPublisherManager', () => {
         .waitForMessageWithId(publishedMessage.id)
       expect(spy.processingResult).toBe('published')
 
-      const deduplicationKeyValue = await messageDeduplicationStore.getByKey(deduplicationId)
-      expect(deduplicationKeyValue).not.toBeNull()
+      const deduplicationKeyExists = await messageDeduplicationStore.keyExists(
+        `publisher:${deduplicationId}`,
+      )
+      expect(deduplicationKeyExists).toBe(true)
     })
 
-    it('does not publish the same message if deduplication key already exists', async () => {
+    it('does not publish the same message if deduplication id already exists', async () => {
       const message = {
         payload: {
           newData: 'msg',
         },
         type: 'entity.created',
         deduplicationId: '1',
+        deduplicationWindowSeconds: 10,
       } satisfies TestEventPublishPayloadsType
 
       // Message is published for the initial call
@@ -130,20 +125,20 @@ describe('SnsPublisherManager', () => {
       expect(spySecondCall.processingResult).toBe('duplicate')
     })
 
-    it('works only for event types that are configured', async () => {
+    it('works only for messages that have deduplication details provided', async () => {
       const message1 = {
         payload: {
           newData: 'msg',
         },
         type: 'entity.created',
         deduplicationId: '1',
+        deduplicationWindowSeconds: 10,
       } satisfies TestEventPublishPayloadsType
       const message2 = {
         payload: {
           updatedData: 'msg',
         },
         type: 'entity.updated',
-        deduplicationId: '1', // Even though it's set, the message type is not configured on a publisher level - deduplication should not work
       } satisfies TestEventPublishPayloadsType
 
       // Message 1 is published for the initial call

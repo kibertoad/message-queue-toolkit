@@ -5,13 +5,7 @@ import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer'
 import type { HandlerSpy, HandlerSpyParams } from '../queues/HandlerSpy'
 
-import type {
-  ConsumerMessageDeduplicationMessageTypeConfig,
-  ConsumerMessageDeduplicationStore,
-  MessageDeduplicationConfig,
-  PublisherMessageDeduplicationMessageTypeConfig,
-  PublisherMessageDeduplicationStore,
-} from '../message-deduplication/messageDeduplicationTypes'
+import type { MessageDeduplicationConfig } from '../message-deduplication/messageDeduplicationTypes'
 import type { MessageProcessingResult, TransactionObservabilityManager } from './MessageQueueTypes'
 
 export type QueueDependencies = {
@@ -62,9 +56,14 @@ export type ProcessedMessageMetadata<MessagePayloadSchemas extends object = obje
   messageProcessingEndTimestamp: number
 
   /**
-   * Deduplication id used for the message in case deduplication is enabled
+   * ID used for the message deduplication, in case it's enabled
    */
   messageDeduplicationId?: string
+
+  /**
+   * The window in seconds for message deduplication, in case it's enabled
+   */
+  messageDeduplicationWindowSeconds?: number
 }
 
 export interface MessageMetricsManager<MessagePayloadSchemas extends object = object> {
@@ -85,18 +84,12 @@ export type CommonQueueOptions = {
   messageIdField?: string
   messageTimestampField?: string
   messageDeduplicationIdField?: string
+  messageDeduplicationWindowSecondsField?: string
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
   deletionConfig?: DeletionConfig
   payloadStoreConfig?: PayloadStoreConfig
-  publisherMessageDeduplicationConfig?: MessageDeduplicationConfig<
-    PublisherMessageDeduplicationStore,
-    PublisherMessageDeduplicationMessageTypeConfig
-  >
-  consumerMessageDeduplicationConfig?: MessageDeduplicationConfig<
-    ConsumerMessageDeduplicationStore,
-    ConsumerMessageDeduplicationMessageTypeConfig
-  >
+  messageDeduplicationConfig?: MessageDeduplicationConfig
 }
 
 export type CommonCreationConfigType = {
@@ -129,6 +122,7 @@ export type QueuePublisherOptions<
   MessagePayloadSchemas extends object,
 > = QueueOptions<CreationConfigType, QueueLocatorType> & {
   messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
+  enablePublisherDeduplication?: boolean
 }
 
 export type DeadLetterQueueOptions<
@@ -158,4 +152,5 @@ export type QueueConsumerOptions<
     DeadLetterQueueIntegrationOptions
   >
   maxRetryDuration?: number
+  enableConsumerDeduplication?: boolean
 }

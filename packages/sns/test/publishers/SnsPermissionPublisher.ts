@@ -1,5 +1,5 @@
-import { AbstractSnsPublisher } from '../../lib/sns/AbstractSnsPublisher'
-import type { SNSDependencies, SNSOptions } from '../../lib/sns/AbstractSnsService'
+import { AbstractSnsPublisher, type SNSPublisherOptions } from '../../lib/sns/AbstractSnsPublisher'
+import type { SNSDependencies } from '../../lib/sns/AbstractSnsService'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
@@ -17,11 +17,12 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<SupportedTypes>
   constructor(
     dependencies: SNSDependencies,
     options?: Pick<
-      SNSOptions,
+      SNSPublisherOptions<SupportedTypes>,
       | 'creationConfig'
       | 'locatorConfig'
       | 'payloadStoreConfig'
-      | 'publisherMessageDeduplicationConfig'
+      | 'messageDeduplicationConfig'
+      | 'enablePublisherDeduplication'
     >,
   ) {
     super(dependencies, {
@@ -39,8 +40,10 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<SupportedTypes>
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
       handlerSpy: true,
       messageTypeField: 'messageType',
-      publisherMessageDeduplicationConfig: options?.publisherMessageDeduplicationConfig,
+      messageDeduplicationConfig: options?.messageDeduplicationConfig,
+      enablePublisherDeduplication: options?.enablePublisherDeduplication,
       messageDeduplicationIdField: 'deduplicationId',
+      messageDeduplicationWindowSecondsField: 'deduplicationWindowSeconds',
     })
   }
 

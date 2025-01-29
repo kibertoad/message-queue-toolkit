@@ -1,57 +1,48 @@
-import type {
-  ConsumerMessageDeduplicationMessageType,
-  PublisherMessageDeduplicationMessageType,
-} from './messageDeduplicationSchemas'
+import type { Either } from '@lokalise/node-core'
 
-export interface PublisherMessageDeduplicationStore {
+export interface ReleasableLock {
+  release(): Promise<void>
+}
+
+export class AcquireLockTimeoutError extends Error {}
+
+export interface MessageDeduplicationStore {
   /**
    * Stores a deduplication key in case it does not already exist.
    * @param {string} key - deduplication key
    * @param {string} value - value to store
    * @param {number} ttlSeconds - time to live in seconds
-   * @returns {boolean} - true if the key was stored, false if it already existed
+   * @returns {Promise<boolean>} - true if the key was stored, false if it already existed
    */
   setIfNotExists(key: string, value: string, ttlSeconds: number): Promise<boolean>
 
-  /** Retrieves value associated with deduplication key */
-  getByKey(key: string): Promise<string | null>
-}
-
-export type PublisherMessageDeduplicationMessageTypeConfig =
-  PublisherMessageDeduplicationMessageType
-
-export interface ConsumerMessageDeduplicationStore extends PublisherMessageDeduplicationStore {
   /**
-   * Retrieves TTL of the deduplication key
-   *
+   * Acquires locks for a given key
    * @param {string} key - deduplication key
-   * @returns {number|null} - TTL of the deduplication key in seconds or null if the key does not exist
+   * @returns {Promise<Either<AcquireLockTimeoutError | Error, ReleasableLock>>} - a promise that resolves to a ReleasableLock if the lock was acquired, AcquireLockTimeoutError error if the lock could not be acquired due to timeout, or an Error if the lock could not be acquired for another reason
    */
-  getKeyTtl(key: string): Promise<number | null>
+  acquireLock(key: string): Promise<Either<AcquireLockTimeoutError | Error, ReleasableLock>>
 
-  /** Sets a value for the deduplication key or updates it if it already exists */
-  setOrUpdate(key: string, value: string, ttlSeconds: number): Promise<void>
-
-  /** Deletes the deduplication key */
-  deleteKey(key: string): Promise<void>
+  /**
+   * Checks if a deduplication key exists in the store
+   * @param {string} key - deduplication key
+   * @returns {Promise<boolean>} - true if the key exists, false otherwise
+   */
+  keyExists(key: string): Promise<boolean>
 }
 
-export type ConsumerMessageDeduplicationMessageTypeConfig = ConsumerMessageDeduplicationMessageType
-
-export type MessageDeduplicationConfig<
-  TStore extends ConsumerMessageDeduplicationStore | PublisherMessageDeduplicationStore,
-  TConfig extends
-    | ConsumerMessageDeduplicationMessageTypeConfig
-    | PublisherMessageDeduplicationMessageTypeConfig,
-> = {
+export type MessageDeduplicationConfig = {
   /** The store to use for storage and retrieval of deduplication keys */
-  deduplicationStore: TStore
-
-  /** The configuration for deduplication for each message type */
-  messageTypeToConfigMap: Record<string, TConfig>
+  deduplicationStore: MessageDeduplicationStore
 }
 
-export enum ConsumerMessageDeduplicationKeyStatus {
-  PROCESSING = 'PROCESSING',
-  PROCESSED = 'PROCESSED',
+export enum DeduplicationRequester {
+  Consumer = 'consumer',
+  Publisher = 'publisher',
+}
+
+export const DEFAULT_DEDUPLICATION_WINDOW_SECONDS = 10
+
+export const noopReleasableLock: ReleasableLock = {
+  release: async () => {},
 }

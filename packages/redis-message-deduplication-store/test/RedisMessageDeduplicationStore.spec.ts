@@ -1,11 +1,11 @@
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { AcquireLockTimeoutError } from '@message-queue-toolkit/core'
 import { Redis } from 'ioredis'
+import { Mutex, TimeoutError } from 'redis-semaphore'
 import { RedisMessageDeduplicationStore } from '../lib/RedisMessageDeduplicationStore'
 import { cleanRedis } from './utils/cleanRedis'
 import { TEST_REDIS_CONFIG } from './utils/testRedisConfig'
-
-const KEY_PREFIX = 'test_key_prefix'
 
 describe('RedisMessageDeduplicationStore', () => {
   const redisConfig = TEST_REDIS_CONFIG
@@ -26,10 +26,11 @@ describe('RedisMessageDeduplicationStore', () => {
       maxRetriesPerRequest: null,
       lazyConnect: false,
     })
-    store = new RedisMessageDeduplicationStore({ redis }, { keyPrefix: KEY_PREFIX })
+    store = new RedisMessageDeduplicationStore({ redis })
   })
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     await cleanRedis(redis)
   })
 
@@ -43,106 +44,86 @@ describe('RedisMessageDeduplicationStore', () => {
 
       expect(result).toBe(true)
 
-      const storedValue = await redis.get(`${KEY_PREFIX}:${key}`)
+      const storedValue = await redis.get(key)
       expect(storedValue).toBe(value)
 
-      const storedTtl = await redis.ttl(`${KEY_PREFIX}:${key}`)
+      const storedTtl = await redis.ttl(key)
       expect(storedTtl).toBeLessThanOrEqual(ttlSeconds)
     })
 
     it('in case key exists, it does not store it and returns false', async () => {
       const key = 'test_key'
       const value = 'test_value'
-      await redis.set(`${KEY_PREFIX}:${key}`, value, 'EX', 120)
+      await redis.set(key, value, 'EX', 120)
 
       const result = await store.setIfNotExists(key, value, 60)
 
       expect(result).toBe(false)
 
-      const storedTtl = await redis.ttl(`${KEY_PREFIX}:${key}`)
+      const storedTtl = await redis.ttl(key)
       expect(storedTtl).toBeGreaterThan(60)
     })
   })
 
-  describe('getByKey', () => {
-    it('in case key exists, it returns the value', async () => {
+  describe('acquireLock', () => {
+    it('acquires lock and returns Mutex', async () => {
       const key = 'test_key'
-      const value = 'test_value'
-      await redis.set(`${KEY_PREFIX}:${key}`, value)
+      const acquireLockResult = await store.acquireLock(key)
 
-      const result = await store.getByKey(key)
-
-      expect(result).toBe(value)
+      expect(acquireLockResult.result).toBeInstanceOf(Mutex)
     })
 
-    it('in case key does not exist, it returns null', async () => {
+    it('returns AcquireLockTimeoutError if lock cannot be acquired due to timeout', async () => {
       const key = 'test_key'
+      vi.spyOn(Mutex.prototype, 'acquire').mockRejectedValue(new TimeoutError('Test error'))
 
-      const result = await store.getByKey(key)
+      const acquireLockResult = await store.acquireLock(key)
 
-      expect(result).toBeNull()
-    })
-  })
-
-  describe('getKeyTtl', () => {
-    it('in case key exists, it returns the ttl', async () => {
-      const key = 'test_key'
-      const value = 'test_value'
-      await redis.set(`${KEY_PREFIX}:${key}`, value, 'EX', 60)
-
-      const result = await store.getKeyTtl(key)
-
-      expect(result).toBeLessThanOrEqual(60)
+      expect(acquireLockResult.error).toBeInstanceOf(AcquireLockTimeoutError)
     })
 
-    it('in case key does not exist, it returns null', async () => {
+    it('returns Error if lock cannot be acquired for other reasons', async () => {
       const key = 'test_key'
+      vi.spyOn(Mutex.prototype, 'acquire').mockRejectedValue(new Error('Test error'))
 
-      const result = await store.getKeyTtl(key)
+      const acquireLockResult = await store.acquireLock(key)
 
-      expect(result).toBeNull()
+      expect(acquireLockResult.error).toBeInstanceOf(Error)
+      expect(acquireLockResult.error).not.toBeInstanceOf(AcquireLockTimeoutError)
     })
   })
 
-  describe('setOrUpdate', () => {
-    it('updates the ttl and value of the key if it exists', async () => {
+  describe('keyExists', () => {
+    it('returns true if key exists', async () => {
       const key = 'test_key'
       const value = 'test_value'
-      await redis.set(`${KEY_PREFIX}:${key}`, value, 'EX', 60)
+      await redis.set(key, value, 'EX', 120)
 
-      const newValue = 'new_test_value'
-      await store.setOrUpdate(key, newValue, 120)
+      const result = await store.keyExists(key)
 
-      const storedValue = await redis.get(`${KEY_PREFIX}:${key}`)
-      expect(storedValue).toBe(newValue)
-
-      const storedTtl = await redis.ttl(`${KEY_PREFIX}:${key}`)
-      expect(storedTtl).toBeGreaterThan(60)
+      expect(result).toBe(true)
     })
 
-    it('stores the key if it does not exist', async () => {
+    it('returns false if key does not exist', async () => {
       const key = 'test_key'
-      const value = 'test_value'
 
-      await store.setOrUpdate(key, value, 60)
+      const result = await store.keyExists(key)
 
-      const storedValue = await redis.get(`${KEY_PREFIX}:${key}`)
-      expect(storedValue).toBe(value)
-
-      const storedTtl = await redis.ttl(`${KEY_PREFIX}:${key}`)
-      expect(storedTtl).toBeLessThanOrEqual(60)
+      expect(result).toBe(false)
     })
   })
 
   describe('deleteKey', () => {
-    it('deletes the key', async () => {
+    it('deletes key and returns number of deleted keys', async () => {
       const key = 'test_key'
       const value = 'test_value'
-      await redis.set(`${KEY_PREFIX}:${key}`, value)
+      await redis.set(key, value, 'EX', 120)
 
-      await store.deleteKey(key)
+      const result = await store.deleteKey(key)
 
-      const storedValue = await redis.get(`${KEY_PREFIX}:${key}`)
+      expect(result).toBe(1)
+
+      const storedValue = await redis.get(key)
       expect(storedValue).toBeNull()
     })
   })

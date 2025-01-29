@@ -1,66 +1,53 @@
-import type {
-  ConsumerMessageDeduplicationStore,
-  PublisherMessageDeduplicationStore,
+import type { Either } from '@lokalise/node-core'
+import {
+  AcquireLockTimeoutError,
+  type MessageDeduplicationStore,
+  type ReleasableLock,
 } from '@message-queue-toolkit/core'
 import type { Redis } from 'ioredis'
+import { Mutex, TimeoutError } from 'redis-semaphore'
 
 export type RedisMessageDeduplicationStoreDependencies = {
   redis: Redis
 }
 
-export type RedisMessageDeduplicationStoreConfig = {
-  /** Optional prefix for the keys in the store, useful for namespacing and differentiating between deduplication store and other data */
-  keyPrefix?: string
-}
-
-export class RedisMessageDeduplicationStore
-  implements PublisherMessageDeduplicationStore, ConsumerMessageDeduplicationStore
-{
+export class RedisMessageDeduplicationStore implements MessageDeduplicationStore {
   private readonly redis: Redis
-  private readonly config: RedisMessageDeduplicationStoreConfig
 
-  constructor(
-    dependencies: RedisMessageDeduplicationStoreDependencies,
-    config: RedisMessageDeduplicationStoreConfig,
-  ) {
+  constructor(dependencies: RedisMessageDeduplicationStoreDependencies) {
     this.redis = dependencies.redis
-    this.config = config
+  }
+
+  async acquireLock(key: string): Promise<Either<AcquireLockTimeoutError | Error, ReleasableLock>> {
+    const mutex = this.getMutex(key)
+
+    try {
+      await mutex.acquire()
+      return { result: mutex }
+    } catch (err) {
+      if (err instanceof TimeoutError) return { error: new AcquireLockTimeoutError(err.message) }
+      return { error: err as Error }
+    }
   }
 
   async setIfNotExists(key: string, value: string, ttlSeconds: number): Promise<boolean> {
-    const keyWithPrefix = this.getKeyWithOptionalPrefix(key)
-    const result = await this.redis.set(keyWithPrefix, value, 'EX', ttlSeconds, 'NX')
+    const result = await this.redis.set(key, value, 'EX', ttlSeconds, 'NX')
 
     return result === 'OK'
   }
 
-  getByKey(key: string): Promise<string | null> {
-    const keyWithPrefix = this.getKeyWithOptionalPrefix(key)
+  async keyExists(key: string): Promise<boolean> {
+    const result = await this.redis.exists(key)
 
-    return this.redis.get(keyWithPrefix)
+    return result === 1
   }
 
-  async getKeyTtl(key: string): Promise<number | null> {
-    const keyWithPrefix = this.getKeyWithOptionalPrefix(key)
-
-    const ttl = await this.redis.ttl(keyWithPrefix)
-
-    return ttl >= 0 ? ttl : null
+  /** For testing purposes only */
+  deleteKey(key: string): Promise<number> {
+    return this.redis.del(key)
   }
 
-  async setOrUpdate(key: string, value: string, ttlSeconds: number): Promise<void> {
-    const keyWithPrefix = this.getKeyWithOptionalPrefix(key)
-
-    await this.redis.set(keyWithPrefix, value, 'EX', ttlSeconds)
-  }
-
-  async deleteKey(key: string): Promise<void> {
-    const keyWithPrefix = this.getKeyWithOptionalPrefix(key)
-
-    await this.redis.del(keyWithPrefix)
-  }
-
-  private getKeyWithOptionalPrefix(key: string): string {
-    return this.config?.keyPrefix?.length ? `${this.config.keyPrefix}:${key}` : key
+  private getMutex(key: string): Mutex {
+    return new Mutex(this.redis, key)
   }
 }

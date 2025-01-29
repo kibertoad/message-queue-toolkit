@@ -3,6 +3,7 @@ import type { Either, ErrorResolver } from '@lokalise/node-core'
 import {
   type BarrierResult,
   type DeadLetterQueueOptions,
+  DeduplicationRequester,
   HandlerContainer,
   type MessageSchemaContainer,
   type ParseMessageResult,
@@ -13,6 +14,7 @@ import {
   type QueueConsumerOptions,
   type TransactionObservabilityManager,
   isMessageError,
+  noopReleasableLock,
   parseMessage,
 } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
@@ -113,6 +115,7 @@ export abstract class AbstractSqsConsumer<
     SQSQueueLocatorType,
     SQSDeadLetterQueueOptions
   >
+  private readonly isDeduplicationEnabled: boolean
   private maxRetryDuration: number
 
   protected deadLetterQueueUrl?: string
@@ -144,6 +147,7 @@ export abstract class AbstractSqsConsumer<
       messageTypeField: this.messageTypeField,
       messageHandlers: options.handlers,
     })
+    this.isDeduplicationEnabled = !!options.enableConsumerDeduplication
   }
 
   override async init(): Promise<void> {
@@ -231,18 +235,33 @@ export abstract class AbstractSqsConsumer<
         }
         const { parsedMessage, originalMessage } = deserializedMessage.result
 
-        if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
-          const wasLockAcquired = await this.tryToAcquireLockForProcessing(parsedMessage)
-          if (!wasLockAcquired) {
-            this.handleMessageProcessed({
-              message: originalMessage,
-              processingResult: 'duplicate',
-              messageProcessingStartTimestamp,
-              queueName: this.queueName,
-              messageId: this.tryToExtractId(message).result,
-            })
-            return
-          }
+        if (
+          this.isDeduplicationEnabledForMessage(parsedMessage) &&
+          (await this.isMessageDuplicated(parsedMessage, DeduplicationRequester.Consumer))
+        ) {
+          this.handleMessageProcessed({
+            message: parsedMessage,
+            processingResult: 'duplicate',
+            messageProcessingStartTimestamp,
+            queueName: this.queueName,
+            messageId: this.tryToExtractId(message).result,
+          })
+          return
+        }
+
+        const acquireLockResult = this.isDeduplicationEnabledForMessage(parsedMessage)
+          ? await this.acquireLockForMessage(parsedMessage)
+          : { result: noopReleasableLock }
+
+        if (acquireLockResult.error) {
+          this.handleMessageProcessed({
+            message: originalMessage,
+            processingResult: 'duplicate',
+            messageProcessingStartTimestamp,
+            queueName: this.queueName,
+            messageId: this.tryToExtractId(message).result,
+          })
+          return
         }
 
         // @ts-ignore
@@ -272,21 +291,27 @@ export abstract class AbstractSqsConsumer<
 
         // success
         if (result.result) {
+          await this.deduplicateMessage(parsedMessage, DeduplicationRequester.Consumer)
+          await acquireLockResult.result?.release()
           this.handleMessageProcessed({
             message: originalMessage,
             processingResult: 'consumed',
             messageProcessingStartTimestamp,
             queueName: this.queueName,
           })
-          if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
-            await this.updateLockAfterProcessing(parsedMessage, true)
-          }
           return message
         }
 
         if (result.error === 'retryLater') {
+          await acquireLockResult.result?.release()
           if (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
-            await this.queueMessageForRetry(originalMessage)
+            await this.sqsClient.send(
+              new SendMessageCommand({
+                QueueUrl: this.queueUrl,
+                DelaySeconds: this.getMessageRetryDelayInSeconds(originalMessage),
+                MessageBody: JSON.stringify(this.updateInternalProperties(originalMessage)),
+              }),
+            )
             this.handleMessageProcessed({
               message: parsedMessage,
               processingResult: 'retryLater',
@@ -306,15 +331,13 @@ export abstract class AbstractSqsConsumer<
           return message
         }
 
+        await acquireLockResult.result?.release()
         this.handleMessageProcessed({
           message: parsedMessage,
           processingResult: 'error',
           messageProcessingStartTimestamp,
           queueName: this.queueName,
         })
-        if (this.isConsumerDeduplicationEnabled(parsedMessage)) {
-          await this.updateLockAfterProcessing(parsedMessage, false)
-        }
         return Promise.reject(result.error)
       },
     })
@@ -412,14 +435,8 @@ export abstract class AbstractSqsConsumer<
     return readSqsMessage(message, this.errorResolver)
   }
 
-  protected override async queueMessageForRetry(message: MessagePayloadType): Promise<void> {
-    await this.sqsClient.send(
-      new SendMessageCommand({
-        QueueUrl: this.queueUrl,
-        DelaySeconds: this.getMessageRetryDelayInSeconds(message),
-        MessageBody: JSON.stringify(this.updateInternalProperties(message)),
-      }),
-    )
+  protected override isDeduplicationEnabledForMessage(message: MessagePayloadType): boolean {
+    return this.isDeduplicationEnabled && super.isDeduplicationEnabledForMessage(message)
   }
 
   protected async resolveMaybeOffloadedPayloadMessage(message: SQSMessage) {
