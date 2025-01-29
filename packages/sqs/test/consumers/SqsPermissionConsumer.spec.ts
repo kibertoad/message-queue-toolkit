@@ -368,7 +368,6 @@ describe('SqsPermissionConsumer', () => {
           messageId: '1',
           messageType: 'add',
           messageDeduplicationId: undefined,
-          messageDeduplicationWindowSeconds: undefined,
           processingResult: 'consumed',
           messageTimestamp: expect.any(Number),
           messageProcessingStartTimestamp: expect.any(Number),

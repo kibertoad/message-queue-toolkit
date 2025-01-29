@@ -1,5 +1,6 @@
 import type { Either } from '@lokalise/node-core'
 import {
+  type AcquireLockOptions,
   AcquireLockTimeoutError,
   type MessageDeduplicationStore,
   type ReleasableLock,
@@ -18,8 +19,11 @@ export class RedisMessageDeduplicationStore implements MessageDeduplicationStore
     this.redis = dependencies.redis
   }
 
-  async acquireLock(key: string): Promise<Either<AcquireLockTimeoutError | Error, ReleasableLock>> {
-    const mutex = this.getMutex(key)
+  async acquireLock(
+    key: string,
+    options: AcquireLockOptions,
+  ): Promise<Either<AcquireLockTimeoutError | Error, ReleasableLock>> {
+    const mutex = this.getMutex(key, options)
 
     try {
       await mutex.acquire()
@@ -47,7 +51,16 @@ export class RedisMessageDeduplicationStore implements MessageDeduplicationStore
     return this.redis.del(key)
   }
 
-  private getMutex(key: string): Mutex {
-    return new Mutex(this.redis, key)
+  /** For testing purposes only */
+  getKeyTtl(key: string): Promise<number> {
+    return this.redis.ttl(key)
+  }
+
+  private getMutex(key: string, options: AcquireLockOptions): Mutex {
+    return new Mutex(this.redis, key, {
+      acquireTimeout: options.acquireTimeoutSeconds * 1000,
+      lockTimeout: options.lockTimeoutSeconds * 1000,
+      refreshInterval: options.refreshIntervalSeconds * 1000,
+    })
   }
 }

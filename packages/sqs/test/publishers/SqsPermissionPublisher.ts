@@ -54,7 +54,7 @@ export class SqsPermissionPublisher extends AbstractSqsPublisher<SupportedMessag
       messageDeduplicationConfig: options?.messageDeduplicationConfig,
       enablePublisherDeduplication: options?.enablePublisherDeduplication,
       messageDeduplicationIdField: 'deduplicationId',
-      messageDeduplicationWindowSecondsField: 'deduplicationWindowSeconds',
+      messageDeduplicationOptionsField: 'deduplicationOptions',
     })
   }
 

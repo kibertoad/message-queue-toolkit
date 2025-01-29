@@ -1,17 +1,16 @@
+import { setTimeout } from 'node:timers/promises'
+import type { MessageDeduplicationConfig } from '@message-queue-toolkit/core'
+import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
+import { cleanRedis } from '../utils/cleanRedis'
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies } from '../utils/testContext'
-
-import { randomUUID } from 'node:crypto'
-import { setTimeout } from 'node:timers/promises'
-import { waitAndRetry } from '@lokalise/node-core'
-import type { MessageDeduplicationConfig } from '@message-queue-toolkit/core'
-import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
-import { cleanRedis } from '../utils/cleanRedis'
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
+
+import { waitAndRetry } from '@lokalise/node-core'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
@@ -64,7 +63,6 @@ describe('SqsPermissionConsumer', () => {
         id: '1',
         messageType: 'add',
         deduplicationId: '1',
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await publisher.publish(message)
@@ -106,7 +104,6 @@ describe('SqsPermissionConsumer', () => {
         id: '1',
         messageType: 'add',
         deduplicationId,
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await publisher.publish({
@@ -144,7 +141,6 @@ describe('SqsPermissionConsumer', () => {
         id: '1',
         messageType: 'add',
         deduplicationId,
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await publisher.publish(message)
@@ -177,48 +173,6 @@ describe('SqsPermissionConsumer', () => {
       await consumer.close()
     })
 
-    it('another consumer takes over the message processing in case the first consumer dies', async () => {
-      const consumer1 = new SqsPermissionConsumer(diContainer.cradle, {
-        messageDeduplicationConfig,
-        enableConsumerDeduplication: true,
-        addHandlerOverride: async () => {
-          await setTimeout(2000)
-          return Promise.resolve({ result: 'success' })
-        },
-      })
-      await consumer1.start()
-      const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
-        messageDeduplicationConfig,
-      })
-      // Not starting consumer 2 yet
-
-      const deduplicationId = randomUUID()
-      const message = {
-        id: '1',
-        messageType: 'add',
-        deduplicationId,
-        deduplicationWindowSeconds: 10,
-      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
-
-      await publisher.publish(message)
-
-      // Wait until consumer 1 acquires lock and then simulate its fatal failure by force disposing it
-      await waitAndRetry(async () => {
-        return await messageDeduplicationStore.keyExists(`mutex:consumer:${deduplicationId}`)
-      })
-      await consumer1.close(true)
-
-      // Start consumer 2 and publish the same message again
-      await consumer2.start()
-      await publisher.publish(message)
-
-      // Consumer 2 has taken over the message processing
-      const spy = await consumer2.handlerSpy.waitForMessageWithId(message.id, 'consumed')
-      expect(spy.message).toMatchObject(message)
-
-      await consumer2.close()
-    })
-
     it('consumes messages with different deduplication ids', async () => {
       const consumer = new SqsPermissionConsumer(diContainer.cradle, {
         messageDeduplicationConfig,
@@ -230,13 +184,11 @@ describe('SqsPermissionConsumer', () => {
         id: '1',
         messageType: 'add',
         deduplicationId: '1',
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
       const message2 = {
         id: '2',
         messageType: 'add',
         deduplicationId: '2',
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await publisher.publish(message1)
@@ -269,7 +221,6 @@ describe('SqsPermissionConsumer', () => {
         id: '1',
         messageType: 'add',
         deduplicationId,
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
       vi.spyOn(messageDeduplicationStore, 'acquireLock').mockResolvedValue({
         error: new Error('Test error'),
@@ -283,7 +234,7 @@ describe('SqsPermissionConsumer', () => {
       await consumer.close()
     })
 
-    it('works only for messages that have deduplication details provided', async () => {
+    it('works only for messages that have deduplication ids provided', async () => {
       const consumer = new SqsPermissionConsumer(diContainer.cradle, {
         messageDeduplicationConfig,
         enableConsumerDeduplication: true,
@@ -294,7 +245,6 @@ describe('SqsPermissionConsumer', () => {
         id: '1',
         messageType: 'remove',
         deduplicationId: '1',
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_REMOVE_MESSAGE_TYPE
       const message2 = {
         id: '1',
@@ -337,7 +287,7 @@ describe('SqsPermissionConsumer', () => {
       await consumer.close()
     })
 
-    it('if deduplication window seconds is not provided, it uses default value and deduplicates the message', async () => {
+    it('passes custom deduplication options to the deduplication store', async () => {
       const consumer = new SqsPermissionConsumer(diContainer.cradle, {
         messageDeduplicationConfig,
         enableConsumerDeduplication: true,
@@ -349,6 +299,9 @@ describe('SqsPermissionConsumer', () => {
         id: '1',
         messageType: 'add',
         deduplicationId,
+        deduplicationOptions: {
+          deduplicationWindowSeconds: 1000,
+        },
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await publisher.publish(message)
@@ -356,12 +309,117 @@ describe('SqsPermissionConsumer', () => {
       const spy = await consumer.handlerSpy.waitForMessageWithId(message.id)
       expect(spy.processingResult).toBe('consumed')
 
-      const deduplicationKeyExists = await messageDeduplicationStore.keyExists(
+      const deduplicationKeyTtl = await messageDeduplicationStore.getKeyTtl(
         `consumer:${deduplicationId}`,
       )
-      expect(deduplicationKeyExists).toBe(true)
+      expect(deduplicationKeyTtl).toBeGreaterThanOrEqual(1000 - 5)
 
       await consumer.close()
     })
+
+    it('if lock cannot be acquired within acceptable time, message is enqueued', async () => {
+      const consumer1 = new SqsPermissionConsumer(diContainer.cradle, {
+        messageDeduplicationConfig,
+        enableConsumerDeduplication: true,
+        addHandlerOverride: async () => {
+          await setTimeout(2500)
+          return Promise.resolve({ result: 'success' })
+        },
+      })
+      await consumer1.start()
+      const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
+        messageDeduplicationConfig,
+        enableConsumerDeduplication: true,
+      })
+      // Not starting consumer2 yet, so consumer1 can acquire the lock first
+
+      const deduplicationId = '1'
+      const message = {
+        id: '1',
+        messageType: 'add',
+        deduplicationId,
+        deduplicationOptions: {
+          acquireTimeoutSeconds: 1, // consumer2 will wait for lock 1 second, while consumer1 needs at least 2.5 seconds to release the lock
+        },
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+      await publisher.publish(message)
+
+      // Wait until consumer1 acquires the lock
+      await waitAndRetry(async () => {
+        return await messageDeduplicationStore.keyExists(`mutex:consumer:${deduplicationId}`)
+      })
+
+      await consumer2.start()
+
+      // Publish the message again, so consumer2 can pick it up
+      await publisher.publish(message)
+
+      const consumer2Spy = await consumer2.handlerSpy.waitForMessageWithId(message.id)
+      expect(consumer2Spy.processingResult).toBe('retryLater')
+
+      // Wait until consumer1 releases the lock, to omit errors related to the lock being lost
+      const consumer1Spy = await consumer1.handlerSpy.waitForMessageWithId(message.id)
+      expect(consumer1Spy.processingResult).toBe('consumed')
+
+      await Promise.all([consumer1.close(), consumer2.close()])
+    })
+
+    it('respects deduplication key even after lock is released', async () => {
+      const consumer1 = new SqsPermissionConsumer(diContainer.cradle, {
+        messageDeduplicationConfig,
+        enableConsumerDeduplication: true,
+        addHandlerOverride: async () => {
+          await setTimeout(3000)
+          return Promise.resolve({ result: 'success' })
+        },
+      })
+      await consumer1.start()
+      const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
+        messageDeduplicationConfig,
+        enableConsumerDeduplication: true,
+      })
+      // Not starting consumer2 yet, so consumer1 can acquire the lock first
+
+      const deduplicationId = '1'
+      const message = {
+        id: '1',
+        messageType: 'add',
+        deduplicationId,
+        /**
+         * Consumer #1 needs at least 3 seconds to process the message.
+         * With the below values, consumer #2 should start acquiring the lock
+         * while consumer #2 is still processing. The lock will be ultimately
+         * acquired by consumer #2 once consumer #1 releases it and marks
+         * the message as processed.
+         */
+        deduplicationOptions: {
+          lockTimeoutSeconds: 5,
+          acquireTimeoutSeconds: 5,
+          deduplicationWindowSeconds: 10,
+        },
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+      await publisher.publish(message)
+
+      // Wait until consumer1 acquires the lock
+      await waitAndRetry(async () => {
+        return await messageDeduplicationStore.keyExists(`mutex:consumer:${deduplicationId}`)
+      })
+
+      await consumer2.start()
+
+      await publisher.publish(message)
+
+      // consumer1 processes the message
+      const consumer1Spy = await consumer1.handlerSpy.waitForMessageWithId(message.id)
+      expect(consumer1Spy.processingResult).toBe('consumed')
+
+      // consumer2 reports the message as duplicate
+      const consumer2Spy = await consumer2.handlerSpy.waitForMessageWithId(message.id)
+      expect(consumer2Spy.processingResult).toBe('duplicate')
+
+      await Promise.all([consumer1.close(), consumer2.close()])
+    }, 7000)
   })
 })

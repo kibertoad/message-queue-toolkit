@@ -1,10 +1,18 @@
 import type { Either } from '@lokalise/node-core'
+import type { MessageDeduplicationOptions } from '@message-queue-toolkit/schemas'
 
 export interface ReleasableLock {
   release(): Promise<void>
 }
 
 export class AcquireLockTimeoutError extends Error {}
+
+export type AcquireLockOptions = Required<
+  Pick<
+    MessageDeduplicationOptions,
+    'acquireTimeoutSeconds' | 'lockTimeoutSeconds' | 'refreshIntervalSeconds'
+  >
+>
 
 export interface MessageDeduplicationStore {
   /**
@@ -19,9 +27,13 @@ export interface MessageDeduplicationStore {
   /**
    * Acquires locks for a given key
    * @param {string} key - deduplication key
+   * @param {object} options - options used when acquiring the lock
    * @returns {Promise<Either<AcquireLockTimeoutError | Error, ReleasableLock>>} - a promise that resolves to a ReleasableLock if the lock was acquired, AcquireLockTimeoutError error if the lock could not be acquired due to timeout, or an Error if the lock could not be acquired for another reason
    */
-  acquireLock(key: string): Promise<Either<AcquireLockTimeoutError | Error, ReleasableLock>>
+  acquireLock(
+    key: string,
+    options: object,
+  ): Promise<Either<AcquireLockTimeoutError | Error, ReleasableLock>>
 
   /**
    * Checks if a deduplication key exists in the store
@@ -41,7 +53,12 @@ export enum DeduplicationRequester {
   Publisher = 'publisher',
 }
 
-export const DEFAULT_DEDUPLICATION_WINDOW_SECONDS = 10
+export const DEFAULT_MESSAGE_DEDUPLICATION_OPTIONS: Required<MessageDeduplicationOptions> = {
+  deduplicationWindowSeconds: 10,
+  lockTimeoutSeconds: 10,
+  acquireTimeoutSeconds: 10,
+  refreshIntervalSeconds: 5,
+}
 
 export const noopReleasableLock: ReleasableLock = {
   release: async () => {},

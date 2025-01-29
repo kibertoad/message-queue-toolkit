@@ -46,7 +46,7 @@ describe('SnsPublisherManager', () => {
           updateAttributesIfExists: true,
         },
         messageDeduplicationIdField: 'deduplicationId',
-        messageDeduplicationWindowSecondsField: 'deduplicationWindowSeconds',
+        messageDeduplicationOptionsField: 'deduplicationOptions',
         messageDeduplicationConfig: {
           deduplicationStore: messageDeduplicationStore,
         },
@@ -65,7 +65,7 @@ describe('SnsPublisherManager', () => {
   })
 
   describe('publish', () => {
-    it('publishes a message and stores deduplication id when message contains deduplication details', async () => {
+    it('publishes a message and stores deduplication key when message contains deduplication id', async () => {
       const deduplicationId = '1'
       const message = {
         payload: {
@@ -73,7 +73,6 @@ describe('SnsPublisherManager', () => {
         },
         type: 'entity.created',
         deduplicationId,
-        deduplicationWindowSeconds: 10,
       } satisfies TestEventPublishPayloadsType
 
       const publishedMessage = await publisherManager.publish(TestEvents.created.snsTopic, message)
@@ -96,7 +95,6 @@ describe('SnsPublisherManager', () => {
         },
         type: 'entity.created',
         deduplicationId: '1',
-        deduplicationWindowSeconds: 10,
       } satisfies TestEventPublishPayloadsType
 
       // Message is published for the initial call
@@ -125,14 +123,13 @@ describe('SnsPublisherManager', () => {
       expect(spySecondCall.processingResult).toBe('duplicate')
     })
 
-    it('works only for messages that have deduplication details provided', async () => {
+    it('works only for messages that have deduplication ids provided', async () => {
       const message1 = {
         payload: {
           newData: 'msg',
         },
         type: 'entity.created',
         deduplicationId: '1',
-        deduplicationWindowSeconds: 10,
       } satisfies TestEventPublishPayloadsType
       const message2 = {
         payload: {

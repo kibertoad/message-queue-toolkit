@@ -47,14 +47,13 @@ describe('SqsPermissionPublisher', () => {
       await diContainer.dispose()
     })
 
-    it('publishes a message and stores deduplication id when message contains deduplication details', async () => {
+    it('publishes a message and stores deduplication id when message contains deduplication id', async () => {
       const deduplicationId = '1'
       const message = {
         id: '1',
         messageType: 'add',
         timestamp: new Date().toISOString(),
         deduplicationId,
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await publisher.publish(message)
@@ -74,7 +73,6 @@ describe('SqsPermissionPublisher', () => {
         messageType: 'add',
         timestamp: new Date().toISOString(),
         deduplicationId: '1',
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       // Message is published for the initial call
@@ -99,14 +97,12 @@ describe('SqsPermissionPublisher', () => {
         messageType: 'add',
         timestamp: new Date().toISOString(),
         deduplicationId: '1',
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
       const message2 = {
         id: 'id',
         messageType: 'remove',
         timestamp: new Date().toISOString(),
         deduplicationId: '2',
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_REMOVE_MESSAGE_TYPE
 
       // Message 1 is published
@@ -125,13 +121,12 @@ describe('SqsPermissionPublisher', () => {
       expect(spySecondCall.processingResult).toBe('published')
     })
 
-    it('works only for messages that have deduplication details provided', async () => {
+    it('works only for messages that have deduplication ids provided', async () => {
       const message1 = {
         id: 'id',
         messageType: 'add',
         timestamp: new Date().toISOString(),
         deduplicationId: '1',
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
       const message2 = {
         id: 'id',
@@ -179,7 +174,6 @@ describe('SqsPermissionPublisher', () => {
         messageType: 'add',
         timestamp: new Date().toISOString(),
         deduplicationId: '1',
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       vi.spyOn(messageDeduplicationStore, 'setIfNotExists').mockRejectedValue(
@@ -197,13 +191,16 @@ describe('SqsPermissionPublisher', () => {
       expect(deduplicationKeyExists).toBe(false)
     })
 
-    it('if deduplication window seconds is not provided, it uses default value and deduplicates the message', async () => {
+    it('passes custom deduplication options to the deduplication store', async () => {
       const deduplicationId = '1'
       const message = {
         id: '1',
         messageType: 'add',
         timestamp: new Date().toISOString(),
         deduplicationId,
+        deduplicationOptions: {
+          deduplicationWindowSeconds: 1000,
+        },
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await publisher.publish(message)
@@ -211,10 +208,10 @@ describe('SqsPermissionPublisher', () => {
       const spyFirstCall = await publisher.handlerSpy.waitForMessageWithId('1')
       expect(spyFirstCall.processingResult).toBe('published')
 
-      const deduplicationKeyExists = await messageDeduplicationStore.keyExists(
+      const deduplicationKeyTtl = await messageDeduplicationStore.getKeyTtl(
         `publisher:${deduplicationId}`,
       )
-      expect(deduplicationKeyExists).toBe(true)
+      expect(deduplicationKeyTtl).toBeGreaterThanOrEqual(1000 - 5)
     })
   })
 })

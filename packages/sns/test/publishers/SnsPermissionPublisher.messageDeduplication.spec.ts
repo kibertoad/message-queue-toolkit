@@ -47,13 +47,12 @@ describe('SnsPermissionPublisher', () => {
       await diContainer.dispose()
     })
 
-    it('publishes a message and stores deduplication id when message contains deduplication details', async () => {
+    it('publishes a message and stores deduplication key when message contains deduplication id', async () => {
       const deduplicationId = '1'
       const message = {
         id: '1',
         messageType: 'add',
         deduplicationId,
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await publisher.publish(message)
@@ -72,7 +71,6 @@ describe('SnsPermissionPublisher', () => {
         id: '1',
         messageType: 'add',
         deduplicationId: '1',
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       // Message is published for the initial call
@@ -91,12 +89,11 @@ describe('SnsPermissionPublisher', () => {
       expect(spySecondCall.processingResult).toBe('duplicate')
     })
 
-    it('works only for messages that have deduplication details provided', async () => {
+    it('works only for messages that have deduplication ids provided', async () => {
       const message1 = {
         id: '1',
         messageType: 'add',
         deduplicationId: '1',
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
       const message2 = {
         id: '1',
@@ -143,7 +140,6 @@ describe('SnsPermissionPublisher', () => {
         id: '1',
         messageType: 'add',
         deduplicationId,
-        deduplicationWindowSeconds: 10,
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       vi.spyOn(messageDeduplicationStore, 'setIfNotExists').mockRejectedValue(
@@ -161,12 +157,15 @@ describe('SnsPermissionPublisher', () => {
       expect(deduplicationKeyExists).toBe(false)
     })
 
-    it('if deduplication window seconds is not provided, it uses default value and deduplicates the message', async () => {
+    it('passes custom deduplication options to the deduplication store', async () => {
       const deduplicationId = '1'
       const message = {
         id: '1',
         messageType: 'add',
         deduplicationId,
+        deduplicationOptions: {
+          deduplicationWindowSeconds: 1000,
+        },
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await publisher.publish(message)
@@ -174,10 +173,10 @@ describe('SnsPermissionPublisher', () => {
       const spy = await publisher.handlerSpy.waitForMessageWithId(message.id)
       expect(spy.processingResult).toBe('published')
 
-      const deduplicationKeyExists = await messageDeduplicationStore.keyExists(
+      const deduplicationKeyTtl = await messageDeduplicationStore.getKeyTtl(
         `publisher:${deduplicationId}`,
       )
-      expect(deduplicationKeyExists).toBe(true)
+      expect(deduplicationKeyTtl).toBeGreaterThan(995)
     })
   })
 })

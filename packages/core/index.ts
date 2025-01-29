@@ -82,6 +82,7 @@ export {
   type MessageDeduplicationStore,
   type MessageDeduplicationConfig,
   type ReleasableLock,
+  type AcquireLockOptions,
   DeduplicationRequester,
   AcquireLockTimeoutError,
   noopReleasableLock,

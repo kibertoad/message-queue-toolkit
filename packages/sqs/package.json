@@ -41,6 +41,7 @@
     "@message-queue-toolkit/core": "*",
     "@message-queue-toolkit/redis-message-deduplication-store": "*",
     "@message-queue-toolkit/s3-payload-store": "*",
+    "@message-queue-toolkit/schemas": "*",
     "@types/node": "^22.7.5",
     "@vitest/coverage-v8": "^2.1.5",
     "awilix": "^12.0.1",

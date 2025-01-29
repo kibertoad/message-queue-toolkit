@@ -59,11 +59,6 @@ export type ProcessedMessageMetadata<MessagePayloadSchemas extends object = obje
    * ID used for the message deduplication, in case it's enabled
    */
   messageDeduplicationId?: string
-
-  /**
-   * The window in seconds for message deduplication, in case it's enabled
-   */
-  messageDeduplicationWindowSeconds?: number
 }
 
 export interface MessageMetricsManager<MessagePayloadSchemas extends object = object> {
@@ -84,7 +79,7 @@ export type CommonQueueOptions = {
   messageIdField?: string
   messageTimestampField?: string
   messageDeduplicationIdField?: string
-  messageDeduplicationWindowSecondsField?: string
+  messageDeduplicationOptionsField?: string
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
   deletionConfig?: DeletionConfig

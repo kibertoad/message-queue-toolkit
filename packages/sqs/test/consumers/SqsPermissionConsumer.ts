@@ -124,7 +124,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
         messageDeduplicationConfig: options.messageDeduplicationConfig,
         enableConsumerDeduplication: options.enableConsumerDeduplication,
         messageDeduplicationIdField: 'deduplicationId',
-        messageDeduplicationWindowSecondsField: 'deduplicationWindowSeconds',
+        messageDeduplicationOptionsField: 'deduplicationOptions',
         handlers: new MessageHandlerConfigBuilder<
           SupportedMessages,
           ExecutionContext,

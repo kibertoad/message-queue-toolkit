@@ -1,8 +1,8 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { AcquireLockTimeoutError } from '@message-queue-toolkit/core'
+import { type AcquireLockOptions, AcquireLockTimeoutError } from '@message-queue-toolkit/core'
 import { Redis } from 'ioredis'
-import { Mutex, TimeoutError } from 'redis-semaphore'
+import { Mutex } from 'redis-semaphore'
 import { RedisMessageDeduplicationStore } from '../lib/RedisMessageDeduplicationStore'
 import { cleanRedis } from './utils/cleanRedis'
 import { TEST_REDIS_CONFIG } from './utils/testRedisConfig'
@@ -66,18 +66,32 @@ describe('RedisMessageDeduplicationStore', () => {
   })
 
   describe('acquireLock', () => {
+    const acquireLockOptions: AcquireLockOptions = {
+      acquireTimeoutSeconds: 10,
+      lockTimeoutSeconds: 10,
+      refreshIntervalSeconds: 5,
+    }
+
     it('acquires lock and returns Mutex', async () => {
       const key = 'test_key'
-      const acquireLockResult = await store.acquireLock(key)
+
+      const acquireLockResult = await store.acquireLock(key, {
+        acquireTimeoutSeconds: 10,
+        lockTimeoutSeconds: 10,
+        refreshIntervalSeconds: 5,
+      })
 
       expect(acquireLockResult.result).toBeInstanceOf(Mutex)
     })
 
     it('returns AcquireLockTimeoutError if lock cannot be acquired due to timeout', async () => {
       const key = 'test_key'
-      vi.spyOn(Mutex.prototype, 'acquire').mockRejectedValue(new TimeoutError('Test error'))
+      await store.acquireLock(key, acquireLockOptions)
 
-      const acquireLockResult = await store.acquireLock(key)
+      const acquireLockResult = await store.acquireLock(key, {
+        ...acquireLockOptions,
+        acquireTimeoutSeconds: 1,
+      })
 
       expect(acquireLockResult.error).toBeInstanceOf(AcquireLockTimeoutError)
     })
@@ -86,7 +100,7 @@ describe('RedisMessageDeduplicationStore', () => {
       const key = 'test_key'
       vi.spyOn(Mutex.prototype, 'acquire').mockRejectedValue(new Error('Test error'))
 
-      const acquireLockResult = await store.acquireLock(key)
+      const acquireLockResult = await store.acquireLock(key, acquireLockOptions)
 
       expect(acquireLockResult.error).toBeInstanceOf(Error)
       expect(acquireLockResult.error).not.toBeInstanceOf(AcquireLockTimeoutError)
@@ -125,6 +139,18 @@ describe('RedisMessageDeduplicationStore', () => {
 
       const storedValue = await redis.get(key)
       expect(storedValue).toBeNull()
+    })
+  })
+
+  describe('getKeyTtl', () => {
+    it('returns TTL of the key', async () => {
+      const key = 'test_key'
+      const value = 'test_value'
+      await redis.set(key, value, 'EX', 120)
+
+      const result = await store.getKeyTtl(key)
+
+      expect(result).toBeLessThanOrEqual(120)
     })
   })
 })

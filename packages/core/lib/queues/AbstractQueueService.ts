@@ -5,11 +5,14 @@ import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema, ZodType } from 'zod'
 
+import {
+  MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA,
+  type MessageDeduplicationOptions,
+} from '@message-queue-toolkit/schemas'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
-import { MESSAGE_DEDUPLICATION_WINDOW_SECONDS_SCHEMA } from '../message-deduplication/messageDeduplicationSchemas'
 import {
   AcquireLockTimeoutError,
-  DEFAULT_DEDUPLICATION_WINDOW_SECONDS,
+  DEFAULT_MESSAGE_DEDUPLICATION_OPTIONS,
   DeduplicationRequester,
   type MessageDeduplicationConfig,
   type ReleasableLock,
@@ -83,13 +86,19 @@ export abstract class AbstractQueueService<
    * a infinite `retryLater` loop
    */
   protected readonly messageTimestampField: string
+  /**
+   * Used to know the message deduplication id
+   */
+  protected readonly messageDeduplicationIdField
+  /**
+   * Used to know the store-based message deduplication options
+   */
+  protected readonly messageDeduplicationOptionsField: string
 
   protected readonly errorReporter: ErrorReporter
   public readonly logger: CommonLogger
   protected readonly messageIdField: string
   protected readonly messageTypeField: string
-  protected readonly messageDeduplicationIdField: string
-  protected readonly messageDeduplicationWindowSecondsField: string
   protected readonly logMessages: boolean
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
@@ -123,8 +132,8 @@ export abstract class AbstractQueueService<
     this.messageTypeField = options.messageTypeField
     this.messageTimestampField = options.messageTimestampField ?? 'timestamp'
     this.messageDeduplicationIdField = options.messageDeduplicationIdField ?? 'deduplicationId'
-    this.messageDeduplicationWindowSecondsField =
-      options.messageDeduplicationWindowSecondsField ?? 'deduplicationWindowSeconds'
+    this.messageDeduplicationOptionsField =
+      options.messageDeduplicationOptionsField ?? 'deduplicationOptions'
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig
@@ -270,11 +279,6 @@ export abstract class AbstractQueueService<
         ? // @ts-ignore
           message[this.messageDeduplicationId]
         : undefined
-    const messageDeduplicationWindowSeconds =
-      message && this.messageDeduplicationWindowSecondsField in message
-        ? // @ts-ignore
-          message[this.messageDeduplicationWindowSecondsField]
-        : undefined
 
     return {
       processingResult,
@@ -284,7 +288,6 @@ export abstract class AbstractQueueService<
       message,
       messageTimestamp,
       messageDeduplicationId,
-      messageDeduplicationWindowSeconds,
       messageProcessingStartTimestamp,
       messageProcessingEndTimestamp,
     }
@@ -505,9 +508,8 @@ export abstract class AbstractQueueService<
       [this.messageTimestampField]: message[this.messageTimestampField],
       // @ts-ignore
       [this.messageDeduplicationIdField]: message[this.messageDeduplicationIdField],
-      [this.messageDeduplicationWindowSecondsField]:
-        // @ts-ignore
-        message[this.messageDeduplicationWindowSecondsField],
+      // @ts-ignore
+      [this.messageDeduplicationOptionsField]: message[this.messageDeduplicationOptionsField],
     }
   }
 
@@ -600,21 +602,8 @@ export abstract class AbstractQueueService<
       return { isDuplicated: false }
     }
 
-    const deduplicationWindowSecondsValidationResult =
-      MESSAGE_DEDUPLICATION_WINDOW_SECONDS_SCHEMA.safeParse(
-        // @ts-expect-error
-        message[this.messageDeduplicationWindowSecondsField],
-      )
-
-    if (deduplicationWindowSecondsValidationResult.error) {
-      this.logger.warn(
-        `${this.messageDeduplicationWindowSecondsField} not defined or invalid, fall-backing to ${DEFAULT_DEDUPLICATION_WINDOW_SECONDS}`,
-      )
-    }
-
-    const deduplicationWindowSeconds =
-      deduplicationWindowSecondsValidationResult.data ?? DEFAULT_DEDUPLICATION_WINDOW_SECONDS
     const deduplicationId = this.getMessageDeduplicationId(message) as string
+    const { deduplicationWindowSeconds } = this.getParsedMessageDeduplicationOptions(message)
     const deduplicationConfig = this.messageDeduplicationConfig as MessageDeduplicationConfig
 
     try {
@@ -646,10 +635,12 @@ export abstract class AbstractQueueService<
     }
 
     const deduplicationId = this.getMessageDeduplicationId(message) as string
+    const deduplicationOptions = this.getParsedMessageDeduplicationOptions(message)
     const deduplicationConfig = this.messageDeduplicationConfig as MessageDeduplicationConfig
 
     const acquireLockResult = await deduplicationConfig.deduplicationStore.acquireLock(
       `${DeduplicationRequester.Consumer.toString()}:${deduplicationId}`,
+      deduplicationOptions,
     )
 
     if (acquireLockResult.error && !(acquireLockResult.error instanceof AcquireLockTimeoutError)) {
@@ -664,8 +655,33 @@ export abstract class AbstractQueueService<
     return !!this.messageDeduplicationConfig && !!this.getMessageDeduplicationId(message)
   }
 
-  private getMessageDeduplicationId(message: MessagePayloadSchemas): string | undefined {
-    // @ts-expect-error
+  protected getMessageDeduplicationId(message: MessagePayloadSchemas): string | undefined {
+    // @ts-ignore
     return message[this.messageDeduplicationIdField]
+  }
+
+  private getParsedMessageDeduplicationOptions(
+    message: MessagePayloadSchemas,
+  ): Required<MessageDeduplicationOptions> {
+    const parsedOptions = MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA.safeParse(
+      // @ts-expect-error
+      message[this.messageDeduplicationOptionsField] ?? {},
+    )
+
+    if (parsedOptions.error) {
+      this.logger.warn(
+        { error: parsedOptions.error.message },
+        `${this.messageDeduplicationOptionsField} contains one or more invalid values, falling back to default options`,
+      )
+
+      return DEFAULT_MESSAGE_DEDUPLICATION_OPTIONS
+    }
+
+    return {
+      ...DEFAULT_MESSAGE_DEDUPLICATION_OPTIONS,
+      ...Object.fromEntries(
+        Object.entries(parsedOptions.data).filter(([_, value]) => value !== undefined),
+      ),
+    }
   }
 }
