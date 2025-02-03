@@ -54,10 +54,10 @@ export enum DeduplicationRequester {
 }
 
 export const DEFAULT_MESSAGE_DEDUPLICATION_OPTIONS: Required<MessageDeduplicationOptions> = {
-  deduplicationWindowSeconds: 10,
-  lockTimeoutSeconds: 10,
-  acquireTimeoutSeconds: 10,
-  refreshIntervalSeconds: 5,
+  deduplicationWindowSeconds: 40,
+  lockTimeoutSeconds: 20,
+  acquireTimeoutSeconds: 20,
+  refreshIntervalSeconds: 10,
 }
 
 export const noopReleasableLock: ReleasableLock = {
