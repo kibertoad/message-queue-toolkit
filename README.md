@@ -481,7 +481,7 @@ Instead, you should either enable content-based deduplication on the queue or pa
     })
     // any subsequent call to publish with the same deduplicationId will be ignored for the next 60 seconds
 
-   // You can also publish messages without deduplication, by simply ommitting deduplicationId field
+   // You can also publish messages without deduplication, by simply omitting deduplicationId field
     await publisher.publish({ 
         // message payload
     })
