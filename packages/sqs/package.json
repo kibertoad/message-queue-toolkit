@@ -43,13 +43,13 @@
     "@message-queue-toolkit/s3-payload-store": "*",
     "@message-queue-toolkit/schemas": "*",
     "@types/node": "^22.7.5",
-    "@vitest/coverage-v8": "^2.1.5",
+    "@vitest/coverage-v8": "^3.0.5",
     "awilix": "^12.0.1",
     "awilix-manager": "^6.0.0",
     "del-cli": "^6.0.0",
     "ioredis": "^5.3.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.5"
+    "vitest": "^3.0.5"
   },
   "homepage": "https://github.com/kibertoad/message-queue-toolkit",
   "repository": {
