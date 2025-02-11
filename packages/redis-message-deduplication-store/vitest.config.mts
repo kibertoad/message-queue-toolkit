@@ -3,32 +3,26 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     globals: true,
+    watch: false,
     poolOptions: {
       threads: {
         singleThread: true,
       },
     },
     pool: 'threads',
-    watch: false,
     environment: 'node',
     reporters: ['default'],
     coverage: {
       provider: 'v8',
       include: ['lib/**/*.ts'],
-      exclude: [
-        'lib/**/*.spec.ts',
-        'lib/**/*.test.ts',
-        'test/**/*.*',
-        'lib/types/**/*.*',
-        'lib/sns/fakes',
-      ],
+      exclude: ['lib/**/*.spec.ts', 'lib/**/*.test.ts', 'test/**/*.*'],
       reporter: ['text'],
       all: true,
       thresholds: {
-        lines: 6,
-        functions: 60,
-        branches: 70,
-        statements: 6,
+        lines: 100,
+        functions: 100,
+        branches: 100,
+        statements: 100,
       },
     },
   },

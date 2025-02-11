@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/sqs",
-  "version": "19.0.0",
+  "version": "19.1.0",
   "private": false,
   "license": "MIT",
   "description": "SQS adapter for message-queue-toolkit",
@@ -31,7 +31,7 @@
   },
   "peerDependencies": {
     "@aws-sdk/client-sqs": "^3.632.0",
-    "@message-queue-toolkit/core": ">=19.0.0"
+    "@message-queue-toolkit/core": ">=19.1.0"
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.670.0",
@@ -39,12 +39,15 @@
     "@biomejs/biome": "1.9.4",
     "@kibertoad/biome-config": "^1.2.1",
     "@message-queue-toolkit/core": "*",
+    "@message-queue-toolkit/redis-message-deduplication-store": "*",
     "@message-queue-toolkit/s3-payload-store": "*",
+    "@message-queue-toolkit/schemas": "*",
     "@types/node": "^22.7.5",
     "@vitest/coverage-v8": "^2.1.5",
     "awilix": "^12.0.1",
     "awilix-manager": "^6.0.0",
     "del-cli": "^6.0.0",
+    "ioredis": "^5.3.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.5"
   },

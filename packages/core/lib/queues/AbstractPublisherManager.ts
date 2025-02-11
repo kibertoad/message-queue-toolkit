@@ -131,6 +131,7 @@ export abstract class AbstractPublisherManager<
       this.targetToEventMap[eventTarget].push(supportedEvent)
     }
   }
+
   private registerPublishers() {
     for (const eventTarget in this.targetToEventMap) {
       if (this.targetToPublisherMap[eventTarget]) {

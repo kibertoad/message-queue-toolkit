@@ -2,22 +2,22 @@ import type { MessageAttributeValue } from '@aws-sdk/client-sqs'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
 import { InternalError } from '@lokalise/node-core'
-import type {
-  AsyncPublisher,
-  BarrierResult,
-  MessageInvalidFormatError,
-  MessageSchemaContainer,
-  MessageValidationError,
-  OffloadedPayloadPointerPayload,
-  QueuePublisherOptions,
-  ResolvedMessage,
+import {
+  type AsyncPublisher,
+  type BarrierResult,
+  DeduplicationRequester,
+  type MessageInvalidFormatError,
+  type MessageSchemaContainer,
+  type MessageValidationError,
+  type OffloadedPayloadPointerPayload,
+  type QueuePublisherOptions,
+  type ResolvedMessage,
 } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
 import type { SQSMessage } from '../types/MessageTypes'
 import { resolveOutgoingMessageAttributes } from '../utils/messageUtils'
 import { calculateOutgoingMessageSize } from '../utils/sqsUtils'
-
 import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
 
@@ -34,6 +34,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
   implements AsyncPublisher<MessagePayloadType, SQSMessageOptions>
 {
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
+  private readonly isDeduplicationEnabled: boolean
   private initPromise?: Promise<void>
 
   constructor(
@@ -43,6 +44,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     super(dependencies, options)
 
     this.messageSchemaContainer = this.resolvePublisherMessageSchemaContainer(options)
+    this.isDeduplicationEnabled = !!options.enablePublisherDeduplication
   }
 
   async publish(message: MessagePayloadType, options: SQSMessageOptions = {}): Promise<void> {
@@ -76,6 +78,20 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(message, () =>
         calculateOutgoingMessageSize(message),
       )
+
+      if (
+        this.isDeduplicationEnabledForMessage(parsedMessage) &&
+        (await this.deduplicateMessage(parsedMessage, DeduplicationRequester.Publisher))
+          .isDuplicated
+      ) {
+        this.handleMessageProcessed({
+          message: parsedMessage,
+          processingResult: 'duplicate',
+          messageProcessingStartTimestamp,
+          queueName: this.queueName,
+        })
+        return
+      }
 
       await this.sendMessage(maybeOffloadedPayloadMessage, options)
       this.handleMessageProcessed({
@@ -125,6 +141,10 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     throw new Error('Not implemented for publisher')
   }
   /* c8 ignore stop */
+
+  protected override isDeduplicationEnabledForMessage(message: MessagePayloadType): boolean {
+    return this.isDeduplicationEnabled && super.isDeduplicationEnabledForMessage(message)
+  }
 
   protected override resolveSchema(
     message: MessagePayloadType,

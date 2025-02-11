@@ -25,6 +25,17 @@ services:
       - '${TMPDIR:-/tmp}/localstack:/var/log/localstack'
       - '/var/run/docker.sock:/var/run/docker.sock'
 
+  redis:
+    image: redis:6.2.7-alpine
+    command: redis-server --requirepass sOmE_sEcUrE_pAsS
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/redis/data:cached
+    restart: on-failure
+
 volumes:
   rabbit_data:
+    driver: local
+  redis_data:
     driver: local

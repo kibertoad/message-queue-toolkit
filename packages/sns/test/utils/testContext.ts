@@ -25,7 +25,9 @@ import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
 
 import { STSClient } from '@aws-sdk/client-sts'
+import { Redis } from 'ioredis'
 import { CreateLocateConfigMixPublisher } from '../publishers/CreateLocateConfigMixPublisher'
+import { TEST_REDIS_CONFIG } from './testRedisConfig'
 import { TEST_AWS_CONFIG } from './testSnsConfig'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
@@ -165,6 +167,37 @@ export async function registerDependencies(
       },
     ),
 
+    redis: asFunction(
+      () => {
+        const redisConfig = TEST_REDIS_CONFIG
+
+        return new Redis({
+          host: redisConfig.host,
+          db: redisConfig.db,
+          port: redisConfig.port,
+          username: redisConfig.username,
+          password: redisConfig.password,
+          connectTimeout: redisConfig.connectTimeout,
+          commandTimeout: redisConfig.commandTimeout,
+          tls: redisConfig.useTls ? {} : undefined,
+          maxRetriesPerRequest: null,
+          lazyConnect: true, // connect handled by asyncInit
+        })
+      },
+      {
+        asyncInitPriority: 0, // starting at the very beginning
+        asyncInit: 'connect',
+        dispose: (redis) => {
+          return new Promise((resolve) => {
+            void redis.quit((_err, result) => {
+              return resolve(result)
+            })
+          })
+        },
+        lifetime: Lifetime.SINGLETON,
+      },
+    ),
+
     // vendor-specific dependencies
     transactionObservabilityManager: asFunction(() => {
       return undefined
@@ -198,6 +231,7 @@ export interface Dependencies {
   stsClient: STSClient
   s3: S3
   awilixManager: AwilixManager
+  redis: Redis
 
   // vendor-specific dependencies
   transactionObservabilityManager: TransactionObservabilityManager

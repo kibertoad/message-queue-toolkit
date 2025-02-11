@@ -2,15 +2,16 @@ import type { MessageAttributeValue } from '@aws-sdk/client-sns'
 import { PublishCommand } from '@aws-sdk/client-sns'
 import type { Either } from '@lokalise/node-core'
 import { InternalError } from '@lokalise/node-core'
-import type {
-  AsyncPublisher,
-  BarrierResult,
-  MessageInvalidFormatError,
-  MessageSchemaContainer,
-  MessageValidationError,
-  OffloadedPayloadPointerPayload,
-  QueuePublisherOptions,
-  ResolvedMessage,
+import {
+  type AsyncPublisher,
+  type BarrierResult,
+  DeduplicationRequester,
+  type MessageInvalidFormatError,
+  type MessageSchemaContainer,
+  type MessageValidationError,
+  type OffloadedPayloadPointerPayload,
+  type QueuePublisherOptions,
+  type ResolvedMessage,
 } from '@message-queue-toolkit/core'
 import { resolveOutgoingMessageAttributes } from '@message-queue-toolkit/sqs'
 
@@ -35,6 +36,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
   implements AsyncPublisher<MessagePayloadType, SNSMessageOptions>
 {
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
+  private readonly isDeduplicationEnabled: boolean
 
   private initPromise?: Promise<void>
 
@@ -42,6 +44,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     super(dependencies, options)
 
     this.messageSchemaContainer = this.resolvePublisherMessageSchemaContainer(options)
+    this.isDeduplicationEnabled = !!options.enablePublisherDeduplication
   }
 
   async publish(message: MessagePayloadType, options: SNSMessageOptions = {}): Promise<void> {
@@ -63,6 +66,8 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     try {
       const messageProcessingStartTimestamp = Date.now()
       const parsedMessage = messageSchemaResult.result.parse(message)
+      const topicName =
+        this.locatorConfig?.topicName ?? this.creationConfig?.topic?.Name ?? 'unknown'
 
       if (this.logMessages) {
         // @ts-ignore
@@ -76,10 +81,22 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         () => calculateOutgoingMessageSize(updatedMessage),
       )
 
+      if (
+        this.isDeduplicationEnabledForMessage(parsedMessage) &&
+        (await this.deduplicateMessage(parsedMessage, DeduplicationRequester.Publisher))
+          .isDuplicated
+      ) {
+        this.handleMessageProcessed({
+          message: parsedMessage,
+          processingResult: 'duplicate',
+          messageProcessingStartTimestamp,
+          queueName: topicName,
+        })
+        return
+      }
+
       await this.sendMessage(maybeOffloadedPayloadMessage, options)
 
-      const topicName =
-        this.locatorConfig?.topicName ?? this.creationConfig?.topic?.Name ?? 'unknown'
       this.handleMessageProcessed({
         message: parsedMessage,
         processingResult: 'published',
@@ -131,6 +148,10 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     throw new Error('Not implemented for publisher')
   }
 
+  protected override isDeduplicationEnabledForMessage(message: MessagePayloadType): boolean {
+    return this.isDeduplicationEnabled && super.isDeduplicationEnabledForMessage(message)
+  }
+
   protected async sendMessage(
     payload: MessagePayloadType | OffloadedPayloadPointerPayload,
     options: SNSMessageOptions,
@@ -144,6 +165,5 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     })
     await this.snsClient.send(command)
   }
-
   /* c8 ignore stop */
 }

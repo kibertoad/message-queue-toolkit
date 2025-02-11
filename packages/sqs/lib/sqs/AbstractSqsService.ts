@@ -1,7 +1,6 @@
 import type { CreateQueueRequest, SQSClient } from '@aws-sdk/client-sqs'
 import type { QueueDependencies, QueueOptions } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
-
 import type { SQSMessage } from '../types/MessageTypes'
 import { deleteSqs, initSqs } from '../utils/sqsInitter'
 

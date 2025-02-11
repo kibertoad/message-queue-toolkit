@@ -15,6 +15,7 @@ import {
   type PUBLISHER_MESSAGE_METADATA_SCHEMA,
 } from '../events/baseEventSchemas'
 import type { CommonEventDefinition } from '../events/eventTypes'
+import type { MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA } from './messageDeduplicationSchemas'
 
 export const CONSUMER_BASE_MESSAGE_SCHEMA = CONSUMER_BASE_EVENT_SCHEMA
 export const PUBLISHER_BASE_MESSAGE_SCHEMA = PUBLISHER_BASE_EVENT_SCHEMA
@@ -35,6 +36,8 @@ type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string>
       id: ZodString
       timestamp: ZodString
       type: ZodLiteral<Z>
+      deduplicationId: ZodOptional<ZodString>
+      deduplicationOptions: z.ZodOptional<typeof MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA>
       payload: T
       metadata: ZodObject<
         {
@@ -54,6 +57,8 @@ type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string>
       id: ZodOptional<ZodString>
       timestamp: ZodOptional<ZodString>
       type: ZodLiteral<Z>
+      deduplicationId: ZodOptional<ZodString>
+      deduplicationOptions: z.ZodOptional<typeof MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA>
       payload: T
       metadata: ZodOptional<
         ZodObject<
