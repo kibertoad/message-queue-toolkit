@@ -68,7 +68,14 @@ export type SQSConsumerOptions<
    */
   consumerOverrides?: Omit<
     ConsumerOptions,
-    'sqs' | 'queueUrl' | 'handler' | 'handleMessageBatch' | 'visibilityTimeout'
+    | 'sqs'
+    | 'queueUrl'
+    | 'handler'
+    | 'handleMessageBatch'
+    | 'visibilityTimeout'
+    | 'messageAttributeNames'
+    | 'messageSystemAttributeNames'
+    | 'attributeNames'
   >
   concurrentConsumersAmount?: number
 }
