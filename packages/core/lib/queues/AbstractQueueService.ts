@@ -223,15 +223,13 @@ export abstract class AbstractQueueService<
     const { message, processingResult, messageId } = params
     const messageProcessingEndTimestamp = Date.now()
 
-    if (this._handlerSpy) {
-      this._handlerSpy.addProcessedMessage(
-        {
-          message,
-          processingResult,
-        },
-        messageId,
-      )
-    }
+    this._handlerSpy?.addProcessedMessage(
+      {
+        message,
+        processingResult,
+      },
+      messageId,
+    )
 
     const debugLoggingEnabled = this.logMessages && this.logger.isLevelEnabled('debug')
     if (!debugLoggingEnabled && !this.messageMetricsManager) {
