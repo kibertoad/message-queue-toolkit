@@ -1,4 +1,8 @@
-import { SendMessageCommand, SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
+import {
+  MessageSystemAttributeName,
+  SendMessageCommand,
+  SetQueueAttributesCommand,
+} from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import {
   type BarrierResult,
@@ -25,7 +29,6 @@ import { hasOffloadedPayload } from '../utils/messageUtils'
 import { deleteSqs, initSqs } from '../utils/sqsInitter'
 import { readSqsMessage } from '../utils/sqsMessageReader'
 import { getQueueAttributes } from '../utils/sqsUtils'
-
 import { PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX } from './AbstractSqsPublisher'
 import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
 import { AbstractSqsService } from './AbstractSqsService'
@@ -187,15 +190,13 @@ export abstract class AbstractSqsConsumer<
 
     const visibilityTimeout = await this.getQueueVisibilityTimeout()
 
-    this.consumers = Array.from({ length: this.concurrentConsumersAmount }).map((_) =>
+    this.consumers = Array.from({ length: this.concurrentConsumersAmount }, () =>
       this.createConsumer({ visibilityTimeout }),
     )
 
     for (const consumer of this.consumers) {
       consumer.on('error', (err) => {
-        this.handleError(err, {
-          queueName: this.queueName,
-        })
+        this.handleError(err, { queueName: this.queueName })
       })
       consumer.start()
     }
@@ -211,6 +212,7 @@ export abstract class AbstractSqsConsumer<
       sqs: this.sqsClient,
       queueUrl: this.queueUrl,
       visibilityTimeout: options.visibilityTimeout,
+      messageSystemAttributeNames: [MessageSystemAttributeName.ApproximateReceiveCount],
       messageAttributeNames: [`${PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX}*`],
       ...this.consumerOptionsOverride,
       // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
