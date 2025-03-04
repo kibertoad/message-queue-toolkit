@@ -1,8 +1,4 @@
-import {
-  MessageSystemAttributeName,
-  SendMessageCommand,
-  SetQueueAttributesCommand,
-} from '@aws-sdk/client-sqs'
+import { SendMessageCommand, SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import {
   type BarrierResult,
@@ -219,7 +215,6 @@ export abstract class AbstractSqsConsumer<
       sqs: this.sqsClient,
       queueUrl: this.queueUrl,
       visibilityTimeout: options.visibilityTimeout,
-      messageSystemAttributeNames: [MessageSystemAttributeName.ApproximateReceiveCount],
       messageAttributeNames: [`${PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX}*`],
       ...this.consumerOptionsOverride,
       // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
