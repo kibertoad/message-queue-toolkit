@@ -26,6 +26,7 @@ import { SqsPermissionPublisher } from './SqsPermissionPublisher'
 const queueName = 'payloadOffloadingTestQueue'
 
 describe('SqsPermissionPublisher', () => {
+  // FORCING CI TO RUN
   describe('publish', () => {
     const largeMessageSizeThreshold = 1024 // Messages larger than 1KB shall be offloaded
     const s3BucketName = 'payload-offloading-test-bucket'
