@@ -23,7 +23,7 @@
     "prepublishOnly": "npm run build:release"
   },
   "dependencies": {
-    "@lokalise/background-jobs-common": "^10.0.0",
+    "@lokalise/background-jobs-common": "^11.0.0",
     "@supercharge/promise-pool": "^3.2.0",
     "uuidv7": "^1.0.2"
   },
