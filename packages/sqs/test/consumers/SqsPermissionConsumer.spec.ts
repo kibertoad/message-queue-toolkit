@@ -839,12 +839,12 @@ describe('SqsPermissionConsumer', () => {
       await publisher.publish({
         id: '20',
         messageType: 'remove',
-        _internalNumberOfRetries: 1, // Note that publish will add 1 to this value, but it's fine for this test
+        _internalRetryLaterCount: 1, // Note that publish will add 1 to this value, but it's fine for this test
       } as any)
       await publisher.publish({
         id: '30',
         messageType: 'remove',
-        _internalNumberOfRetries: 10, // Note that publish will add 1 to this value, but it's fine for this test
+        _internalRetryLaterCount: 10, // Note that publish will add 1 to this value, but it's fine for this test
       } as any)
 
       await waitAndRetry(
@@ -867,24 +867,24 @@ describe('SqsPermissionConsumer', () => {
       expect(sendMessageCommands).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
-            MessageBody: expect.stringContaining('"_internalNumberOfRetries":0'),
+            MessageBody: expect.stringContaining('"_internalRetryLaterCount":0'),
           }),
           expect.objectContaining({
-            MessageBody: expect.stringContaining('"_internalNumberOfRetries":2'),
+            MessageBody: expect.stringContaining('"_internalRetryLaterCount":2'),
           }),
           expect.objectContaining({
-            MessageBody: expect.stringContaining('"_internalNumberOfRetries":11'),
+            MessageBody: expect.stringContaining('"_internalRetryLaterCount":11'),
           }),
           expect.objectContaining({
-            MessageBody: expect.stringContaining('"_internalNumberOfRetries":1'),
+            MessageBody: expect.stringContaining('"_internalRetryLaterCount":1'),
             DelaySeconds: 1,
           }),
           expect.objectContaining({
-            MessageBody: expect.stringContaining('"_internalNumberOfRetries":3'),
+            MessageBody: expect.stringContaining('"_internalRetryLaterCount":3'),
             DelaySeconds: 4,
           }),
           expect.objectContaining({
-            MessageBody: expect.stringContaining('"_internalNumberOfRetries":12'),
+            MessageBody: expect.stringContaining('"_internalRetryLaterCount":12'),
             DelaySeconds: 2048,
           }),
         ]),

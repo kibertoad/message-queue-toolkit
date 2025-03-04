@@ -340,7 +340,7 @@ describe('SqsPermissionPublisher', () => {
           id: '1',
           messageType: 'add',
           timestamp: expect.any(String),
-          _internalNumberOfRetries: 0,
+          _internalRetryLaterCount: 0,
         },
         parsedMessage: {
           id: '1',
