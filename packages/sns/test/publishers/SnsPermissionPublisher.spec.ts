@@ -259,7 +259,7 @@ describe('SnsPermissionPublisher', () => {
       expect(receivedMessage).toEqual({
         originalMessage: {
           ...message,
-          _internalNumberOfRetries: 0,
+          _internalRetryLaterCount: 0,
           timestamp: expect.any(String),
         },
         parsedMessage: message,
@@ -323,7 +323,7 @@ describe('SnsPermissionPublisher', () => {
         originalMessage: {
           ...message,
           timestamp: expect.any(String),
-          _internalNumberOfRetries: 0,
+          _internalRetryLaterCount: 0,
         },
         parsedMessage: {
           id: '1',
