@@ -141,7 +141,7 @@ export abstract class AbstractAmqpConsumer<
         const messageId = this.tryToExtractId(message)
         this.handleMessageProcessed({
           message: null,
-          processingResult: 'invalid_message',
+          processingResult: { status: 'error', errorReason: 'invalidMessage' },
           messageProcessingStartTimestamp,
           queueName: this.queueName,
           messageId: messageId.result,
@@ -170,7 +170,7 @@ export abstract class AbstractAmqpConsumer<
             this.channel.ack(message)
             this.handleMessageProcessed({
               message: parsedMessage,
-              processingResult: 'consumed',
+              processingResult: { status: 'consumed' },
               messageProcessingStartTimestamp,
               queueName: this.queueName,
             })
@@ -183,7 +183,7 @@ export abstract class AbstractAmqpConsumer<
             this.channel.nack(message as Message, false, true)
             this.handleMessageProcessed({
               message: parsedMessage,
-              processingResult: 'retryLater',
+              processingResult: { status: 'retryLater' },
               messageProcessingStartTimestamp,
               queueName: this.queueName,
             })
@@ -192,7 +192,7 @@ export abstract class AbstractAmqpConsumer<
             this.channel.ack(message)
             this.handleMessageProcessed({
               message: parsedMessage,
-              processingResult: 'error',
+              processingResult: { status: 'error', errorReason: 'retryLaterExceeded' },
               messageProcessingStartTimestamp,
               queueName: this.queueName,
             })
@@ -204,7 +204,7 @@ export abstract class AbstractAmqpConsumer<
           this.channel.nack(message, false, true)
           this.handleMessageProcessed({
             message: parsedMessage,
-            processingResult: 'retryLater',
+            processingResult: { status: 'retryLater' },
             messageProcessingStartTimestamp,
             queueName: this.queueName,
           })

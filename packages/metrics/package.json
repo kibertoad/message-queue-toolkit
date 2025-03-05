@@ -1,6 +1,5 @@
 {
   "name": "@message-queue-toolkit/metrics",
-  // TODO: decide version here
   "version": "2.0.0",
   "private": false,
   "license": "MIT",
