@@ -1,9 +1,9 @@
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import * as promClient from 'prom-client'
 import { describe, expect, it } from 'vitest'
-import { MessageLifetimeMetric } from './MessageLifetimeMetric'
 import { MessageProcessingMultiMetrics } from './MessageProcessingMultiMetrics'
-import { MessageProcessingTimeMetric } from './MessageProcessingTimeMetric'
+import { MessageLifetimeMetric } from './metrics/MessageLifetimeMetric'
+import { MessageProcessingTimeMetric } from './metrics/MessageProcessingTimeMetric'
 
 type TestMessageSchema = {
   id: string
