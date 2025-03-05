@@ -1,5 +1,5 @@
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
-import { MessageProcessingPrometheusMetric } from './MessageProcessingPrometheusMetric'
+import { MessageProcessingPrometheusMetric } from '../MessageProcessingPrometheusMetric'
 
 export class MessageProcessingTimeMetric<
   MessagePayloadSchemas extends object,
