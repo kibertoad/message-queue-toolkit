@@ -42,7 +42,7 @@ describe('MessageLifetimeMetric', () => {
     metric.registerProcessedMessage({
       messageId: message.id,
       messageType: message.messageType,
-      processingResult: 'consumed',
+      processingResult: { status: 'consumed' },
       message: message,
       queueName: 'test-queue',
       messageTimestamp: timestamp,
@@ -92,7 +92,7 @@ describe('MessageLifetimeMetric', () => {
     metric.registerProcessedMessage({
       messageId: message.id,
       messageType: message.messageType,
-      processingResult: 'consumed',
+      processingResult: { status: 'consumed' },
       queueName: 'test-queue',
       message: message,
       messageTimestamp: undefined,

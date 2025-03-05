@@ -73,7 +73,7 @@ describe('MessageProcessingMultiMetrics', () => {
       messages.map((message) => ({
         messageId: message.id,
         messageType: message.messageType,
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: message,
         queueName: 'test-queue',
         messageTimestamp: timestamp,

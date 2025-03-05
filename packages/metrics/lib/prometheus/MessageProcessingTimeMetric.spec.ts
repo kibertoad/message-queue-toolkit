@@ -52,7 +52,7 @@ describe('MessageProcessingTimeMetric', () => {
       messages.map((message) => ({
         messageId: message.id,
         messageType: message.messageType,
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: message,
         queueName: 'test-queue',
         messageTimestamp: timestamp,
@@ -97,7 +97,7 @@ describe('MessageProcessingTimeMetric', () => {
     metric.registerProcessedMessage({
       messageId: message.id,
       messageType: message.messageType,
-      processingResult: 'consumed',
+      processingResult: { status: 'consumed' },
       message: message,
       queueName: 'test-queue',
       messageTimestamp: timestamp,
@@ -162,7 +162,7 @@ describe('MessageProcessingTimeMetric', () => {
       metric.registerProcessedMessage({
         messageId: message.id,
         messageType: message.messageType,
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: message,
         queueName,
         messageTimestamp: Date.now(),

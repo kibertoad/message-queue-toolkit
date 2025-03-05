@@ -75,7 +75,7 @@ export abstract class MessageProcessingPrometheusMetric<MessagePayloadSchemas ex
         messageType: metadata.messageType,
         version: this.messageVersionGeneratingFunction(metadata),
         queue: metadata.queueName,
-        result: metadata.processingResult,
+        result: metadata.processingResult.status,
       },
       observedValue,
     )

@@ -1,5 +1,6 @@
 {
   "name": "@message-queue-toolkit/metrics",
+  // TODO: decide version here
   "version": "2.0.0",
   "private": false,
   "license": "MIT",
@@ -26,7 +27,7 @@
     "@lokalise/node-core": "^13.3.0"
   },
   "peerDependencies": {
-    "@message-queue-toolkit/core": ">=19.0.0",
+    "@message-queue-toolkit/core": ">=20.0.0",
     "prom-client": ">=15.0.0"
   },
   "devDependencies": {
