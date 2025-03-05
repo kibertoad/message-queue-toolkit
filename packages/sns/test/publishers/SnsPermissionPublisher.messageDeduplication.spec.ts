@@ -58,7 +58,7 @@ describe('SnsPermissionPublisher', () => {
       await publisher.publish(message)
 
       const spy = await publisher.handlerSpy.waitForMessageWithId(message.id)
-      expect(spy.processingResult).toBe('published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
 
       const deduplicationKeyExists = await messageDeduplicationStore.keyExists(
         `publisher:${deduplicationId}`,
@@ -77,7 +77,7 @@ describe('SnsPermissionPublisher', () => {
       await publisher.publish(message)
 
       const spyFirstCall = await publisher.handlerSpy.waitForMessageWithId(message.id)
-      expect(spyFirstCall.processingResult).toBe('published')
+      expect(spyFirstCall.processingResult).toEqual({ status: 'published' })
 
       // Clear the spy, so we can check for the subsequent call
       publisher.handlerSpy.clear()
@@ -86,7 +86,10 @@ describe('SnsPermissionPublisher', () => {
       await publisher.publish(message)
 
       const spySecondCall = await publisher.handlerSpy.waitForMessageWithId(message.id)
-      expect(spySecondCall.processingResult).toBe('duplicate')
+      expect(spySecondCall.processingResult).toEqual({
+        status: 'published',
+        skippedAsDuplicate: true,
+      })
     })
 
     it('works only for messages that have deduplication ids provided', async () => {
@@ -104,7 +107,7 @@ describe('SnsPermissionPublisher', () => {
       await publisher.publish(message1)
 
       const spyFirstCall = await publisher.handlerSpy.waitForMessageWithId(message1.id)
-      expect(spyFirstCall.processingResult).toBe('published')
+      expect(spyFirstCall.processingResult).toEqual({ status: 'published' })
 
       // Clear the spy, so wew can check for the subsequent call
       publisher.handlerSpy.clear()
@@ -113,7 +116,10 @@ describe('SnsPermissionPublisher', () => {
       await publisher.publish(message1)
 
       const spySecondCall = await publisher.handlerSpy.waitForMessageWithId(message1.id)
-      expect(spySecondCall.processingResult).toBe('duplicate')
+      expect(spySecondCall.processingResult).toEqual({
+        status: 'published',
+        skippedAsDuplicate: true,
+      })
 
       // Clear the spy, so we can check for the subsequent call
       publisher.handlerSpy.clear()
@@ -122,7 +128,7 @@ describe('SnsPermissionPublisher', () => {
       await publisher.publish(message2)
 
       const spyThirdCall = await publisher.handlerSpy.waitForMessageWithId(message2.id)
-      expect(spyThirdCall.processingResult).toBe('published')
+      expect(spyThirdCall.processingResult).toEqual({ status: 'published' })
 
       // Clear the spy, so we can check for the subsequent call
       publisher.handlerSpy.clear()
@@ -131,7 +137,7 @@ describe('SnsPermissionPublisher', () => {
       await publisher.publish(message2)
 
       const spyFourthCall = await publisher.handlerSpy.waitForMessageWithId(message2.id)
-      expect(spyFourthCall.processingResult).toBe('published')
+      expect(spyFourthCall.processingResult).toEqual({ status: 'published' })
     })
 
     it('in case of errors on deduplication store level, message is published without being deduplicated', async () => {
@@ -149,7 +155,7 @@ describe('SnsPermissionPublisher', () => {
       await publisher.publish(message)
 
       const spy = await publisher.handlerSpy.waitForMessageWithId(message.id)
-      expect(spy.processingResult).toBe('published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
 
       const deduplicationKeyExists = await messageDeduplicationStore.keyExists(
         `publisher:${deduplicationId}`,
@@ -171,7 +177,7 @@ describe('SnsPermissionPublisher', () => {
       await publisher.publish(message)
 
       const spy = await publisher.handlerSpy.waitForMessageWithId(message.id)
-      expect(spy.processingResult).toBe('published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
 
       const deduplicationKeyTtl = await messageDeduplicationStore.getKeyTtl(
         `publisher:${deduplicationId}`,
