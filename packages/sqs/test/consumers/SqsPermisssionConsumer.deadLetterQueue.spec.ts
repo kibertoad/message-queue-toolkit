@@ -306,7 +306,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       await permissionPublisher.publish(sqsMessage)
 
       const handlerSpyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
-      expect(handlerSpyResult.processingResult).toBe('consumed')
+      expect(handlerSpyResult.processingResult).toEqual({ status: 'consumed' })
       expect(handlerSpyResult.message).toMatchObject({ id: '1', messageType: 'remove' })
 
       expect(counter).toBe(2)

@@ -313,7 +313,7 @@ describe('SqsPermissionConsumer', () => {
         },
         {
           messageId: '1',
-          processingResult: 'consumed',
+          processingResult: { status: 'consumed' },
         },
       ])
       await newConsumer.close()
@@ -368,7 +368,7 @@ describe('SqsPermissionConsumer', () => {
           messageId: '1',
           messageType: 'add',
           messageDeduplicationId: undefined,
-          processingResult: 'consumed',
+          processingResult: { status: 'consumed' },
           messageTimestamp: expect.any(Number),
           messageProcessingStartTimestamp: expect.any(Number),
           messageProcessingEndTimestamp: expect.any(Number),
@@ -376,9 +376,7 @@ describe('SqsPermissionConsumer', () => {
           message: expect.objectContaining({
             id: '1',
             messageType: 'add',
-            metadata: {
-              schemaVersions: '1.0.0',
-            },
+            metadata: { schemaVersions: '1.0.0' },
           }),
         },
       ])

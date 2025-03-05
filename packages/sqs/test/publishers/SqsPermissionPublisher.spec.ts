@@ -293,7 +293,7 @@ describe('SqsPermissionPublisher', () => {
 
       const spy = await permissionPublisher.handlerSpy.waitForMessageWithId('1', 'published')
       expect(spy.message).toEqual(message)
-      expect(spy.processingResult).toBe('published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
     })
 
     it('publish a message auto-filling internal properties', async () => {
@@ -365,7 +365,7 @@ describe('SqsPermissionPublisher', () => {
 
       const spy = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
       expect(spy.message).toEqual(message)
-      expect(spy.processingResult).toBe('published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
     })
   })
 })
