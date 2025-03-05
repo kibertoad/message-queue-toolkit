@@ -230,7 +230,7 @@ export abstract class AbstractSqsConsumer<
           const messageId = this.tryToExtractId(message)
           this.handleMessageProcessed({
             message: null,
-            processingResult: 'invalid_message',
+            processingResult: { status: 'error', errorReason: 'invalidMessage' },
             messageProcessingStartTimestamp,
             queueName: this.queueName,
             messageId: messageId.result,
@@ -245,7 +245,7 @@ export abstract class AbstractSqsConsumer<
         ) {
           this.handleMessageProcessed({
             message: parsedMessage,
-            processingResult: 'duplicate',
+            processingResult: { status: 'consumed', skippedAsDuplicate: true },
             messageProcessingStartTimestamp,
             queueName: this.queueName,
             messageId: this.tryToExtractId(message).result,
@@ -279,7 +279,7 @@ export abstract class AbstractSqsConsumer<
           await acquireLockResult.result?.release()
           this.handleMessageProcessed({
             message: parsedMessage,
-            processingResult: 'duplicate',
+            processingResult: { status: 'consumed', skippedAsDuplicate: true },
             messageProcessingStartTimestamp,
             queueName: this.queueName,
             messageId: this.tryToExtractId(message).result,
@@ -318,7 +318,7 @@ export abstract class AbstractSqsConsumer<
           await acquireLockResult.result?.release()
           this.handleMessageProcessed({
             message: originalMessage,
-            processingResult: 'consumed',
+            processingResult: { status: 'consumed' },
             messageProcessingStartTimestamp,
             queueName: this.queueName,
           })
@@ -340,7 +340,7 @@ export abstract class AbstractSqsConsumer<
         await acquireLockResult.result?.release()
         this.handleMessageProcessed({
           message: parsedMessage,
-          processingResult: 'error',
+          processingResult: { status: 'error', errorReason: 'handlerError' },
           messageProcessingStartTimestamp,
           queueName: this.queueName,
         })
@@ -365,7 +365,7 @@ export abstract class AbstractSqsConsumer<
       )
       this.handleMessageProcessed({
         message: parsedMessage,
-        processingResult: 'retryLater',
+        processingResult: { status: 'retryLater' },
         messageProcessingStartTimestamp,
         queueName: this.queueName,
       })
@@ -373,7 +373,7 @@ export abstract class AbstractSqsConsumer<
       await this.failProcessing(message)
       this.handleMessageProcessed({
         message: parsedMessage,
-        processingResult: 'error',
+        processingResult: { status: 'error', errorReason: 'retryLaterExceeded' },
         messageProcessingStartTimestamp,
         queueName: this.queueName,
       })

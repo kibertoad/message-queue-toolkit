@@ -10,10 +10,10 @@ export interface QueueConsumer {
 
 export type MessageProcessingResult =
   | {
-      status: 'retryLater' | 'published'
+      status: 'retryLater'
     }
   | {
-      status: 'consumed'
+      status: 'consumed' | 'published'
       skippedAsDuplicate?: boolean
     }
   | {

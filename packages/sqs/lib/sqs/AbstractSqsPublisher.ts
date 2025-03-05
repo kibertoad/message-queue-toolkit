@@ -86,7 +86,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       ) {
         this.handleMessageProcessed({
           message: parsedMessage,
-          processingResult: 'duplicate',
+          processingResult: { status: 'published', skippedAsDuplicate: true },
           messageProcessingStartTimestamp,
           queueName: this.queueName,
         })
@@ -96,7 +96,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       await this.sendMessage(maybeOffloadedPayloadMessage, options)
       this.handleMessageProcessed({
         message: parsedMessage,
-        processingResult: 'published',
+        processingResult: { status: 'published' },
         messageProcessingStartTimestamp,
         queueName: this.queueName,
       })
