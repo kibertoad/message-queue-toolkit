@@ -1,7 +1,7 @@
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import * as promClient from 'prom-client'
 import { describe, expect, it } from 'vitest'
-import { MessageMultiMetrics } from './MessageMultiMetrics'
+import { MessageMultiMetric } from './MessageMultiMetrics'
 import { MessageLifetimeMetric } from './prometheus/metrics/MessageLifetimeMetric'
 import { MessageProcessingTimeMetric } from './prometheus/metrics/MessageProcessingTimeMetric'
 
@@ -14,7 +14,7 @@ type TestMessageSchema = {
   }
 }
 
-describe('MessageMultiMetrics', () => {
+describe('MessageMultiMetric', () => {
   it('registers multiple metrics', () => {
     // Given
     const registeredProcessingTimeValues: ProcessedMessageMetadata<TestMessageSchema>[] = []
@@ -46,7 +46,7 @@ describe('MessageMultiMetrics', () => {
       promClient,
     )
 
-    const multiMetric = new MessageMultiMetrics<TestMessageSchema>([
+    const multiMetric = new MessageMultiMetric<TestMessageSchema>([
       processingTimeMetric,
       lifetimeMetric,
     ])
