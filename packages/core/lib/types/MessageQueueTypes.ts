@@ -9,12 +9,18 @@ export interface QueueConsumer {
 }
 
 export type MessageProcessingResult =
-  | 'retryLater'
-  | 'consumed'
-  | 'published'
-  | 'error'
-  | 'invalid_message'
-  | 'duplicate'
+  | {
+      status: 'retryLater' | 'published'
+    }
+  | {
+      status: 'consumed'
+      skippedAsDuplicate?: boolean
+    }
+  | {
+      status: 'error'
+      errorReason: 'invalidMessage' | 'handlerError' | 'retryLaterExceeded'
+    }
+export type MessageProcessingResultStatus = MessageProcessingResult['status']
 
 export interface SyncPublisher<MessagePayloadType extends object, MessageOptions> {
   handlerSpy: PublicHandlerSpy<MessagePayloadType>
