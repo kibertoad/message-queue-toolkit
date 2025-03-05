@@ -232,9 +232,7 @@ export abstract class AbstractQueueService<
     )
 
     const debugLoggingEnabled = this.logMessages && this.logger.isLevelEnabled('debug')
-    if (!debugLoggingEnabled && !this.messageMetricsManager) {
-      return
-    }
+    if (!debugLoggingEnabled && !this.messageMetricsManager) return
 
     const processedMessageMetadata = this.resolveProcessedMessageMetadata(
       message,
