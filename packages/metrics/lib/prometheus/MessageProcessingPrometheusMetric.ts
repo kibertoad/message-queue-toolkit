@@ -1,35 +1,7 @@
 import type { MessageMetricsManager, ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import type { Histogram } from 'prom-client'
 import promClient from 'prom-client'
-
-/**
- * Parameters used for registering message processing metrics in Prometheus
- */
-type PrometheusMetricParams<T extends object> = {
-  /**
-   * Prometheus metric name
-   */
-  name: string
-
-  /**
-   * Prometheus metric description
-   */
-  helpDescription: string
-
-  /**
-   * Buckets used to configure Histogram metric
-   */
-  buckets: number[]
-
-  /**
-   * Message version used as a label - can be static string or method resolving version based on payload
-   */
-  messageVersion?: string | MessageVersionGeneratingFunction<T>
-}
-
-type MessageVersionGeneratingFunction<T extends object> = (
-  messageMetadata: ProcessedMessageMetadata<T>,
-) => string | undefined
+import type { MessageVersionGeneratingFunction, PrometheusMetricParams } from './types'
 
 /**w
  * Implementation of MessageMetricsManager that can be used to register message processing measurements in Prometheus utilizing Histogram
