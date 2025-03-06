@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import { type AwilixContainer, asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -48,7 +49,7 @@ describe('SnsPermissionPublisher', () => {
     })
 
     it('publishes a message and stores deduplication key when message contains deduplication id', async () => {
-      const deduplicationId = '1'
+      const deduplicationId = randomUUID()
       const message = {
         id: '1',
         messageType: 'add',
@@ -70,7 +71,7 @@ describe('SnsPermissionPublisher', () => {
       const message = {
         id: '1',
         messageType: 'add',
-        deduplicationId: '1',
+        deduplicationId: randomUUID(),
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       // Message is published for the initial call
@@ -96,7 +97,7 @@ describe('SnsPermissionPublisher', () => {
       const message1 = {
         id: '1',
         messageType: 'add',
-        deduplicationId: '1',
+        deduplicationId: randomUUID(),
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
       const message2 = {
         id: '1',
@@ -141,7 +142,7 @@ describe('SnsPermissionPublisher', () => {
     })
 
     it('in case of errors on deduplication store level, message is published without being deduplicated', async () => {
-      const deduplicationId = '1'
+      const deduplicationId = randomUUID()
       const message = {
         id: '1',
         messageType: 'add',
@@ -164,7 +165,7 @@ describe('SnsPermissionPublisher', () => {
     })
 
     it('passes custom deduplication options to the deduplication store', async () => {
-      const deduplicationId = '1'
+      const deduplicationId = randomUUID()
       const message = {
         id: '1',
         messageType: 'add',

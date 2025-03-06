@@ -10,6 +10,7 @@ import type { Dependencies } from '../utils/testContext'
 import { registerDependencies } from '../utils/testContext'
 import { SqsPermissionConsumer } from './SqsPermissionConsumer'
 
+import { randomUUID } from 'node:crypto'
 import { waitAndRetry } from '@lokalise/node-core'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
@@ -62,7 +63,7 @@ describe('SqsPermissionConsumer', () => {
       const message = {
         id: '1',
         messageType: 'add',
-        deduplicationId: '1',
+        deduplicationId: randomUUID(),
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await publisher.publish(message)
@@ -102,7 +103,7 @@ describe('SqsPermissionConsumer', () => {
       })
       await consumer.start()
 
-      const deduplicationId = '1'
+      const deduplicationId = randomUUID()
       const message = {
         id: '1',
         messageType: 'add',
@@ -142,7 +143,7 @@ describe('SqsPermissionConsumer', () => {
       })
       await consumer.start()
 
-      const deduplicationId = '1'
+      const deduplicationId = randomUUID()
       const message = {
         id: '1',
         messageType: 'add',
@@ -192,12 +193,12 @@ describe('SqsPermissionConsumer', () => {
       const message1 = {
         id: '1',
         messageType: 'add',
-        deduplicationId: '1',
+        deduplicationId: randomUUID(),
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
       const message2 = {
         id: '2',
         messageType: 'add',
-        deduplicationId: '2',
+        deduplicationId: randomUUID(),
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await publisher.publish(message1)
@@ -225,7 +226,7 @@ describe('SqsPermissionConsumer', () => {
       })
       await consumer.start()
 
-      const deduplicationId = '1'
+      const deduplicationId = randomUUID()
       const message = {
         id: '1',
         messageType: 'add',
@@ -253,7 +254,7 @@ describe('SqsPermissionConsumer', () => {
       const message1 = {
         id: '1',
         messageType: 'remove',
-        deduplicationId: '1',
+        deduplicationId: randomUUID(),
       } satisfies PERMISSIONS_REMOVE_MESSAGE_TYPE
       const message2 = {
         id: '1',
@@ -306,7 +307,7 @@ describe('SqsPermissionConsumer', () => {
       })
       await consumer.start()
 
-      const deduplicationId = '1'
+      const deduplicationId = randomUUID()
       const message = {
         id: '1',
         messageType: 'add',
@@ -345,7 +346,7 @@ describe('SqsPermissionConsumer', () => {
       })
       // Not starting consumer2 yet, so consumer1 can acquire the lock first
 
-      const deduplicationId = '1'
+      const deduplicationId = randomUUID()
       const message = {
         id: '1',
         messageType: 'add',
@@ -393,7 +394,7 @@ describe('SqsPermissionConsumer', () => {
       })
       // Not starting consumer2 yet, so consumer1 can acquire the lock first
 
-      const deduplicationId = '1'
+      const deduplicationId = randomUUID()
       const message = {
         id: '1',
         messageType: 'add',

@@ -7,6 +7,7 @@ import type {
 import type { Dependencies } from '../utils/testContext'
 import { registerDependencies } from '../utils/testContext'
 
+import { randomUUID } from 'node:crypto'
 import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import { cleanRedis } from '../utils/cleanRedis'
 import { SqsPermissionPublisher } from './SqsPermissionPublisher'
@@ -48,7 +49,7 @@ describe('SqsPermissionPublisher', () => {
     })
 
     it('publishes a message and stores deduplication id when message contains deduplication id', async () => {
-      const deduplicationId = '1'
+      const deduplicationId = randomUUID()
       const message = {
         id: '1',
         messageType: 'add',
@@ -72,7 +73,7 @@ describe('SqsPermissionPublisher', () => {
         id: '1',
         messageType: 'add',
         timestamp: new Date().toISOString(),
-        deduplicationId: '1',
+        deduplicationId: randomUUID(),
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       // Message is published for the initial call
@@ -99,13 +100,13 @@ describe('SqsPermissionPublisher', () => {
         id: 'id',
         messageType: 'add',
         timestamp: new Date().toISOString(),
-        deduplicationId: '1',
+        deduplicationId: randomUUID(),
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
       const message2 = {
         id: 'id',
         messageType: 'remove',
         timestamp: new Date().toISOString(),
-        deduplicationId: '2',
+        deduplicationId: randomUUID(),
       } satisfies PERMISSIONS_REMOVE_MESSAGE_TYPE
 
       // Message 1 is published
@@ -129,7 +130,7 @@ describe('SqsPermissionPublisher', () => {
         id: 'id',
         messageType: 'add',
         timestamp: new Date().toISOString(),
-        deduplicationId: '1',
+        deduplicationId: randomUUID(),
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
       const message2 = {
         id: 'id',
@@ -179,7 +180,7 @@ describe('SqsPermissionPublisher', () => {
         id: '1',
         messageType: 'add',
         timestamp: new Date().toISOString(),
-        deduplicationId: '1',
+        deduplicationId: randomUUID(),
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       vi.spyOn(messageDeduplicationStore, 'setIfNotExists').mockRejectedValue(
@@ -198,7 +199,7 @@ describe('SqsPermissionPublisher', () => {
     })
 
     it('passes custom deduplication options to the deduplication store', async () => {
-      const deduplicationId = '1'
+      const deduplicationId = randomUUID()
       const message = {
         id: '1',
         messageType: 'add',
