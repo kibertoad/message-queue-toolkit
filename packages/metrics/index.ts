@@ -2,4 +2,4 @@ export * from './lib/prometheus/metrics/message-processing/PrometheusMessageLife
 export * from './lib/prometheus/metrics/message-processing/PrometheusMessageProcessingTimeMetric'
 export * from './lib/prometheus/PrometheusMessageMetric'
 export * from './lib/prometheus/types'
-export { MessageMultiMetric } from './lib/MessageMultiMetric'
+export { MessageMultiMetricManager } from './lib/MessageMultiMetricManager'

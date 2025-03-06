@@ -1,6 +1,6 @@
 import type { MessageMetricsManager, ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 
-export class MessageMultiMetric<MessagePayloadSchemas extends object>
+export class MessageMultiMetricManager<MessagePayloadSchemas extends object>
   implements MessageMetricsManager<MessagePayloadSchemas>
 {
   constructor(private readonly metrics: MessageMetricsManager<MessagePayloadSchemas>[]) {}
