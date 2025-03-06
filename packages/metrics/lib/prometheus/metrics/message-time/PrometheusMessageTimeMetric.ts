@@ -4,7 +4,7 @@ import type promClient from 'prom-client'
 import { PrometheusMessageMetric } from '../../PrometheusMessageMetric'
 import type { PrometheusMetricParams } from '../../types'
 
-export abstract class PrometheusMessageProcessingMetric<
+export abstract class PrometheusMessageTimeMetric<
   MessagePayloadSchemas extends object,
 > extends PrometheusMessageMetric<
   MessagePayloadSchemas,
