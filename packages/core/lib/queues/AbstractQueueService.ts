@@ -80,7 +80,7 @@ export abstract class AbstractQueueService<
    * Used to keep track of the number of `retryLater` results received for a message to be able to
    * calculate the delay for the next retry
    */
-  private readonly messageNumberOfRetriesField = '_internalNumberOfRetries'
+  private readonly messageRetryLaterCountField = '_internalRetryLaterCount'
   /**
    * Used to know when the message was sent initially so we can have a max retry date and avoid
    * a infinite `retryLater` loop
@@ -223,20 +223,16 @@ export abstract class AbstractQueueService<
     const { message, processingResult, messageId } = params
     const messageProcessingEndTimestamp = Date.now()
 
-    if (this._handlerSpy) {
-      this._handlerSpy.addProcessedMessage(
-        {
-          message,
-          processingResult,
-        },
-        messageId,
-      )
-    }
+    this._handlerSpy?.addProcessedMessage(
+      {
+        message,
+        processingResult,
+      },
+      messageId,
+    )
 
     const debugLoggingEnabled = this.logMessages && this.logger.isLevelEnabled('debug')
-    if (!debugLoggingEnabled && !this.messageMetricsManager) {
-      return
-    }
+    if (!debugLoggingEnabled && !this.messageMetricsManager) return
 
     const processedMessageMetadata = this.resolveProcessedMessageMetadata(
       message,
@@ -371,7 +367,7 @@ export abstract class AbstractQueueService<
      */
     const numberOfRetries = this.tryToExtractNumberOfRetries(message)
     // @ts-ignore
-    messageCopy[this.messageNumberOfRetriesField] =
+    messageCopy[this.messageRetryLaterCountField] =
       numberOfRetries !== undefined ? numberOfRetries + 1 : 0
 
     return messageCopy
@@ -394,11 +390,11 @@ export abstract class AbstractQueueService<
 
   private tryToExtractNumberOfRetries(message: MessagePayloadSchemas): number | undefined {
     if (
-      this.messageNumberOfRetriesField in message &&
-      typeof message[this.messageNumberOfRetriesField] === 'number'
+      this.messageRetryLaterCountField in message &&
+      typeof message[this.messageRetryLaterCountField] === 'number'
     ) {
       // @ts-ignore
-      return message[this.messageNumberOfRetriesField]
+      return message[this.messageRetryLaterCountField]
     }
 
     return undefined

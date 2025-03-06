@@ -46,8 +46,8 @@ describe('AmqpTopicPublisherManager', () => {
 
       const result = await fakeConsumer.handlerSpy.waitForMessageWithId(publishedMessage.id)
       const result2 = await fakeConsumer3.handlerSpy.waitForMessageWithId(publishedMessage.id)
-      expect(result.processingResult).toBe('consumed')
-      expect(result2.processingResult).toBe('consumed')
+      expect(result.processingResult).toEqual({ status: 'consumed' })
+      expect(result2.processingResult).toEqual({ status: 'consumed' })
       expect(fakeConsumer.messageCounter).toEqual(1)
       expect(fakeConsumer2.messageCounter).toEqual(0)
       expect(fakeConsumer3.messageCounter).toEqual(1)
@@ -83,8 +83,8 @@ describe('AmqpTopicPublisherManager', () => {
 
       const result = await fakeConsumer.handlerSpy.waitForMessageWithId(publishedMessage.id)
       const result2 = await fakeConsumer2.handlerSpy.waitForMessageWithId(publishedMessage.id)
-      expect(result.processingResult).toBe('consumed')
-      expect(result2.processingResult).toBe('consumed')
+      expect(result.processingResult).toEqual({ status: 'consumed' })
+      expect(result2.processingResult).toEqual({ status: 'consumed' })
       expect(fakeConsumer.messageCounter).toEqual(1)
       expect(fakeConsumer2.messageCounter).toEqual(1)
       expect(fakeConsumer3.messageCounter).toEqual(0)

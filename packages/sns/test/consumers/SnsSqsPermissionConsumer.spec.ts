@@ -910,7 +910,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
       expect(sqsSendMessageCommands).toHaveLength(1)
       expect(sqsSendMessageCommands[0]).toMatchObject({
-        MessageBody: expect.stringContaining('"_internalNumberOfRetries":1'),
+        MessageBody: expect.stringContaining('"_internalRetryLaterCount":1'),
         DelaySeconds: 1,
       })
 

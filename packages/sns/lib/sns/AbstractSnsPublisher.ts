@@ -88,7 +88,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
       ) {
         this.handleMessageProcessed({
           message: parsedMessage,
-          processingResult: 'duplicate',
+          processingResult: { status: 'published', skippedAsDuplicate: true },
           messageProcessingStartTimestamp,
           queueName: topicName,
         })
@@ -99,7 +99,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
 
       this.handleMessageProcessed({
         message: parsedMessage,
-        processingResult: 'published',
+        processingResult: { status: 'published' },
         messageProcessingStartTimestamp,
         queueName: topicName,
       })

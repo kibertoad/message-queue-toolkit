@@ -180,7 +180,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
         {
           // @ts-ignore
           message: event,
-          processingResult: 'consumed',
+          processingResult: { status: 'consumed' },
         },
         event.id,
       )

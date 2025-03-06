@@ -27,7 +27,7 @@ describe('AmqpQueuePublisherManager', () => {
 
       const result = await fakeConsumer.handlerSpy.waitForMessageWithId(publishedMessage.id)
 
-      expect(result.processingResult).toBe('consumed')
+      expect(result.processingResult).toEqual({ status: 'consumed' })
     })
 
     it('fills incomplete metadata', async () => {
@@ -47,7 +47,7 @@ describe('AmqpQueuePublisherManager', () => {
 
       const result = await fakeConsumer.handlerSpy.waitForMessageWithId(publishedMessage.id)
 
-      expect(result.processingResult).toBe('consumed')
+      expect(result.processingResult).toEqual({ status: 'consumed' })
       expect(result.message.metadata).toMatchInlineSnapshot(`
         {
           "correlationId": "some-id",

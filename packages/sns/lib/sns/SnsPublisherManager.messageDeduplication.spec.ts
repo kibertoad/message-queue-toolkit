@@ -80,7 +80,7 @@ describe('SnsPublisherManager', () => {
       const spy = await publisherManager
         .handlerSpy(TestEvents.created.snsTopic)
         .waitForMessageWithId(publishedMessage.id)
-      expect(spy.processingResult).toBe('published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
 
       const deduplicationKeyExists = await messageDeduplicationStore.keyExists(
         `publisher:${deduplicationId}`,
@@ -106,7 +106,7 @@ describe('SnsPublisherManager', () => {
       const spyFirstCall = await publisherManager
         .handlerSpy(TestEvents.created.snsTopic)
         .waitForMessageWithId(publishedMessageFirstCall.id)
-      expect(spyFirstCall.processingResult).toBe('published')
+      expect(spyFirstCall.processingResult).toEqual({ status: 'published' })
 
       // Clear the spy, so we can check for the subsequent call
       publisherManager.handlerSpy(TestEvents.created.snsTopic).clear()
@@ -120,7 +120,10 @@ describe('SnsPublisherManager', () => {
       const spySecondCall = await publisherManager
         .handlerSpy(TestEvents.created.snsTopic)
         .waitForMessageWithId(publishedMessageSecondCall.id)
-      expect(spySecondCall.processingResult).toBe('duplicate')
+      expect(spySecondCall.processingResult).toEqual({
+        status: 'published',
+        skippedAsDuplicate: true,
+      })
     })
 
     it('works only for messages that have deduplication ids provided', async () => {
@@ -147,7 +150,7 @@ describe('SnsPublisherManager', () => {
       const spyFirstCall = await publisherManager
         .handlerSpy(TestEvents.created.snsTopic)
         .waitForMessageWithId(publishedMessageFirstCall.id)
-      expect(spyFirstCall.processingResult).toBe('published')
+      expect(spyFirstCall.processingResult).toEqual({ status: 'published' })
 
       // Clear the spy, so wew can check for the subsequent call
       publisherManager.handlerSpy(TestEvents.created.snsTopic).clear()
@@ -161,7 +164,10 @@ describe('SnsPublisherManager', () => {
       const spySecondCall = await publisherManager
         .handlerSpy(TestEvents.created.snsTopic)
         .waitForMessageWithId(publishedMessageSecondCall.id)
-      expect(spySecondCall.processingResult).toBe('duplicate')
+      expect(spySecondCall.processingResult).toEqual({
+        status: 'published',
+        skippedAsDuplicate: true,
+      })
 
       // Clear the spy, so we can check for the subsequent call
       publisherManager.handlerSpy(TestEvents.created.snsTopic).clear()
@@ -175,7 +181,7 @@ describe('SnsPublisherManager', () => {
       const spyThirdCall = await publisherManager
         .handlerSpy(TestEvents.created.snsTopic)
         .waitForMessageWithId(publishedMessageThirdCall.id)
-      expect(spyThirdCall.processingResult).toBe('published')
+      expect(spyThirdCall.processingResult).toEqual({ status: 'published' })
 
       // Clear the spy, so we can check for the subsequent call
       publisherManager.handlerSpy(TestEvents.created.snsTopic).clear()
@@ -189,7 +195,7 @@ describe('SnsPublisherManager', () => {
       const spyFourthCall = await publisherManager
         .handlerSpy(TestEvents.created.snsTopic)
         .waitForMessageWithId(publishedMessageFourthCall.id)
-      expect(spyFourthCall.processingResult).toBe('published')
+      expect(spyFourthCall.processingResult).toEqual({ status: 'published' })
     })
   })
 })

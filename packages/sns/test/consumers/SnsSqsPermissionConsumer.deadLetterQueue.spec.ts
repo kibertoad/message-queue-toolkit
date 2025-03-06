@@ -252,10 +252,8 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
         id: '1',
         messageType: 'remove',
         timestamp: message.timestamp,
-        _internalNumberOfRetries: expect.any(Number),
+        _internalRetryLaterCount: 1,
       })
-      // due to exponential backoff and timestamp, on second retry message is moved to DLQ so _internalNumberOfRetries is 1
-      expect(messageBody._internalNumberOfRetries).toBe(1)
 
       dlqConsumer.stop()
     })

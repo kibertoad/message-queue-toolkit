@@ -275,7 +275,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         id: '1',
         messageType: 'remove',
         timestamp: expect.any(String),
-        _internalNumberOfRetries: 0,
+        _internalRetryLaterCount: 0,
       })
     })
 
@@ -306,7 +306,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       await permissionPublisher.publish(sqsMessage)
 
       const handlerSpyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
-      expect(handlerSpyResult.processingResult).toBe('consumed')
+      expect(handlerSpyResult.processingResult).toEqual({ status: 'consumed' })
       expect(handlerSpyResult.message).toMatchObject({ id: '1', messageType: 'remove' })
 
       expect(counter).toBe(2)
@@ -397,10 +397,8 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         id: '1',
         messageType: 'add',
         timestamp: message.timestamp,
-        _internalNumberOfRetries: expect.any(Number),
+        _internalRetryLaterCount: 1,
       })
-      // due to exponential backoff and timestamp, on second retry message is moved to DLQ so _internalNumberOfRetries is 1
-      expect(messageBody._internalNumberOfRetries).toBe(1)
 
       dlqConsumer.stop()
     })
@@ -450,10 +448,8 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         id: '2',
         messageType: 'remove',
         timestamp: message.timestamp,
-        _internalNumberOfRetries: expect.any(Number),
+        _internalRetryLaterCount: 1,
       })
-      // due to exponential backoff and timestamp, on second retry message is moved to DLQ so _internalNumberOfRetries is 1
-      expect(messageBody._internalNumberOfRetries).toBe(1)
 
       dlqConsumer.stop()
     }, 7000)
