@@ -2,8 +2,8 @@ import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import * as promClient from 'prom-client'
 import { describe, expect, it } from 'vitest'
 import { MessageMultiMetricManager } from './MessageMultiMetricManager'
-import { MessageLifetimeMetric } from './prometheus/metrics/MessageLifetimeMetric'
-import { MessageProcessingTimeMetric } from './prometheus/metrics/MessageProcessingTimeMetric'
+import { PrometheusMessageLifetimeMetric } from './prometheus/metrics/message-time/PrometheusMessageLifetimeMetric'
+import { PrometheusMessageProcessingTimeMetric } from './prometheus/metrics/message-time/PrometheusMessageProcessingTimeMetric'
 
 type TestMessage = {
   id: string
@@ -14,13 +14,13 @@ type TestMessage = {
   }
 }
 
-describe('MessageMultiMetric', () => {
+describe('MessageMultiMetricManager', () => {
   it('registers multiple metrics', () => {
     // Given
     const registeredProcessingTimeValues: ProcessedMessageMetadata<TestMessage>[] = []
     const registeredLifetimeValues: ProcessedMessageMetadata<TestMessage>[] = []
 
-    const processingTimeMetric = new MessageProcessingTimeMetric<TestMessage>(
+    const processingTimeMetric = new PrometheusMessageProcessingTimeMetric<TestMessage>(
       {
         name: 'test_processing_time',
         helpDescription: 'test description',
@@ -33,7 +33,7 @@ describe('MessageMultiMetric', () => {
       promClient,
     )
 
-    const lifetimeMetric = new MessageLifetimeMetric<TestMessage>(
+    const lifetimeMetric = new PrometheusMessageLifetimeMetric<TestMessage>(
       {
         name: 'test_processing_time',
         helpDescription: 'test description',
