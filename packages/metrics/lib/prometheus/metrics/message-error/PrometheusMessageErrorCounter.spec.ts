@@ -1,8 +1,4 @@
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
-import type {
-  MessageProcessingResult,
-  MessageProcessingResultStatus,
-} from '@message-queue-toolkit/core/dist/lib/types/MessageQueueTypes'
 import * as promClient from 'prom-client'
 import type { Counter } from 'prom-client'
 import { describe, expect, it, vi } from 'vitest'
@@ -80,42 +76,39 @@ describe('PrometheusMessageErrorCounter', () => {
     return counterCalls
   }
 
-  it.each(['consumed', 'published', 'retryLater'] satisfies MessageProcessingResultStatus[])(
-    'ignores non error cases',
-    (status: MessageProcessingResultStatus) => {
-      // Given
-      const counterCalls = mockMetric()
+  it.each(['consumed', 'published', 'retryLater'])('ignores non error cases', (status: string) => {
+    // Given
+    const counterCalls = mockMetric()
 
-      const metric = new PrometheusMessageErrorCounter<TestMessage>(
-        {
-          name: 'Test metric',
-          helpDescription: 'test description',
-        },
-        promClient,
-      )
+    const metric = new PrometheusMessageErrorCounter<TestMessage>(
+      {
+        name: 'Test metric',
+        helpDescription: 'test description',
+      },
+      promClient,
+    )
 
-      // When
-      const message: TestMessage = {
-        id: '1',
-        messageType: 'test',
-        timestamp: new Date().toISOString(),
-      }
+    // When
+    const message: TestMessage = {
+      id: '1',
+      messageType: 'test',
+      timestamp: new Date().toISOString(),
+    }
 
-      metric.registerProcessedMessage({
-        messageId: message.id,
-        messageType: message.messageType,
-        processingResult: { status } as MessageProcessingResult,
-        message: message,
-        queueName: 'test-queue',
-        messageTimestamp: Date.now(),
-        messageProcessingStartTimestamp: Date.now(),
-        messageProcessingEndTimestamp: Date.now(),
-      })
+    metric.registerProcessedMessage({
+      messageId: message.id,
+      messageType: message.messageType,
+      processingResult: { status: status as any },
+      message: message,
+      queueName: 'test-queue',
+      messageTimestamp: Date.now(),
+      messageProcessingStartTimestamp: Date.now(),
+      messageProcessingEndTimestamp: Date.now(),
+    })
 
-      // Then
-      expect(counterCalls).toHaveLength(0)
-    },
-  )
+    // Then
+    expect(counterCalls).toHaveLength(0)
+  })
 
   it('registers values properly', () => {
     // Given
