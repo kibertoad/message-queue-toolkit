@@ -17,7 +17,7 @@ export type PrometheusMetricParams<T extends object> = {
   /**
    * Buckets used to configure Histogram metric
    */
-  buckets: number[]
+  buckets?: number[]
 
   /**
    * Message version used as a label - can be static string or method resolving version based on payload

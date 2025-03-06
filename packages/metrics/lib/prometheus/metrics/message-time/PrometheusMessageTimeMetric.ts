@@ -5,14 +5,14 @@ import { PrometheusMessageMetric } from '../../PrometheusMessageMetric'
 import type { PrometheusMetricParams } from '../../types'
 
 export abstract class PrometheusMessageTimeMetric<
-  MessagePayloadSchemas extends object,
+  MessagePayload extends object,
 > extends PrometheusMessageMetric<
-  MessagePayloadSchemas,
+  MessagePayload,
   Histogram<'messageType' | 'version' | 'queue' | 'result'>
 > {
   protected createMetric(
     client: typeof promClient,
-    metricParams: PrometheusMetricParams<MessagePayloadSchemas>,
+    metricParams: PrometheusMetricParams<MessagePayload>,
   ): Histogram<'messageType' | 'version' | 'queue' | 'result'> {
     return new client.Histogram({
       name: metricParams.name,
@@ -21,7 +21,7 @@ export abstract class PrometheusMessageTimeMetric<
       labelNames: ['messageType', 'version', 'queue', 'result'],
     })
   }
-  registerProcessedMessage(metadata: ProcessedMessageMetadata<MessagePayloadSchemas>): void {
+  registerProcessedMessage(metadata: ProcessedMessageMetadata<MessagePayload>): void {
     const observedValue: number | null = this.calculateObservedValue(metadata)
 
     // Data not available, skipping
@@ -39,6 +39,6 @@ export abstract class PrometheusMessageTimeMetric<
   }
 
   protected abstract calculateObservedValue(
-    metadata: ProcessedMessageMetadata<MessagePayloadSchemas>,
+    metadata: ProcessedMessageMetadata<MessagePayload>,
   ): number | null
 }

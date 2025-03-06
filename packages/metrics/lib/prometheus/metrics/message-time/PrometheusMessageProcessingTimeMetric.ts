@@ -2,10 +2,10 @@ import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import { PrometheusMessageTimeMetric } from './PrometheusMessageTimeMetric'
 
 export class PrometheusMessageProcessingTimeMetric<
-  MessagePayloadSchemas extends object,
-> extends PrometheusMessageTimeMetric<MessagePayloadSchemas> {
+  MessagePayload extends object,
+> extends PrometheusMessageTimeMetric<MessagePayload> {
   protected calculateObservedValue(
-    metadata: ProcessedMessageMetadata<MessagePayloadSchemas>,
+    metadata: ProcessedMessageMetadata<MessagePayload>,
   ): number | null {
     return metadata.messageProcessingEndTimestamp - metadata.messageProcessingStartTimestamp
   }
