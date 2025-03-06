@@ -5,7 +5,7 @@ import { MessageMultiMetric } from './MessageMultiMetric'
 import { MessageLifetimeMetric } from './prometheus/metrics/MessageLifetimeMetric'
 import { MessageProcessingTimeMetric } from './prometheus/metrics/MessageProcessingTimeMetric'
 
-type TestMessageSchema = {
+type TestMessage = {
   id: string
   messageType: 'test'
   timestamp?: string
@@ -17,15 +17,15 @@ type TestMessageSchema = {
 describe('MessageMultiMetric', () => {
   it('registers multiple metrics', () => {
     // Given
-    const registeredProcessingTimeValues: ProcessedMessageMetadata<TestMessageSchema>[] = []
-    const registeredLifetimeValues: ProcessedMessageMetadata<TestMessageSchema>[] = []
+    const registeredProcessingTimeValues: ProcessedMessageMetadata<TestMessage>[] = []
+    const registeredLifetimeValues: ProcessedMessageMetadata<TestMessage>[] = []
 
-    const processingTimeMetric = new MessageProcessingTimeMetric<TestMessageSchema>(
+    const processingTimeMetric = new MessageProcessingTimeMetric<TestMessage>(
       {
         name: 'test_processing_time',
         helpDescription: 'test description',
         buckets: [1, 2, 3],
-        messageVersion: (metadata: ProcessedMessageMetadata<TestMessageSchema>) => {
+        messageVersion: (metadata: ProcessedMessageMetadata<TestMessage>) => {
           registeredProcessingTimeValues.push(metadata) // Mocking it to check if value is registered properly
           return undefined
         },
@@ -33,12 +33,12 @@ describe('MessageMultiMetric', () => {
       promClient,
     )
 
-    const lifetimeMetric = new MessageLifetimeMetric<TestMessageSchema>(
+    const lifetimeMetric = new MessageLifetimeMetric<TestMessage>(
       {
         name: 'test_processing_time',
         helpDescription: 'test description',
         buckets: [1, 2, 3],
-        messageVersion: (metadata: ProcessedMessageMetadata<TestMessageSchema>) => {
+        messageVersion: (metadata: ProcessedMessageMetadata<TestMessage>) => {
           registeredLifetimeValues.push(metadata) // Mocking it to check if value is registered properly
           return undefined
         },
@@ -46,13 +46,10 @@ describe('MessageMultiMetric', () => {
       promClient,
     )
 
-    const multiMetric = new MessageMultiMetric<TestMessageSchema>([
-      processingTimeMetric,
-      lifetimeMetric,
-    ])
+    const multiMetric = new MessageMultiMetric<TestMessage>([processingTimeMetric, lifetimeMetric])
 
     // When
-    const messages: TestMessageSchema[] = [
+    const messages: TestMessage[] = [
       {
         id: '1',
         messageType: 'test',
@@ -69,8 +66,8 @@ describe('MessageMultiMetric', () => {
     ]
 
     const timestamp = Date.now()
-    const processedMessageMetadataEntries: ProcessedMessageMetadata<TestMessageSchema>[] =
-      messages.map((message) => ({
+    const processedMessageMetadataEntries: ProcessedMessageMetadata<TestMessage>[] = messages.map(
+      (message) => ({
         messageId: message.id,
         messageType: message.messageType,
         processingResult: { status: 'consumed' },
@@ -79,7 +76,8 @@ describe('MessageMultiMetric', () => {
         messageTimestamp: timestamp,
         messageProcessingStartTimestamp: timestamp,
         messageProcessingEndTimestamp: timestamp + 102,
-      }))
+      }),
+    )
 
     for (const processedMessageMetadata of processedMessageMetadataEntries) {
       multiMetric.registerProcessedMessage(processedMessageMetadata)
