@@ -1,9 +1,9 @@
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
-import { MessageProcessingPrometheusMetric } from '../MessageProcessingPrometheusMetric'
+import { PrometheusMessageProcessingMetric } from './PrometheusMessageProcessingMetric'
 
-export class MessageLifetimeMetric<
+export class PrometheusMessageLifetimeMetric<
   MessagePayloadSchemas extends object,
-> extends MessageProcessingPrometheusMetric<MessagePayloadSchemas> {
+> extends PrometheusMessageProcessingMetric<MessagePayloadSchemas> {
   protected calculateObservedValue(
     metadata: ProcessedMessageMetadata<MessagePayloadSchemas>,
   ): number | null {

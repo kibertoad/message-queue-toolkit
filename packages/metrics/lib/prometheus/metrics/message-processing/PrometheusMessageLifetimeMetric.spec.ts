@@ -1,9 +1,9 @@
 import * as promClient from 'prom-client'
 import type { Histogram } from 'prom-client'
 import { describe, expect, it, vi } from 'vitest'
-import { MessageLifetimeMetric } from './MessageLifetimeMetric'
+import { PrometheusMessageLifetimeMetric } from './PrometheusMessageLifetimeMetric'
 
-type TestMessageSchema = {
+type TestMessage = {
   id: string
   messageType: 'test'
   timestamp?: string
@@ -12,7 +12,7 @@ type TestMessageSchema = {
   }
 }
 
-describe('MessageLifetimeMetric', () => {
+describe('PrometheusMessageLifetimeMetric', () => {
   it('registers values properly', () => {
     // Given
     const observedValues: { labels: Record<string, any>; value: number }[] = []
@@ -22,7 +22,7 @@ describe('MessageLifetimeMetric', () => {
       },
     } as Histogram)
 
-    const metric = new MessageLifetimeMetric<TestMessageSchema>(
+    const metric = new PrometheusMessageLifetimeMetric<TestMessage>(
       {
         name: 'Test metric',
         helpDescription: 'test description',
@@ -32,7 +32,7 @@ describe('MessageLifetimeMetric', () => {
     )
 
     // When
-    const message: TestMessageSchema = {
+    const message: TestMessage = {
       id: '1',
       messageType: 'test',
       timestamp: new Date().toISOString(),
@@ -73,7 +73,7 @@ describe('MessageLifetimeMetric', () => {
       },
     } as Histogram)
 
-    const metric = new MessageLifetimeMetric<TestMessageSchema>(
+    const metric = new PrometheusMessageLifetimeMetric<TestMessage>(
       {
         name: 'Test metric',
         helpDescription: 'test description',
@@ -83,7 +83,7 @@ describe('MessageLifetimeMetric', () => {
     )
 
     // When
-    const message: TestMessageSchema = {
+    const message: TestMessage = {
       id: '1',
       messageType: 'test',
       timestamp: new Date().toISOString(),
