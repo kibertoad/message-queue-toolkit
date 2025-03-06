@@ -53,8 +53,8 @@ describe('SnsPublisherManager', () => {
       const consumerResult = await consumer.handlerSpy.waitForMessageWithId(publishedMessage.id)
       const publishedMessageResult = await handlerSpyPromise
 
-      expect(consumerResult.processingResult).toBe('consumed')
-      expect(publishedMessageResult.processingResult).toBe('published')
+      expect(consumerResult.processingResult).toEqual({ status: 'consumed' })
+      expect(publishedMessageResult.processingResult).toEqual({ status: 'published' })
 
       expect(consumerResult.message).toMatchObject({
         id: publishedMessage.id,
@@ -166,7 +166,7 @@ describe('SnsPublisherManager', () => {
         // @ts-expect-error Testing injected publisher
         .handlerSpy(topic)
         .waitForMessageWithId(messageId, 'published')
-      expect(spyRes.processingResult).toBe('published')
+      expect(spyRes.processingResult).toEqual({ status: 'published' })
     })
   })
 })
