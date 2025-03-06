@@ -1,5 +1,5 @@
-export { MessageLifetimeMetric } from './lib/prometheus/metrics/MessageLifetimeMetric'
-export { MessageProcessingPrometheusMetric } from './lib/prometheus/MessageProcessingPrometheusMetric'
-export { MessageProcessingTimeMetric } from './lib/prometheus/metrics/MessageProcessingTimeMetric'
+export * from './lib/prometheus/metrics/message-processing/PrometheusMessageLifetimeMetric'
+export * from './lib/prometheus/metrics/message-processing/PrometheusMessageProcessingTimeMetric'
+export * from './lib/prometheus/PrometheusMessageMetric'
 export * from './lib/prometheus/types'
 export { MessageMultiMetric } from './lib/MessageMultiMetric'
