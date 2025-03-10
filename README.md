@@ -295,7 +295,7 @@ You can also check details of the message processing outcome:
 
 ```ts
 const result = await myConsumer.handlerSpy.waitForMessageWithId('1')
-expect(result.processingResult).toEqual('consumed')
+expect(result.processingResult).toEqual({ status: 'consumed' })
 ```
 
 ## Payload Offloading
@@ -397,7 +397,10 @@ It needs to implement the following methods:
 - `registerProcessedMessage` - it's executed once message is processed. As a parameter it accepts message processing metadata with the following properties:
   - `messageId`
   - `messageType`
-  - `processingResult` - can have one of the following values: `retryLater`, `consumed`, `published`, `error`, `invalid_message`
+  - `processingResult`
+    - `status`: can have one of the following values: `retryLater`, `consumed`, `published`, `error`
+    - `skippedAsDuplicate`: is case of `consumed` status, it indicates whether the message was skipped as a duplicate
+    - `errorReason`: in case of `error` status, it contains one of the following values: `invalidMessage`, `handlerError`, `retryLaterExceeded`
   - `message` - whole message object
   - `queueName` - name of the queue or topic on which message is consumed or published
   - `messageTimestamp` - the timestamp when the message was sent initially
