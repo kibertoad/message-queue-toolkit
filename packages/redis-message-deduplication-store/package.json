@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/redis-message-deduplication-store",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "private": false,
   "license": "MIT",
   "description": "Redis-based message deduplication store for message-queue-toolkit",
