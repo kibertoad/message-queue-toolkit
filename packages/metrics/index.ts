@@ -3,4 +3,4 @@ export * from './lib/prometheus/metrics/message-time/PrometheusMessageProcessing
 export * from './lib/prometheus/metrics/message-error/PrometheusMessageErrorCounter'
 export * from './lib/prometheus/PrometheusMessageMetric'
 export * from './lib/prometheus/types'
-export { MessageMultiMetricManager } from './lib/MessageMultiMetricManager'
+export * from './lib/MessageMultiMetricManager'
