@@ -3,7 +3,10 @@ import { randomUUID } from 'node:crypto'
 import { isObject } from '@lokalise/node-core'
 import { Fifo } from 'toad-cache'
 
-import type { MessageProcessingResult } from '../types/MessageQueueTypes'
+import type {
+  MessageProcessingResult,
+  MessageProcessingResultStatus,
+} from '../types/MessageQueueTypes'
 import { objectMatches } from '../utils/matchUtils'
 
 export type HandlerSpyParams = {
@@ -24,7 +27,7 @@ export type SpyResultOutput<MessagePayloadSchemas extends object> = {
 
 type SpyPromiseMetadata<MessagePayloadSchemas extends object> = {
   fields: DeepPartial<MessagePayloadSchemas>
-  processingResult?: MessageProcessingResult
+  status?: MessageProcessingResultStatus
   promise: Promise<SpyResultOutput<MessagePayloadSchemas>>
   resolve: (
     value:
@@ -78,41 +81,39 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
   private messageMatchesFilter<T extends object>(
     spyResult: SpyResultOutput<T>,
     fields: DeepPartial<MessagePayloadSchemas>,
-    processingResult?: MessageProcessingResult,
+    status?: MessageProcessingResultStatus,
   ): boolean {
     return (
       objectMatches(fields, spyResult.message) &&
-      (!processingResult || spyResult.processingResult === processingResult)
+      (!status || spyResult.processingResult.status === status)
     )
   }
 
   waitForMessageWithId<T extends MessagePayloadSchemas>(
     id: string,
-    processingResult?: MessageProcessingResult,
+    status?: MessageProcessingResultStatus,
   ): Promise<SpyResultOutput<T>> {
     return this.waitForMessage<T>(
-      // @ts-ignore
-      {
-        [this.messageIdField]: id,
-      },
-      processingResult,
+      // @ts-expect-error
+      { [this.messageIdField]: id },
+      status,
     )
   }
 
   checkForMessage<T extends MessagePayloadSchemas>(
     expectedFields: DeepPartial<T>,
-    expectedProcessingResult?: MessageProcessingResult,
+    status?: MessageProcessingResultStatus,
   ): SpyResultOutput<T> | undefined {
     return Object.values(this.messageBuffer.items).find((spyResult) => {
-      return this.messageMatchesFilter(spyResult.value, expectedFields, expectedProcessingResult)
+      return this.messageMatchesFilter(spyResult.value, expectedFields, status)
     })?.value
   }
 
   waitForMessage<T extends MessagePayloadSchemas>(
     expectedFields: DeepPartial<T>,
-    expectedProcessingResult?: MessageProcessingResult,
+    status?: MessageProcessingResultStatus,
   ): Promise<SpyResultOutput<T>> {
-    const processedMessageEntry = this.checkForMessage(expectedFields, expectedProcessingResult)
+    const processedMessageEntry = this.checkForMessage(expectedFields, status)
     if (processedMessageEntry) {
       return Promise.resolve(processedMessageEntry)
     }
@@ -124,7 +125,7 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
 
     this.spyPromises.push({
       promise: spyPromise,
-      processingResult: expectedProcessingResult,
+      status,
       fields: expectedFields,
       // @ts-ignore
       resolve,
@@ -166,7 +167,7 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
       return this.messageMatchesFilter(
         resolvedProcessingResult,
         spyPromise.fields,
-        spyPromise.processingResult,
+        spyPromise.status,
       )
     })
 

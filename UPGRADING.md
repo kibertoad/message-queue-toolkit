@@ -1,5 +1,27 @@
 # Upgrading Guide
 
+## Upgrading </br> `core` `19.0.0` -> `20.0.0` </br> `sqs` `19.0.0` -> `20.0.0` </br> `sns` `20.0.0` -> `21.0.0` </br> `amqp` `18.0.0` -> `19.0.0` </br> `metrics` `2.0.0` -> `3.0.0`
+
+### Description of Breaking Changes
+
+- The `processingResult` from the core has been updated to an object format. It is utilized within spies and metrics and
+ now contains the following properties:
+  - `status`: This property can have one of the following values: `retryLater`, `consumed`, `published`, or `error`.
+  - `skippedAsDuplicate`: For messages with a `status` of `consumed`, this property indicates whether the message was 
+   skipped due to being a duplicate.
+  - `errorReason`: When `status` is `error`, this property provides specific reasons and can be one of the following: 
+   `invalidMessage`, `handlerError`, or `retryLaterExceeded`.
+- Additionally, the `metrics` library has undergone class renaming to support future tool integrations and simplify the
+ process of adding new Prometheus custom metrics by extending `PrometheusMessageMetric`.
+
+### Migration Steps
+- If your project utilizes `processingResult` within spies or metrics, you must update it to align with the new structure. 
+- Follow these renaming changes in the `metrics` library:
+  - `MessageProcessingMultiMetrics` is now `MessageMultiMetricManager`
+  - `MessageLifetimeMetric` is now `PrometheusMessageLifetimeMetric`
+  - `MessageProcessingTimeMetric` is now `PrometheusMessageTimeMetric`
+
+
 ## Upgrading </br> `core` `18.0.0` -> `19.0.0` </br> `sqs` `18.0.0` -> `19.0.0` </br> `sns` `19.0.0` -> `20.0.0` </br> `amqp` `17.0.0` -> `18.0.0`
 
 ### Description of Breaking Changes

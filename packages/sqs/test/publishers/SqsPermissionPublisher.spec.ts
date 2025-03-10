@@ -293,7 +293,7 @@ describe('SqsPermissionPublisher', () => {
 
       const spy = await permissionPublisher.handlerSpy.waitForMessageWithId('1', 'published')
       expect(spy.message).toEqual(message)
-      expect(spy.processingResult).toBe('published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
     })
 
     it('publish a message auto-filling internal properties', async () => {
@@ -340,7 +340,7 @@ describe('SqsPermissionPublisher', () => {
           id: '1',
           messageType: 'add',
           timestamp: expect.any(String),
-          _internalNumberOfRetries: 0,
+          _internalRetryLaterCount: 0,
         },
         parsedMessage: {
           id: '1',
@@ -365,7 +365,7 @@ describe('SqsPermissionPublisher', () => {
 
       const spy = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
       expect(spy.message).toEqual(message)
-      expect(spy.processingResult).toBe('published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
     })
   })
 })

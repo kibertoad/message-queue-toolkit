@@ -242,7 +242,7 @@ describe('PermissionPublisher', () => {
           userIds: [1],
           permissions: ['100'],
           timestamp: message.timestamp.toISOString(),
-          _internalNumberOfRetries: 0,
+          _internalRetryLaterCount: 0,
         },
       })
     })
@@ -290,7 +290,7 @@ describe('PermissionPublisher', () => {
           userIds: [1],
           permissions: ['100'],
           timestamp: message.timestamp.toISOString(),
-          _internalNumberOfRetries: 0,
+          _internalRetryLaterCount: 0,
         },
       })
     })
@@ -330,7 +330,7 @@ describe('PermissionPublisher', () => {
           id: '2',
           messageType: 'add',
           timestamp: expect.any(String),
-          _internalNumberOfRetries: 0,
+          _internalRetryLaterCount: 0,
         },
       })
     })

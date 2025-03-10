@@ -2,9 +2,9 @@ import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import * as promClient from 'prom-client'
 import type { Histogram } from 'prom-client'
 import { describe, expect, it, vi } from 'vitest'
-import { MessageProcessingTimeMetric } from './MessageProcessingTimeMetric'
+import { PrometheusMessageProcessingTimeMetric } from './PrometheusMessageProcessingTimeMetric'
 
-type TestMessageSchema = {
+type TestMessage = {
   id: string
   messageType: 'test'
   timestamp?: string
@@ -16,13 +16,13 @@ type TestMessageSchema = {
 describe('MessageProcessingTimeMetric', () => {
   it('creates and uses Histogram metric properly', () => {
     // Given
-    const registeredMessages: ProcessedMessageMetadata<TestMessageSchema>[] = []
-    const metric = new MessageProcessingTimeMetric<TestMessageSchema>(
+    const registeredMessages: ProcessedMessageMetadata<TestMessage>[] = []
+    const metric = new PrometheusMessageProcessingTimeMetric<TestMessage>(
       {
         name: 'test_metric',
         helpDescription: 'test description',
         buckets: [1, 2, 3],
-        messageVersion: (metadata: ProcessedMessageMetadata<TestMessageSchema>) => {
+        messageVersion: (metadata: ProcessedMessageMetadata<TestMessage>) => {
           registeredMessages.push(metadata) // Mocking it to check if value is registered properly
           return undefined
         },
@@ -31,7 +31,7 @@ describe('MessageProcessingTimeMetric', () => {
     )
 
     // When
-    const messages: TestMessageSchema[] = [
+    const messages: TestMessage[] = [
       {
         id: '1',
         messageType: 'test',
@@ -48,17 +48,18 @@ describe('MessageProcessingTimeMetric', () => {
     ]
 
     const timestamp = Date.now()
-    const processedMessageMetadataEntries: ProcessedMessageMetadata<TestMessageSchema>[] =
-      messages.map((message) => ({
+    const processedMessageMetadataEntries: ProcessedMessageMetadata<TestMessage>[] = messages.map(
+      (message) => ({
         messageId: message.id,
         messageType: message.messageType,
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: message,
         queueName: 'test-queue',
         messageTimestamp: timestamp,
         messageProcessingStartTimestamp: timestamp,
         messageProcessingEndTimestamp: timestamp + 102,
-      }))
+      }),
+    )
 
     for (const processedMessageMetadata of processedMessageMetadataEntries) {
       metric.registerProcessedMessage(processedMessageMetadata)
@@ -77,7 +78,7 @@ describe('MessageProcessingTimeMetric', () => {
       },
     } as Histogram)
 
-    const metric = new MessageProcessingTimeMetric<TestMessageSchema>(
+    const metric = new PrometheusMessageProcessingTimeMetric<TestMessage>(
       {
         name: 'Test metric',
         helpDescription: 'test description',
@@ -87,7 +88,7 @@ describe('MessageProcessingTimeMetric', () => {
     )
 
     // When
-    const message: TestMessageSchema = {
+    const message: TestMessage = {
       id: '1',
       messageType: 'test',
       timestamp: new Date().toISOString(),
@@ -97,7 +98,7 @@ describe('MessageProcessingTimeMetric', () => {
     metric.registerProcessedMessage({
       messageId: message.id,
       messageType: message.messageType,
-      processingResult: 'consumed',
+      processingResult: { status: 'consumed' },
       message: message,
       queueName: 'test-queue',
       messageTimestamp: timestamp,
@@ -128,12 +129,12 @@ describe('MessageProcessingTimeMetric', () => {
       },
     } as Histogram)
 
-    const metric = new MessageProcessingTimeMetric<TestMessageSchema>(
+    const metric = new PrometheusMessageProcessingTimeMetric<TestMessage>(
       {
         name: 'Test metric',
         helpDescription: 'test description',
         buckets: [1, 2, 3],
-        messageVersion: (metadata: ProcessedMessageMetadata<TestMessageSchema>) =>
+        messageVersion: (metadata: ProcessedMessageMetadata<TestMessage>) =>
           metadata.message?.metadata?.schemaVersion,
       },
       promClient,
@@ -141,7 +142,7 @@ describe('MessageProcessingTimeMetric', () => {
 
     // When
     const queueName = 'test-queue'
-    const messages: TestMessageSchema[] = [
+    const messages: TestMessage[] = [
       {
         id: '1',
         messageType: 'test',
@@ -162,7 +163,7 @@ describe('MessageProcessingTimeMetric', () => {
       metric.registerProcessedMessage({
         messageId: message.id,
         messageType: message.messageType,
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: message,
         queueName,
         messageTimestamp: Date.now(),

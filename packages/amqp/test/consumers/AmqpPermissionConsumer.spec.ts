@@ -111,7 +111,7 @@ describe('AmqpPermissionConsumer', () => {
         },
         {
           messageId: '1',
-          processingResult: 'consumed',
+          processingResult: { status: 'consumed' },
         },
       ])
     })
@@ -156,7 +156,7 @@ describe('AmqpPermissionConsumer', () => {
           messageId: '1',
           messageType: 'add',
           messageDeduplicationId: undefined,
-          processingResult: 'consumed',
+          processingResult: { status: 'consumed' },
           queueName: AmqpPermissionConsumer.QUEUE_NAME,
           messageTimestamp: expect.any(Number),
           messageProcessingStartTimestamp: expect.any(Number),

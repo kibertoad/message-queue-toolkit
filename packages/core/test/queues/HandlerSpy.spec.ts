@@ -88,7 +88,7 @@ describe('HandlerSpy', () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE_2,
       })
 
@@ -104,12 +104,12 @@ describe('HandlerSpy', () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE_2,
       })
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE,
       })
 
@@ -124,12 +124,12 @@ describe('HandlerSpy', () => {
       const spy = new HandlerSpy<Message | MessageB>()
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE_2B,
       })
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGEB,
       })
 
@@ -144,7 +144,7 @@ describe('HandlerSpy', () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE_3,
       })
 
@@ -161,12 +161,12 @@ describe('HandlerSpy', () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE_3,
       })
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE_4,
       })
 
@@ -194,7 +194,7 @@ describe('HandlerSpy', () => {
       }
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message,
       })
 
@@ -213,12 +213,12 @@ describe('HandlerSpy', () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE_5A,
       })
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE_5B,
       })
 
@@ -237,12 +237,12 @@ describe('HandlerSpy', () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'retryLater',
+        processingResult: { status: 'retryLater' },
         message: TEST_MESSAGE,
       })
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE,
       })
 
@@ -268,7 +268,7 @@ describe('HandlerSpy', () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE_2,
       })
 
@@ -277,7 +277,7 @@ describe('HandlerSpy', () => {
       })
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE,
       })
 
@@ -292,14 +292,14 @@ describe('HandlerSpy', () => {
       const spy = new HandlerSpy<Message>()
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE_2,
       })
 
       const spyPromise = spy.waitForMessageWithId(TEST_MESSAGE.id)
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE,
       })
 
@@ -314,12 +314,12 @@ describe('HandlerSpy', () => {
       })
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGE_2B,
       })
 
       spy.addProcessedMessage({
-        processingResult: 'consumed',
+        processingResult: { status: 'consumed' },
         message: TEST_MESSAGEB,
       })
 
@@ -333,7 +333,7 @@ describe('HandlerSpy', () => {
 
       spy.addProcessedMessage(
         {
-          processingResult: 'invalid_message',
+          processingResult: { status: 'error', errorReason: 'invalidMessage' },
           message: null,
         },
         'abc',
@@ -345,7 +345,10 @@ describe('HandlerSpy', () => {
         id: 'abc',
         type: 'FAILED_TO_RESOLVE',
       })
-      expect(messageResult.processingResult).toBe('invalid_message')
+      expect(messageResult.processingResult).toEqual({
+        status: 'error',
+        errorReason: 'invalidMessage',
+      })
     })
   })
 
