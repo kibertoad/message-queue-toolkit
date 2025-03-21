@@ -50,6 +50,10 @@ export abstract class AbstractAmqpQueuePublisher<
     super.publish(message, options)
   }
 
+  protected override resolveTopicOrQueue(): string {
+    return this.queueName
+  }
+
   protected override createMissingEntities(): Promise<void> {
     return ensureAmqpQueue(this.connection!, this.channel, this.creationConfig, this.locatorConfig)
   }

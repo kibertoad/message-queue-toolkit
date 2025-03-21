@@ -61,6 +61,7 @@ export abstract class AbstractAmqpPublisher<
       throw resolveSchemaResult.error
     }
     resolveSchemaResult.result.parse(message)
+    const messageProcessingStartTimestamp = Date.now()
 
     // If it's not initted yet, do the lazy init
     if (!this.isInitted) {
@@ -94,6 +95,14 @@ export abstract class AbstractAmqpPublisher<
 
     try {
       this.publishInternal(objectToBuffer(message), options)
+      this.handleMessageProcessed({
+        message,
+        messageProcessingStartTimestamp,
+        // @ts-expect-error it will throw an error before if id field is not set
+        messageId: message[this.messageIdField],
+        processingResult: { status: 'published' },
+        queueName: this.resolveTopicOrQueue(),
+      })
     } catch (err) {
       // Unfortunately, reliable retry mechanism can't be implemented with try-catch block,
       // as not all failures end up here. If connection is closed programmatically, it works fine,
@@ -119,6 +128,8 @@ export abstract class AbstractAmqpPublisher<
       }
     }
   }
+
+  protected abstract resolveTopicOrQueue(): string
 
   protected abstract publishInternal(message: Buffer, options: MessageOptionsType): void
 
