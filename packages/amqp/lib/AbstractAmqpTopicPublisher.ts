@@ -52,6 +52,10 @@ export abstract class AbstractAmqpTopicPublisher<
     this.channel.publish(this.exchange!, options.routingKey, message, options.publishOptions)
   }
 
+  protected override resolveTopicOrQueue(): string {
+    return this.exchange!
+  }
+
   protected override async createMissingEntities(): Promise<void> {
     await ensureExchange(this.connection!, this.channel, this.creationConfig, this.locatorConfig)
   }
