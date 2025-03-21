@@ -13,6 +13,7 @@ import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import { z } from 'zod'
 
+import pino from 'pino'
 import { AmqpConnectionManager } from '../../lib/AmqpConnectionManager'
 import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager'
 import { AmqpQueuePublisherManager } from '../../lib/AmqpQueuePublisherManager'
@@ -83,8 +84,7 @@ export const TestEvents = {
 export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
 export type TestEventPublishPayloadsType = z.infer<TestEventsType[number]['publisherSchema']>
 
-// @ts-ignore
-const TestLogger: CommonLogger = console
+const TestLogger: CommonLogger = pino()
 
 export async function registerDependencies(
   config: AmqpConfig,

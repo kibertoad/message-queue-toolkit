@@ -96,7 +96,7 @@ describe('AmqpPermissionConsumer', () => {
 
       await newConsumer.close()
 
-      expect(logger.loggedMessages.length).toBe(5)
+      expect(logger.loggedMessages.length).toBe(6)
       expect(logger.loggedMessages).toMatchObject([
         'Propagating new connection across 0 receivers',
         {
@@ -104,6 +104,7 @@ describe('AmqpPermissionConsumer', () => {
           messageType: 'add',
         },
         'timestamp not defined, adding it automatically',
+        expect.any(Object),
         {
           id: '1',
           messageType: 'add',
