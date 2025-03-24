@@ -37,7 +37,7 @@
     "@biomejs/biome": "1.9.4",
     "@kibertoad/biome-config": "^1.2.1",
     "@message-queue-toolkit/core": "*",
-    "@types/amqplib": "0.10.6",
+    "@types/amqplib": "0.10.7",
     "@types/node": "^22.7.5",
     "@vitest/coverage-v8": "^3.0.7",
     "amqplib": "^0.10.4",
