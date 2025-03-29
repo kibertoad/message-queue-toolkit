@@ -1,7 +1,7 @@
 import { setTimeout } from 'node:timers/promises'
 
 import { globalLogger } from '@lokalise/node-core'
-import { connect } from 'amqplib'
+import { type ChannelModel, connect } from 'amqplib'
 
 const CONNECT_RETRY_SECONDS = 10
 const MAX_RETRY_ATTEMPTS = 10
@@ -15,7 +15,7 @@ export type AmqpConfig = {
   useTls: boolean
 }
 
-export async function resolveAmqpConnection(config: AmqpConfig) {
+export async function resolveAmqpConnection(config: AmqpConfig): Promise<ChannelModel> {
   const protocol = config.useTls ? 'amqps' : 'amqp'
   let counter = 0
   while (true) {

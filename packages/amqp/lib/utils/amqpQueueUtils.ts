@@ -1,6 +1,6 @@
 import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
-import type { Channel, Connection } from 'amqplib'
+import type { Channel, ChannelModel } from 'amqplib'
 
 import type {
   AMQPQueueCreationConfig,
@@ -11,7 +11,7 @@ import type {
 } from '../AbstractAmqpService'
 
 export async function checkQueueExists(
-  connection: Connection,
+  connection: ChannelModel,
   locatorConfig: AMQPQueueLocator,
 ): Promise<void> {
   // queue check breaks channel if not successful
@@ -28,7 +28,7 @@ export async function checkQueueExists(
 }
 
 export async function checkExchangeExists(
-  connection: Connection,
+  connection: ChannelModel,
   locatorConfig: AMQPTopicPublisherConfig,
 ): Promise<void> {
   // exchange check breaks channel if not successful
@@ -45,7 +45,7 @@ export async function checkExchangeExists(
 }
 
 export async function ensureAmqpQueue(
-  connection: Connection,
+  connection: ChannelModel,
   channel: Channel,
   creationConfig?: AMQPQueueCreationConfig,
   locatorConfig?: AMQPQueueLocator,
@@ -61,7 +61,7 @@ export async function ensureAmqpQueue(
 }
 
 export async function ensureAmqpTopicSubscription(
-  connection: Connection,
+  connection: ChannelModel,
   channel: Channel,
   creationConfig?: AMQPTopicCreationConfig,
   locatorConfig?: AMQPTopicLocator,
@@ -84,7 +84,7 @@ export async function ensureAmqpTopicSubscription(
 }
 
 export async function ensureExchange(
-  connection: Connection,
+  connection: ChannelModel,
   channel: Channel,
   creationConfig?: AMQPTopicPublisherConfig,
   locatorConfig?: AMQPTopicPublisherConfig,

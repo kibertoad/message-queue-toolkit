@@ -11,7 +11,7 @@ import type {
   TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
 import { HandlerContainer, isMessageError, parseMessage } from '@message-queue-toolkit/core'
-import type { Connection, Message } from 'amqplib'
+import type { ChannelModel, Message } from 'amqplib'
 
 import type {
   AMQPConsumerDependencies,
@@ -123,7 +123,7 @@ export abstract class AbstractAmqpConsumer<
     await super.init()
   }
 
-  async receiveNewConnection(connection: Connection): Promise<void> {
+  async receiveNewConnection(connection: ChannelModel): Promise<void> {
     await super.receiveNewConnection(connection)
     await this.consume()
   }

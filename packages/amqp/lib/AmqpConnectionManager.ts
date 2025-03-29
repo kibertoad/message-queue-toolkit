@@ -1,11 +1,11 @@
-import type { Connection } from 'amqplib'
+import type { ChannelModel } from 'amqplib'
 
 import type { CommonLogger } from '@lokalise/node-core'
 import type { AmqpConfig } from './amqpConnectionResolver'
 import { resolveAmqpConnection } from './amqpConnectionResolver'
 
 export type ConnectionReceiver = {
-  receiveNewConnection(connection: Connection): Promise<void>
+  receiveNewConnection(connection: ChannelModel): Promise<void>
   close(): Promise<void>
 }
 
@@ -13,7 +13,7 @@ export class AmqpConnectionManager {
   private readonly config: AmqpConfig
   private readonly logger: CommonLogger
   private readonly connectionReceivers: ConnectionReceiver[]
-  private connection?: Connection
+  private connection?: ChannelModel
   public reconnectsActive: boolean
 
   public isReconnecting: boolean
@@ -26,7 +26,7 @@ export class AmqpConnectionManager {
     this.logger = logger
   }
 
-  private async createConnection() {
+  private async createConnection(): Promise<ChannelModel> {
     const connection = await resolveAmqpConnection(this.config)
     connection.on('error', (err) => {
       this.logger.error(`AmqpConnectionManager: Connection error: ${err.message}`)
@@ -61,7 +61,7 @@ export class AmqpConnectionManager {
     return this.connection
   }
 
-  async getConnection(): Promise<Connection> {
+  async getConnection(): Promise<ChannelModel> {
     if (!this.connection) {
       this.connection = await this.createConnection()
     }

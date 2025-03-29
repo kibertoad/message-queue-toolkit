@@ -5,7 +5,7 @@ import type {
   QueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
-import type { Channel, Connection, Message } from 'amqplib'
+import type { Channel, ChannelModel, Message } from 'amqplib'
 import type { Options } from 'amqplib/properties'
 
 import type { AmqpConnectionManager, ConnectionReceiver } from './AmqpConnectionManager'
@@ -60,7 +60,7 @@ export abstract class AbstractAmqpService<
   >
   implements ConnectionReceiver
 {
-  protected connection?: Connection
+  protected connection?: ChannelModel
   private connectionManager: AmqpConnectionManager
   // @ts-ignore
   protected channel: Channel
@@ -78,7 +78,7 @@ export abstract class AbstractAmqpService<
     this.connectionManager.subscribeConnectionReceiver(this)
   }
 
-  async receiveNewConnection(connection: Connection) {
+  async receiveNewConnection(connection: ChannelModel) {
     this.connection = connection
 
     this.isShuttingDown = false
