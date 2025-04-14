@@ -1,4 +1,8 @@
-export type { AMQPQueueConfig } from './lib/AbstractAmqpService'
+export type {
+  AMQPQueueConfig,
+  AMQPConsumerDependencies,
+  AMQPDependencies,
+} from './lib/AbstractAmqpService'
 
 export { AbstractAmqpQueueConsumer } from './lib/AbstractAmqpQueueConsumer'
 export { AbstractAmqpTopicConsumer } from './lib/AbstractAmqpTopicConsumer'
