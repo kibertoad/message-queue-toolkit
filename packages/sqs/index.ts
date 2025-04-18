@@ -18,7 +18,13 @@ export {
 } from './lib/sqs/AbstractSqsPublisher'
 export type { SQSMessageOptions } from './lib/sqs/AbstractSqsPublisher'
 
-export { assertQueue, deleteQueue, getQueueAttributes, getQueueUrl } from './lib/utils/sqsUtils'
+export {
+  assertQueue,
+  deleteQueue,
+  getQueueAttributes,
+  getQueueUrl,
+  resolveQueueUrlFromLocatorConfig,
+} from './lib/utils/sqsUtils'
 export { deleteSqs, updateQueueAttributes } from './lib/utils/sqsInitter'
 export { deserializeSQSMessage } from './lib/utils/sqsMessageDeserializer'
 export {

@@ -18,6 +18,7 @@ import { SqsPermissionPublisher } from './SqsPermissionPublisher'
 describe('SqsPermissionPublisher', () => {
   describe('init', () => {
     const queueName = 'someQueue'
+    const queueUrl = `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`
 
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
@@ -35,7 +36,7 @@ describe('SqsPermissionPublisher', () => {
     it('throws an error when invalid queue locator is passed', async () => {
       const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
         locatorConfig: {
-          queueUrl: `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
+          queueUrl,
         },
       })
 
@@ -49,14 +50,27 @@ describe('SqsPermissionPublisher', () => {
 
       const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
         locatorConfig: {
-          queueUrl: `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
+          queueUrl,
         },
       })
 
       await newPublisher.init()
-      expect(newPublisher.queueProps.url).toBe(
-        `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
-      )
+      expect(newPublisher.queueProps.url).toBe(queueUrl)
+    })
+
+    it('resolves existing queue by name', async () => {
+      await assertQueue(sqsClient, {
+        QueueName: queueName,
+      })
+
+      const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
+        locatorConfig: {
+          queueName,
+        },
+      })
+
+      await newPublisher.init()
+      expect(newPublisher.queueProps.url).toBe(queueUrl)
     })
 
     describe('attributes update', () => {
@@ -87,9 +101,7 @@ describe('SqsPermissionPublisher', () => {
         const sqsSpy = vi.spyOn(sqsClient, 'send')
 
         await newPublisher.init()
-        expect(newPublisher.queueProps.url).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
+        expect(newPublisher.queueProps.url).toBe(queueUrl)
 
         const updateCall = sqsSpy.mock.calls.find((entry) => {
           return entry[0].constructor.name === 'SetQueueAttributesCommand'
@@ -128,9 +140,7 @@ describe('SqsPermissionPublisher', () => {
         const sqsSpy = vi.spyOn(sqsClient, 'send')
 
         await newPublisher.init()
-        expect(newPublisher.queueProps.url).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
+        expect(newPublisher.queueProps.url).toBe(queueUrl)
 
         const updateCall = sqsSpy.mock.calls.find((entry) => {
           return entry[0].constructor.name === 'SetQueueAttributesCommand'

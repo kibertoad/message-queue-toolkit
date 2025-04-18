@@ -24,7 +24,8 @@ export type SQSCreationConfig = {
 } & ExtraSQSCreationParams
 
 export type SQSQueueLocatorType = {
-  queueUrl: string
+  queueUrl?: string
+  queueName?: string
 }
 
 export abstract class AbstractSqsService<

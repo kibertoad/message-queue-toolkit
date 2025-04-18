@@ -5,7 +5,12 @@ import { isProduction } from '@message-queue-toolkit/core'
 
 import type { SQSCreationConfig, SQSQueueLocatorType } from '../sqs/AbstractSqsService'
 
-import { assertQueue, deleteQueue, getQueueAttributes } from './sqsUtils'
+import {
+  assertQueue,
+  deleteQueue,
+  getQueueAttributes,
+  resolveQueueUrlFromLocatorConfig,
+} from './sqsUtils'
 
 export async function deleteSqs(
   sqsClient: SQSClient,
@@ -63,12 +68,11 @@ export async function initSqs(
   creationConfig?: SQSCreationConfig,
 ) {
   // reuse existing queue only
-  if (locatorConfig?.queueUrl) {
-    const checkResult = await getQueueAttributes(
-      sqsClient,
-      (locatorConfig as SQSQueueLocatorType).queueUrl,
-      ['QueueArn'],
-    )
+  if (locatorConfig) {
+    const queueUrl = await resolveQueueUrlFromLocatorConfig(sqsClient, locatorConfig)
+
+    const checkResult = await getQueueAttributes(sqsClient, queueUrl, ['QueueArn'])
+
     if (checkResult.error === 'not_found') {
       throw new Error(`Queue with queueUrl ${locatorConfig.queueUrl} does not exist.`)
     }
@@ -77,8 +81,6 @@ export async function initSqs(
     if (!queueArn) {
       throw new Error('Queue ARN was not set')
     }
-
-    const queueUrl = locatorConfig.queueUrl
 
     const splitUrl = queueUrl.split('/')
     const queueName = splitUrl[splitUrl.length - 1]

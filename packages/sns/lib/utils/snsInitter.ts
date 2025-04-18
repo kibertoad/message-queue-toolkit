@@ -2,7 +2,10 @@ import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import type { DeletionConfig, ExtraParams } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
-import type { SQSCreationConfig, SQSQueueLocatorType } from '@message-queue-toolkit/sqs'
+import {
+  type SQSCreationConfig,
+  resolveQueueUrlFromLocatorConfig,
+} from '@message-queue-toolkit/sqs'
 import { deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 
 import type { SNSCreationConfig, SNSTopicLocatorType } from '../sns/AbstractSnsService'
@@ -86,11 +89,7 @@ export async function initSnsSqs(
     }
   }
 
-  if (!locatorConfig.queueUrl) {
-    throw new Error(
-      'If locatorConfig.subscriptionArn is provided, you have to also provide locatorConfig.queueUrl',
-    )
-  }
+  const queueUrl = await resolveQueueUrlFromLocatorConfig(sqsClient, locatorConfig)
 
   const checkPromises: Promise<Either<'not_found', unknown>>[] = []
   // Check for existing resources, using the locators
@@ -99,26 +98,21 @@ export async function initSnsSqs(
   const topicPromise = getTopicAttributes(snsClient, subscriptionTopicArn)
   checkPromises.push(topicPromise)
 
-  if (locatorConfig.queueUrl) {
-    const queuePromise = getQueueAttributes(
-      sqsClient,
-      (locatorConfig as SQSQueueLocatorType).queueUrl,
-    )
-    checkPromises.push(queuePromise)
-  }
+  const queuePromise = getQueueAttributes(sqsClient, queueUrl)
+  checkPromises.push(queuePromise)
 
   const [topicCheckResult, queueCheckResult] = await Promise.all(checkPromises)
 
   if (queueCheckResult?.error === 'not_found') {
-    throw new Error(`Queue with queueUrl ${locatorConfig.queueUrl} does not exist.`)
+    throw new Error(`Queue with queueUrl ${queueUrl} does not exist.`)
   }
   if (topicCheckResult.error === 'not_found') {
     throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
   }
 
   let queueName: string
-  if ((locatorConfig as SQSQueueLocatorType).queueUrl) {
-    const splitUrl = (locatorConfig as SQSQueueLocatorType).queueUrl.split('/')
+  if (queueUrl) {
+    const splitUrl = queueUrl.split('/')
     queueName = splitUrl[splitUrl.length - 1]
   } else {
     queueName = creationConfig!.queue.QueueName!
@@ -127,7 +121,7 @@ export async function initSnsSqs(
   return {
     subscriptionArn: locatorConfig.subscriptionArn,
     topicArn: subscriptionTopicArn,
-    queueUrl: locatorConfig.queueUrl,
+    queueUrl,
     queueName,
   }
 }

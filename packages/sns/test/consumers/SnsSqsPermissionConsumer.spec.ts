@@ -20,6 +20,8 @@ describe('SnsSqsPermissionConsumer', () => {
     const queueName = 'some-queue'
     const topicNome = 'some-topic'
 
+    const queueUrl = `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`
+
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
     let snsClient: SNSClient
@@ -44,7 +46,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
-          queueUrl: `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
+          queueUrl,
           subscriptionArn: 'dummy',
           topicArn: 'dummy',
         },
@@ -53,7 +55,7 @@ describe('SnsSqsPermissionConsumer', () => {
       await expect(() => newConsumer.init()).rejects.toThrow(/does not exist/)
     })
 
-    it('does not create a new queue when queue locator is passed', async () => {
+    it('does not create a new queue when queue locator with url is passed', async () => {
       await assertQueue(sqsClient, {
         QueueName: queueName,
       })
@@ -65,16 +67,41 @@ describe('SnsSqsPermissionConsumer', () => {
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
           topicArn: arn,
-          queueUrl: `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
+          queueUrl,
           subscriptionArn:
             'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
         },
       })
 
       await newConsumer.init()
-      expect(newConsumer.subscriptionProps.queueUrl).toBe(
-        `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
+      expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
+      expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
+      expect(newConsumer.subscriptionProps.topicArn).toEqual(arn)
+      expect(newConsumer.subscriptionProps.subscriptionArn).toBe(
+        'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
       )
+    })
+
+    it('does not create a new queue when queue locator with name is passed', async () => {
+      await assertQueue(sqsClient, {
+        QueueName: queueName,
+      })
+
+      const arn = await assertTopic(snsClient, stsClient, {
+        Name: topicNome,
+      })
+
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicArn: arn,
+          queueName,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:user_permissions:bdf640a2-bedf-475a-98b8-758b88c87395',
+        },
+      })
+
+      await newConsumer.init()
+      expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
       expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
       expect(newConsumer.subscriptionProps.topicArn).toEqual(arn)
       expect(newConsumer.subscriptionProps.subscriptionArn).toBe(
@@ -99,9 +126,7 @@ describe('SnsSqsPermissionConsumer', () => {
       })
 
       await newConsumer.init()
-      expect(newConsumer.subscriptionProps.queueUrl).toBe(
-        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-      )
+      expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
       expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
       expect(newConsumer.subscriptionProps.topicArn).toEqual(arn)
       expect(newConsumer.subscriptionProps.subscriptionArn).toMatch(
@@ -151,9 +176,7 @@ describe('SnsSqsPermissionConsumer', () => {
         })
 
         await newConsumer.init()
-        expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
         expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
 
         const updateCall = sqsSpy.mock.calls.find((entry) => {
@@ -197,9 +220,7 @@ describe('SnsSqsPermissionConsumer', () => {
         })
 
         await newConsumer.init()
-        expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
         expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
 
         const updateCall = sqsSpy.mock.calls.find((entry) => {
@@ -382,9 +403,7 @@ describe('SnsSqsPermissionConsumer', () => {
         })
 
         await newConsumer.init()
-        expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
         expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
 
         const attributes = await getQueueAttributes(
@@ -426,9 +445,7 @@ describe('SnsSqsPermissionConsumer', () => {
         })
 
         await newConsumer.init()
-        expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
 
         const attributes = await getQueueAttributes(
           sqsClient,
@@ -461,9 +478,7 @@ describe('SnsSqsPermissionConsumer', () => {
         })
 
         await newConsumer.init()
-        expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
         expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
 
         const attributes = await getQueueAttributes(
@@ -492,9 +507,7 @@ describe('SnsSqsPermissionConsumer', () => {
         })
 
         await newConsumer.init()
-        expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
         expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
           'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
         )
@@ -532,9 +545,7 @@ describe('SnsSqsPermissionConsumer', () => {
         })
 
         await newConsumer.init()
-        expect(newConsumer.subscriptionProps.queueUrl).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
+        expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
         expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
           'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
         )
