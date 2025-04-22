@@ -18,6 +18,8 @@ export { AbstractSnsPublisher } from './lib/sns/AbstractSnsPublisher'
 export type {
   SNSSQSConsumerOptions,
   SNSSQSConsumerDependencies,
+  SNSSQSCreationConfig,
+  SNSSQSQueueLocatorType,
 } from './lib/sns/AbstractSnsSqsConsumer'
 export { AbstractSnsSqsConsumer } from './lib/sns/AbstractSnsSqsConsumer'
 
