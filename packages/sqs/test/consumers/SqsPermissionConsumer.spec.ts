@@ -26,6 +26,7 @@ import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas'
 describe('SqsPermissionConsumer', () => {
   describe('init', () => {
     const queueName = 'myTestQueue'
+    const queueUrl = `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`
 
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
@@ -44,7 +45,7 @@ describe('SqsPermissionConsumer', () => {
     it('throws an error when invalid queue locator is passed', async () => {
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
-          queueUrl: `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
+          queueUrl,
         },
       })
 
@@ -58,14 +59,27 @@ describe('SqsPermissionConsumer', () => {
 
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
-          queueUrl: `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
+          queueUrl,
         },
       })
 
       await newConsumer.init()
-      expect(newConsumer.queueProps.url).toBe(
-        `http://s3.localhost.localstack.cloud:4566/000000000000/${queueName}`,
-      )
+      expect(newConsumer.queueProps.url).toBe(queueUrl)
+    })
+
+    it('resolves existing queue by name', async () => {
+      await assertQueue(sqsClient, {
+        QueueName: queueName,
+      })
+
+      const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+        locatorConfig: {
+          queueName,
+        },
+      })
+
+      await newConsumer.init()
+      expect(newConsumer.queueProps.url).toBe(queueUrl)
     })
 
     describe('attributes update', () => {
@@ -97,9 +111,7 @@ describe('SqsPermissionConsumer', () => {
         const sqsSpy = vi.spyOn(sqsClient, 'send')
 
         await newConsumer.init()
-        expect(newConsumer.queueProps.url).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
+        expect(newConsumer.queueProps.url).toBe(queueUrl)
 
         const updateCall = sqsSpy.mock.calls.find((entry) => {
           return entry[0].constructor.name === 'SetQueueAttributesCommand'
@@ -141,9 +153,7 @@ describe('SqsPermissionConsumer', () => {
         const sqsSpy = vi.spyOn(sqsClient, 'send')
 
         await newConsumer.init()
-        expect(newConsumer.queueProps.url).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
+        expect(newConsumer.queueProps.url).toBe(queueUrl)
 
         const updateCall = sqsSpy.mock.calls.find((entry) => {
           return entry[0].constructor.name === 'SetQueueAttributesCommand'
@@ -196,9 +206,7 @@ describe('SqsPermissionConsumer', () => {
         const sqsSpy = vi.spyOn(sqsClient, 'send')
 
         await newConsumer.init()
-        expect(newConsumer.queueProps.url).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
+        expect(newConsumer.queueProps.url).toBe(queueUrl)
 
         const updateCall = sqsSpy.mock.calls.find((entry) => {
           return entry[0].constructor.name === 'TagQueueCommand'
@@ -248,9 +256,7 @@ describe('SqsPermissionConsumer', () => {
         const sqsSpy = vi.spyOn(sqsClient, 'send')
 
         await newConsumer.init()
-        expect(newConsumer.queueProps.url).toBe(
-          `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
-        )
+        expect(newConsumer.queueProps.url).toBe(queueUrl)
 
         const updateCall = sqsSpy.mock.calls.find((entry) => {
           return entry[0].constructor.name === 'TagQueueCommand'

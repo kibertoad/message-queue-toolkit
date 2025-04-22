@@ -23,9 +23,15 @@ export type SQSCreationConfig = {
   forceTagUpdate?: boolean
 } & ExtraSQSCreationParams
 
-export type SQSQueueLocatorType = {
-  queueUrl: string
-}
+export type SQSQueueLocatorType =
+  | {
+      queueUrl: string
+      queueName?: never
+    }
+  | {
+      queueName: string
+      queueUrl?: never
+    }
 
 export abstract class AbstractSqsService<
   MessagePayloadType extends object,

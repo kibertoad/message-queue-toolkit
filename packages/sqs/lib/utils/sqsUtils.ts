@@ -16,7 +16,7 @@ import type { Either } from '@lokalise/node-core'
 import { globalLogger } from '@lokalise/node-core'
 import { isShallowSubset, waitAndRetry } from '@message-queue-toolkit/core'
 
-import type { ExtraSQSCreationParams } from '../sqs/AbstractSqsService'
+import type { ExtraSQSCreationParams, SQSQueueLocatorType } from '../sqs/AbstractSqsService'
 
 import { generateQueuePublishForTopicPolicy } from './sqsAttributeUtils'
 import { updateQueueAttributes, updateQueueTags } from './sqsInitter'
@@ -85,6 +85,27 @@ export async function getQueueAttributes(
     }
     throw err
   }
+}
+
+export async function resolveQueueUrlFromLocatorConfig(
+  sqsClient: SQSClient,
+  locatorConfig: Partial<SQSQueueLocatorType>,
+) {
+  if (locatorConfig.queueUrl) {
+    return locatorConfig.queueUrl
+  }
+
+  if (!locatorConfig.queueName) {
+    throw new Error('Invalid locatorConfig setup - queueUrl or queueName must be provided')
+  }
+
+  const queueUrlResult = await getQueueUrl(sqsClient, locatorConfig.queueName)
+
+  if (queueUrlResult.error === 'not_found') {
+    throw new Error(`Queue with queueName ${locatorConfig.queueName} does not exist.`)
+  }
+
+  return queueUrlResult.result
 }
 
 async function updateExistingQueue(
