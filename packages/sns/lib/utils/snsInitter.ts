@@ -57,7 +57,7 @@ export async function initSnsSqs(
     }
 
     const topicResolutionOptions: TopicResolutionOptions = {
-      ...locatorConfig,
+      ...(locatorConfig as SNSSQSQueueLocatorType),
       ...creationConfig.topic,
     }
 
