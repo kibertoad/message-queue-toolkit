@@ -171,7 +171,7 @@ describe('SnsPermissionPublisher', () => {
         })
 
         await expect(newPublisher.init()).rejects.toThrowError(
-          `${topicNome} - Invalid parameter: Tags Reason: Topic already exists with different tags`,
+          'Invalid parameter: Tags Reason: Topic already exists with different tags',
         )
       })
     })

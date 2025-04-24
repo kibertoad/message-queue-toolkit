@@ -297,7 +297,7 @@ describe('SnsSqsPermissionConsumer', () => {
         })
 
         await expect(consumer.init()).rejects.toThrowError(
-          `${topicNome} - Invalid parameter: Tags Reason: Topic already exists with different tags`,
+          'Invalid parameter: Tags Reason: Topic already exists with different tags',
         )
       })
 
