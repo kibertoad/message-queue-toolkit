@@ -141,6 +141,7 @@ export async function registerDependencies(
     eventRegistry: asFunction(() => {
       return new EventRegistry(Object.values(TestEvents))
     }, SINGLETON_CONFIG),
+
     queuePublisherManager: asFunction(
       (dependencies) => {
         return new AmqpQueuePublisherManager(dependencies, {
@@ -149,6 +150,7 @@ export async function registerDependencies(
           }),
           publisherFactory: new CommonAmqpQueuePublisherFactory(),
           newPublisherOptions: {
+            isLazyInitEnabled: true,
             handlerSpy: true,
             messageIdField: 'id',
             messageTypeField: 'type',
@@ -160,6 +162,28 @@ export async function registerDependencies(
         enabled: queuesEnabled,
       },
     ),
+
+    queuePublisherManagerNoLazy: asFunction(
+      (dependencies) => {
+        return new AmqpQueuePublisherManager(dependencies, {
+          metadataFiller: new CommonMetadataFiller({
+            serviceId: 'service',
+          }),
+          publisherFactory: new CommonAmqpQueuePublisherFactory(),
+          newPublisherOptions: {
+            isLazyInitEnabled: false,
+            handlerSpy: true,
+            messageIdField: 'id',
+            messageTypeField: 'type',
+          },
+        })
+      },
+      {
+        lifetime: Lifetime.SINGLETON,
+        enabled: queuesEnabled,
+      },
+    ),
+
     topicPublisherManager: asFunction(
       (dependencies) => {
         return new AmqpTopicPublisherManager(dependencies, {
@@ -221,6 +245,11 @@ export interface Dependencies {
 
   eventRegistry: EventRegistry<TestEventsType>
   queuePublisherManager: AmqpQueuePublisherManager<
+    CommonAmqpQueuePublisher<TestEventPublishPayloadsType>,
+    TestEventsType
+  >
+
+  queuePublisherManagerNoLazy: AmqpQueuePublisherManager<
     CommonAmqpQueuePublisher<TestEventPublishPayloadsType>,
     TestEventsType
   >

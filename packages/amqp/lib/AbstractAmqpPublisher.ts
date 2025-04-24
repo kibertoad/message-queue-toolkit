@@ -22,6 +22,7 @@ export type AMQPPublisherOptions<
   LocatorConfig extends object,
 > = QueuePublisherOptions<CreationConfig, LocatorConfig, MessagePayloadType> & {
   exchange?: string
+  isLazyInitEnabled?: boolean // default is true
 }
 
 export abstract class AbstractAmqpPublisher<
@@ -40,9 +41,10 @@ export abstract class AbstractAmqpPublisher<
   >
   implements SyncPublisher<MessagePayloadType, MessageOptionsType>
 {
-  private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   protected readonly exchange?: string
 
+  private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
+  private readonly isLazyInitEnabled: boolean
   private initPromise?: Promise<void>
 
   constructor(
@@ -53,6 +55,7 @@ export abstract class AbstractAmqpPublisher<
 
     this.messageSchemaContainer = this.resolvePublisherMessageSchemaContainer(options)
     this.exchange = options.exchange
+    this.isLazyInitEnabled = options.isLazyInitEnabled ?? true
   }
 
   publish(message: MessagePayloadType, options: MessageOptionsType): void {
@@ -64,7 +67,7 @@ export abstract class AbstractAmqpPublisher<
     const messageProcessingStartTimestamp = Date.now()
 
     // If it's not initted yet, do the lazy init
-    if (!this.isInitted) {
+    if (!this.isInitted && this.isLazyInitEnabled) {
       // avoid multiple concurrent inits
       if (!this.initPromise) {
         this.initPromise = this.init()
