@@ -98,7 +98,7 @@ export async function assertTopic(
     // To build ARN we need topic name and error should be "topic already exist with different tags"
     if (!topicOptions.Name || !isTopicAlreadyExistWithDifferentTagsError(error)) {
       throw new InternalError({
-        message: error.message,
+        message: `${topicOptions.Name} - ${error.message}`,
         cause: error,
         details: { topicName: topicOptions.Name },
         errorCode: 'SNS_CREATE_TOPIC_COMMAND_UNEXPECTED_ERROR',
@@ -111,7 +111,7 @@ export async function assertTopic(
         new ListTagsForResourceCommand({ ResourceArn: topicArn }),
       )
       throw new InternalError({
-        message: error.message,
+        message: `${topicOptions.Name} - ${error.message}`,
         details: {
           topicName: topicOptions.Name,
           currentTags: JSON.stringify(currentTags),
