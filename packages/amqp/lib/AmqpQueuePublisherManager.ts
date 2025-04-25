@@ -120,10 +120,6 @@ export class AmqpQueuePublisherManager<
       },
       publisherFactory: options.publisherFactory ?? new CommonAmqpQueuePublisherFactory(),
     })
-
-    if (!options.newPublisherOptions.isLazyInitEnabled) {
-      this.initRegisteredQueues()
-    }
   }
 
   protected override resolveCreationConfig(
@@ -136,13 +132,11 @@ export class AmqpQueuePublisherManager<
     }
   }
 
-  protected initRegisteredQueues(): void {
-    for (const eventTarget in this.targetToEventMap) {
+  async initRegisteredQueues(): Promise<void> {
+    for (const eventTarget in this.targetToPublisherMap) {
       const queueName = eventTarget as NonNullable<SupportedEventDefinitions[number]['queueName']>
 
-      if (this.targetToPublisherMap[queueName]) {
-        this.targetToPublisherMap[queueName].init()
-      }
+      await this.targetToPublisherMap[queueName].init()
     }
   }
 
