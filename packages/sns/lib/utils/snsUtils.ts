@@ -96,7 +96,14 @@ export async function assertTopic(
   } catch (error) {
     if (!isError(error)) throw error
     // To build ARN we need topic name and error should be "topic already exist with different tags"
-    if (!topicOptions.Name || !isTopicAlreadyExistWithDifferentTagsError(error)) throw error
+    if (!topicOptions.Name || !isTopicAlreadyExistWithDifferentTagsError(error)) {
+      throw new InternalError({
+        message: `${topicOptions.Name} - ${error.message}`,
+        cause: error,
+        details: { topicName: topicOptions.Name },
+        errorCode: 'SNS_CREATE_TOPIC_COMMAND_UNEXPECTED_ERROR',
+      })
+    }
 
     topicArn = await buildTopicArn(stsClient, topicOptions.Name)
     if (!extraParams?.forceTagUpdate) {
@@ -106,6 +113,7 @@ export async function assertTopic(
       throw new InternalError({
         message: `${topicOptions.Name} - ${error.message}`,
         details: {
+          topicName: topicOptions.Name,
           currentTags: JSON.stringify(currentTags),
           newTags: JSON.stringify(topicOptions.Tags),
         },
