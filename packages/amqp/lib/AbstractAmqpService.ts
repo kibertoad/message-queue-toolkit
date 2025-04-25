@@ -136,6 +136,10 @@ export abstract class AbstractAmqpService<
   }
 
   public async init() {
+    if (this.isInitted) {
+      return
+    }
+
     if (this.creationConfig?.updateAttributesIfExists) {
       throw new Error(
         'updateAttributesIfExists parameter is not currently supported by the AMQP adapter',
