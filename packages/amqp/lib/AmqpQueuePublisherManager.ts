@@ -67,6 +67,7 @@ export type AmqpMessageSchemaType<T extends AmqpAwareEventDefinition> = z.infer<
   T['publisherSchema']
 >
 
+
 export class AmqpQueuePublisherManager<
   T extends AbstractAmqpQueuePublisher<
     z.infer<SupportedEventDefinitions[number]['publisherSchema']>
@@ -120,6 +121,10 @@ export class AmqpQueuePublisherManager<
       },
       publisherFactory: options.publisherFactory ?? new CommonAmqpQueuePublisherFactory(),
     })
+
+    if (!options.newPublisherOptions.isLazyInitEnabled) {
+      this.initRegisteredQueues()
+    }
   }
 
   protected override resolveCreationConfig(
@@ -129,6 +134,16 @@ export class AmqpQueuePublisherManager<
       ...this.newPublisherOptions,
       queueOptions: {},
       queueName,
+    }
+  }
+
+  protected initRegisteredQueues(): void {
+    for (const eventTarget in this.targetToEventMap) {
+      const queueName = eventTarget as NonNullable<SupportedEventDefinitions[number]['queueName']>
+
+      if (this.targetToPublisherMap[queueName]) {
+        this.targetToPublisherMap[queueName].init()
+      }
     }
   }
 
