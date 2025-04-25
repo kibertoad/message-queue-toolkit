@@ -67,7 +67,6 @@ export type AmqpMessageSchemaType<T extends AmqpAwareEventDefinition> = z.infer<
   T['publisherSchema']
 >
 
-
 export class AmqpQueuePublisherManager<
   T extends AbstractAmqpQueuePublisher<
     z.infer<SupportedEventDefinitions[number]['publisherSchema']>
