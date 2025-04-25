@@ -77,7 +77,7 @@ describe('AmqpQueuePublisherManager', () => {
     })
 
     it('publishes to the correct queue with lazy init disabled', async () => {
-      await diContainer.cradle.queuePublisherManagerNoLazy.initRegisteredQueues()
+      await diContainer.cradle.queuePublisherManagerNoLazy.initRegisteredPublishers()
 
       const { queuePublisherManagerNoLazy } = diContainer.cradle
       const fakeConsumer = new FakeQueueConsumer(diContainer.cradle, TestEvents.updated)
@@ -93,6 +93,26 @@ describe('AmqpQueuePublisherManager', () => {
       const result = await fakeConsumer.handlerSpy.waitForMessageWithId(publishedMessage.id)
 
       expect(result.processingResult).toEqual({ status: 'consumed' })
+    })
+
+    it('not publishes to the queue with lazy publisher, when it was not initialized', async () => {
+      await diContainer.cradle.queuePublisherManagerNoLazy.initRegisteredPublishers(['non-existing-name'])
+
+      const { queuePublisherManagerNoLazy } = diContainer.cradle
+      const fakeConsumer = new FakeQueueConsumer(diContainer.cradle, TestEvents.updated)
+      await fakeConsumer.start()
+
+      expect(() =>
+        queuePublisherManagerNoLazy.publishSync(FakeQueueConsumer.QUEUE_NAME, {
+          type: 'entity.updated',
+          payload: {
+            updatedData: 'msg',
+          },
+          metadata: {
+            correlationId: 'some-id',
+          },
+        }),
+      ).toThrow(/Error while publishing to AMQP Cannot read properties of undefined/)
     })
   })
 })
