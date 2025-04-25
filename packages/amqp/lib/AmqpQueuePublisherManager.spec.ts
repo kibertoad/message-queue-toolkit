@@ -75,5 +75,24 @@ describe('AmqpQueuePublisherManager', () => {
         }),
       ).toThrow(/Error while publishing to AMQP Cannot read properties of undefined/)
     })
+
+    it('publishes to the correct queue with lazy init disabled', async () => {
+      await diContainer.cradle.queuePublisherManagerNoLazy.initRegisteredQueues()
+
+      const { queuePublisherManagerNoLazy } = diContainer.cradle
+      const fakeConsumer = new FakeQueueConsumer(diContainer.cradle, TestEvents.updated)
+      await fakeConsumer.start()
+
+      const publishedMessage = queuePublisherManagerNoLazy.publishSync(FakeQueueConsumer.QUEUE_NAME, {
+        type: 'entity.updated',
+        payload: {
+          updatedData: 'msg',
+        },
+      })
+
+      const result = await fakeConsumer.handlerSpy.waitForMessageWithId(publishedMessage.id)
+
+      expect(result.processingResult).toEqual({ status: 'consumed' })
+    })
   })
 })
