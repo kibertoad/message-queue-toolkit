@@ -83,12 +83,15 @@ describe('AmqpQueuePublisherManager', () => {
       const fakeConsumer = new FakeQueueConsumer(diContainer.cradle, TestEvents.updated)
       await fakeConsumer.start()
 
-      const publishedMessage = queuePublisherManagerNoLazy.publishSync(FakeQueueConsumer.QUEUE_NAME, {
-        type: 'entity.updated',
-        payload: {
-          updatedData: 'msg',
+      const publishedMessage = queuePublisherManagerNoLazy.publishSync(
+        FakeQueueConsumer.QUEUE_NAME,
+        {
+          type: 'entity.updated',
+          payload: {
+            updatedData: 'msg',
+          },
         },
-      })
+      )
 
       const result = await fakeConsumer.handlerSpy.waitForMessageWithId(publishedMessage.id)
 
@@ -96,7 +99,9 @@ describe('AmqpQueuePublisherManager', () => {
     })
 
     it('not publishes to the queue with lazy publisher, when it was not initialized', async () => {
-      await diContainer.cradle.queuePublisherManagerNoLazy.initRegisteredPublishers(['non-existing-name'])
+      await diContainer.cradle.queuePublisherManagerNoLazy.initRegisteredPublishers([
+        'non-existing-name',
+      ])
 
       const { queuePublisherManagerNoLazy } = diContainer.cradle
       const fakeConsumer = new FakeQueueConsumer(diContainer.cradle, TestEvents.updated)
