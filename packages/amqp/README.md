@@ -70,3 +70,5 @@ publisher.publish(message)
 ## Lazy instantiation
 
 By default `message-queue-toolkit/amqp` will lazily instantiate publishers before the publish in case they weren't instantiated before. This may result in system not failing fast when connection to AMQP cannot be established, as instantiation happens asynchronously. In case that is an undesirable behaviour, you can set parameter `isLazyInitEnabled` to false either directly for a publisher, or as one of the `newPublisherOptions` parameters for the `AmqpQueuePublisherManager`.
+
+In case when lazy instantiation is disabled, publishers should be initialized explicitly by using an async `AmqpQueuePublisherManager.initRegisteredPublishers()` method. It also has an optional `publishers?: string[]` argument, which can be used to only initialize some specific publishers.

@@ -132,6 +132,18 @@ export class AmqpQueuePublisherManager<
     }
   }
 
+  async initRegisteredPublishers(publishers?: string[]): Promise<void> {
+    for (const eventTarget in this.targetToPublisherMap) {
+      const queueName = eventTarget as NonNullable<SupportedEventDefinitions[number]['queueName']>
+
+      if (publishers?.length && !publishers.includes(queueName)) {
+        continue
+      }
+
+      await this.targetToPublisherMap[queueName].init()
+    }
+  }
+
   /**
    * @deprecated use `publishSync` instead.
    */
