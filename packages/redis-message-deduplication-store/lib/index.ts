@@ -1,1 +1,1 @@
-export * from './RedisMessageDeduplicationStore'
+export * from './RedisMessageDeduplicationStore.ts'
