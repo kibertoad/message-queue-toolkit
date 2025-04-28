@@ -9,7 +9,7 @@
     "url": "git://github.com/kibertoad/message-queue-toolkit.git"
   },
   "description": "Kafka adapter for message-queue-toolkit",
-  "keywords": ["message", "queue", "queues", "abstract", "common", "utils", "notification", "sns"],
+  "keywords": ["message", "queue", "queues", "abstract", "common", "utils", "notification", "kafka"],
   "files": ["README.md", "LICENSE", "dist"],
   "maintainers": [
     {
