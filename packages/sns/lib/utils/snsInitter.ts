@@ -8,21 +8,21 @@ import {
 } from '@message-queue-toolkit/sqs'
 import { deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 
-import type { SNSCreationConfig, SNSTopicLocatorType } from '../sns/AbstractSnsService'
-import type { SNSSQSQueueLocatorType } from '../sns/AbstractSnsSqsConsumer'
+import type { SNSCreationConfig, SNSTopicLocatorType } from '../sns/AbstractSnsService.ts'
+import type { SNSSQSQueueLocatorType } from '../sns/AbstractSnsSqsConsumer.ts'
 
 import type { STSClient } from '@aws-sdk/client-sts'
 import type { Either } from '@lokalise/node-core'
-import { type TopicResolutionOptions, isCreateTopicCommand } from '../types/TopicTypes'
-import type { SNSSubscriptionOptions } from './snsSubscriber'
-import { subscribeToTopic } from './snsSubscriber'
+import { type TopicResolutionOptions, isCreateTopicCommand } from '../types/TopicTypes.ts'
+import type { SNSSubscriptionOptions } from './snsSubscriber.ts'
+import { subscribeToTopic } from './snsSubscriber.ts'
 import {
   assertTopic,
   deleteSubscription,
   deleteTopic,
   getTopicArnByName,
   getTopicAttributes,
-} from './snsUtils'
+} from './snsUtils.ts'
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
 export async function initSnsSqs(
@@ -106,15 +106,17 @@ export async function initSnsSqs(
   if (queueCheckResult?.error === 'not_found') {
     throw new Error(`Queue with queueUrl ${queueUrl} does not exist.`)
   }
-  if (topicCheckResult.error === 'not_found') {
+  if (topicCheckResult?.error === 'not_found') {
     throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
   }
 
   let queueName: string
   if (queueUrl) {
     const splitUrl = queueUrl.split('/')
-    queueName = splitUrl[splitUrl.length - 1]
+    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    queueName = splitUrl[splitUrl.length - 1]!
   } else {
+    // biome-ignore lint/style/noNonNullAssertion: <explanation>
     queueName = creationConfig!.queue.QueueName!
   }
 
@@ -152,6 +154,7 @@ export async function deleteSnsSqs(
     snsClient,
     stsClient,
     queueConfiguration,
+    // biome-ignore lint/style/noNonNullAssertion: <explanation>
     topicConfiguration ?? topicLocator!,
     subscriptionConfiguration,
     extraParams,
@@ -163,7 +166,7 @@ export async function deleteSnsSqs(
 
   await deleteQueue(
     sqsClient,
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    // biome-ignore lint/style/noNonNullAssertion: <explanation>
     queueConfiguration.QueueName!,
     deletionConfig.waitForConfirmation !== false,
   )
@@ -228,6 +231,7 @@ export async function initSns(
       'When locatorConfig for the topic is not specified, creationConfig of the topic is mandatory',
     )
   }
+  // biome-ignore lint/style/noNonNullAssertion: <explanation>
   const topicArn = await assertTopic(snsClient, stsClient, creationConfig.topic!, {
     queueUrlsWithSubscribePermissionsPrefix: creationConfig.queueUrlsWithSubscribePermissionsPrefix,
     allowedSourceOwner: creationConfig.allowedSourceOwner,

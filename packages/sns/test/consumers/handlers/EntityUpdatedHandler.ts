@@ -1,7 +1,7 @@
 import type { Either } from '@lokalise/node-core'
 import type z from 'zod'
 
-import type { TestEvents } from '../../utils/testContext'
+import type { TestEvents } from '../../utils/testContext.ts'
 
 let _latestData: string
 

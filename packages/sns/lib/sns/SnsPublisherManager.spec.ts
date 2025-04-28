@@ -4,17 +4,17 @@ import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import z from 'zod'
 
-import { SnsSqsEntityConsumer } from '../../test/consumers/SnsSqsEntityConsumer'
+import { SnsSqsEntityConsumer } from '../../test/consumers/SnsSqsEntityConsumer.ts'
 import type {
   Dependencies,
   TestEventPublishPayloadsType,
   TestEventsType,
-} from '../../test/utils/testContext'
-import { TestEvents, registerDependencies } from '../../test/utils/testContext'
+} from '../../test/utils/testContext.ts'
+import { TestEvents, registerDependencies } from '../../test/utils/testContext.ts'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { CommonSnsPublisher } from './CommonSnsPublisherFactory'
-import type { SnsPublisherManager } from './SnsPublisherManager'
+import { CommonSnsPublisher } from './CommonSnsPublisherFactory.ts'
+import type { SnsPublisherManager } from './SnsPublisherManager.ts'
 
 describe('SnsPublisherManager', () => {
   let diContainer: AwilixContainer<Dependencies>

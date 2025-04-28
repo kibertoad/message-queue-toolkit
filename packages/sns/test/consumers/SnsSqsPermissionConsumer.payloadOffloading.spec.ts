@@ -5,16 +5,16 @@ import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { SNS_MESSAGE_MAX_SIZE } from '../../lib/sns/AbstractSnsService'
-import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
-import { assertBucket, emptyBucket } from '../utils/s3Utils'
-import { registerDependencies } from '../utils/testContext'
-import type { Dependencies } from '../utils/testContext'
+import { SNS_MESSAGE_MAX_SIZE } from '../../lib/sns/AbstractSnsService.ts'
+import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
+import { assertBucket, emptyBucket } from '../utils/s3Utils.ts'
+import { registerDependencies } from '../utils/testContext.ts'
+import type { Dependencies } from '../utils/testContext.ts'
 
 import { deleteQueue } from '@message-queue-toolkit/sqs'
-import { deleteTopic } from '../../lib/utils/snsUtils'
-import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
-import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas'
+import { deleteTopic } from '../../lib/utils/snsUtils.ts'
+import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer.ts'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas.ts'
 
 describe('SnsSqsPermissionConsumer', () => {
   describe('consume', () => {

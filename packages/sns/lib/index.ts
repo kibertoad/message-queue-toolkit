@@ -4,28 +4,28 @@ export type {
   SNSTopicLocatorType,
   SNSCreationConfig,
   SNSDependencies,
-} from './sns/AbstractSnsService'
+} from './sns/AbstractSnsService.ts'
 
-export { SNS_MESSAGE_MAX_SIZE } from './sns/AbstractSnsService'
+export { SNS_MESSAGE_MAX_SIZE } from './sns/AbstractSnsService.ts'
 
-export { AbstractSnsService } from './sns/AbstractSnsService'
+export { AbstractSnsService } from './sns/AbstractSnsService.ts'
 
-export { SnsConsumerErrorResolver } from './errors/SnsConsumerErrorResolver'
+export { SnsConsumerErrorResolver } from './errors/SnsConsumerErrorResolver.ts'
 
-export type { SNSMessageOptions, SNSPublisherOptions } from './sns/AbstractSnsPublisher'
-export { AbstractSnsPublisher } from './sns/AbstractSnsPublisher'
+export type { SNSMessageOptions, SNSPublisherOptions } from './sns/AbstractSnsPublisher.ts'
+export { AbstractSnsPublisher } from './sns/AbstractSnsPublisher.ts'
 
 export type {
   SNSSQSConsumerOptions,
   SNSSQSConsumerDependencies,
   SNSSQSCreationConfig,
   SNSSQSQueueLocatorType,
-} from './sns/AbstractSnsSqsConsumer'
-export { AbstractSnsSqsConsumer } from './sns/AbstractSnsSqsConsumer'
+} from './sns/AbstractSnsSqsConsumer.ts'
+export { AbstractSnsSqsConsumer } from './sns/AbstractSnsSqsConsumer.ts'
 
-export type { CommonMessage } from './types/MessageTypes'
+export type { CommonMessage } from './types/MessageTypes.ts'
 
-export { deserializeSNSMessage } from './utils/snsMessageDeserializer'
+export { deserializeSNSMessage } from './utils/snsMessageDeserializer.ts'
 
 export {
   assertTopic,
@@ -34,18 +34,18 @@ export {
   deleteSubscription,
   findSubscriptionByTopicAndQueue,
   getSubscriptionAttributes,
-} from './utils/snsUtils'
-export { clearCachedCallerIdentity } from './utils/stsUtils'
+} from './utils/snsUtils.ts'
+export { clearCachedCallerIdentity } from './utils/stsUtils.ts'
 
-export { subscribeToTopic } from './utils/snsSubscriber'
-export { initSns, initSnsSqs } from './utils/snsInitter'
-export { readSnsMessage } from './utils/snsMessageReader'
+export { subscribeToTopic } from './utils/snsSubscriber.ts'
+export { initSns, initSnsSqs } from './utils/snsInitter.ts'
+export { readSnsMessage } from './utils/snsMessageReader.ts'
 export {
   generateFilterAttributes,
   generateTopicSubscriptionPolicy,
-} from './utils/snsAttributeUtils'
+} from './utils/snsAttributeUtils.ts'
 
-export * from './sns/CommonSnsPublisherFactory'
-export * from './sns/SnsPublisherManager'
+export * from './sns/CommonSnsPublisherFactory.ts'
+export * from './sns/SnsPublisherManager.ts'
 
-export { FakeConsumer } from './sns/fakes/FakeConsumer'
+export { FakeConsumer } from './sns/fakes/FakeConsumer.ts'

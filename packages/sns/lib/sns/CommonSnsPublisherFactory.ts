@@ -1,8 +1,8 @@
 import type { PublisherBaseEventType } from '@message-queue-toolkit/core'
 
-import type { SNSPublisherOptions } from './AbstractSnsPublisher'
-import { AbstractSnsPublisher } from './AbstractSnsPublisher'
-import type { SNSDependencies } from './AbstractSnsService'
+import type { SNSPublisherOptions } from './AbstractSnsPublisher.ts'
+import { AbstractSnsPublisher } from './AbstractSnsPublisher.ts'
+import type { SNSDependencies } from './AbstractSnsService.ts'
 
 export type SnsPublisherFactory<
   T extends AbstractSnsPublisher<M>,

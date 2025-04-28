@@ -2,8 +2,8 @@ import type { PublisherBaseMessageType } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
-import type { SNSSQSConsumerDependencies } from '../AbstractSnsSqsConsumer'
-import { AbstractSnsSqsConsumer } from '../AbstractSnsSqsConsumer'
+import type { SNSSQSConsumerDependencies } from '../AbstractSnsSqsConsumer.ts'
+import { AbstractSnsSqsConsumer } from '../AbstractSnsSqsConsumer.ts'
 
 export class FakeConsumer<T extends PublisherBaseMessageType> extends AbstractSnsSqsConsumer<
   T,

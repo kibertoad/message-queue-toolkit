@@ -1,9 +1,9 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { STSClient } from '@aws-sdk/client-sts'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { registerDependencies } from '../../test/utils/testContext'
-import { assertTopic, deleteTopic } from './snsUtils'
-import { buildTopicArn, clearCachedCallerIdentity } from './stsUtils'
+import { registerDependencies } from '../../test/utils/testContext.ts'
+import { assertTopic, deleteTopic } from './snsUtils.ts'
+import { buildTopicArn, clearCachedCallerIdentity } from './stsUtils.ts'
 
 describe('stsUtils', () => {
   let stsClient: STSClient

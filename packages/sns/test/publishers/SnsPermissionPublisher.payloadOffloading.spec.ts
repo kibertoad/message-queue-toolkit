@@ -17,16 +17,16 @@ import { asValue } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { SNS_MESSAGE_BODY_SCHEMA } from '../../lib/types/MessageTypes'
-import { subscribeToTopic } from '../../lib/utils/snsSubscriber'
-import { deleteTopic } from '../../lib/utils/snsUtils'
-import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
-import { assertBucket, getObjectContent } from '../utils/s3Utils'
-import { registerDependencies } from '../utils/testContext'
-import type { Dependencies } from '../utils/testContext'
+import { SNS_MESSAGE_BODY_SCHEMA } from '../../lib/types/MessageTypes.ts'
+import { subscribeToTopic } from '../../lib/utils/snsSubscriber.ts'
+import { deleteTopic } from '../../lib/utils/snsUtils.ts'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas.ts'
+import { assertBucket, getObjectContent } from '../utils/s3Utils.ts'
+import { registerDependencies } from '../utils/testContext.ts'
+import type { Dependencies } from '../utils/testContext.ts'
 
 import type { STSClient } from '@aws-sdk/client-sts'
-import { SnsPermissionPublisher } from './SnsPermissionPublisher'
+import { SnsPermissionPublisher } from './SnsPermissionPublisher.ts'
 
 const queueName = 'payloadOffloadingTestQueue'
 
@@ -131,7 +131,7 @@ describe('SnsPermissionPublisher', () => {
       // Check that the published message's body is a pointer to the offloaded payload.
       expect(receivedSnsMessages.length).toBe(1)
       const snsMessageBodyParseResult = SNS_MESSAGE_BODY_SCHEMA.safeParse(
-        JSON.parse(receivedSnsMessages[0].Body!),
+        JSON.parse(receivedSnsMessages[0]!.Body!),
       )
       expect(snsMessageBodyParseResult.success).toBe(true)
 

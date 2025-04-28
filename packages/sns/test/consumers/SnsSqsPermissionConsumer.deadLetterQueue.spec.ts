@@ -11,14 +11,14 @@ import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { deleteTopic } from '../../lib/utils/snsUtils'
-import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
-import { registerDependencies } from '../utils/testContext'
-import type { Dependencies } from '../utils/testContext'
+import { deleteTopic } from '../../lib/utils/snsUtils.ts'
+import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
+import { registerDependencies } from '../utils/testContext.ts'
+import type { Dependencies } from '../utils/testContext.ts'
 
 import type { STSClient } from '@aws-sdk/client-sts'
-import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
-import type { PERMISSIONS_REMOVE_MESSAGE_TYPE } from './userConsumerSchemas'
+import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer.ts'
+import type { PERMISSIONS_REMOVE_MESSAGE_TYPE } from './userConsumerSchemas.ts'
 
 // Note that dead letter queue are fully tested by sqs library - only including a few tests here to make sure the integration works
 describe('SnsSqsPermissionConsumer - dead letter queue', () => {

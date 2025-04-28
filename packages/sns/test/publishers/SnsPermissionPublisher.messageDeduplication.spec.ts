@@ -5,11 +5,11 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
-} from '../consumers/userConsumerSchemas'
-import { cleanRedis } from '../utils/cleanRedis'
-import type { Dependencies } from '../utils/testContext'
-import { registerDependencies } from '../utils/testContext'
-import { SnsPermissionPublisher } from './SnsPermissionPublisher'
+} from '../consumers/userConsumerSchemas.ts'
+import { cleanRedis } from '../utils/cleanRedis.ts'
+import type { Dependencies } from '../utils/testContext.ts'
+import { registerDependencies } from '../utils/testContext.ts'
+import { SnsPermissionPublisher } from './SnsPermissionPublisher.ts'
 
 describe('SnsPermissionPublisher', () => {
   describe('publish', () => {

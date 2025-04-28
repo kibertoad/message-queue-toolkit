@@ -4,17 +4,17 @@ import { deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { subscribeToTopic } from '../../lib/utils/snsSubscriber'
+import { subscribeToTopic } from '../../lib/utils/snsSubscriber.ts'
 import {
   deleteTopic,
   findSubscriptionByTopicAndQueue,
   getSubscriptionAttributes,
-} from '../../lib/utils/snsUtils'
-import { FakeLogger } from '../fakes/FakeLogger'
+} from '../../lib/utils/snsUtils.ts'
+import { FakeLogger } from '../fakes/FakeLogger.ts'
 
 import type { STSClient } from '@aws-sdk/client-sts'
-import type { Dependencies } from './testContext'
-import { registerDependencies } from './testContext'
+import type { Dependencies } from './testContext.ts'
+import { registerDependencies } from './testContext.ts'
 
 const TOPIC_NAME = 'topic'
 const QUEUE_NAME = 'queue'
