@@ -7,10 +7,9 @@ export default defineConfig({
     watch: false,
     restoreMocks: true,
     pool: 'threads',
-    // TODO: check if needed
-    //poolOptions: {
-    //  threads: { singleThread: true },
-    //},
+    poolOptions: {
+      threads: { singleThread: true },
+    },
     coverage: {
       provider: 'v8',
       include: ['lib/**/*.ts'],
