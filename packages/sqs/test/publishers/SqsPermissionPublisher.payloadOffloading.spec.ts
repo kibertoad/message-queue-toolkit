@@ -16,12 +16,12 @@ import { asValue } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
-import { assertBucket, getObjectContent } from '../utils/s3Utils'
-import { registerDependencies } from '../utils/testContext'
-import type { Dependencies } from '../utils/testContext'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas.ts'
+import { assertBucket, getObjectContent } from '../utils/s3Utils.ts'
+import { registerDependencies } from '../utils/testContext.ts'
+import type { Dependencies } from '../utils/testContext.ts'
 
-import { SqsPermissionPublisher } from './SqsPermissionPublisher'
+import { SqsPermissionPublisher } from './SqsPermissionPublisher.ts'
 
 const queueName = 'payloadOffloadingTestQueue'
 
@@ -106,14 +106,14 @@ describe('SqsPermissionPublisher - payload offloading', () => {
       // Check that the published message's body is a pointer to the offloaded payload.
       // Check that the published message's body is a pointer to the offloaded payload.
       expect(receivedSqsMessages.length).toBe(1)
-      const parsedReceivedMessageBody = JSON.parse(receivedSqsMessages[0].Body!)
+      const parsedReceivedMessageBody = JSON.parse(receivedSqsMessages[0]!.Body!)
       expect(parsedReceivedMessageBody).toMatchObject({
         offloadedPayloadPointer: expect.any(String),
         offloadedPayloadSize: expect.any(Number), //The actual size of the offloaded message is larger than JSON.stringify(message) because of the additional metadata (timestamp, retry count) that is added internally.
       })
 
       // Check that the published message had offloaded payload indicator.
-      const receivedMessageAttributes = receivedSqsMessages[0].MessageAttributes
+      const receivedMessageAttributes = receivedSqsMessages[0]!.MessageAttributes
       expect(receivedMessageAttributes).toBeDefined()
       expect(receivedMessageAttributes![OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE]).toBeDefined()
 

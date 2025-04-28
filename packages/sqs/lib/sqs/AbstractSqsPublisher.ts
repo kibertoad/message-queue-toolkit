@@ -5,7 +5,7 @@ import { InternalError } from '@lokalise/node-core'
 import {
   type AsyncPublisher,
   type BarrierResult,
-  DeduplicationRequester,
+  DeduplicationRequesterEnum,
   type MessageInvalidFormatError,
   type MessageSchemaContainer,
   type MessageValidationError,
@@ -15,11 +15,15 @@ import {
 } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
-import type { SQSMessage } from '../types/MessageTypes'
-import { resolveOutgoingMessageAttributes } from '../utils/messageUtils'
-import { calculateOutgoingMessageSize } from '../utils/sqsUtils'
-import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
-import { AbstractSqsService } from './AbstractSqsService'
+import type { SQSMessage } from '../types/MessageTypes.ts'
+import { resolveOutgoingMessageAttributes } from '../utils/messageUtils.ts'
+import { calculateOutgoingMessageSize } from '../utils/sqsUtils.ts'
+import type {
+  SQSCreationConfig,
+  SQSDependencies,
+  SQSQueueLocatorType,
+} from './AbstractSqsService.ts'
+import { AbstractSqsService } from './AbstractSqsService.ts'
 
 export type SQSMessageOptions = {
   MessageGroupId?: string
@@ -81,7 +85,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
 
       if (
         this.isDeduplicationEnabledForMessage(parsedMessage) &&
-        (await this.deduplicateMessage(parsedMessage, DeduplicationRequester.Publisher))
+        (await this.deduplicateMessage(parsedMessage, DeduplicationRequesterEnum.Publisher))
           .isDuplicated
       ) {
         this.handleMessageProcessed({
