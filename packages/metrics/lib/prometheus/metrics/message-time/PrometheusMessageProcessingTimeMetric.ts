@@ -1,5 +1,5 @@
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
-import { PrometheusMessageTimeMetric } from './PrometheusMessageTimeMetric'
+import { PrometheusMessageTimeMetric } from './PrometheusMessageTimeMetric.ts'
 
 export class PrometheusMessageProcessingTimeMetric<
   MessagePayload extends object,

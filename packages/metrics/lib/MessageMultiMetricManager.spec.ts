@@ -1,9 +1,9 @@
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import * as promClient from 'prom-client'
 import { describe, expect, it } from 'vitest'
-import { MessageMultiMetricManager } from './MessageMultiMetricManager'
-import { PrometheusMessageLifetimeMetric } from './prometheus/metrics/message-time/PrometheusMessageLifetimeMetric'
-import { PrometheusMessageProcessingTimeMetric } from './prometheus/metrics/message-time/PrometheusMessageProcessingTimeMetric'
+import { MessageMultiMetricManager } from './MessageMultiMetricManager.ts'
+import { PrometheusMessageLifetimeMetric } from './prometheus/metrics/message-time/PrometheusMessageLifetimeMetric.ts'
+import { PrometheusMessageProcessingTimeMetric } from './prometheus/metrics/message-time/PrometheusMessageProcessingTimeMetric.ts'
 
 type TestMessage = {
   id: string

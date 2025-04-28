@@ -1,8 +1,8 @@
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import type promClient from 'prom-client'
 import type { Counter } from 'prom-client'
-import { PrometheusMessageMetric } from '../../PrometheusMessageMetric'
-import type { PrometheusMetricParams } from '../../types'
+import { PrometheusMessageMetric } from '../../PrometheusMessageMetric.ts'
+import type { PrometheusMetricParams } from '../../types.ts'
 
 export class PrometheusMessageErrorCounter<
   MessagePayload extends object,
