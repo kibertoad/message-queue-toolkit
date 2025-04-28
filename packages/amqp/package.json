@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/amqp",
-  "version": "20.1.0",
+  "version": "21.0.0",
   "private": false,
   "license": "MIT",
   "description": "AMQP adapter for message-queue-toolkit",
@@ -10,27 +10,31 @@
       "email": "kibertoad@gmail.com"
     }
   ],
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
   "scripts": {
-    "build": "tsc",
-    "build:release": "del-cli dist && del-cli coverage && npm run lint && tsc --project tsconfig.release.json",
+    "build": "npm run clean && tsc --project tsconfig.build.json",
+    "clean": "rimraf dist",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
-    "lint": "biome check . && tsc --project tsconfig.json --noEmit",
+    "lint": "biome check . && tsc",
     "lint:fix": "biome check --write .",
     "docker:start:dev": "docker compose up -d",
     "docker:stop:dev": "docker compose down",
-    "prepublishOnly": "npm run build:release"
+    "prepublishOnly": "npm run lint && npm run build"
   },
   "dependencies": {
     "@lokalise/node-core": "^13.6.0",
     "zod": "^3.24.2"
   },
   "peerDependencies": {
-    "@message-queue-toolkit/core": ">=20.0.0",
-    "@message-queue-toolkit/schemas": ">=2.0.0",
+    "@message-queue-toolkit/core": ">=21.0.0",
+    "@message-queue-toolkit/schemas": ">=6.0.0",
     "amqplib": "^0.10.5"
   },
   "devDependencies": {
