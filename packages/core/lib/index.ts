@@ -5,33 +5,33 @@ export type {
   TransactionObservabilityManager,
   SchemaMap,
   ExtraParams,
-} from './types/MessageQueueTypes'
+} from './types/MessageQueueTypes.ts'
 
 export {
   AbstractQueueService,
-  Deserializer,
-  ResolvedMessage,
-} from './queues/AbstractQueueService'
-export * from './types/queueOptionsTypes'
+  type Deserializer,
+  type ResolvedMessage,
+} from './queues/AbstractQueueService.ts'
+export * from './types/queueOptionsTypes.ts'
 
 export {
   isMessageError,
   MessageValidationError,
   MessageInvalidFormatError,
-} from './errors/Errors'
+} from './errors/Errors.ts'
 
-export { isShallowSubset, objectMatches } from './utils/matchUtils'
+export { isShallowSubset, objectMatches } from './utils/matchUtils.ts'
 
-export { RetryMessageLaterError } from './errors/RetryMessageLaterError'
+export { RetryMessageLaterError } from './errors/RetryMessageLaterError.ts'
 
-export { DoNotProcessMessageError } from './errors/DoNotProcessError'
+export { DoNotProcessMessageError } from './errors/DoNotProcessError.ts'
 
 export {
-  PrehandlerResult,
+  type PrehandlerResult,
   HandlerContainer,
   MessageHandlerConfig,
   MessageHandlerConfigBuilder,
-} from './queues/HandlerContainer'
+} from './queues/HandlerContainer.ts'
 export type {
   BarrierCallback,
   BarrierResult,
@@ -41,49 +41,50 @@ export type {
   Handler,
   Prehandler,
   PreHandlingOutputs,
-} from './queues/HandlerContainer'
-export { HandlerSpy } from './queues/HandlerSpy'
-export type { SpyResultInput, HandlerSpyParams, PublicHandlerSpy } from './queues/HandlerSpy'
+} from './queues/HandlerContainer.ts'
+export { HandlerSpy } from './queues/HandlerSpy.ts'
+export type { SpyResultInput, HandlerSpyParams, PublicHandlerSpy } from './queues/HandlerSpy.ts'
 
-export { MessageSchemaContainer } from './queues/MessageSchemaContainer'
-export type { MessageSchemaContainerOptions } from './queues/MessageSchemaContainer'
+export { MessageSchemaContainer } from './queues/MessageSchemaContainer.ts'
+export type { MessageSchemaContainerOptions } from './queues/MessageSchemaContainer.ts'
 
-export { objectToBuffer } from './utils/queueUtils'
-export { waitAndRetry } from './utils/waitUtils'
-export { type ParseMessageResult, parseMessage } from './utils/parseUtils'
-export { isRetryDateExceeded } from './utils/dateUtils'
-export { toDatePreprocessor } from './utils/toDateProcessor'
+export { objectToBuffer } from './utils/queueUtils.ts'
+export { waitAndRetry } from './utils/waitUtils.ts'
+export { type ParseMessageResult, parseMessage } from './utils/parseUtils.ts'
+export { isRetryDateExceeded } from './utils/dateUtils.ts'
+export { toDatePreprocessor } from './utils/toDateProcessor.ts'
 
-export { reloadConfig, isProduction } from './utils/envUtils'
+export { reloadConfig, isProduction } from './utils/envUtils.ts'
 
-export { DomainEventEmitter } from './events/DomainEventEmitter'
-export { EventRegistry } from './events/EventRegistry'
-export { FakeListener } from './events/fakes/FakeListener'
+export { DomainEventEmitter } from './events/DomainEventEmitter.ts'
+export { EventRegistry } from './events/EventRegistry.ts'
+export { FakeListener } from './events/fakes/FakeListener.ts'
 
-export * from './events/eventTypes'
-export * from './events/baseEventSchemas'
-export * from './messages/baseMessageSchemas'
+export * from './events/eventTypes.ts'
+export * from './events/baseEventSchemas.ts'
+export * from './messages/baseMessageSchemas.ts'
 
-export * from './messages/MetadataFiller'
+export * from './messages/MetadataFiller.ts'
 
-export * from './queues/AbstractPublisherManager'
-export {
+export * from './queues/AbstractPublisherManager.ts'
+export type {
   PayloadStoreTypes,
   PayloadStoreConfig,
   SerializedPayload,
   PayloadSerializer,
-} from './payload-store/payloadStoreTypes'
+} from './payload-store/payloadStoreTypes.ts'
 export {
-  OffloadedPayloadPointerPayload,
+  type OffloadedPayloadPointerPayload,
   OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA,
   isOffloadedPayloadPointerPayload,
-} from './payload-store/offloadedPayloadMessageSchemas'
+} from './payload-store/offloadedPayloadMessageSchemas.ts'
 export {
   type MessageDeduplicationStore,
   type MessageDeduplicationConfig,
   type ReleasableLock,
   type AcquireLockOptions,
-  DeduplicationRequester,
+  type DeduplicationRequester,
+  DeduplicationRequesterEnum,
   AcquireLockTimeoutError,
   noopReleasableLock,
-} from './message-deduplication/messageDeduplicationTypes'
+} from './message-deduplication/messageDeduplicationTypes.ts'

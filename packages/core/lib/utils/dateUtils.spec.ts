@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isRetryDateExceeded } from './dateUtils'
+import { isRetryDateExceeded } from './dateUtils.ts'
 
 describe('dateUtils', () => {
   describe('isRetryDateExceeded', () => {

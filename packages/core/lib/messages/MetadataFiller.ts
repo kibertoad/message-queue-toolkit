@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 
-import type { PublisherBaseEventType } from '../events/baseEventSchemas'
-import type { CommonEventDefinition } from '../events/eventTypes'
+import type { PublisherBaseEventType } from '../events/baseEventSchemas.ts'
+import type { CommonEventDefinition } from '../events/eventTypes.ts'
 
-import type { PublisherMessageMetadataType } from './baseMessageSchemas'
+import type { PublisherMessageMetadataType } from './baseMessageSchemas.ts'
 
 export type IdGenerator = () => string
 export type TimestampGenerator = () => string

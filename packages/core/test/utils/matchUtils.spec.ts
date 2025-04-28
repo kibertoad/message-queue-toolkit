@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isShallowSubset } from '../../lib/utils/matchUtils'
+import { isShallowSubset } from '../../lib/utils/matchUtils.ts'
 
 describe('matchUtils', () => {
   describe('isShallowSubset', () => {

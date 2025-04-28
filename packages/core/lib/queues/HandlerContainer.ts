@@ -3,8 +3,8 @@ import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import { isCommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema } from 'zod'
 
-import type { DoNotProcessMessageError } from '../errors/DoNotProcessError'
-import type { RetryMessageLaterError } from '../errors/RetryMessageLaterError'
+import type { DoNotProcessMessageError } from '../errors/DoNotProcessError.ts'
+import type { RetryMessageLaterError } from '../errors/RetryMessageLaterError.ts'
 
 export type PreHandlingOutputs<PrehandlerOutput = undefined, BarrierOutput = undefined> = {
   preHandlerOutput: PrehandlerOutput
@@ -220,7 +220,6 @@ export class HandlerContainer<
       throw new Error(`Unsupported message type: ${messageType}`)
     }
     // @ts-ignore
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return handler
   }
 

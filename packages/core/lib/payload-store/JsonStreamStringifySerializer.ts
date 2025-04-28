@@ -2,15 +2,19 @@ import { FsReadableProvider } from '@lokalise/node-core'
 import { JsonStreamStringify } from 'json-stream-stringify'
 import { tmpNameSync } from 'tmp'
 
-import type { PayloadSerializer } from './payloadStoreTypes'
+import type { PayloadSerializer } from './payloadStoreTypes.ts'
 
 export type TemporaryFilePathResolver = () => string
 export const defaultTemporaryFilePathResolver: TemporaryFilePathResolver = () => tmpNameSync()
 
 export class JsonStreamStringifySerializer implements PayloadSerializer {
+  private readonly temporaryFilePathResolver: TemporaryFilePathResolver
+
   constructor(
-    private readonly temporaryFilePathResolver: TemporaryFilePathResolver = defaultTemporaryFilePathResolver,
-  ) {}
+    temporaryFilePathResolver: TemporaryFilePathResolver = defaultTemporaryFilePathResolver,
+  ) {
+    this.temporaryFilePathResolver = temporaryFilePathResolver
+  }
 
   async serialize(payload: unknown) {
     const fsReadableProvider = await FsReadableProvider.persistReadableToFs({

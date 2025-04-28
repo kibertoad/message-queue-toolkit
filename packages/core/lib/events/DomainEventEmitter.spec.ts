@@ -4,12 +4,12 @@ import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-to
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Dependencies, TestEventsType } from '../../test/testContext'
-import { TestEvents, registerDependencies } from '../../test/testContext'
+import type { Dependencies, TestEventsType } from '../../test/testContext.ts'
+import { TestEvents, registerDependencies } from '../../test/testContext.ts'
 
-import { ErroredFakeListener } from '../../test/fakes/ErroredFakeListener'
-import type { DomainEventEmitter } from './DomainEventEmitter'
-import { FakeListener } from './fakes/FakeListener'
+import { ErroredFakeListener } from '../../test/fakes/ErroredFakeListener.ts'
+import type { DomainEventEmitter } from './DomainEventEmitter.ts'
+import { FakeListener } from './fakes/FakeListener.ts'
 
 const createdEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.created> = {
   payload: {
@@ -96,7 +96,7 @@ describe('AutopilotEventEmitter', () => {
 
       expect(transactionManagerStopSpy).toHaveBeenCalledOnce()
       expect(transactionManagerStopSpy).toHaveBeenCalledWith(
-        transactionManagerStartSpy.mock.calls[0][1],
+        transactionManagerStartSpy.mock.calls[0]![1],
         true,
       )
     })
@@ -132,7 +132,7 @@ describe('AutopilotEventEmitter', () => {
 
       expect(transactionManagerStopSpy).toHaveBeenCalledOnce()
       expect(transactionManagerStopSpy).toHaveBeenCalledWith(
-        transactionManagerStartSpy.mock.calls[0][1],
+        transactionManagerStartSpy.mock.calls[0]![1],
         true,
       )
     })
@@ -159,7 +159,7 @@ describe('AutopilotEventEmitter', () => {
         timestamp: expect.any(String),
         type: 'entity.created',
       })
-      expect(fakeListener.receivedEvents[0].metadata).toMatchObject({
+      expect(fakeListener.receivedEvents[0]!.metadata).toMatchObject({
         correlationId: expect.any(String),
         schemaVersion: '1.0.0',
         producedBy: 'test',
@@ -260,7 +260,7 @@ describe('AutopilotEventEmitter', () => {
 
       expect(transactionManagerStopSpy).toHaveBeenCalledOnce()
       expect(transactionManagerStopSpy).toHaveBeenCalledWith(
-        transactionManagerStartSpy.mock.calls[0][1],
+        transactionManagerStartSpy.mock.calls[0]![1],
         true,
       )
     })
@@ -294,7 +294,7 @@ describe('AutopilotEventEmitter', () => {
 
       expect(transactionManagerStopSpy).toHaveBeenCalledOnce()
       expect(transactionManagerStopSpy).toHaveBeenCalledWith(
-        transactionManagerStartSpy.mock.calls[0][1],
+        transactionManagerStartSpy.mock.calls[0]![1],
         true,
       )
     })
@@ -377,7 +377,7 @@ describe('AutopilotEventEmitter', () => {
 
       expect(transactionManagerStopSpy).toHaveBeenCalledOnce()
       expect(transactionManagerStopSpy).toHaveBeenCalledWith(
-        transactionManagerStartSpy.mock.calls[0][1],
+        transactionManagerStartSpy.mock.calls[0]![1],
         false,
       )
     })
@@ -427,7 +427,7 @@ describe('AutopilotEventEmitter', () => {
 
       expect(transactionManagerStopSpy).toHaveBeenCalledOnce()
       expect(transactionManagerStopSpy).toHaveBeenCalledWith(
-        transactionManagerStartSpy.mock.calls[0][1],
+        transactionManagerStartSpy.mock.calls[0]![1],
         false,
       )
     })
