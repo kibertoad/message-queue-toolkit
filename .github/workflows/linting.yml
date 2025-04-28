@@ -30,5 +30,8 @@ jobs:
         run: |
           npm install --ignore-scripts
 
+      - name: Run build
+        run: npm run build
+
       - name: Run lint
         run: npm run lint
