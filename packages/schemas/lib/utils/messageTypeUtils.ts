@@ -1,6 +1,6 @@
 import type { z } from 'zod'
 
-import type { CommonEventDefinition } from '../events/eventTypes'
+import type { CommonEventDefinition } from '../events/eventTypes.ts'
 
 /**
  * Resolves schema of a consumer message for a given event definition

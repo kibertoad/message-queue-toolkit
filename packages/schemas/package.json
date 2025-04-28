@@ -1,62 +1,62 @@
 {
-  "name": "@message-queue-toolkit/schemas",
-  "version": "6.0.0",
-  "private": false,
-  "license": "MIT",
-  "description": "Useful utilities, interfaces and base classes for message queue handling. Supports AMQP and SQS with a common abstraction on top currently",
-  "maintainers": [
-    {
-      "name": "Igor Savin",
-      "email": "kibertoad@gmail.com"
-    }
-  ],
-  "type": "module",
-  "main": "./dist/index.js",
-  "exports": {
-    ".": "./dist/index.js",
-    "./package.json": "./package.json"
-  },
-  "scripts": {
-    "build": "npm run clean && tsc --project tsconfig.build.json",
-    "clean": "rimraf dist",
-    "lint": "biome check . && tsc",
-    "lint:fix": "biome check --write .",
-    "test": "vitest",
-    "test:coverage": "npm test -- --coverage",
-    "test:ci": "npm test",
-    "docker:start:dev": "",
-    "docker:stop:dev": "",
-    "prepublishOnly": "npm run lint && npm run build"
-  },
-  "peerDependencies": {
-    "zod": "^3.23.8"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "1.9.4",
-    "@kibertoad/biome-config": "^1.2.1",
-    "@lokalise/tsconfig": "^1.3.0",
-    "@types/node": "^22.7.5",
-    "@vitest/coverage-v8": "^3.0.7",
-    "rimraf": "^6.0.1",
-    "typescript": "^5.7.2",
-    "vitest": "^3.0.7"
-  },
-  "homepage": "https://github.com/kibertoad/message-queue-toolkit",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/kibertoad/message-queue-toolkit.git"
-  },
-  "keywords": [
-    "message",
-    "queue",
-    "queues",
-    "abstract",
-    "common",
-    "utils",
-    "sqs",
-    "amqp",
-    "rabbitmq",
-    "rabbit"
-  ],
-  "files": ["README.md", "LICENSE", "dist/*"]
+    "name": "@message-queue-toolkit/schemas",
+    "version": "6.0.0",
+    "private": false,
+    "license": "MIT",
+    "description": "Useful utilities, interfaces and base classes for message queue handling. Supports AMQP and SQS with a common abstraction on top currently",
+    "maintainers": [
+        {
+            "name": "Igor Savin",
+            "email": "kibertoad@gmail.com"
+        }
+    ],
+    "type": "module",
+    "main": "./dist/index.js",
+    "exports": {
+        ".": "./dist/index.js",
+        "./package.json": "./package.json"
+    },
+    "scripts": {
+        "build": "npm run clean && tsc --project tsconfig.build.json",
+        "clean": "rimraf dist",
+        "lint": "biome check . && tsc",
+        "lint:fix": "biome check --write .",
+        "test": "vitest",
+        "test:coverage": "npm test -- --coverage",
+        "test:ci": "npm test",
+        "docker:start:dev": "",
+        "docker:stop:dev": "",
+        "prepublishOnly": "npm run lint && npm run build"
+    },
+    "peerDependencies": {
+        "zod": "^3.23.8"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "1.9.4",
+        "@lokalise/biome-config": "^2.0.0",
+        "@lokalise/tsconfig": "^1.3.0",
+        "@types/node": "^22.7.5",
+        "@vitest/coverage-v8": "^3.0.7",
+        "rimraf": "^6.0.1",
+        "typescript": "^5.7.2",
+        "vitest": "^3.0.7"
+    },
+    "homepage": "https://github.com/kibertoad/message-queue-toolkit",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/kibertoad/message-queue-toolkit.git"
+    },
+    "keywords": [
+        "message",
+        "queue",
+        "queues",
+        "abstract",
+        "common",
+        "utils",
+        "sqs",
+        "amqp",
+        "rabbitmq",
+        "rabbit"
+    ],
+    "files": ["README.md", "LICENSE", "dist/*"]
 }

@@ -1,4 +1,4 @@
-import type { CommonEventDefinition } from '../events/eventTypes'
+import type { CommonEventDefinition } from '../events/eventTypes.ts'
 
 export type AmqpAwareEventDefinition = {
   schemaVersion?: string
