@@ -1,7 +1,7 @@
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
-import type { OutboxAccumulator } from '../lib/accumulators'
-import type { OutboxEntry } from '../lib/objects'
-import type { OutboxStorage } from '../lib/storage'
+import type { OutboxAccumulator } from '../lib/accumulators.ts'
+import type { OutboxEntry } from '../lib/objects.ts'
+import type { OutboxStorage } from '../lib/storage.ts'
 
 export class InMemoryOutboxStorage<SupportedEvents extends CommonEventDefinition[]>
   implements OutboxStorage<SupportedEvents>
