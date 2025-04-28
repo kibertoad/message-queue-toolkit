@@ -6,9 +6,8 @@ import type {
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { Channel, ChannelModel, Message } from 'amqplib'
-import type { Options } from 'amqplib/properties'
-
-import type { AmqpConnectionManager, ConnectionReceiver } from './AmqpConnectionManager'
+import type { Options } from 'amqplib'
+import type { AmqpConnectionManager, ConnectionReceiver } from './AmqpConnectionManager.ts'
 
 export type AMQPDependencies = QueueDependencies & {
   amqpConnectionManager: AmqpConnectionManager
@@ -106,7 +105,7 @@ export abstract class AbstractAmqpService<
 
     this.channel.on('close', () => {
       if (!this.isShuttingDown) {
-        this.logger.error(`AMQP connection lost!`)
+        this.logger.error('AMQP connection lost!')
         this.reconnect().catch((err) => {
           this.handleError(err)
           throw err

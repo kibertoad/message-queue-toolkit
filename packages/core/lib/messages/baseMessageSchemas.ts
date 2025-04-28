@@ -8,5 +8,5 @@ export {
   type PublisherMessageMetadataType,
   type ConsumerMessageMetadataType,
   type CommonMessageDefinitionSchemaType,
-  type enrichMessageSchemaWithBase,
+  enrichMessageSchemaWithBase,
 } from '@message-queue-toolkit/schemas'

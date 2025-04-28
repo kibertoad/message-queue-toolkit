@@ -1,4 +1,4 @@
-import type { AmqpConfig } from '../../lib/amqpConnectionResolver'
+import type { AmqpConfig } from '../../lib/amqpConnectionResolver.ts'
 
 export const TEST_AMQP_CONFIG: AmqpConfig = {
   vhost: '',

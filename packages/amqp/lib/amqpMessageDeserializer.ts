@@ -8,7 +8,7 @@ import { parseMessage } from '@message-queue-toolkit/core'
 import type { Message } from 'amqplib'
 import type { ZodType } from 'zod'
 
-import type { AmqpConsumerErrorResolver } from './errors/AmqpConsumerErrorResolver'
+import type { AmqpConsumerErrorResolver } from './errors/AmqpConsumerErrorResolver.ts'
 
 export const deserializeAmqpMessage = <T extends object>(
   message: Message,

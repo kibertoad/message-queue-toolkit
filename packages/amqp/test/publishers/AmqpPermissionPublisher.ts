@@ -1,18 +1,18 @@
-import type { AMQPPublisherOptions } from '../../lib/AbstractAmqpPublisher'
-import { AbstractAmqpQueuePublisher } from '../../lib/AbstractAmqpQueuePublisher'
+import type { AMQPPublisherOptions } from '../../lib/AbstractAmqpPublisher.ts'
+import { AbstractAmqpQueuePublisher } from '../../lib/AbstractAmqpQueuePublisher.ts'
 import type {
   AMQPDependencies,
   AMQPQueueCreationConfig,
   AMQPQueueLocator,
-} from '../../lib/AbstractAmqpService'
+} from '../../lib/AbstractAmqpService.ts'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
-} from '../consumers/userConsumerSchemas'
+} from '../consumers/userConsumerSchemas.ts'
 import {
   PERMISSIONS_ADD_MESSAGE_SCHEMA,
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
-} from '../consumers/userConsumerSchemas'
+} from '../consumers/userConsumerSchemas.ts'
 
 type SupportedTypes = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 

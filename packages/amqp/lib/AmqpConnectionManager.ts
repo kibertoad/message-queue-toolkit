@@ -1,8 +1,8 @@
 import type { ChannelModel } from 'amqplib'
 
 import type { CommonLogger } from '@lokalise/node-core'
-import type { AmqpConfig } from './amqpConnectionResolver'
-import { resolveAmqpConnection } from './amqpConnectionResolver'
+import type { AmqpConfig } from './amqpConnectionResolver.ts'
+import { resolveAmqpConnection } from './amqpConnectionResolver.ts'
 
 export type ConnectionReceiver = {
   receiveNewConnection(connection: ChannelModel): Promise<void>
@@ -37,7 +37,7 @@ export class AmqpConnectionManager {
     })
     connection.on('close', () => {
       if (this.reconnectsActive && !this.isReconnecting) {
-        this.logger.error(`AmqpConnectionManager: Connection closed unexpectedly`)
+        this.logger.error('AmqpConnectionManager: Connection closed unexpectedly')
         if (this.reconnectsActive) {
           void this.reconnect()
         }

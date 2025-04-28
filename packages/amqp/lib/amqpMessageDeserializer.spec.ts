@@ -1,11 +1,11 @@
 import type { Message } from 'amqplib'
 import { describe, expect, it } from 'vitest'
 
-import type { PERMISSIONS_MESSAGE_TYPE } from '../test/consumers/userConsumerSchemas'
-import { PERMISSIONS_MESSAGE_SCHEMA } from '../test/consumers/userConsumerSchemas'
+import type { PERMISSIONS_MESSAGE_TYPE } from '../test/consumers/userConsumerSchemas.ts'
+import { PERMISSIONS_MESSAGE_SCHEMA } from '../test/consumers/userConsumerSchemas.ts'
 
-import { deserializeAmqpMessage } from './amqpMessageDeserializer'
-import { AmqpConsumerErrorResolver } from './errors/AmqpConsumerErrorResolver'
+import { deserializeAmqpMessage } from './amqpMessageDeserializer.ts'
+import { AmqpConsumerErrorResolver } from './errors/AmqpConsumerErrorResolver.ts'
 
 describe('messageDeserializer', () => {
   it('deserializes valid JSON', () => {

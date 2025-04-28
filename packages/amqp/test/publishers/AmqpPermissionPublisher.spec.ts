@@ -6,25 +6,25 @@ import { Lifetime, asClass, asFunction } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { ZodError } from 'zod'
 
-import { deserializeAmqpMessage } from '../../lib/amqpMessageDeserializer'
-import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer'
+import { deserializeAmqpMessage } from '../../lib/amqpMessageDeserializer.ts'
+import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer.ts'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_MESSAGE_TYPE,
-} from '../consumers/userConsumerSchemas'
+} from '../consumers/userConsumerSchemas.ts'
 import {
   PERMISSIONS_ADD_MESSAGE_SCHEMA,
   PERMISSIONS_MESSAGE_SCHEMA,
-} from '../consumers/userConsumerSchemas'
-import { CustomFakeConsumer } from '../fakes/CustomFakeConsumer'
-import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
-import { FakeLogger } from '../fakes/FakeLogger'
-import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
-import type { Dependencies } from '../utils/testContext'
-import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext'
+} from '../consumers/userConsumerSchemas.ts'
+import { CustomFakeConsumer } from '../fakes/CustomFakeConsumer.ts'
+import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver.ts'
+import { FakeLogger } from '../fakes/FakeLogger.ts'
+import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig.ts'
+import type { Dependencies } from '../utils/testContext.ts'
+import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext.ts'
 
 import { asMockFunction } from 'awilix-manager'
-import { AmqpPermissionPublisher } from './AmqpPermissionPublisher'
+import { AmqpPermissionPublisher } from './AmqpPermissionPublisher.ts'
 
 describe('PermissionPublisher', () => {
   describe('logging', () => {

@@ -2,18 +2,18 @@ import type { Either } from '@lokalise/node-core'
 import type { BarrierResult, PreHandlingOutputs, Prehandler } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 
-import type { AMQPConsumerOptions } from '../../lib/AbstractAmqpConsumer'
-import { AbstractAmqpQueueConsumer } from '../../lib/AbstractAmqpQueueConsumer'
-import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService'
+import type { AMQPConsumerOptions } from '../../lib/AbstractAmqpConsumer.ts'
+import { AbstractAmqpQueueConsumer } from '../../lib/AbstractAmqpQueueConsumer.ts'
+import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService.ts'
 
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
-} from './userConsumerSchemas'
+} from './userConsumerSchemas.ts'
 import {
   PERMISSIONS_ADD_MESSAGE_SCHEMA,
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
-} from './userConsumerSchemas'
+} from './userConsumerSchemas.ts'
 
 type SupportedEvents = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 type ExecutionContext = {

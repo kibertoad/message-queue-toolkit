@@ -17,9 +17,9 @@ import type {
   AMQPConsumerDependencies,
   AMQPQueueCreationConfig,
   AMQPQueueLocator,
-} from './AbstractAmqpService'
-import { AbstractAmqpService } from './AbstractAmqpService'
-import { readAmqpMessage } from './amqpMessageReader'
+} from './AbstractAmqpService.ts'
+import { AbstractAmqpService } from './AbstractAmqpService.ts'
+import { readAmqpMessage } from './amqpMessageReader.ts'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = { error: 'abort' }
 const DEFAULT_MAX_RETRY_DURATION = 4 * 24 * 60 * 60
@@ -94,7 +94,8 @@ export abstract class AbstractAmqpConsumer<
 
     this.queueName = options.locatorConfig
       ? options.locatorConfig.queueName
-      : options.creationConfig!.queueName
+      : // biome-ignore lint/style/noNonNullAssertion: <explanation>
+        options.creationConfig!.queueName
 
     this._messageSchemaContainer = this.resolveConsumerMessageSchemaContainer(options)
 
@@ -114,7 +115,7 @@ export abstract class AbstractAmqpConsumer<
     if (!this.channel) throw new Error('Channel is not set')
   }
 
-  async init(): Promise<void> {
+  override async init(): Promise<void> {
     if (this.deadLetterQueueOptions) {
       // TODO: https://www.cloudamqp.com/blog/when-and-how-to-use-the-rabbitmq-dead-letter-exchange.html
       throw new Error('deadLetterQueue parameter is not currently supported by the Amqp adapter')
@@ -123,7 +124,7 @@ export abstract class AbstractAmqpConsumer<
     await super.init()
   }
 
-  async receiveNewConnection(connection: ChannelModel): Promise<void> {
+  override async receiveNewConnection(connection: ChannelModel): Promise<void> {
     await super.receiveNewConnection(connection)
     await this.consume()
   }

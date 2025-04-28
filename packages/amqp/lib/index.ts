@@ -2,23 +2,23 @@ export type {
   AMQPQueueConfig,
   AMQPConsumerDependencies,
   AMQPDependencies,
-} from './AbstractAmqpService'
+} from './AbstractAmqpService.ts'
 
-export { AbstractAmqpQueueConsumer } from './AbstractAmqpQueueConsumer'
-export { AbstractAmqpTopicConsumer } from './AbstractAmqpTopicConsumer'
-export { AbstractAmqpConsumer, AMQPConsumerOptions } from './AbstractAmqpConsumer'
+export { AbstractAmqpQueueConsumer } from './AbstractAmqpQueueConsumer.ts'
+export { AbstractAmqpTopicConsumer } from './AbstractAmqpTopicConsumer.ts'
+export { AbstractAmqpConsumer, type AMQPConsumerOptions } from './AbstractAmqpConsumer.ts'
 
-export { AmqpConsumerErrorResolver } from './errors/AmqpConsumerErrorResolver'
+export { AmqpConsumerErrorResolver } from './errors/AmqpConsumerErrorResolver.ts'
 
-export type { AmqpConfig } from './amqpConnectionResolver'
+export type { AmqpConfig } from './amqpConnectionResolver.ts'
 
-export { resolveAmqpConnection } from './amqpConnectionResolver'
-export { AmqpConnectionManager } from './AmqpConnectionManager'
-export type { ConnectionReceiver } from './AmqpConnectionManager'
-export { deserializeAmqpMessage } from './amqpMessageDeserializer'
+export { resolveAmqpConnection } from './amqpConnectionResolver.ts'
+export { AmqpConnectionManager } from './AmqpConnectionManager.ts'
+export type { ConnectionReceiver } from './AmqpConnectionManager.ts'
+export { deserializeAmqpMessage } from './amqpMessageDeserializer.ts'
 
-export * from './AbstractAmqpQueuePublisher'
-export * from './AbstractAmqpTopicPublisher'
-export * from './AmqpTopicPublisherManager'
-export * from './AmqpQueuePublisherManager'
-export * from './CommonAmqpPublisherFactory'
+export * from './AbstractAmqpQueuePublisher.ts'
+export * from './AbstractAmqpTopicPublisher.ts'
+export * from './AmqpTopicPublisherManager.ts'
+export * from './AmqpQueuePublisherManager.ts'
+export * from './CommonAmqpPublisherFactory.ts'
