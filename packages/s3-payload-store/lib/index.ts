@@ -1,1 +1,1 @@
-export * from './S3PayloadStore'
+export * from './S3PayloadStore.ts'
