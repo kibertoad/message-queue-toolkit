@@ -1,0 +1,59 @@
+{
+  "name": "@message-queue-toolkit/kafka",
+  "version": "0.0.0",
+  "private": false,
+  "license": "MIT",
+  "homepage": "https://github.com/kibertoad/message-queue-toolkit",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/kibertoad/message-queue-toolkit.git"
+  },
+  "description": "Kafka adapter for message-queue-toolkit",
+  "keywords": ["message", "queue", "queues", "abstract", "common", "utils", "notification", "sns"],
+  "files": ["README.md", "LICENSE", "dist"],
+  "maintainers": [
+    {
+      "name": "Igor Savin",
+      "email": "kibertoad@gmail.com"
+    }
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "del-cli dist && tsc --projec tsconfig.build.json",
+    "build:release": "npm run lint && npm run build",
+    "test": "vitest",
+    "test:coverage": "npm test -- --coverage",
+    "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
+    "lint": "biome check . && tsc",
+    "lint:fix": "biome check --write .",
+    "docker:start:dev": "docker compose up -d",
+    "docker:stop:dev": "docker compose down",
+    "prepublishOnly": "npm run build:release"
+  },
+  "dependencies": {
+    "@lokalise/node-core": "^13.3.0",
+    "zod": "^3.23.8"
+  },
+  "peerDependencies": {
+    "@message-queue-toolkit/core": ">=20.0.0",
+    "@message-queue-toolkit/schemas": ">=2.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@kibertoad/biome-config": "^1.2.1",
+    "@lokalise/tsconfig": "^1.3.0",
+    "@message-queue-toolkit/core": "*",
+    "@message-queue-toolkit/schemas": "*",
+    "@types/node": "^22.7.5",
+    "@vitest/coverage-v8": "^3.0.7",
+    "awilix": "^12.0.1",
+    "awilix-manager": "^6.0.0",
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.7"
+  }
+}
