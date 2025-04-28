@@ -1,6 +1,6 @@
 {
   "name": "@message-queue-toolkit/schemas",
-  "version": "5.0.0",
+  "version": "6.0.0",
   "private": false,
   "license": "MIT",
   "description": "Useful utilities, interfaces and base classes for message queue handling. Supports AMQP and SQS with a common abstraction on top currently",
@@ -10,19 +10,23 @@
       "email": "kibertoad@gmail.com"
     }
   ],
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
   "scripts": {
-    "build": "del-cli dist && del-cli coverage && tsc",
-    "build:release": "del-cli dist && npm run lint && tsc --project tsconfig.release.json",
-    "lint": "biome check . && tsc --project tsconfig.json --noEmit",
+    "build": "npm run clean && tsc --project tsconfig.build.json",
+    "clean": "rimraf dist",
+    "lint": "biome check . && tsc",
     "lint:fix": "biome check --write .",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm test",
     "docker:start:dev": "",
     "docker:stop:dev": "",
-    "prepublishOnly": "npm run build:release"
+    "prepublishOnly": "npm run lint && npm run build"
   },
   "peerDependencies": {
     "zod": "^3.23.8"
@@ -30,9 +34,10 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@kibertoad/biome-config": "^1.2.1",
+    "@lokalise/tsconfig": "^1.3.0",
     "@types/node": "^22.7.5",
     "@vitest/coverage-v8": "^3.0.7",
-    "del-cli": "^6.0.0",
+    "rimraf": "^6.0.1",
     "typescript": "^5.7.2",
     "vitest": "^3.0.7"
   },
