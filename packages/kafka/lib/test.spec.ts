@@ -9,11 +9,11 @@ describe('Test', () => {
     expect(librdkafkaVersion).toBeDefined()
   })
 
-  it('should send and receive a message', { timeout: 20000 }, async () => {
+  it('should send and receive a message', { timeout: 12000 }, async () => {
     // Given
     const brokers = 'localhost:9092'
     // Use a fresh, unique topic per run to avoid stale state
-    const topic = `test-topic-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const topic = `test-topic-${Date.now()}`
     const messageValue = 'My test message'
 
     const receivedMessages: Message[] = []
@@ -25,12 +25,11 @@ describe('Test', () => {
     })
     producer.connect()
     await once(producer, 'ready')
-    producer.setPollInterval(10)
 
     // Create a consumer with a unique group and disable auto-commit for fresh offsets
     const consumer = new KafkaConsumer(
       {
-        'group.id': `test-group-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        'group.id': 'test-group',
         'metadata.broker.list': brokers,
         'allow.auto.create.topics': true,
         'enable.auto.commit': false,
@@ -54,17 +53,10 @@ describe('Test', () => {
 
     // When
     producer.produce(topic, null, Buffer.from(messageValue))
-    // producer.flush()
-    // ensure the message is sent to the broker
-    await new Promise<void>((resolve, reject) => {
-      producer.flush(5000, (err) => {
-        if (err) reject(err)
-        else resolve()
-      })
-    })
+    producer.flush()
 
     // Then
-    await waitAndRetry(() => receivedMessages.length > 0, 10, 1500)
+    await waitAndRetry(() => receivedMessages.length > 0, 10, 10000)
     expect(receivedMessages).toHaveLength(1)
     expect(receivedMessages[0]?.value?.toString()).toBe(messageValue)
 
