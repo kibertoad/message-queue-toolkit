@@ -56,7 +56,7 @@ describe('Test', () => {
     producer.flush()
 
     // Then
-    await waitAndRetry(() => receivedMessages.length > 0, 10, 25000)
+    await waitAndRetry(() => receivedMessages.length > 0, 10, 2500)
     expect(receivedMessages).toHaveLength(1)
     expect(receivedMessages[0]?.value?.toString()).toBe(messageValue)
 
