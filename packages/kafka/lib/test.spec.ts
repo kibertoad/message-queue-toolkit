@@ -42,19 +42,22 @@ describe('Checking node-rdkafka', () => {
       // Create a consumer
       const consumer = new KafkaConsumer(
         {
-          'group.id': 'test-group',
+          'group.id': `test-group-${Date.now()}`,
           'metadata.broker.list': brokers,
           'allow.auto.create.topics': true,
         },
-        {},
+        {
+          'auto.offset.reset': 'latest',
+        },
       )
       consumer.connect()
 
-      await new Promise((resolve, reject) =>
+      await new Promise<void>((resolve, reject) =>
         consumer
           .on('ready', () => {
-            consumer.subscribe([topic]).consume()
-            resolve(resolve)
+            consumer.subscribe([topic])
+            consumer.consume()
+            resolve()
           })
           .on('event.error', (err) => reject(err))
           .on('data', (data) => {
@@ -67,7 +70,7 @@ describe('Checking node-rdkafka', () => {
       producer.flush()
 
       // Then
-      await waitAndRetry(() => receivedMessages.length > 0, 10, 1000)
+      await waitAndRetry(() => receivedMessages.length > 0, 10, 1500)
       expect(receivedMessages).toHaveLength(1)
       expect(receivedMessages[0]?.value?.toString()).toBe(messageValue)
 
