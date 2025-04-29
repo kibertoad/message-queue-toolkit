@@ -4,7 +4,7 @@ import {
   generateQueuePublishForTopicPolicy,
   generateWildcardSnsArn,
   generateWildcardSqsArn,
-} from './sqsAttributeUtils'
+} from './sqsAttributeUtils.ts'
 
 describe('sqsAttributeUtils', () => {
   describe('generateQueuePublishForTopicPolicy', () => {

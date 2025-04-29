@@ -1,7 +1,7 @@
 import type { CommonLogger, TransactionObservabilityManager } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
-import type { PublicHandlerSpy } from '../queues/HandlerSpy'
+import type { PublicHandlerSpy } from '../queues/HandlerSpy.ts'
 
 export interface QueueConsumer {
   start(): Promise<unknown> // subscribe and start listening

@@ -17,18 +17,18 @@ import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import { z } from 'zod'
 
-import type { CommonSnsPublisher } from '../../lib/sns/CommonSnsPublisherFactory'
-import { CommonSnsPublisherFactory } from '../../lib/sns/CommonSnsPublisherFactory'
-import type { SnsAwareEventDefinition } from '../../lib/sns/SnsPublisherManager'
-import { SnsPublisherManager } from '../../lib/sns/SnsPublisherManager'
-import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer'
-import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
+import type { CommonSnsPublisher } from '../../lib/sns/CommonSnsPublisherFactory.ts'
+import { CommonSnsPublisherFactory } from '../../lib/sns/CommonSnsPublisherFactory.ts'
+import type { SnsAwareEventDefinition } from '../../lib/sns/SnsPublisherManager.ts'
+import { SnsPublisherManager } from '../../lib/sns/SnsPublisherManager.ts'
+import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer.ts'
+import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
 
 import { STSClient } from '@aws-sdk/client-sts'
 import { Redis } from 'ioredis'
-import { CreateLocateConfigMixPublisher } from '../publishers/CreateLocateConfigMixPublisher'
-import { TEST_REDIS_CONFIG } from './testRedisConfig'
-import { TEST_AWS_CONFIG } from './testSnsConfig'
+import { CreateLocateConfigMixPublisher } from '../publishers/CreateLocateConfigMixPublisher.ts'
+import { TEST_REDIS_CONFIG } from './testRedisConfig.ts'
+import { TEST_AWS_CONFIG } from './testSnsConfig.ts'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -220,8 +220,6 @@ export async function registerDependencies(
   return diContainer
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 type DiConfig = Record<keyof Dependencies, Resolver<any>>
 
 export interface Dependencies {

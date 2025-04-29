@@ -2,12 +2,12 @@ import type { SQSMessage } from '@message-queue-toolkit/sqs'
 import { SqsConsumerErrorResolver } from '@message-queue-toolkit/sqs'
 
 import { describe, expect, it } from 'vitest'
-import type { PERMISSIONS_MESSAGE_TYPE } from '../../test/consumers/userConsumerSchemas'
-import { PERMISSIONS_MESSAGE_SCHEMA } from '../../test/consumers/userConsumerSchemas'
-import { SnsConsumerErrorResolver } from '../errors/SnsConsumerErrorResolver'
-import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
+import type { PERMISSIONS_MESSAGE_TYPE } from '../../test/consumers/userConsumerSchemas.ts'
+import { PERMISSIONS_MESSAGE_SCHEMA } from '../../test/consumers/userConsumerSchemas.ts'
+import { SnsConsumerErrorResolver } from '../errors/SnsConsumerErrorResolver.ts'
+import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes.ts'
 
-import { deserializeSNSMessage } from './snsMessageDeserializer'
+import { deserializeSNSMessage } from './snsMessageDeserializer.ts'
 
 describe('messageDeserializer', () => {
   it('deserializes valid JSON', () => {

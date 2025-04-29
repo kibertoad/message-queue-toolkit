@@ -2,15 +2,15 @@ import { CommonMetadataFiller } from '@message-queue-toolkit/core'
 import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import { type AwilixContainer, asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { cleanRedis } from '../../test/utils/cleanRedis'
+import { cleanRedis } from '../../test/utils/cleanRedis.ts'
 import type {
   Dependencies,
   TestEventPublishPayloadsType,
   TestEventsType,
-} from '../../test/utils/testContext'
-import { TestEvents, registerDependencies } from '../../test/utils/testContext'
-import { type CommonSnsPublisher, CommonSnsPublisherFactory } from './CommonSnsPublisherFactory'
-import { SnsPublisherManager } from './SnsPublisherManager'
+} from '../../test/utils/testContext.ts'
+import { TestEvents, registerDependencies } from '../../test/utils/testContext.ts'
+import { type CommonSnsPublisher, CommonSnsPublisherFactory } from './CommonSnsPublisherFactory.ts'
+import { SnsPublisherManager } from './SnsPublisherManager.ts'
 
 describe('SnsPublisherManager', () => {
   let diContainer: AwilixContainer<Dependencies>

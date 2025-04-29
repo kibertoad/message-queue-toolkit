@@ -1,7 +1,7 @@
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
-import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
+import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors.ts'
 
 export type ParseMessageResult<T> = {
   originalMessage: T

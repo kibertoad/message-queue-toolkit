@@ -7,7 +7,7 @@ import type {
 import { parseMessage } from '@message-queue-toolkit/core'
 import type { ZodType } from 'zod'
 
-import type { SQSMessage } from '../types/MessageTypes'
+import type { SQSMessage } from '../types/MessageTypes.ts'
 
 export const deserializeSQSMessage = <T extends object>(
   message: SQSMessage,

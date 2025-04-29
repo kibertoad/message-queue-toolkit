@@ -39,5 +39,6 @@ const getAndCacheCallerIdentity = async (
     callerIdentityPromise = undefined
   }
 
+  // biome-ignore lint/style/noNonNullAssertion: <explanation>
   return callerIdentityCached!
 }

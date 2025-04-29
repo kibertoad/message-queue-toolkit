@@ -8,9 +8,9 @@ import type {
 } from '@message-queue-toolkit/core'
 import { PromisePool } from '@supercharge/promise-pool'
 import { uuidv7 } from 'uuidv7'
-import type { OutboxAccumulator } from './accumulators'
-import type { OutboxEntry } from './objects'
-import type { OutboxStorage } from './storage'
+import type { OutboxAccumulator } from './accumulators.ts'
+import type { OutboxEntry } from './objects.ts'
+import type { OutboxStorage } from './storage.ts'
 
 export type OutboxDependencies<SupportedEvents extends CommonEventDefinition[]> = {
   outboxStorage: OutboxStorage<SupportedEvents>
@@ -33,10 +33,16 @@ export type OutboxConfiguration = {
  * If entry is rejected, it is NOT going to be handled during the same execution. Next execution will pick it up.
  */
 export class OutboxProcessor<SupportedEvents extends CommonEventDefinition[]> {
+  private readonly outboxDependencies: OutboxDependencies<SupportedEvents>
+  private readonly outboxProcessorConfiguration: OutboxProcessorConfiguration
+
   constructor(
-    private readonly outboxDependencies: OutboxDependencies<SupportedEvents>,
-    private readonly outboxProcessorConfiguration: OutboxProcessorConfiguration,
-  ) {}
+    outboxDependencies: OutboxDependencies<SupportedEvents>,
+    outboxProcessorConfiguration: OutboxProcessorConfiguration,
+  ) {
+    this.outboxDependencies = outboxDependencies
+    this.outboxProcessorConfiguration = outboxProcessorConfiguration
+  }
 
   public async processOutboxEntries(context: JobExecutionContext) {
     const { outboxStorage, eventEmitter, outboxAccumulator } = this.outboxDependencies
@@ -124,7 +130,11 @@ export class OutboxPeriodicJob<
 /* c8 ignore stop */
 
 export class OutboxEventEmitter<SupportedEvents extends CommonEventDefinition[]> {
-  constructor(private storage: OutboxStorage<SupportedEvents>) {}
+  private storage: OutboxStorage<SupportedEvents>
+
+  constructor(storage: OutboxStorage<SupportedEvents>) {
+    this.storage = storage
+  }
 
   /**
    * Persists outbox entry in persistence layer, later it will be picked up by outbox job.

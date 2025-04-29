@@ -4,9 +4,9 @@ import type { STSClient } from '@aws-sdk/client-sts'
 import { deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { beforeAll, beforeEach, describe, it } from 'vitest'
-import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
-import { type Dependencies, registerDependencies } from '../utils/testContext'
-import { CreateLocateConfigMixConsumer } from './CreateLocateConfigMixConsumer'
+import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils.ts'
+import { type Dependencies, registerDependencies } from '../utils/testContext.ts'
+import { CreateLocateConfigMixConsumer } from './CreateLocateConfigMixConsumer.ts'
 
 describe('CreateLocateConfigMixConsumer', () => {
   let diContainer: AwilixContainer<Dependencies>

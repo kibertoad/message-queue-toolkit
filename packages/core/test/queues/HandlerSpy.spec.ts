@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { HandlerSpy, isHandlerSpy } from '../../lib/queues/HandlerSpy'
+import { HandlerSpy, isHandlerSpy } from '../../lib/queues/HandlerSpy.ts'
 
 type Message = {
   id: string

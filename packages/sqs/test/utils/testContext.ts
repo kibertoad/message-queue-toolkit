@@ -9,13 +9,13 @@ import type { Resolver } from 'awilix'
 import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
-import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver'
-import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer'
-import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
+import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver.ts'
+import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer.ts'
+import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
 
 import { Redis } from 'ioredis'
-import { TEST_AWS_CONFIG } from './testAwsConfig'
-import { TEST_REDIS_CONFIG } from './testRedisConfig'
+import { TEST_AWS_CONFIG } from './testAwsConfig.ts'
+import { TEST_REDIS_CONFIG } from './testRedisConfig.ts'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -125,7 +125,6 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
   return diContainer
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: This is expected
 type DiConfig = Record<keyof Dependencies, Resolver<any>>
 
 export interface Dependencies {

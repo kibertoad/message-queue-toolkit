@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SqsConsumerErrorResolver } from './SqsConsumerErrorResolver'
+import { SqsConsumerErrorResolver } from './SqsConsumerErrorResolver.ts'
 
 describe('SqsConsumerErrorResolver', () => {
   const resolver = new SqsConsumerErrorResolver()

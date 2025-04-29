@@ -1,7 +1,7 @@
 import * as promClient from 'prom-client'
 import type { Histogram } from 'prom-client'
 import { describe, expect, it, vi } from 'vitest'
-import { PrometheusMessageLifetimeMetric } from './PrometheusMessageLifetimeMetric'
+import { PrometheusMessageLifetimeMetric } from './PrometheusMessageLifetimeMetric.ts'
 
 type TestMessage = {
   id: string

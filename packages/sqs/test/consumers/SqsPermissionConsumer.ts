@@ -2,17 +2,20 @@ import type { Either } from '@lokalise/node-core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import type { BarrierResult, PreHandlingOutputs, Prehandler } from '@message-queue-toolkit/core'
 
-import type { SQSConsumerDependencies, SQSConsumerOptions } from '../../lib/sqs/AbstractSqsConsumer'
-import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer'
+import type {
+  SQSConsumerDependencies,
+  SQSConsumerOptions,
+} from '../../lib/sqs/AbstractSqsConsumer.ts'
+import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer.ts'
 
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
-} from './userConsumerSchemas'
+} from './userConsumerSchemas.ts'
 import {
   PERMISSIONS_ADD_MESSAGE_SCHEMA,
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
-} from './userConsumerSchemas'
+} from './userConsumerSchemas.ts'
 
 export type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 

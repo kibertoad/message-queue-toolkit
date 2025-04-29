@@ -12,7 +12,7 @@ export function isShallowSubset(
   }
 
   const keysSubset = Object.keys(maybeSubset)
-  // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
+  // biome-ignore lint/style/noNonNullAssertion: <explanation>
   const keysSuperset = Object.keys(maybeSuperset!)
 
   if (keysSubset.length === 0) {
@@ -22,9 +22,8 @@ export function isShallowSubset(
     return false
   }
 
-  // eslint-disable-next-line prefer-const
   for (const key of keysSubset) {
-    // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
+    // biome-ignore lint/style/noNonNullAssertion: <explanation>
     if (maybeSubset[key] !== maybeSuperset![key]) {
       return false
     }
@@ -55,11 +54,9 @@ export function objectMatches(
         return false
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       if (!objectMatches(matcher[key], validatedObject[key])) {
         return false
       }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     } else if (!deepEqual(matcher[key], validatedObject[key])) {
       return false
     }

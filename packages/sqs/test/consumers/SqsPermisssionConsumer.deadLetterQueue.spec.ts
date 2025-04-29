@@ -5,17 +5,17 @@ import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import type { SQSMessage } from '../../lib/types/MessageTypes'
-import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
-import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
-import type { Dependencies } from '../utils/testContext'
-import { registerDependencies } from '../utils/testContext'
+import type { SQSMessage } from '../../lib/types/MessageTypes.ts'
+import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
+import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
+import type { Dependencies } from '../utils/testContext.ts'
+import { registerDependencies } from '../utils/testContext.ts'
 
-import { SqsPermissionConsumer } from './SqsPermissionConsumer'
+import { SqsPermissionConsumer } from './SqsPermissionConsumer.ts'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
-} from './userConsumerSchemas'
+} from './userConsumerSchemas.ts'
 
 describe('SqsPermissionConsumer - deadLetterQueue', () => {
   const queueName = SqsPermissionConsumer.QUEUE_NAME
@@ -129,7 +129,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           deadLetterQueue: {
             redrivePolicy: { maxReceiveCount: 5 },
             locatorConfig: {
-              queueUrl: `http://s3.localhost.localstack.cloud:4566/000000000000/badQueue`,
+              queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/badQueue',
             },
           },
         })
@@ -312,7 +312,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       expect(counter).toBe(2)
 
       // delay is 1s, but consumer can take the message
-      const secondsRetry = (messageArrivalTime[1] - messageArrivalTime[0]) / 1000
+      const secondsRetry = (messageArrivalTime[1]! - messageArrivalTime[0]!) / 1000
       expect(secondsRetry).toBeGreaterThan(1)
     })
 

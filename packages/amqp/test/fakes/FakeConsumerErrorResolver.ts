@@ -1,4 +1,4 @@
-import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver'
+import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver.ts'
 
 export class FakeConsumerErrorResolver extends AmqpConsumerErrorResolver {
   private _errors: unknown[]

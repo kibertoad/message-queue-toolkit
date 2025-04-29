@@ -1,5 +1,5 @@
 import { setTimeout } from 'node:timers/promises'
-import type { AnyEventHandler, CommonEventDefinition } from '../eventTypes'
+import type { AnyEventHandler, CommonEventDefinition } from '../eventTypes.ts'
 
 export class FakeListener<SupportedEvents extends CommonEventDefinition[]>
   implements AnyEventHandler<SupportedEvents>

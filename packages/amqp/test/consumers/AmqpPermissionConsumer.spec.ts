@@ -9,18 +9,18 @@ import { asClass, asFunction } from 'awilix'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ZodError } from 'zod'
 
-import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver'
-import { FakeLogger } from '../fakes/FakeLogger'
-import type { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublisher'
-import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig'
-import type { Dependencies } from '../utils/testContext'
-import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext'
+import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver.ts'
+import { FakeLogger } from '../fakes/FakeLogger.ts'
+import type { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublisher.ts'
+import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig.ts'
+import type { Dependencies } from '../utils/testContext.ts'
+import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext.ts'
 
-import { AmqpPermissionConsumer } from './AmqpPermissionConsumer'
+import { AmqpPermissionConsumer } from './AmqpPermissionConsumer.ts'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
-} from './userConsumerSchemas'
+} from './userConsumerSchemas.ts'
 
 describe('AmqpPermissionConsumer', () => {
   describe('init', () => {
@@ -408,7 +408,7 @@ describe('AmqpPermissionConsumer', () => {
       await waitAndRetry(() => errorReporterSpy.mock.calls.length > 0)
 
       expect(errorReporterSpy.mock.calls).toHaveLength(1)
-      expect(errorReporterSpy.mock.calls[0][0].error).toMatchObject({
+      expect(errorReporterSpy.mock.calls[0]![0]!.error).toMatchObject({
         message: 'Unsupported message type: bad',
       })
     })

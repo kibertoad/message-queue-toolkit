@@ -17,11 +17,11 @@ import {
 import { type Either, InternalError, isError } from '@lokalise/node-core'
 import { calculateOutgoingMessageSize as sqsCalculateOutgoingMessageSize } from '@message-queue-toolkit/sqs'
 
-import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService'
+import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService.ts'
 
 import type { STSClient } from '@aws-sdk/client-sts'
-import { generateTopicSubscriptionPolicy } from './snsAttributeUtils'
-import { buildTopicArn } from './stsUtils'
+import { generateTopicSubscriptionPolicy } from './snsAttributeUtils.ts'
+import { buildTopicArn } from './stsUtils.ts'
 
 type AttributesResult = {
   attributes?: Record<string, string>

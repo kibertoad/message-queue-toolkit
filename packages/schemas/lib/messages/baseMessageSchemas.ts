@@ -13,9 +13,9 @@ import {
   OPTIONAL_GENERATED_BASE_EVENT_SCHEMA,
   PUBLISHER_BASE_EVENT_SCHEMA,
   type PUBLISHER_MESSAGE_METADATA_SCHEMA,
-} from '../events/baseEventSchemas'
-import type { CommonEventDefinition } from '../events/eventTypes'
-import type { MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA } from './messageDeduplicationSchemas'
+} from '../events/baseEventSchemas.ts'
+import type { CommonEventDefinition } from '../events/eventTypes.ts'
+import type { MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA } from './messageDeduplicationSchemas.ts'
 
 export const CONSUMER_BASE_MESSAGE_SCHEMA = CONSUMER_BASE_EVENT_SCHEMA
 export const PUBLISHER_BASE_MESSAGE_SCHEMA = PUBLISHER_BASE_EVENT_SCHEMA

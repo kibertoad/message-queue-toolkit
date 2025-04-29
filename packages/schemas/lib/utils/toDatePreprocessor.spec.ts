@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
-import { toDatePreprocessor } from './toDateProcessor'
+import { toDatePreprocessor } from './toDateProcessor.ts'
 
 describe('toDatePreprocessor', () => {
   it('converts valid strings to date', () => {

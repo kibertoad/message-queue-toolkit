@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   JsonStreamStringifySerializer,
   defaultTemporaryFilePathResolver,
-} from '../../lib/payload-store/JsonStreamStringifySerializer'
-import { streamToString } from '../utils/streamUtils'
+} from '../../lib/payload-store/JsonStreamStringifySerializer.ts'
+import { streamToString } from '../utils/streamUtils.ts'
 
 describe('JsonStreamStringifySerializer', () => {
   it('serializes object to stream', async () => {

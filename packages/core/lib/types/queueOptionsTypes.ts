@@ -1,12 +1,15 @@
 import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod'
 
-import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
-import type { MessageHandlerConfig } from '../queues/HandlerContainer'
-import type { HandlerSpy, HandlerSpyParams } from '../queues/HandlerSpy'
+import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes.ts'
+import type { MessageHandlerConfig } from '../queues/HandlerContainer.ts'
+import type { HandlerSpy, HandlerSpyParams } from '../queues/HandlerSpy.ts'
 
-import type { MessageDeduplicationConfig } from '../message-deduplication/messageDeduplicationTypes'
-import type { MessageProcessingResult, TransactionObservabilityManager } from './MessageQueueTypes'
+import type { MessageDeduplicationConfig } from '../message-deduplication/messageDeduplicationTypes.ts'
+import type {
+  MessageProcessingResult,
+  TransactionObservabilityManager,
+} from './MessageQueueTypes.ts'
 
 export type QueueDependencies = {
   errorReporter: ErrorReporter

@@ -4,16 +4,16 @@ import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
-import type { SQSMessage } from '../../lib/types/MessageTypes'
-import { deserializeSQSMessage } from '../../lib/utils/sqsMessageDeserializer'
-import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
-import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas'
-import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
-import { registerDependencies } from '../utils/testContext'
-import type { Dependencies } from '../utils/testContext'
+import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver.ts'
+import type { SQSMessage } from '../../lib/types/MessageTypes.ts'
+import { deserializeSQSMessage } from '../../lib/utils/sqsMessageDeserializer.ts'
+import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas.ts'
+import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas.ts'
+import { registerDependencies } from '../utils/testContext.ts'
+import type { Dependencies } from '../utils/testContext.ts'
 
-import { SqsPermissionPublisher } from './SqsPermissionPublisher'
+import { SqsPermissionPublisher } from './SqsPermissionPublisher.ts'
 
 describe('SqsPermissionPublisher', () => {
   describe('init', () => {

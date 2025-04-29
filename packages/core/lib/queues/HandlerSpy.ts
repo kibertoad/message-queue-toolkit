@@ -6,8 +6,8 @@ import { Fifo } from 'toad-cache'
 import type {
   MessageProcessingResult,
   MessageProcessingResultStatus,
-} from '../types/MessageQueueTypes'
-import { objectMatches } from '../utils/matchUtils'
+} from '../types/MessageQueueTypes.ts'
+import { objectMatches } from '../utils/matchUtils.ts'
 
 export type HandlerSpyParams = {
   bufferSize?: number
@@ -48,7 +48,7 @@ export type PublicHandlerSpy<MessagePayloadSchemas extends object> = Omit<
   'addProcessedMessage'
 >
 
-// eslint-disable-next-line @typescript-eslint/ban-types
+// biome-ignore lint/complexity/noBannedTypes: <explanation>
 type DeepPartial<T> = T extends Function
   ? T
   : T extends object
@@ -172,7 +172,6 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     })
 
     if (foundPromise) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       foundPromise.resolve(processingResult)
 
       const index = this.spyPromises.indexOf(foundPromise)

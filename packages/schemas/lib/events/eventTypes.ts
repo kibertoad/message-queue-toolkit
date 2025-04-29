@@ -1,7 +1,7 @@
 import type { ZodObject, ZodTypeAny } from 'zod'
 import type z from 'zod'
 
-import type { CONSUMER_BASE_EVENT_SCHEMA, PUBLISHER_BASE_EVENT_SCHEMA } from './baseEventSchemas'
+import type { CONSUMER_BASE_EVENT_SCHEMA, PUBLISHER_BASE_EVENT_SCHEMA } from './baseEventSchemas.ts'
 
 export type EventTypeNames<EventDefinition extends CommonEventDefinition> =
   CommonEventDefinitionConsumerSchemaType<EventDefinition>['type']

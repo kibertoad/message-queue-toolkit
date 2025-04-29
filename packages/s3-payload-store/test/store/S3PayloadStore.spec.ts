@@ -3,10 +3,10 @@ import { Readable } from 'node:stream'
 import { S3 } from '@aws-sdk/client-s3'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { S3PayloadStore } from '../../lib/S3PayloadStore'
-import { assertEmptyBucket, getObjectContent, objectExists } from '../utils/s3Utils'
-import { streamToString } from '../utils/streamUtils'
-import { TEST_AWS_CONFIG } from '../utils/testS3Config'
+import { S3PayloadStore } from '../../lib/S3PayloadStore.ts'
+import { assertEmptyBucket, getObjectContent, objectExists } from '../utils/s3Utils.ts'
+import { streamToString } from '../utils/streamUtils.ts'
+import { TEST_AWS_CONFIG } from '../utils/testS3Config.ts'
 
 const TEST_BUCKET = 'test-bucket'
 

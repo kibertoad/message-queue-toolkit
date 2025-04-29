@@ -11,18 +11,18 @@ import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { AmqpAwareEventDefinition } from '@message-queue-toolkit/schemas'
 import type z from 'zod'
 
-import type { AMQPPublisherOptions, AbstractAmqpPublisher } from './AbstractAmqpPublisher'
+import type { AMQPPublisherOptions, AbstractAmqpPublisher } from './AbstractAmqpPublisher.ts'
 import type {
   AbstractAmqpQueuePublisher,
   AmqpQueueMessageOptions,
-} from './AbstractAmqpQueuePublisher'
+} from './AbstractAmqpQueuePublisher.ts'
 import type {
   AMQPDependencies,
   AMQPQueueCreationConfig,
   AMQPQueueLocator,
-} from './AbstractAmqpService'
-import type { AmqpPublisherFactory } from './CommonAmqpPublisherFactory'
-import { CommonAmqpQueuePublisherFactory } from './CommonAmqpPublisherFactory'
+} from './AbstractAmqpService.ts'
+import type { AmqpPublisherFactory } from './CommonAmqpPublisherFactory.ts'
+import { CommonAmqpQueuePublisherFactory } from './CommonAmqpPublisherFactory.ts'
 
 export type { AmqpAwareEventDefinition }
 
@@ -147,7 +147,7 @@ export class AmqpQueuePublisherManager<
   /**
    * @deprecated use `publishSync` instead.
    */
-  publish(): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+  override publish(): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
     throw new Error('Please use `publishSync` method for AMQP publisher managers')
   }
 
