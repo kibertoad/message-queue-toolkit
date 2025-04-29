@@ -50,7 +50,6 @@ export function generateFilterAttributes(
 ) {
   const messageTypes = messageSchemas.map((schema) => {
     // @ts-ignore
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     return schema.shape[messageTypeField].value as string
   })
 

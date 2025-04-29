@@ -1,19 +1,19 @@
 import type { QueuePublisherOptions } from '@message-queue-toolkit/core'
 
-import { AbstractSqsPublisher } from '../../lib/sqs/AbstractSqsPublisher'
+import { AbstractSqsPublisher } from '../../lib/sqs/AbstractSqsPublisher.ts'
 import type {
   SQSCreationConfig,
   SQSDependencies,
   SQSQueueLocatorType,
-} from '../../lib/sqs/AbstractSqsService'
+} from '../../lib/sqs/AbstractSqsService.ts'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
-} from '../consumers/userConsumerSchemas'
+} from '../consumers/userConsumerSchemas.ts'
 import {
   PERMISSIONS_ADD_MESSAGE_SCHEMA,
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
-} from '../consumers/userConsumerSchemas'
+} from '../consumers/userConsumerSchemas.ts'
 
 type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 

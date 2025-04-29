@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   PERMISSIONS_ADD_MESSAGE_SCHEMA,
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
-} from '../../test/consumers/userConsumerSchemas'
+} from '../../test/consumers/userConsumerSchemas.ts'
 
-import { generateFilterAttributes, generateTopicSubscriptionPolicy } from './snsAttributeUtils'
+import { generateFilterAttributes, generateTopicSubscriptionPolicy } from './snsAttributeUtils.ts'
 
 describe('snsAttributeUtils', () => {
   describe('generateTopicSubscriptionPolicy', () => {

@@ -2,7 +2,7 @@ import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import * as promClient from 'prom-client'
 import type { Histogram } from 'prom-client'
 import { describe, expect, it, vi } from 'vitest'
-import { PrometheusMessageProcessingTimeMetric } from './PrometheusMessageProcessingTimeMetric'
+import { PrometheusMessageProcessingTimeMetric } from './PrometheusMessageProcessingTimeMetric.ts'
 
 type TestMessage = {
   id: string

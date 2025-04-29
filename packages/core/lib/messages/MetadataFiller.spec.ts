@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { CommonMetadataFiller } from './MetadataFiller'
+import { CommonMetadataFiller } from './MetadataFiller.ts'
 
 const TEST_MESSAGE = {
   type: 'test.message',

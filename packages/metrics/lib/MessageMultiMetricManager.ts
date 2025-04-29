@@ -3,7 +3,11 @@ import type { MessageMetricsManager, ProcessedMessageMetadata } from '@message-q
 export class MessageMultiMetricManager<MessagePayloadSchemas extends object>
   implements MessageMetricsManager<MessagePayloadSchemas>
 {
-  constructor(private readonly metrics: MessageMetricsManager<MessagePayloadSchemas>[]) {}
+  private readonly metrics: MessageMetricsManager<MessagePayloadSchemas>[]
+
+  constructor(metrics: MessageMetricsManager<MessagePayloadSchemas>[]) {
+    this.metrics = metrics
+  }
 
   registerProcessedMessage(metadata: ProcessedMessageMetadata<MessagePayloadSchemas>): void {
     for (const metric of this.metrics) metric.registerProcessedMessage(metadata)

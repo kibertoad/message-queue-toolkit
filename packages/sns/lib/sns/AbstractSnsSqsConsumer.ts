@@ -8,12 +8,12 @@ import type {
 } from '@message-queue-toolkit/sqs'
 import { AbstractSqsConsumer, deleteSqs } from '@message-queue-toolkit/sqs'
 
-import { deleteSnsSqs, initSnsSqs } from '../utils/snsInitter'
-import { readSnsMessage } from '../utils/snsMessageReader'
-import type { SNSSubscriptionOptions } from '../utils/snsSubscriber'
+import { deleteSnsSqs, initSnsSqs } from '../utils/snsInitter.ts'
+import { readSnsMessage } from '../utils/snsMessageReader.ts'
+import type { SNSSubscriptionOptions } from '../utils/snsSubscriber.ts'
 
 import type { STSClient } from '@aws-sdk/client-sts'
-import type { SNSCreationConfig, SNSOptions, SNSTopicLocatorType } from './AbstractSnsService'
+import type { SNSCreationConfig, SNSOptions, SNSTopicLocatorType } from './AbstractSnsService.ts'
 
 export type SNSSQSConsumerDependencies = SQSConsumerDependencies & {
   snsClient: SNSClient

@@ -8,7 +8,7 @@ import type {
   AMQPTopicCreationConfig,
   AMQPTopicLocator,
   AMQPTopicPublisherConfig,
-} from '../AbstractAmqpService'
+} from '../AbstractAmqpService.ts'
 
 export async function checkQueueExists(
   connection: ChannelModel,

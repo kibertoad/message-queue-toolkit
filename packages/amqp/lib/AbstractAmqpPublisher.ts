@@ -13,8 +13,8 @@ import type {
 import { objectToBuffer } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod'
 
-import type { AMQPDependencies } from './AbstractAmqpService'
-import { AbstractAmqpService } from './AbstractAmqpService'
+import type { AMQPDependencies } from './AbstractAmqpService.ts'
+import { AbstractAmqpService } from './AbstractAmqpService.ts'
 
 export type AMQPPublisherOptions<
   MessagePayloadType extends object,
@@ -112,7 +112,7 @@ export abstract class AbstractAmqpPublisher<
       // but if server closes connection unexpectedly (e. g. RabbitMQ is shut down), then we don't land here
       // @ts-ignore
       if (err.message === 'Channel closed') {
-        this.logger.error(`AMQP channel closed`)
+        this.logger.error('AMQP channel closed')
         void this.reconnect()
       } else {
         throw new InternalError({
@@ -163,7 +163,7 @@ export abstract class AbstractAmqpPublisher<
     throw new Error('Not implemented for publisher')
   }
 
-  async close(): Promise<void> {
+  override async close(): Promise<void> {
     this.initPromise = undefined
     await super.close()
   }

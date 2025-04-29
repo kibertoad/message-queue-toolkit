@@ -5,7 +5,7 @@ import type {
   ResolvedMessage,
 } from '@message-queue-toolkit/core'
 
-import type { SQSMessage } from '../types/MessageTypes'
+import type { SQSMessage } from '../types/MessageTypes.ts'
 
 export function readSqsMessage(
   message: SQSMessage,

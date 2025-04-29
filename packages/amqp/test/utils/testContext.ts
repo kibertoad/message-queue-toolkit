@@ -11,26 +11,25 @@ import {
 import type { NameAndRegistrationPair } from 'awilix'
 import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
+import { pino } from 'pino'
 import { z } from 'zod'
-
-import pino from 'pino'
-import { AmqpConnectionManager } from '../../lib/AmqpConnectionManager'
-import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager'
-import { AmqpQueuePublisherManager } from '../../lib/AmqpQueuePublisherManager'
-import { AmqpTopicPublisherManager } from '../../lib/AmqpTopicPublisherManager'
+import { AmqpConnectionManager } from '../../lib/AmqpConnectionManager.ts'
+import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager.ts'
+import { AmqpQueuePublisherManager } from '../../lib/AmqpQueuePublisherManager.ts'
+import { AmqpTopicPublisherManager } from '../../lib/AmqpTopicPublisherManager.ts'
 import type {
   CommonAmqpQueuePublisher,
   CommonAmqpTopicPublisher,
-} from '../../lib/CommonAmqpPublisherFactory'
+} from '../../lib/CommonAmqpPublisherFactory.ts'
 import {
   CommonAmqpQueuePublisherFactory,
   CommonAmqpTopicPublisherFactory,
-} from '../../lib/CommonAmqpPublisherFactory'
-import type { AmqpConfig } from '../../lib/amqpConnectionResolver'
-import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver'
-import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer'
-import { FakeQueueConsumer } from '../fakes/FakeQueueConsumer'
-import { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublisher'
+} from '../../lib/CommonAmqpPublisherFactory.ts'
+import type { AmqpConfig } from '../../lib/amqpConnectionResolver.ts'
+import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver.ts'
+import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer.ts'
+import { FakeQueueConsumer } from '../fakes/FakeQueueConsumer.ts'
+import { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublisher.ts'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 

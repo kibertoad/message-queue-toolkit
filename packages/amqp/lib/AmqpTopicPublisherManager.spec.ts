@@ -1,10 +1,10 @@
 import type { AwilixContainer } from 'awilix'
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { FakeTopicConsumer } from '../test/fakes/FakeTopicConsumer'
-import { TEST_AMQP_CONFIG } from '../test/utils/testAmqpConfig'
-import { TestEvents, registerDependencies } from '../test/utils/testContext'
-import type { Dependencies } from '../test/utils/testContext'
+import { FakeTopicConsumer } from '../test/fakes/FakeTopicConsumer.ts'
+import { TEST_AMQP_CONFIG } from '../test/utils/testAmqpConfig.ts'
+import { TestEvents, registerDependencies } from '../test/utils/testContext.ts'
+import type { Dependencies } from '../test/utils/testContext.ts'
 
 describe('AmqpTopicPublisherManager', () => {
   describe('publish', () => {

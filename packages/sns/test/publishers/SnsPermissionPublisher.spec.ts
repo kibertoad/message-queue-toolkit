@@ -8,19 +8,19 @@ import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { deserializeSNSMessage } from '../../lib/utils/snsMessageDeserializer'
-import { subscribeToTopic } from '../../lib/utils/snsSubscriber'
-import { assertTopic, deleteTopic, getTopicAttributes } from '../../lib/utils/snsUtils'
+import { deserializeSNSMessage } from '../../lib/utils/snsMessageDeserializer.ts'
+import { subscribeToTopic } from '../../lib/utils/snsSubscriber.ts'
+import { assertTopic, deleteTopic, getTopicAttributes } from '../../lib/utils/snsUtils.ts'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_MESSAGE_TYPE,
-} from '../consumers/userConsumerSchemas'
-import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas'
-import { registerDependencies } from '../utils/testContext'
-import type { Dependencies } from '../utils/testContext'
+} from '../consumers/userConsumerSchemas.ts'
+import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas.ts'
+import { registerDependencies } from '../utils/testContext.ts'
+import type { Dependencies } from '../utils/testContext.ts'
 
 import type { STSClient } from '@aws-sdk/client-sts'
-import { SnsPermissionPublisher } from './SnsPermissionPublisher'
+import { SnsPermissionPublisher } from './SnsPermissionPublisher.ts'
 
 describe('SnsPermissionPublisher', () => {
   describe('init', () => {

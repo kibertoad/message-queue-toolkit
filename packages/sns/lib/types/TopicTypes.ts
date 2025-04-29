@@ -1,5 +1,5 @@
 import type { CreateTopicCommandInput } from '@aws-sdk/client-sns'
-import type { SNSTopicLocatorType } from '../sns/AbstractSnsService'
+import type { SNSTopicLocatorType } from '../sns/AbstractSnsService.ts'
 
 export type TopicResolutionOptions = CreateTopicCommandInput | SNSTopicLocatorType
 

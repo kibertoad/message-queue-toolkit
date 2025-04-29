@@ -1,6 +1,6 @@
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
-import type { OutboxAccumulator } from './accumulators'
-import type { OutboxEntry } from './objects'
+import type { OutboxAccumulator } from './accumulators.ts'
+import type { OutboxEntry } from './objects.ts'
 
 /**
  * Takes care of persisting and retrieving outbox entries.

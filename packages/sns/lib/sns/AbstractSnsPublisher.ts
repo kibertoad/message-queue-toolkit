@@ -5,7 +5,7 @@ import { InternalError } from '@lokalise/node-core'
 import {
   type AsyncPublisher,
   type BarrierResult,
-  DeduplicationRequester,
+  DeduplicationRequesterEnum,
   type MessageInvalidFormatError,
   type MessageSchemaContainer,
   type MessageValidationError,
@@ -15,10 +15,14 @@ import {
 } from '@message-queue-toolkit/core'
 import { resolveOutgoingMessageAttributes } from '@message-queue-toolkit/sqs'
 
-import { calculateOutgoingMessageSize } from '../utils/snsUtils'
+import { calculateOutgoingMessageSize } from '../utils/snsUtils.ts'
 
-import type { SNSCreationConfig, SNSDependencies, SNSTopicLocatorType } from './AbstractSnsService'
-import { AbstractSnsService } from './AbstractSnsService'
+import type {
+  SNSCreationConfig,
+  SNSDependencies,
+  SNSTopicLocatorType,
+} from './AbstractSnsService.ts'
+import { AbstractSnsService } from './AbstractSnsService.ts'
 
 export type SNSMessageOptions = {
   MessageGroupId?: string
@@ -83,7 +87,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
 
       if (
         this.isDeduplicationEnabledForMessage(parsedMessage) &&
-        (await this.deduplicateMessage(parsedMessage, DeduplicationRequester.Publisher))
+        (await this.deduplicateMessage(parsedMessage, DeduplicationRequesterEnum.Publisher))
           .isDuplicated
       ) {
         this.handleMessageProcessed({

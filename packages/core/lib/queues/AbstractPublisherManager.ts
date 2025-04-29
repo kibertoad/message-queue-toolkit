@@ -1,13 +1,13 @@
 import type { TypeOf, z } from 'zod'
 
-import type { EventRegistry } from '../events/EventRegistry'
-import type { PublisherBaseEventType } from '../events/baseEventSchemas'
-import type { CommonEventDefinition } from '../events/eventTypes'
-import type { MetadataFiller } from '../messages/MetadataFiller'
-import type { AsyncPublisher, SyncPublisher } from '../types/MessageQueueTypes'
-import type { CommonCreationConfigType, QueuePublisherOptions } from '../types/queueOptionsTypes'
+import type { EventRegistry } from '../events/EventRegistry.ts'
+import type { PublisherBaseEventType } from '../events/baseEventSchemas.ts'
+import type { CommonEventDefinition } from '../events/eventTypes.ts'
+import type { MetadataFiller } from '../messages/MetadataFiller.ts'
+import type { AsyncPublisher, SyncPublisher } from '../types/MessageQueueTypes.ts'
+import type { CommonCreationConfigType, QueuePublisherOptions } from '../types/queueOptionsTypes.ts'
 
-import type { PublicHandlerSpy } from './HandlerSpy'
+import type { PublicHandlerSpy } from './HandlerSpy.ts'
 
 export type MessagePublishType<T extends CommonEventDefinition> = z.infer<T['publisherSchema']>
 

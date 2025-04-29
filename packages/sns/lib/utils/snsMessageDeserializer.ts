@@ -8,7 +8,7 @@ import { parseMessage } from '@message-queue-toolkit/core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
 import type { ZodType } from 'zod'
 
-import { SNS_MESSAGE_BODY_SCHEMA } from '../types/MessageTypes'
+import { SNS_MESSAGE_BODY_SCHEMA } from '../types/MessageTypes.ts'
 
 export const deserializeSNSMessage = <T extends object>(
   message: SQSMessage,

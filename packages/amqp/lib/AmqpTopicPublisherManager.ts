@@ -6,19 +6,19 @@ import type {
 } from '@message-queue-toolkit/core'
 import type z from 'zod'
 
-import type { AMQPDependencies, AMQPTopicPublisherConfig } from './AbstractAmqpService'
+import type { AMQPDependencies, AMQPTopicPublisherConfig } from './AbstractAmqpService.ts'
 import type {
   AMQPTopicPublisherOptions,
   AbstractAmqpTopicPublisher,
   AmqpTopicMessageOptions,
-} from './AbstractAmqpTopicPublisher'
+} from './AbstractAmqpTopicPublisher.ts'
 import type {
   AmqpAwareEventDefinition,
   AmqpMessageSchemaType,
   AmqpPublisherManagerDependencies,
   AmqpPublisherManagerOptions,
-} from './AmqpQueuePublisherManager'
-import { CommonAmqpTopicPublisherFactory } from './CommonAmqpPublisherFactory'
+} from './AmqpQueuePublisherManager.ts'
+import { CommonAmqpTopicPublisherFactory } from './CommonAmqpPublisherFactory.ts'
 
 export class AmqpTopicPublisherManager<
   PublisherType extends AbstractAmqpTopicPublisher<
@@ -69,7 +69,7 @@ export class AmqpTopicPublisherManager<
     })
   }
 
-  protected resolvePublisherConfigOverrides(
+  protected override resolvePublisherConfigOverrides(
     exchange: string,
   ): Partial<
     Omit<
@@ -95,7 +95,7 @@ export class AmqpTopicPublisherManager<
   /**
    * @deprecated use `publishSync` instead.
    */
-  publish(): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+  override publish(): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
     throw new Error('Please use `publishSync` method for AMQP publisher managers')
   }
 

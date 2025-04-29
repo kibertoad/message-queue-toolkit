@@ -3,7 +3,7 @@ import type { Either, ErrorResolver } from '@lokalise/node-core'
 import {
   type BarrierResult,
   type DeadLetterQueueOptions,
-  DeduplicationRequester,
+  DeduplicationRequesterEnum,
   HandlerContainer,
   type MessageSchemaContainer,
   type ParseMessageResult,
@@ -18,16 +18,20 @@ import {
   parseMessage,
 } from '@message-queue-toolkit/core'
 import { Consumer } from 'sqs-consumer'
-import type { ConsumerOptions } from 'sqs-consumer/src/types'
+import type { ConsumerOptions } from 'sqs-consumer'
 
-import type { SQSMessage } from '../types/MessageTypes'
-import { hasOffloadedPayload } from '../utils/messageUtils'
-import { deleteSqs, initSqs } from '../utils/sqsInitter'
-import { readSqsMessage } from '../utils/sqsMessageReader'
-import { getQueueAttributes } from '../utils/sqsUtils'
-import { PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX } from './AbstractSqsPublisher'
-import type { SQSCreationConfig, SQSDependencies, SQSQueueLocatorType } from './AbstractSqsService'
-import { AbstractSqsService } from './AbstractSqsService'
+import type { SQSMessage } from '../types/MessageTypes.ts'
+import { hasOffloadedPayload } from '../utils/messageUtils.ts'
+import { deleteSqs, initSqs } from '../utils/sqsInitter.ts'
+import { readSqsMessage } from '../utils/sqsMessageReader.ts'
+import { getQueueAttributes } from '../utils/sqsUtils.ts'
+import { PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX } from './AbstractSqsPublisher.ts'
+import type {
+  SQSCreationConfig,
+  SQSDependencies,
+  SQSQueueLocatorType,
+} from './AbstractSqsService.ts'
+import { AbstractSqsService } from './AbstractSqsService.ts'
 
 const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
@@ -241,7 +245,7 @@ export abstract class AbstractSqsConsumer<
 
         if (
           this.isDeduplicationEnabledForMessage(parsedMessage) &&
-          (await this.isMessageDuplicated(parsedMessage, DeduplicationRequester.Consumer))
+          (await this.isMessageDuplicated(parsedMessage, DeduplicationRequesterEnum.Consumer))
         ) {
           this.handleMessageProcessed({
             message: parsedMessage,
@@ -274,7 +278,7 @@ export abstract class AbstractSqsConsumer<
         // by another consumer already, hence we need to check again if the message is not marked as duplicated.
         if (
           this.isDeduplicationEnabledForMessage(parsedMessage) &&
-          (await this.isMessageDuplicated(parsedMessage, DeduplicationRequester.Consumer))
+          (await this.isMessageDuplicated(parsedMessage, DeduplicationRequesterEnum.Consumer))
         ) {
           await acquireLockResult.result?.release()
           this.handleMessageProcessed({
@@ -314,7 +318,7 @@ export abstract class AbstractSqsConsumer<
 
         // success
         if (result.result) {
-          await this.deduplicateMessage(parsedMessage, DeduplicationRequester.Consumer)
+          await this.deduplicateMessage(parsedMessage, DeduplicationRequesterEnum.Consumer)
           await acquireLockResult.result?.release()
           this.handleMessageProcessed({
             message: originalMessage,

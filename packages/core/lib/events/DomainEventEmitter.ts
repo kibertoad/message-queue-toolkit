@@ -6,13 +6,13 @@ import {
   resolveGlobalErrorLogObject,
 } from '@lokalise/node-core'
 
-import type { MetadataFiller } from '../messages/MetadataFiller'
-import type { HandlerSpy, HandlerSpyParams, PublicHandlerSpy } from '../queues/HandlerSpy'
-import { resolveHandlerSpy } from '../queues/HandlerSpy'
+import type { MetadataFiller } from '../messages/MetadataFiller.ts'
+import type { HandlerSpy, HandlerSpyParams, PublicHandlerSpy } from '../queues/HandlerSpy.ts'
+import { resolveHandlerSpy } from '../queues/HandlerSpy.ts'
 
 import { randomUUID } from 'node:crypto'
 import type { ConsumerMessageMetadataType } from '@message-queue-toolkit/schemas'
-import type { EventRegistry } from './EventRegistry'
+import type { EventRegistry } from './EventRegistry.ts'
 import type {
   AnyEventHandler,
   CommonEventDefinition,
@@ -21,7 +21,7 @@ import type {
   EventHandler,
   EventTypeNames,
   SingleEventHandler,
-} from './eventTypes'
+} from './eventTypes.ts'
 
 export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDefinition[]> = {
   eventRegistry: EventRegistry<SupportedEvents>

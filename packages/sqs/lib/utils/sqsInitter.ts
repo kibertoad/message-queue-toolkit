@@ -3,14 +3,14 @@ import type { QueueAttributeName, SQSClient } from '@aws-sdk/client-sqs'
 import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 
-import type { SQSCreationConfig, SQSQueueLocatorType } from '../sqs/AbstractSqsService'
+import type { SQSCreationConfig, SQSQueueLocatorType } from '../sqs/AbstractSqsService.ts'
 
 import {
   assertQueue,
   deleteQueue,
   getQueueAttributes,
   resolveQueueUrlFromLocatorConfig,
-} from './sqsUtils'
+} from './sqsUtils.ts'
 
 export async function deleteSqs(
   sqsClient: SQSClient,
@@ -83,7 +83,8 @@ export async function initSqs(
     }
 
     const splitUrl = queueUrl.split('/')
-    const queueName = splitUrl[splitUrl.length - 1]
+    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    const queueName = splitUrl[splitUrl.length - 1]!
     return { queueArn, queueUrl, queueName }
   }
 

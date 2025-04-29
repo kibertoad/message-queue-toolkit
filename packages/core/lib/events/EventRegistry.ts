@@ -1,4 +1,4 @@
-import type { CommonEventDefinition, EventTypeNames } from './eventTypes'
+import type { CommonEventDefinition, EventTypeNames } from './eventTypes.ts'
 
 export class EventRegistry<SupportedEvents extends CommonEventDefinition[]> {
   public readonly supportedEvents: SupportedEvents
@@ -20,7 +20,8 @@ export class EventRegistry<SupportedEvents extends CommonEventDefinition[]> {
   >(
     eventTypeName: EventTypeName,
   ): CommonEventDefinition => {
-    return this.supportedEventMap[eventTypeName]
+    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    return this.supportedEventMap[eventTypeName]!
   }
 
   public isSupportedEvent(eventTypeName: string) {

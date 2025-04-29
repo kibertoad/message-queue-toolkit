@@ -6,7 +6,7 @@ import type {
 } from '@message-queue-toolkit/core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
 
-import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
+import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes.ts'
 
 export function readSnsMessage(
   message: SQSMessage,

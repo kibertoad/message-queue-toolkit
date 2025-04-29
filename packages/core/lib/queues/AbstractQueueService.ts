@@ -9,33 +9,34 @@ import {
   MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA,
   type MessageDeduplicationOptions,
 } from '@message-queue-toolkit/schemas'
-import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors'
+import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors.ts'
 import {
   AcquireLockTimeoutError,
   DEFAULT_MESSAGE_DEDUPLICATION_OPTIONS,
-  DeduplicationRequester,
+  type DeduplicationRequester,
+  DeduplicationRequesterEnum,
   type MessageDeduplicationConfig,
   type ReleasableLock,
   noopReleasableLock,
-} from '../message-deduplication/messageDeduplicationTypes'
-import { jsonStreamStringifySerializer } from '../payload-store/JsonStreamStringifySerializer'
+} from '../message-deduplication/messageDeduplicationTypes.ts'
+import { jsonStreamStringifySerializer } from '../payload-store/JsonStreamStringifySerializer.ts'
 import {
   OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA,
   type OffloadedPayloadPointerPayload,
-} from '../payload-store/offloadedPayloadMessageSchemas'
-import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes'
-import { isDestroyable } from '../payload-store/payloadStoreTypes'
-import type { MessageProcessingResult } from '../types/MessageQueueTypes'
+} from '../payload-store/offloadedPayloadMessageSchemas.ts'
+import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes.ts'
+import { isDestroyable } from '../payload-store/payloadStoreTypes.ts'
+import type { MessageProcessingResult } from '../types/MessageQueueTypes.ts'
 import type {
   DeletionConfig,
   MessageMetricsManager,
   ProcessedMessageMetadata,
   QueueDependencies,
   QueueOptions,
-} from '../types/queueOptionsTypes'
-import { isRetryDateExceeded } from '../utils/dateUtils'
-import { streamWithKnownSizeToString } from '../utils/streamUtils'
-import { toDatePreprocessor } from '../utils/toDateProcessor'
+} from '../types/queueOptionsTypes.ts'
+import { isRetryDateExceeded } from '../utils/dateUtils.ts'
+import { streamWithKnownSizeToString } from '../utils/streamUtils.ts'
+import { toDatePreprocessor } from '../utils/toDateProcessor.ts'
 import type {
   BarrierCallback,
   BarrierResult,
@@ -43,10 +44,10 @@ import type {
   PreHandlingOutputs,
   Prehandler,
   PrehandlerResult,
-} from './HandlerContainer'
-import type { HandlerSpy, PublicHandlerSpy } from './HandlerSpy'
-import { resolveHandlerSpy } from './HandlerSpy'
-import { MessageSchemaContainer } from './MessageSchemaContainer'
+} from './HandlerContainer.ts'
+import type { HandlerSpy, PublicHandlerSpy } from './HandlerSpy.ts'
+import { resolveHandlerSpy } from './HandlerSpy.ts'
+import { MessageSchemaContainer } from './MessageSchemaContainer.ts'
 
 export type Deserializer<MessagePayloadType extends object> = (
   message: unknown,
@@ -409,7 +410,6 @@ export abstract class AbstractQueueService<
     reject: (err: Error) => void,
   ): (preHandlerResult: PrehandlerResult) => void
 
-  // eslint-disable-next-line max-params
   protected resolveNextPreHandlerFunctionInternal(
     preHandlers: Prehandler<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[],
     executionContext: ExecutionContext,
@@ -427,8 +427,8 @@ export abstract class AbstractQueueService<
       if (preHandlers.length < index + 1) {
         resolve(preHandlerOutput)
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        preHandlers[index](
+        // biome-ignore lint/style/noNonNullAssertion: <explanation>
+        preHandlers[index]!(
           message,
           executionContext,
           // @ts-ignore
@@ -635,7 +635,7 @@ export abstract class AbstractQueueService<
     const deduplicationConfig = this.messageDeduplicationConfig as MessageDeduplicationConfig
 
     const acquireLockResult = await deduplicationConfig.deduplicationStore.acquireLock(
-      `${DeduplicationRequester.Consumer.toString()}:${deduplicationId}`,
+      `${DeduplicationRequesterEnum.Consumer.toString()}:${deduplicationId}`,
       deduplicationOptions,
     )
 

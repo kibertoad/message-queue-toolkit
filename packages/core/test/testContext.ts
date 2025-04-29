@@ -2,17 +2,17 @@ import type { CommonLogger, ErrorReporter } from '@lokalise/node-core'
 import { type Resolver, asClass } from 'awilix'
 import { Lifetime, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
-import pino from 'pino'
+import { pino } from 'pino'
 import { z } from 'zod'
 
 import type { TransactionObservabilityManager } from '@lokalise/node-core'
 import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/schemas'
-import { DomainEventEmitter } from '../lib/events/DomainEventEmitter'
-import { EventRegistry } from '../lib/events/EventRegistry'
-import type { CommonEventDefinition } from '../lib/events/eventTypes'
-import type { MetadataFiller } from '../lib/messages/MetadataFiller'
-import { CommonMetadataFiller } from '../lib/messages/MetadataFiller'
-import { FakeTransactionObservabilityManager } from './fakes/FakeTransactionObservabilityManager'
+import { DomainEventEmitter } from '../lib/events/DomainEventEmitter.ts'
+import { EventRegistry } from '../lib/events/EventRegistry.ts'
+import type { CommonEventDefinition } from '../lib/events/eventTypes.ts'
+import type { MetadataFiller } from '../lib/messages/MetadataFiller.ts'
+import { CommonMetadataFiller } from '../lib/messages/MetadataFiller.ts'
+import { FakeTransactionObservabilityManager } from './fakes/FakeTransactionObservabilityManager.ts'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -95,7 +95,6 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
   return diContainer
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 type DiConfig = Record<keyof Dependencies, Resolver<any>>
 
 export interface Dependencies {

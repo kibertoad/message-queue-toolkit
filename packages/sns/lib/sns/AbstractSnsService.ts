@@ -3,8 +3,8 @@ import type { QueueDependencies, QueueOptions } from '@message-queue-toolkit/cor
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 
 import type { STSClient } from '@aws-sdk/client-sts'
-import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes'
-import { deleteSns, initSns } from '../utils/snsInitter'
+import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes.ts'
+import { deleteSns, initSns } from '../utils/snsInitter.ts'
 
 // https://docs.aws.amazon.com/general/latest/gr/sns.html
 export const SNS_MESSAGE_MAX_SIZE = 256 * 1024 // 256KB

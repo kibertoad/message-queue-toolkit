@@ -4,12 +4,12 @@ import type { ConsumerMessageSchema } from '@message-queue-toolkit/schemas'
 import type {
   SNSSQSConsumerDependencies,
   SNSSQSConsumerOptions,
-} from '../../lib/sns/AbstractSnsSqsConsumer'
-import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer'
-import { TestEvents } from '../utils/testContext'
+} from '../../lib/sns/AbstractSnsSqsConsumer.ts'
+import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer.ts'
+import { TestEvents } from '../utils/testContext.ts'
 
-import { entityCreatedHandler } from './handlers/EntityCreatedHandler'
-import { entityUpdatedHandler } from './handlers/EntityUpdatedHandler'
+import { entityCreatedHandler } from './handlers/EntityCreatedHandler.ts'
+import { entityUpdatedHandler } from './handlers/EntityUpdatedHandler.ts'
 
 type SupportedMessages = ConsumerMessageSchema<
   typeof TestEvents.created | typeof TestEvents.updated

@@ -6,14 +6,14 @@ import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-too
 import { type AwilixContainer, asFunction, asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils'
-import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher'
-import { registerDependencies } from '../utils/testContext'
-import type { Dependencies } from '../utils/testContext'
+import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils.ts'
+import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
+import { registerDependencies } from '../utils/testContext.ts'
+import type { Dependencies } from '../utils/testContext.ts'
 
 import type { STSClient } from '@aws-sdk/client-sts'
-import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer'
-import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas'
+import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer.ts'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas.ts'
 
 describe('SnsSqsPermissionConsumer', () => {
   describe('init', () => {

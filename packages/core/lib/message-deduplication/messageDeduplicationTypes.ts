@@ -48,10 +48,12 @@ export type MessageDeduplicationConfig = {
   deduplicationStore: MessageDeduplicationStore
 }
 
-export enum DeduplicationRequester {
-  Consumer = 'consumer',
-  Publisher = 'publisher',
-}
+export const DeduplicationRequesterEnum = {
+  Consumer: 'consumer',
+  Publisher: 'publisher',
+} as const
+export type DeduplicationRequester =
+  (typeof DeduplicationRequesterEnum)[keyof typeof DeduplicationRequesterEnum]
 
 export const DEFAULT_MESSAGE_DEDUPLICATION_OPTIONS: Required<MessageDeduplicationOptions> = {
   deduplicationWindowSeconds: 40,

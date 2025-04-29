@@ -16,10 +16,10 @@ import type { Either } from '@lokalise/node-core'
 import { globalLogger } from '@lokalise/node-core'
 import { isShallowSubset, waitAndRetry } from '@message-queue-toolkit/core'
 
-import type { ExtraSQSCreationParams, SQSQueueLocatorType } from '../sqs/AbstractSqsService'
+import type { ExtraSQSCreationParams, SQSQueueLocatorType } from '../sqs/AbstractSqsService.ts'
 
-import { generateQueuePublishForTopicPolicy } from './sqsAttributeUtils'
-import { updateQueueAttributes, updateQueueTags } from './sqsInitter'
+import { generateQueuePublishForTopicPolicy } from './sqsAttributeUtils.ts'
+import { updateQueueAttributes, updateQueueTags } from './sqsInitter.ts'
 
 const AWS_QUEUE_DOES_NOT_EXIST_ERROR_NAME = 'QueueDoesNotExist'
 
@@ -159,7 +159,7 @@ export async function assertQueue(
   queueConfig: CreateQueueCommandInput,
   extraParams?: ExtraSQSCreationParams,
 ) {
-  // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
+  // biome-ignore lint/style/noNonNullAssertion: <explanation>
   const queueUrlResult = await getQueueUrl(sqsClient, queueConfig.QueueName!)
   const queueExists = !!queueUrlResult.result
 
@@ -171,7 +171,7 @@ export async function assertQueue(
   const command = new CreateQueueCommand(queueConfig)
   await sqsClient.send(command)
 
-  // eslint-disable-next-line  @typescript-eslint/no-non-null-assertion
+  // biome-ignore lint/style/noNonNullAssertion: <explanation>
   const newQueueUrlResult = await getQueueUrl(sqsClient, queueConfig.QueueName!)
   const newQueueExists = !!newQueueUrlResult.result
 

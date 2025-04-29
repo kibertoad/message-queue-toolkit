@@ -5,14 +5,14 @@ import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { SQS_MESSAGE_MAX_SIZE } from '../../lib/sqs/AbstractSqsService'
-import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
-import { assertBucket, emptyBucket } from '../utils/s3Utils'
-import { registerDependencies } from '../utils/testContext'
-import type { Dependencies } from '../utils/testContext'
+import { SQS_MESSAGE_MAX_SIZE } from '../../lib/sqs/AbstractSqsService.ts'
+import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
+import { assertBucket, emptyBucket } from '../utils/s3Utils.ts'
+import { registerDependencies } from '../utils/testContext.ts'
+import type { Dependencies } from '../utils/testContext.ts'
 
-import { SqsPermissionConsumer } from './SqsPermissionConsumer'
-import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas'
+import { SqsPermissionConsumer } from './SqsPermissionConsumer.ts'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas.ts'
 
 describe('SqsPermissionConsumer', () => {
   describe('consume', () => {

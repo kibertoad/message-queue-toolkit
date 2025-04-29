@@ -9,12 +9,12 @@ import {
   type CommonEventDefinitionPublisherSchemaType,
   enrichMessageSchemaWithBase,
 } from '@message-queue-toolkit/schemas'
-import pino, { type Logger } from 'pino'
+import { type Logger, pino } from 'pino'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { InMemoryOutboxAccumulator } from '../lib/accumulators'
-import { type OutboxDependencies, OutboxEventEmitter, OutboxProcessor } from '../lib/outbox'
-import { InMemoryOutboxStorage } from './InMemoryOutboxStorage'
+import { InMemoryOutboxAccumulator } from '../lib/accumulators.ts'
+import { type OutboxDependencies, OutboxEventEmitter, OutboxProcessor } from '../lib/outbox.ts'
+import { InMemoryOutboxStorage } from './InMemoryOutboxStorage.ts'
 
 const TestEvents = {
   created: {
@@ -233,7 +233,7 @@ describe('outbox', () => {
       correlationId: randomUUID(),
     })
 
-    await inMemoryOutboxAccumulator.add(outboxStorage.entries[0])
+    await inMemoryOutboxAccumulator.add(outboxStorage.entries[0]!)
 
     await outboxProcessor.processOutboxEntries({
       logger: TestLogger,

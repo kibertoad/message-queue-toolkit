@@ -1,9 +1,9 @@
 import type { PublisherBaseMessageType } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 
-import { AbstractAmqpQueueConsumer } from '../../lib/AbstractAmqpQueueConsumer'
-import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService'
-import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager'
+import { AbstractAmqpQueueConsumer } from '../../lib/AbstractAmqpQueueConsumer.ts'
+import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService.ts'
+import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager.ts'
 
 export class FakeQueueConsumer extends AbstractAmqpQueueConsumer<
   PublisherBaseMessageType,

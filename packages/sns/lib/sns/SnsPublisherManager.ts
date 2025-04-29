@@ -4,9 +4,9 @@ import type {
   MessageSchemaType,
   MetadataFiller,
   PublisherBaseEventType,
+  PublisherMessageMetadataType,
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
-import type { PublisherMessageMetadataType } from '@message-queue-toolkit/core/lib/messages/baseMessageSchemas'
 import type { SnsAwareEventDefinition } from '@message-queue-toolkit/schemas'
 import type z from 'zod'
 
@@ -14,10 +14,14 @@ import type {
   AbstractSnsPublisher,
   SNSMessageOptions,
   SNSPublisherOptions,
-} from './AbstractSnsPublisher'
-import type { SNSCreationConfig, SNSDependencies, SNSTopicLocatorType } from './AbstractSnsService'
-import type { SnsPublisherFactory } from './CommonSnsPublisherFactory'
-import { CommonSnsPublisherFactory } from './CommonSnsPublisherFactory'
+} from './AbstractSnsPublisher.ts'
+import type {
+  SNSCreationConfig,
+  SNSDependencies,
+  SNSTopicLocatorType,
+} from './AbstractSnsService.ts'
+import type { SnsPublisherFactory } from './CommonSnsPublisherFactory.ts'
+import { CommonSnsPublisherFactory } from './CommonSnsPublisherFactory.ts'
 
 export type { SnsAwareEventDefinition }
 
@@ -87,7 +91,7 @@ export class SnsPublisherManager<
     })
   }
 
-  publish(
+  override publish(
     topic: NonNullable<SupportedEventDefinitions[number]['snsTopic']>,
     message: MessagePublishType<SupportedEventDefinitions[number]>,
     precedingEventMetadata?: Partial<MetadataType>,

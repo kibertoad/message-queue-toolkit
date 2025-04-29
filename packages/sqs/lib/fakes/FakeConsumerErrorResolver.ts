@@ -1,4 +1,4 @@
-import { SqsConsumerErrorResolver } from '../errors/SqsConsumerErrorResolver'
+import { SqsConsumerErrorResolver } from '../errors/SqsConsumerErrorResolver.ts'
 
 export class FakeConsumerErrorResolver extends SqsConsumerErrorResolver {
   private _errors: unknown[]

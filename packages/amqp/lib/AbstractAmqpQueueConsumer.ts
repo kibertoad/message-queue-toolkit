@@ -1,5 +1,5 @@
-import { AbstractAmqpConsumer } from './AbstractAmqpConsumer'
-import { deleteAmqpQueue, ensureAmqpQueue } from './utils/amqpQueueUtils'
+import { AbstractAmqpConsumer } from './AbstractAmqpConsumer.ts'
+import { deleteAmqpQueue, ensureAmqpQueue } from './utils/amqpQueueUtils.ts'
 
 export class AbstractAmqpQueueConsumer<
   MessagePayloadType extends object,
@@ -11,6 +11,7 @@ export class AbstractAmqpQueueConsumer<
       await deleteAmqpQueue(this.channel, this.deletionConfig, this.creationConfig)
     }
 
+    // biome-ignore lint/style/noNonNullAssertion: <explanation>
     await ensureAmqpQueue(this.connection!, this.channel, this.creationConfig, this.locatorConfig)
   }
 }

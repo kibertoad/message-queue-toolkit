@@ -1,13 +1,16 @@
-import { AbstractSnsPublisher, type SNSPublisherOptions } from '../../lib/sns/AbstractSnsPublisher'
-import type { SNSDependencies } from '../../lib/sns/AbstractSnsService'
+import {
+  AbstractSnsPublisher,
+  type SNSPublisherOptions,
+} from '../../lib/sns/AbstractSnsPublisher.ts'
+import type { SNSDependencies } from '../../lib/sns/AbstractSnsService.ts'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
-} from '../consumers/userConsumerSchemas'
+} from '../consumers/userConsumerSchemas.ts'
 import {
   PERMISSIONS_ADD_MESSAGE_SCHEMA,
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
-} from '../consumers/userConsumerSchemas'
+} from '../consumers/userConsumerSchemas.ts'
 
 type SupportedTypes = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 

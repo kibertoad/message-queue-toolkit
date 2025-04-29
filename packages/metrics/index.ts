@@ -1,6 +1,0 @@
-export * from './lib/prometheus/metrics/message-time/PrometheusMessageLifetimeMetric'
-export * from './lib/prometheus/metrics/message-time/PrometheusMessageProcessingTimeMetric'
-export * from './lib/prometheus/metrics/message-error/PrometheusMessageErrorCounter'
-export * from './lib/prometheus/PrometheusMessageMetric'
-export * from './lib/prometheus/types'
-export * from './lib/MessageMultiMetricManager'

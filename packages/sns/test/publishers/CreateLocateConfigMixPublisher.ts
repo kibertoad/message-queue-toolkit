@@ -1,10 +1,10 @@
-import { AbstractSnsPublisher } from '../../lib/sns/AbstractSnsPublisher'
-import type { SNSDependencies, SNSOptions } from '../../lib/sns/AbstractSnsService'
+import { AbstractSnsPublisher } from '../../lib/sns/AbstractSnsPublisher.ts'
+import type { SNSDependencies, SNSOptions } from '../../lib/sns/AbstractSnsService.ts'
 import {
   CreateLocateConfigMixConsumer,
   type SupportedMessages,
-} from '../consumers/CreateLocateConfigMixConsumer'
-import { TestEvents } from '../utils/testContext'
+} from '../consumers/CreateLocateConfigMixConsumer.ts'
+import { TestEvents } from '../utils/testContext.ts'
 
 export class CreateLocateConfigMixPublisher extends AbstractSnsPublisher<SupportedMessages> {
   constructor(

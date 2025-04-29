@@ -13,15 +13,15 @@ import { asClass, asFunction, asValue } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ZodError } from 'zod'
 
-import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver'
-import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils'
-import { FakeLogger } from '../fakes/FakeLogger'
-import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher'
-import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext'
-import type { Dependencies } from '../utils/testContext'
+import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver.ts'
+import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
+import { FakeLogger } from '../fakes/FakeLogger.ts'
+import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
+import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext.ts'
+import type { Dependencies } from '../utils/testContext.ts'
 
-import { SqsPermissionConsumer, type SupportedMessages } from './SqsPermissionConsumer'
-import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas'
+import { SqsPermissionConsumer, type SupportedMessages } from './SqsPermissionConsumer.ts'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas.ts'
 
 describe('SqsPermissionConsumer', () => {
   describe('init', () => {

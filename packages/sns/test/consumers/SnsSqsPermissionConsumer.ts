@@ -10,17 +10,17 @@ import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import type {
   SNSSQSConsumerDependencies,
   SNSSQSConsumerOptions,
-} from '../../lib/sns/AbstractSnsSqsConsumer'
-import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer'
+} from '../../lib/sns/AbstractSnsSqsConsumer.ts'
+import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer.ts'
 
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
-} from './userConsumerSchemas'
+} from './userConsumerSchemas.ts'
 import {
   PERMISSIONS_ADD_MESSAGE_SCHEMA,
   PERMISSIONS_REMOVE_MESSAGE_SCHEMA,
-} from './userConsumerSchemas'
+} from './userConsumerSchemas.ts'
 
 type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 type ExecutionContext = {
@@ -152,8 +152,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
         },
         deadLetterQueue: options.deadLetterQueue,
         ...(options.locatorConfig
-          ? // biome-ignore lint/suspicious/noExplicitAny: This is expected
-            { locatorConfig: options.locatorConfig, creationConfig: options.creationConfig as any }
+          ? { locatorConfig: options.locatorConfig, creationConfig: options.creationConfig as any }
           : {
               creationConfig: options.creationConfig ?? {
                 queue: {
