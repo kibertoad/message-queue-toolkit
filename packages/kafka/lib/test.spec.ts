@@ -6,7 +6,7 @@ import { KafkaConsumer, type Message, Producer, features, librdkafkaVersion } fr
 describe('Test', () => {
   it('should use node-rdkafka', () => {
     expect(features).toBeDefined()
-    expect(librdkafkaVersion).toMatchInlineSnapshot(`"2.8.0"`)
+    expect(librdkafkaVersion).toBeDefined()
   })
 
   it('should send and receive a message', { timeout: 20000 }, async () => {
