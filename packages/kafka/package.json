@@ -35,7 +35,6 @@
     "scripts": {
         "build": "npm run clean && tsc --project tsconfig.build.json",
         "clean": "rimraf dist",
-        "build:release": "npm run lint && npm run build",
         "test": "vitest",
         "test:coverage": "npm test -- --coverage",
         "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
@@ -43,10 +42,11 @@
         "lint:fix": "biome check --write .",
         "docker:start:dev": "docker compose up -d",
         "docker:stop:dev": "docker compose down",
-        "prepublishOnly": "npm run build:release"
+        "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
         "@lokalise/node-core": "^13.3.0",
+        "node-rdkafka": "^3.3.1",
         "zod": "^3.23.8"
     },
     "peerDependencies": {
