@@ -26,7 +26,7 @@ jobs:
         run: |
           npm install --ignore-scripts
 
-      # 2) run only node-rdkafka scripts
+      # We need to run node-rdkafka scripts
       - name: Run node-rdkafka scripts
         working-directory: packages/kafka
         run: npm rebuild node-rdkafka
