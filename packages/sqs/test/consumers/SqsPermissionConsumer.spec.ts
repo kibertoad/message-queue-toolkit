@@ -318,8 +318,7 @@ describe('SqsPermissionConsumer', () => {
           timestamp: expect.any(String),
         },
         {
-          messageId: '1',
-          processingResult: { status: 'consumed' },
+          processedMessageMetadata: expect.any(String),
         },
       ])
       await newConsumer.close()
