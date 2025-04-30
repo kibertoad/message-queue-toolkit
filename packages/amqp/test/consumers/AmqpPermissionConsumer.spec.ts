@@ -15,7 +15,6 @@ import type { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublis
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext.ts'
-
 import { AmqpPermissionConsumer } from './AmqpPermissionConsumer.ts'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
@@ -111,8 +110,7 @@ describe('AmqpPermissionConsumer', () => {
           timestamp: expect.any(String),
         },
         {
-          messageId: '1',
-          processingResult: { status: 'consumed' },
+          processedMessageMetadata: expect.any(String),
         },
       ])
     })
