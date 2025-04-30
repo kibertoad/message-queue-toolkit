@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/core",
-    "version": "21.0.0",
+    "version": "21.0.1",
     "private": false,
     "license": "MIT",
     "description": "Useful utilities, interfaces and base classes for message queue handling. Supports AMQP and SQS with a common abstraction on top currently",
@@ -29,7 +29,7 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^13.3.0",
+        "@lokalise/node-core": "^13.6.0",
         "@message-queue-toolkit/schemas": "^6.0.0",
         "fast-equals": "^5.0.1",
         "json-stream-stringify": "^3.1.6",

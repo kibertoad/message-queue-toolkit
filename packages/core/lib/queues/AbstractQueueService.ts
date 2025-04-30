@@ -1,6 +1,12 @@
 import { types } from 'node:util'
 
-import type { CommonLogger, Either, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
+import {
+  type CommonLogger,
+  type Either,
+  type ErrorReporter,
+  type ErrorResolver,
+  stringValueSerializer,
+} from '@lokalise/node-core'
 import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema, ZodType } from 'zod'
@@ -245,7 +251,7 @@ export abstract class AbstractQueueService<
     )
     if (debugLoggingEnabled) {
       this.logger.debug(
-        processedMessageMetadata,
+        { processedMessageMetadata: stringValueSerializer(processedMessageMetadata) },
         `Finished processing message ${processedMessageMetadata.messageId}`,
       )
     }
