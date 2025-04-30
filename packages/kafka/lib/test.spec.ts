@@ -9,7 +9,7 @@ describe('Test', () => {
     expect(librdkafkaVersion).toBeDefined()
   })
 
-  it('should send and receive a message', { timeout: 35000 }, async () => {
+  it('should send and receive a message', { timeout: 10000 }, async () => {
     // Given
     const brokers = 'localhost:9092'
     // Use a fresh, unique topic per run to avoid stale state
@@ -56,7 +56,7 @@ describe('Test', () => {
     producer.flush()
 
     // Then
-    await waitAndRetry(() => receivedMessages.length > 0, 10, 3000)
+    await waitAndRetry(() => receivedMessages.length > 0, 10, 800)
     expect(receivedMessages).toHaveLength(1)
     expect(receivedMessages[0]?.value?.toString()).toBe(messageValue)
 

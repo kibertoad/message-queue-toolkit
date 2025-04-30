@@ -24,8 +24,8 @@
         "test": "vitest",
         "test:coverage": "npm test -- --coverage",
         "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
-        "docker:start:dev": "",
-        "docker:stop:dev": "",
+        "docker:start:dev": "docker compose up -d",
+        "docker:stop:dev": "docker compose down",
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
