@@ -37,7 +37,6 @@ jobs:
 
       - name: Run Tests
         run: npm run test:ci -- --filter=${{ inputs.package_name }}
-        working-directory: ${{ inputs.working_directory }}
 
       - name: Docker stop
         run: npm run docker:stop:dev
