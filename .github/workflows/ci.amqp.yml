@@ -10,7 +10,7 @@ jobs:
   call-ci-flow:
     strategy:
       matrix:
-        node-version: [22.x ]
+        node-version: [22.x]
     uses: kibertoad/message-queue-toolkit/.github/workflows/ci.common.yml
     with:
       working_directory: 'packages/amqp'
