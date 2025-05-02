@@ -26,6 +26,11 @@ jobs:
         run: |
           npm install --ignore-scripts
 
+      # We need to run node-rdkafka scripts
+      - name: Run node-rdkafka scripts
+        working-directory: packages/kafka
+        run: npm rebuild node-rdkafka
+
       - name: Docker start
         run: |
           npm run docker:start          

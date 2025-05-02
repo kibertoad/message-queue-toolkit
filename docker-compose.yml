@@ -1,4 +1,5 @@
 services:
+
   rabbitmq:
     image: rabbitmq:4.0.4
     ports:
@@ -6,6 +7,7 @@ services:
       - ${DOCKER_RABBITMQ_MANAGEMENT_PORT:-15672}:15672
     volumes:
       - rabbit_data:/var/lib/rabbitmq
+    restart: on-failure
 
   localstack:
     image: localstack/localstack:4.0.2
@@ -24,6 +26,7 @@ services:
     volumes:
       - '${TMPDIR:-/tmp}/localstack:/var/log/localstack'
       - '/var/run/docker.sock:/var/run/docker.sock'
+    restart: on-failure
 
   redis:
     image: redis:6.2.7-alpine
@@ -32,6 +35,13 @@ services:
       - '6379:6379'
     volumes:
       - redis_data:/redis/data:cached
+    restart: on-failure
+
+  kafka:
+    image: apache/kafka:latest
+    container_name: kafka
+    ports:
+      - 9092:9092
     restart: on-failure
 
 volumes:
