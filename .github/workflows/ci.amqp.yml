@@ -1,0 +1,15 @@
+name: CI Kafka
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  call-build-flow:
+    uses: kibertoad/message-queue-toolkit/.github/workflows/ci.common.yml
+    # TODO: introduce matrix for node versions
+    with:
+      working_directory: 'packages/amqp'
+      node_version: '22.x'
