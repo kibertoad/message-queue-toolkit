@@ -22,10 +22,8 @@
         "lint": "biome check . && tsc",
         "lint:fix": "biome check --write .",
         "test": "vitest",
-        "test:coverage": "npm test -- --coverage",
-        "test:ci": "npm test",
-        "docker:start:dev": "",
-        "docker:stop:dev": "",
+        "test:coverage": "npm run test -- --coverage",
+        "test:ci": "npm run test:coverage",
         "prepublishOnly": "npm run lint && npm run build"
     },
     "peerDependencies": {
