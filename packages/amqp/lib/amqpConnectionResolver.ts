@@ -3,7 +3,6 @@ import { setTimeout } from 'node:timers/promises'
 import { globalLogger } from '@lokalise/node-core'
 import { type ChannelModel, connect } from 'amqplib'
 
-const CONNECT_RETRY_SECONDS = 10
 const MAX_RETRY_ATTEMPTS = 10
 
 export type AmqpConfig = {
@@ -21,7 +20,10 @@ export async function resolveAmqpConnection(config: AmqpConfig): Promise<Channel
   while (true) {
     const url = `${protocol}://${config.username}:${config.password}@${config.hostname}:${config.port}/${config.vhost}`
 
-    const retryTime = CONNECT_RETRY_SECONDS * 1000 * (counter + 1)
+    // exponential backoff -> (2 ^ (attempt)) * delay
+    // delay = 1 second
+    const retryTime = Math.pow(2, counter + 1) * 1000
+
     try {
       const connection = await connect(url)
       return connection
