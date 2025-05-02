@@ -31,9 +31,9 @@ jobs:
         working-directory: packages/kafka
         run: npm rebuild node-rdkafka
 
-      - name: Docker start
-        run: |
-          npm run docker:start          
+      #- name: Docker start
+      #  run: |
+      #    npm run docker:start
 
       - name: Build TS
         run: |
@@ -43,9 +43,9 @@ jobs:
         run: |
           npm run test:ci
 
-      - name: Docker stop
-        run: |
-          npm run docker:stop          
+      #- name: Docker stop
+      #  run: |
+      #    npm run docker:stop
 
   automerge:
     needs: build
