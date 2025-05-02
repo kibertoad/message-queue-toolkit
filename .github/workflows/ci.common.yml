@@ -5,6 +5,9 @@ on:
       working_directory:
         required: true
         type: string
+      package_name:
+        required: true
+        type: string
       node_version:
         required: true
         type: string
@@ -33,8 +36,7 @@ jobs:
         working-directory: ${{ inputs.working_directory }}
 
       - name: Run Tests
-        run: npm run test:ci
-        ## TODO: refactor to have turbo cache
+        run: npm run test:ci -- --filter=${{ inputs.package_name }}
         working-directory: ${{ inputs.working_directory }}
 
       - name: Docker stop
