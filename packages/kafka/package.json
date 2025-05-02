@@ -45,8 +45,9 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^13.3.0",
+        "@lokalise/node-core": "^13.6.0",
         "@lokalise/universal-ts-utils": "^4.4.0",
+        "@platformatic/kafka": "^1.0.0",
         "node-rdkafka": "^3.3.1",
         "zod": "^3.23.8"
     },
