@@ -20,12 +20,11 @@
         "build": "npm run clean && tsc --project tsconfig.build.json",
         "clean": "rimraf dist",
         "test": "vitest",
-        "test:coverage": "npm test -- --coverage",
-        "test:ci": "npm run docker:start:dev && npm run test:coverage && npm run docker:stop:dev",
+        "test:coverage": "npm run test -- --coverage",
         "lint": "biome check && tsc",
         "lint:fix": "biome check --write .",
-        "docker:start:dev": "docker compose up -d",
-        "docker:stop:dev": "docker compose down",
+        "docker:start": "docker compose up -d",
+        "docker:stop": "docker compose down",
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
