@@ -1,4 +1,4 @@
-name: CI Kafka
+name: amqp CI
 
 on:
   push:
