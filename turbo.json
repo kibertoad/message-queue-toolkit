@@ -8,8 +8,8 @@
         "clean": {
             "cache": false
         },
-        "test:coverage": {
-            "dependsOn": ["^test:coverage"]
+        "test:ci": {
+            "dependsOn": ["^test:ci"]
         },
         "lint": {
             "outputLogs": "errors-only"
