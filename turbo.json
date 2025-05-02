@@ -16,8 +16,6 @@
         },
         "lint:fix": {
             "outputLogs": "errors-only"
-        },
-        "docker:start": {},
-        "docker:stop": {}
+        }
     }
 }

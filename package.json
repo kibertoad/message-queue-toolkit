@@ -7,9 +7,7 @@
         "lint": "turbo run lint --continue",
         "lint:fix": "turbo run lint:fix --continue",
         "test:ci": "turbo run test:ci --concurrency=1",
-        "clean": "turbo run clean",
-        "docker:start": "turbo run docker:start",
-        "docker:stop": "turbo run docker:stop"
+        "clean": "turbo run clean"
     },
     "dependencies": {},
     "devDependencies": {
