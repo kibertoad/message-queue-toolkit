@@ -1,0 +1,18 @@
+name: amqp CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  call-ci-flow:
+    strategy:
+      matrix:
+        node-version: [22.x]
+    uses: kibertoad/message-queue-toolkit/.github/workflows/ci.common.yml@main
+    with:
+      working_directory: 'packages/amqp'
+      package_name: '@message-queue-toolkit/amqp'
+      node_version: ${{ matrix.node-version }}
