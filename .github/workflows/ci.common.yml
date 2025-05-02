@@ -8,9 +8,6 @@ on:
       node_version:
         required: true
         type: string
-    secrets:
-      npm_token:
-        required: true
 
 jobs:
   build:
