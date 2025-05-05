@@ -1,19 +1,21 @@
 {
-  "name": "@message-queue-toolkit/parent",
-  "version": "1.0.0",
-  "workspaces": ["packages/*"],
-  "scripts": {
-    "build": "turbo run build",
-    "lint": "turbo run lint --continue",
-    "lint:fix": "turbo run lint:fix --continue",
-    "test:ci": "turbo run test:coverage",
-    "clean": "turbo run clean",
-    "docker:start": "docker compose up -d",
-    "docker:stop": "docker compose down"
-  },
-  "dependencies": {},
-  "devDependencies": {
-    "turbo": "^2.3.4"
-  },
-  "packageManager": "npm@10.7.0"
+    "name": "@message-queue-toolkit/parent",
+    "version": "1.0.0",
+    "workspaces": ["packages/*"],
+    "scripts": {
+        "build": "turbo run build",
+        "lint": "turbo run lint --continue",
+        "lint:fix": "turbo run lint:fix --continue",
+        "test:ci": "turbo run test:coverage",
+        "clean": "turbo run clean",
+        "docker:start": "docker compose up -d",
+        "docker:stop": "docker compose down",
+        "docker:start:ci": "turbo run docker:start",
+        "docker:stop:ci": "turbo run docker:stop"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "turbo": "^2.3.4"
+    },
+    "packageManager": "npm@10.7.0"
 }
