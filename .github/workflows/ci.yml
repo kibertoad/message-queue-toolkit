@@ -1,4 +1,4 @@
-name: amqp CI
+name: CI
 
 on:
   push:
