@@ -26,3 +26,14 @@ jobs:
     with:
       node_version: ${{ matrix.node-version }}
       package_name: ${{ matrix.package-name }}
+
+  automerge:
+    needs: [ call-ci-flow ]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: fastify/github-action-merge-dependabot@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
