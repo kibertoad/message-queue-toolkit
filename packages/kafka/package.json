@@ -1,6 +1,7 @@
 {
     "name": "@message-queue-toolkit/kafka",
     "version": "0.0.0",
+    "engines": { "node": ">= 22.14.0" },
     "private": false,
     "license": "MIT",
     "homepage": "https://github.com/kibertoad/message-queue-toolkit",
@@ -44,14 +45,14 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^13.3.0",
+        "@lokalise/node-core": "^13.6.0",
         "@lokalise/universal-ts-utils": "^4.4.0",
-        "node-rdkafka": "^3.3.1",
+        "@platformatic/kafka": "^1.0.0",
         "zod": "^3.23.8"
     },
     "peerDependencies": {
-        "@message-queue-toolkit/core": ">=20.0.0",
-        "@message-queue-toolkit/schemas": ">=2.0.0"
+        "@message-queue-toolkit/core": ">=21.0.0",
+        "@message-queue-toolkit/schemas": ">=6.0.0"
     },
     "devDependencies": {
         "@biomejs/biome": "1.9.4",

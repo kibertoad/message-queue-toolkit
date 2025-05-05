@@ -1,59 +1,65 @@
-import { once } from 'node:events'
+import { randomUUID } from 'node:crypto'
 import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
-import { KafkaConsumer, type Message, Producer, features, librdkafkaVersion } from 'node-rdkafka'
+import {
+  Consumer,
+  type Message,
+  Producer,
+  stringDeserializers,
+  stringSerializers,
+} from '@platformatic/kafka'
+import { ProduceAcks } from '@platformatic/kafka'
+import { afterAll } from 'vitest'
+import { type TestContext, registerDependencies } from '../test/testContext.ts'
 
 // TODO: to be removed once we have proper tests
 describe('Test', () => {
-  it('should use node-rdkafka', () => {
-    expect(features).toBeDefined()
-    expect(librdkafkaVersion).toBeDefined()
+  let testContext: TestContext
+
+  beforeAll(async () => {
+    testContext = await registerDependencies()
+  })
+
+  afterAll(async () => {
+    await testContext.dispose()
   })
 
   it('should send and receive a message', { timeout: 10000 }, async () => {
     // Given
-    const brokers = 'localhost:9092'
+    const clientId = randomUUID()
     // Use a fresh, unique topic per run to avoid stale state
     const topic = `test-topic-${Date.now()}`
     const messageValue = 'My test message'
 
-    const receivedMessages: Message[] = []
+    const receivedMessages: Message<string, string, string, string>[] = []
 
-    // Create a producer
+    // Create producer
     const producer = new Producer({
-      'metadata.broker.list': brokers,
-      'allow.auto.create.topics': true,
+      clientId,
+      bootstrapBrokers: testContext.cradle.kafkaConfig.brokers,
+      serializers: stringSerializers,
+      autocreateTopics: true,
     })
-    producer.connect()
-    await once(producer, 'ready')
 
-    // Create a consumer with a unique group and disable auto-commit for fresh offsets
-    const consumer = new KafkaConsumer(
-      {
-        'group.id': 'test-group',
-        'metadata.broker.list': brokers,
-        'allow.auto.create.topics': true,
-        'enable.auto.commit': false,
-      },
-      { 'auto.offset.reset': 'earliest' },
-    )
-    consumer.connect()
+    // Create consumer
+    const consumer = new Consumer({
+      clientId,
+      groupId: randomUUID(),
+      bootstrapBrokers: testContext.cradle.kafkaConfig.brokers,
+      deserializers: stringDeserializers,
+      autocreateTopics: true,
+    })
 
-    await new Promise<void>((resolve, reject) =>
-      consumer
-        .on('ready', () => {
-          consumer.subscribe([topic])
-          consumer.consume()
-          resolve()
-        })
-        .on('event.error', (err) => reject(err))
-        .on('data', (data) => {
-          receivedMessages.push(data)
-        }),
-    )
+    const stream = await consumer.consume({ topics: [topic] })
+    stream.on('data', (message) => {
+      receivedMessages.push(message)
+      stream.close()
+    })
 
     // When
-    producer.produce(topic, null, Buffer.from(messageValue))
-    producer.flush()
+    await producer.send({
+      messages: [{ topic, value: messageValue }],
+      acks: ProduceAcks.NO_RESPONSE,
+    })
 
     // Then
     await waitAndRetry(() => receivedMessages.length > 0, 10, 800)
@@ -61,7 +67,7 @@ describe('Test', () => {
     expect(receivedMessages[0]?.value?.toString()).toBe(messageValue)
 
     // Cleanup
-    producer.disconnect()
-    consumer.disconnect()
+    producer.close()
+    consumer.close()
   })
 })
