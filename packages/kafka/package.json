@@ -1,6 +1,7 @@
 {
     "name": "@message-queue-toolkit/kafka",
     "version": "0.0.0",
+    "engines": { "node": ">= 22.14.0" },
     "private": false,
     "license": "MIT",
     "homepage": "https://github.com/kibertoad/message-queue-toolkit",
