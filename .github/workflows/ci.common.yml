@@ -1,0 +1,36 @@
+name: Common CI
+on:
+  workflow_call:
+    inputs:
+      package_name:
+        required: true
+        type: string
+      node_version:
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ inputs.node_version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      - name: Install
+        run: npm install --ignore-scripts
+
+      - name: Build TS
+        run: npm run build -- --filter=${{ inputs.package_name }}
+
+      - name: Docker start
+        run: npm run docker:start:ci -- --filter=${{ inputs.package_name }}
+
+      - name: Run Tests
+        run: npm run test:ci -- --filter=${{ inputs.package_name }}
+
+      - name: Docker stop
+        run: npm run docker:stop:ci -- --filter=${{ inputs.package_name }}
