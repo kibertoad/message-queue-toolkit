@@ -2,6 +2,9 @@ name: Common CI
 on:
   workflow_call:
     inputs:
+      working_directory:
+        required: true
+        type: string
       package_name:
         required: true
         type: string
@@ -27,10 +30,12 @@ jobs:
         run: npm run build -- --filter=${{ inputs.package_name }}
 
       - name: Docker start
-        run: npm run docker:start -- --filter=${{ inputs.package_name }}
+        run: npm run docker:start
+        working-directory: ${{ inputs.working_directory }}
 
       - name: Run Tests
         run: npm run test:ci -- --filter=${{ inputs.package_name }}
 
       - name: Docker stop
-        run: npm run docker:stop -- --filter=${{ inputs.package_name }}
+        run: npm run docker:stop
+        working-directory: ${{ inputs.working_directory }}
