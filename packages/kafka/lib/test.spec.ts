@@ -8,10 +8,20 @@ import {
   stringSerializers,
 } from '@platformatic/kafka'
 import { ProduceAcks } from '@platformatic/kafka'
+import { afterAll } from 'vitest'
+import { type TestContext, registerDependencies } from '../test/testContext.ts'
 
 // TODO: to be removed once we have proper tests
 describe('Test', () => {
-  const broker = 'localhost:9092'
+  let testContext: TestContext
+
+  beforeAll(async () => {
+    testContext = await registerDependencies()
+  })
+
+  afterAll(async () => {
+    await testContext.dispose()
+  })
 
   it('should send and receive a message', { timeout: 10000 }, async () => {
     // Given
@@ -25,7 +35,7 @@ describe('Test', () => {
     // Create producer
     const producer = new Producer({
       clientId,
-      bootstrapBrokers: [broker],
+      bootstrapBrokers: testContext.cradle.kafkaConfig.brokers,
       serializers: stringSerializers,
       autocreateTopics: true,
     })
@@ -34,7 +44,7 @@ describe('Test', () => {
     const consumer = new Consumer({
       clientId,
       groupId: randomUUID(),
-      bootstrapBrokers: [broker],
+      bootstrapBrokers: testContext.cradle.kafkaConfig.brokers,
       deserializers: stringDeserializers,
       autocreateTopics: true,
     })
