@@ -1,24 +1,26 @@
 import type { CommonLogger } from '@lokalise/node-core'
-import { type AwilixContainer, Lifetime, type Resolver, asFunction, createContainer } from 'awilix'
+import {
+  type AwilixContainer,
+  Lifetime,
+  type NameAndRegistrationPair,
+  asFunction,
+  createContainer,
+} from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 
 const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
-type DiConfig = Record<keyof Dependencies, Resolver<any>>
-
-export type DependencyOverrides = Partial<DiConfig>
+type DiConfig = NameAndRegistrationPair<Dependencies>
 
 export type TestContext = AwilixContainer<Dependencies>
 
 export interface Dependencies {
-  logger: CommonLogger
   awilixManager: AwilixManager
+  logger: CommonLogger
   kafkaConfig: KafkaConfig
 }
 
-export async function registerDependencies(
-  dependencyOverrides: DependencyOverrides = {},
-): Promise<TestContext> {
+export async function registerDependencies(): Promise<TestContext> {
   const diContainer = createContainer({
     injectionMode: 'PROXY',
   })
@@ -28,17 +30,7 @@ export async function registerDependencies(
     asyncInit: true,
     eagerInject: true,
   })
-
-  const diConfig: DiConfig = {
-    logger: asFunction(() => console, SINGLETON_CONFIG),
-    awilixManager: asFunction(() => awilixManager, SINGLETON_CONFIG),
-    kafkaConfig: asFunction(() => TEST_KAFKA_CONFIG, SINGLETON_CONFIG),
-  }
-  diContainer.register(diConfig)
-
-  for (const [dependencyKey, dependencyValue] of Object.entries(dependencyOverrides)) {
-    diContainer.register(dependencyKey, dependencyValue)
-  }
+  diContainer.register(resolveDIConfig(awilixManager))
 
   await awilixManager.executeInit()
 
@@ -50,3 +42,11 @@ type KafkaConfig = { brokers: string[] }
 const TEST_KAFKA_CONFIG: KafkaConfig = {
   brokers: ['localhost:9092'],
 }
+// @ts-expect-error
+const TEST_LOGGER: CommonLogger = console
+
+const resolveDIConfig = (awilixManager: AwilixManager): DiConfig => ({
+  awilixManager: asFunction(() => awilixManager, SINGLETON_CONFIG),
+  logger: asFunction(() => TEST_LOGGER, SINGLETON_CONFIG),
+  kafkaConfig: asFunction(() => TEST_KAFKA_CONFIG, SINGLETON_CONFIG),
+})
