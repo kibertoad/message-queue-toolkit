@@ -4,7 +4,6 @@ import { AwilixManager } from 'awilix-manager'
 
 const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
-// biome-ignore lint/suspicious/noExplicitAny: Expected
 type DiConfig = Record<keyof Dependencies, Resolver<any>>
 
 export type DependencyOverrides = Partial<DiConfig>
