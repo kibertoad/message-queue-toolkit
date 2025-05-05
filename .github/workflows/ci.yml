@@ -1,4 +1,4 @@
-name: ci
+name: amqp CI
 
 on:
   push:
@@ -7,53 +7,23 @@ on:
   pull_request:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
+  call-ci-flow:
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x, 23.x]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Install
-        run: |
-          npm install --ignore-scripts
-
-      # We need to run node-rdkafka scripts
-      - name: Run node-rdkafka scripts
-        working-directory: packages/kafka
-        run: npm rebuild node-rdkafka
-
-      - name: Docker start
-        run: |
-          npm run docker:start          
-
-      - name: Build TS
-        run: |
-          npm run build
-
-      - name: Run Tests
-        run: |
-          npm run test:ci
-
-      - name: Docker stop
-        run: |
-          npm run docker:stop          
-
-  automerge:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-      contents: write
-    steps:
-      - uses: fastify/github-action-merge-dependabot@v3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        node-version:  [18.x, 20.x, 22.x, 23.x]
+        service: [
+          '{"working_directory": "packages/amqp", "package_name": "@message-queue-toolkit/amqp"}',
+          '{"working_directory": "packages/core", "package_name": "@message-queue-toolkit/core"}',
+          '{"working_directory": "packages/metrics", "package_name": "@message-queue-toolkit/metrics"}',
+          '{"working_directory": "packages/outbox-core", "package_name": "@message-queue-toolkit/outbox-core"}',
+          '{"working_directory": "packages/redis-message-deduplication-store", "package_name": "@message-queue-toolkit/redis-message-deduplication-store"}',
+          '{"working_directory": "packages/s3-payload-store", "package_name": "@message-queue-toolkit/s3-payload-store"}',
+          '{"working_directory": "packages/schemas", "package_name": "@message-queue-toolkit/schemas"}',
+          '{"working_directory": "packages/sns", "package_name": "@message-queue-toolkit/sns"}',
+          '{"working_directory": "packages/sqs", "package_name": "@message-queue-toolkit/sqs"}',
+        ]
+    uses: kibertoad/message-queue-toolkit/.github/workflows/ci.common.yml@main
+    with:
+      working_directory: ${{ fromJson(matrix.service).working_directory }}
+      package_name: ${{ fromJson(matrix.service).package_name }}
+      node_version: ${{ matrix.node-version }}
