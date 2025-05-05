@@ -1,4 +1,4 @@
-name: ci
+name: CI
 
 on:
   push:
@@ -7,48 +7,28 @@ on:
   pull_request:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
+  call-ci-flow:
     strategy:
       matrix:
         node-version: [18.x, 20.x, 22.x, 23.x]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Install
-        run: |
-          npm install --ignore-scripts
-
-      # We need to run node-rdkafka scripts
-      - name: Run node-rdkafka scripts
-        working-directory: packages/kafka
-        run: npm rebuild node-rdkafka
-
-      - name: Docker start
-        run: |
-          npm run docker:start          
-
-      - name: Build TS
-        run: |
-          npm run build
-
-      - name: Run Tests
-        run: |
-          npm run test:ci
-
-      - name: Docker stop
-        run: |
-          npm run docker:stop          
+        package-name: [
+          '@message-queue-toolkit/amqp',
+          '@message-queue-toolkit/core',
+          '@message-queue-toolkit/metrics',
+          '@message-queue-toolkit/outbox-core',
+          '@message-queue-toolkit/redis-message-deduplication-store',
+          '@message-queue-toolkit/s3-payload-store',
+          '@message-queue-toolkit/schemas',
+          '@message-queue-toolkit/sns',
+          '@message-queue-toolkit/sqs'
+        ]
+    uses: kibertoad/message-queue-toolkit/.github/workflows/ci.common.yml@main
+    with:
+      node_version: ${{ matrix.node-version }}
+      package_name: ${{ matrix.package-name }}
 
   automerge:
-    needs: build
+    needs: [ call-ci-flow ]
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
