@@ -41,8 +41,8 @@ export const CONSUMER_MESSAGE_METADATA_SCHEMA = z
 export const GENERATED_BASE_EVENT_SCHEMA = z.object({
   id: z.string().describe('event unique identifier'),
   timestamp: z.string().datetime().describe('iso 8601 datetime'),
-  deduplicationId: z.string().optional().describe('event deduplication identifier'),
-  deduplicationOptions: MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA.optional().describe(
+  deduplicationId: z.string().nullish().describe('event deduplication identifier'),
+  deduplicationOptions: MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA.nullish().describe(
     'event deduplication options',
   ),
   // For internal domain events that did not originate within a message chain metadata field can be omitted, producer should then assume it is initiating a new chain
