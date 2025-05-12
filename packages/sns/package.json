@@ -29,7 +29,7 @@
     },
     "dependencies": {
         "@lokalise/node-core": "^13.3.0",
-        "sqs-consumer": "^11.1.0",
+        "sqs-consumer": "^12.0.0",
         "zod": "^3.23.8"
     },
     "peerDependencies": {
