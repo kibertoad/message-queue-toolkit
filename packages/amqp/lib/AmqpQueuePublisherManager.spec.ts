@@ -106,9 +106,7 @@ describe('AmqpQueuePublisherManager', () => {
     })
 
     it('not publishes to the queue with lazy publisher, when it was not initialized', async () => {
-      await diContainer.cradle.queuePublisherManagerNoLazy.initRegisteredPublishers([
-        'non-existing-name',
-      ])
+      await diContainer.cradle.queuePublisherManagerNoLazy.initRegisteredPublishers([])
 
       const { queuePublisherManagerNoLazy } = diContainer.cradle
       const fakeConsumer = new FakeQueueConsumer(diContainer.cradle, TestEvents.updated)
