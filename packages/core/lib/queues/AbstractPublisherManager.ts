@@ -159,7 +159,11 @@ export abstract class AbstractPublisherManager<
   async initRegisteredPublishers(publishersToInit?: EventTargets[]): Promise<void> {
     if (publishersToInit) {
       for (const eventTarget of publishersToInit) {
-        await this.targetToPublisherMap[eventTarget].init()
+        const resolvedPublisher = this.targetToPublisherMap[eventTarget]
+        if (!resolvedPublisher) {
+          throw new Error(`Unsupported publisher ${eventTarget}`)
+        }
+        await resolvedPublisher.init()
       }
       return
     }
