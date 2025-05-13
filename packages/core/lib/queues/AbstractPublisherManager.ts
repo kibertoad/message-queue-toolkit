@@ -156,6 +156,16 @@ export abstract class AbstractPublisherManager<
     }
   }
 
+  async initRegisteredPublishers(publishers?: string[]): Promise<void> {
+    for (const eventTarget in this.targetToPublisherMap) {
+      if (publishers?.length && !publishers.includes(eventTarget)) {
+        continue
+      }
+
+      await this.targetToPublisherMap[eventTarget].init()
+    }
+  }
+
   public injectPublisher(eventTarget: EventTargets, publisher: PublisherType) {
     this.targetToPublisherMap[eventTarget] = publisher
   }
