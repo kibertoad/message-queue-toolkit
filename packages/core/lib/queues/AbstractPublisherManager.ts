@@ -157,8 +157,15 @@ export abstract class AbstractPublisherManager<
   }
 
   async initRegisteredPublishers(publishersToInit?: EventTargets[]): Promise<void> {
-    for (const eventTarget in publishersToInit) {
-      await this.targetToPublisherMap[eventTarget as EventTargets].init()
+    if (publishersToInit) {
+      for (const eventTarget of publishersToInit) {
+        await this.targetToPublisherMap[eventTarget].init()
+      }
+      return
+    }
+
+    for (const eventTarget in this.targetToPublisherMap) {
+      await this.targetToPublisherMap[eventTarget].init()
     }
   }
 
