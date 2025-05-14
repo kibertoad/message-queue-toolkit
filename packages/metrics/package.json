@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/metrics",
-    "version": "4.0.0",
+    "version": "4.0.1",
     "private": false,
     "license": "MIT",
     "description": "Utilities for collecting metrics in message-queue-toolkit",
@@ -26,7 +26,7 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^13.3.0"
+        "@lokalise/node-core": "^14.0.0"
     },
     "peerDependencies": {
         "@message-queue-toolkit/core": ">=21.0.0",
