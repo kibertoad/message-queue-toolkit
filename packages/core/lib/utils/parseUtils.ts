@@ -1,5 +1,5 @@
 import type { Either, ErrorResolver } from '@lokalise/node-core'
-import type { ZodSchema } from 'zod'
+import type { ZodSchema } from 'zod/v3'
 
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors.ts'
 
