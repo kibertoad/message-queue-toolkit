@@ -6,7 +6,7 @@ import type {
 } from '@message-queue-toolkit/core'
 import { parseMessage } from '@message-queue-toolkit/core'
 import type { Message } from 'amqplib'
-import type { ZodType } from 'zod'
+import type { ZodType } from 'zod/v3'
 
 import type { AmqpConsumerErrorResolver } from './errors/AmqpConsumerErrorResolver.ts'
 
