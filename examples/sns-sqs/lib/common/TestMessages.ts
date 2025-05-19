@@ -1,9 +1,13 @@
 import {
-  type AllConsumerMessageSchemas,
   type SnsAwareEventDefinition,
   enrichMessageSchemaWithBaseStrict,
 } from '@message-queue-toolkit/schemas'
+import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import { z } from 'zod'
+
+type AllConsumerMessageSchemas<MessageDefinitionTypes extends CommonEventDefinition[]> = z.infer<
+  MessageDefinitionTypes[number]['consumerSchema']
+>
 
 export const USER_SCHEMA = z.object({
   id: z.string(),

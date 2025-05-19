@@ -1,5 +1,5 @@
 import { CommonMetadataFiller, EventRegistry } from '@message-queue-toolkit/core'
-import type { AllPublisherMessageSchemas } from '@message-queue-toolkit/schemas'
+import type { allPublisherMessageSchemas } from '@message-queue-toolkit/schemas'
 import { SnsPublisherManager } from '@message-queue-toolkit/sns'
 import type { CommonSnsPublisher } from '@message-queue-toolkit/sns'
 import { CommonSnsPublisherFactory } from '@message-queue-toolkit/sns'
@@ -8,7 +8,7 @@ import { UserEvents, type UserEventsType } from './TestMessages.ts'
 
 const isTest = true
 
-type PublisherTypes = AllPublisherMessageSchemas<UserEventsType>
+type PublisherTypes = allPublisherMessageSchemas<UserEventsType>
 
 export const publisherManager = new SnsPublisherManager<
   CommonSnsPublisher<PublisherTypes>,
