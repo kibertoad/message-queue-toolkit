@@ -30,6 +30,16 @@ export type CommonMessageDefinitionSchemaType<T extends CommonEventDefinition> =
   T['consumerSchema']
 >
 
+export type MetadataObject = ZodObject<
+  {
+    schemaVersion: ZodString
+    producedBy: ZodString
+    originatedFrom: ZodString
+    correlationId: ZodString
+  },
+  'strip'
+>
+
 type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string> = {
   consumerSchema: ZodObject<
     {
@@ -39,15 +49,7 @@ type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string>
       deduplicationId: ZodOptional<ZodNullable<ZodString>>
       deduplicationOptions: ZodOptional<ZodNullable<typeof MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA>>
       payload: T
-      metadata: ZodObject<
-        {
-          schemaVersion: ZodString
-          producedBy: ZodString
-          originatedFrom: ZodString
-          correlationId: ZodString
-        },
-        'strip'
-      >
+      metadata: MetadataObject
     },
     'strip'
   >
