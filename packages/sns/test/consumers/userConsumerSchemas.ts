@@ -1,5 +1,5 @@
 import { MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA } from '@message-queue-toolkit/schemas'
-import z from 'zod'
+import z from 'zod/v3'
 
 export const PERMISSIONS_MESSAGE_SCHEMA = z.object({
   id: z.string(),

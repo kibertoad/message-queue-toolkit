@@ -15,7 +15,7 @@ import { FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
 import type { Resolver } from 'awilix'
 import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
-import { z } from 'zod'
+import { z } from 'zod/v3'
 
 import type { CommonSnsPublisher } from '../../lib/sns/CommonSnsPublisherFactory.ts'
 import { CommonSnsPublisherFactory } from '../../lib/sns/CommonSnsPublisherFactory.ts'

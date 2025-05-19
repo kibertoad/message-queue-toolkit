@@ -6,7 +6,7 @@ import type {
 } from '@message-queue-toolkit/core'
 import { parseMessage } from '@message-queue-toolkit/core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
-import type { ZodType } from 'zod'
+import type { ZodType } from 'zod/v3'
 
 import { SNS_MESSAGE_BODY_SCHEMA } from '../types/MessageTypes.ts'
 
