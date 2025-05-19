@@ -19,5 +19,11 @@ export type PublisherMessageSchema<MessageDefinitionType extends CommonEventDefi
 /**
  * Resolves schema of all possible publisher messages for a given list of event definitions
  */
-export type allPublisherMessageSchemas<MessageDefinitionTypes extends CommonEventDefinition[]> =
+export type AllPublisherMessageSchemas<MessageDefinitionTypes extends CommonEventDefinition[]> =
   z.infer<MessageDefinitionTypes[number]['publisherSchema']>
+
+/**
+ * Resolves schema of all possible consumer messages for a given list of event definitions
+ */
+export type AllConsumerMessageSchemas<MessageDefinitionTypes extends CommonEventDefinition[]> =
+  z.infer<MessageDefinitionTypes[number]['consumerSchema']>
