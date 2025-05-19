@@ -3,7 +3,7 @@ import {
   enrichMessageSchemaWithBaseStrict,
 } from '@message-queue-toolkit/schemas'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
-import { z } from 'zod'
+import { z } from 'zod/v3'
 
 type AllConsumerMessageSchemas<MessageDefinitionTypes extends CommonEventDefinition[]> = z.infer<
   MessageDefinitionTypes[number]['consumerSchema']

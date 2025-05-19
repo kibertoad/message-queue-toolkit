@@ -19,12 +19,12 @@
         "@aws-sdk/client-sns": "^3.812.0",
         "@aws-sdk/client-sts": "^3.812.0",
         "@aws-sdk/client-sqs": "^3.812.0",
-        "@message-queue-toolkit/core": "^21.1.1",
-        "@message-queue-toolkit/schemas": "^6.1.0",
-        "@message-queue-toolkit/sns": "22.0.1",
-        "@message-queue-toolkit/sqs": "21.0.1",
+        "@message-queue-toolkit/core": "^21.2.0",
+        "@message-queue-toolkit/schemas": "^6.2.0",
+        "@message-queue-toolkit/sns": "22.2.0",
+        "@message-queue-toolkit/sqs": "21.1.0",
         "pino": "^9.7.0",
-        "zod": "^3.24.4"
+        "zod": "^3.25.3"
     },
     "devDependencies": {
         "@biomejs/biome": "1.9.4",

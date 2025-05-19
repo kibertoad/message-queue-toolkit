@@ -26,14 +26,20 @@ export class UserConsumer extends AbstractSnsSqsConsumer<SupportedMessages, Exec
           .addConfig(UserEvents.updated, userUpdatedHandler, {})
           .build(),
         messageTypeField: 'type',
+        // Consumer creates its own queue
         creationConfig: {
           queue: {
             QueueName: UserConsumer.CONSUMED_QUEUE_NAME,
           },
         },
         locatorConfig: {
+          // Topic is created by a publisher, consumer relies on it already existing.
+          // Note that in order for this to work correctly you need to ensure that
+          // publisher gets initialized first. If consumer will initialize first,
+          // publisher may delete already existing topic and subscription and break the setup
           topicName: UserConsumer.SUBSCRIBED_TOPIC_NAME,
         },
+        // consumer creates its own subscription
         subscriptionConfig: {
           updateAttributesIfExists: false,
         },

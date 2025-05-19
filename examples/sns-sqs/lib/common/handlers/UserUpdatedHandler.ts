@@ -1,5 +1,5 @@
 import type { Either } from '@lokalise/node-core'
-import type { z } from 'zod'
+import type { z } from 'zod/v3'
 import type { USER_SCHEMA, UserEvents } from '../TestMessages.ts'
 
 let _latestData: z.infer<typeof USER_SCHEMA>
