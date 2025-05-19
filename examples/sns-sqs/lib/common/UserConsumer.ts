@@ -38,9 +38,7 @@ export class UserConsumer extends AbstractSnsSqsConsumer<SupportedMessages, Exec
           updateAttributesIfExists: false,
         },
       },
-      {
-        incrementAmount: 1,
-      },
+      {},
     )
   }
 }
