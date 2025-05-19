@@ -11,7 +11,7 @@ import type {
   SyncPublisher,
 } from '@message-queue-toolkit/core'
 import { objectToBuffer } from '@message-queue-toolkit/core'
-import type { ZodSchema } from 'zod'
+import type { ZodSchema } from 'zod/v3'
 
 import type { AMQPDependencies } from './AbstractAmqpService.ts'
 import { AbstractAmqpService } from './AbstractAmqpService.ts'

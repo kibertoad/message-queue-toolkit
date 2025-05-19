@@ -5,7 +5,7 @@ import z, {
   type ZodString,
   type ZodRawShape,
   type ZodNullable,
-} from 'zod'
+} from 'zod/v3'
 import {
   CONSUMER_BASE_EVENT_SCHEMA,
   type CONSUMER_MESSAGE_METADATA_SCHEMA,
