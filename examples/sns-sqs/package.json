@@ -8,7 +8,7 @@
         "lint:fix": "biome check --write .",
         "docker:start": "docker compose up -d",
         "docker:stop": "docker compose down",
-        "test": "vitest"
+        "test": "vitest --coverage"
     },
     "type": "module",
     "repository": {

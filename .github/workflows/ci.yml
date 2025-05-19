@@ -22,7 +22,6 @@ jobs:
           '@message-queue-toolkit/sns',
           '@message-queue-toolkit/sqs'
         ]
-      fail-fast: false
     uses: kibertoad/message-queue-toolkit/.github/workflows/ci.common.yml@main
     with:
       node_version: ${{ matrix.node-version }}
