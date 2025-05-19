@@ -30,6 +30,7 @@ export type CommonMessageDefinitionSchemaType<T extends CommonEventDefinition> =
   T['consumerSchema']
 >
 
+// IDE type inference works better for whatever reason if MetadataObject is directly shared between ReturnType and CommonEventDefinition
 export type MetadataObject = ZodObject<
   {
     schemaVersion: ZodString
