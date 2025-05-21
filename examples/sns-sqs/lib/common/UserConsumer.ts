@@ -12,6 +12,8 @@ type SupportedMessages = ConsumerMessageSchema<
 // biome-ignore lint/complexity/noBannedTypes: to be expanded later
 type ExecutionContext = {}
 
+const isTest = true
+
 export class UserConsumer extends AbstractSnsSqsConsumer<SupportedMessages, ExecutionContext> {
   public static readonly CONSUMED_QUEUE_NAME = 'user-my_service'
   public static readonly SUBSCRIBED_TOPIC_NAME = 'user'
@@ -31,6 +33,9 @@ export class UserConsumer extends AbstractSnsSqsConsumer<SupportedMessages, Exec
           queue: {
             QueueName: UserConsumer.CONSUMED_QUEUE_NAME,
           },
+        },
+        deletionConfig: {
+          deleteIfExists: isTest,
         },
         locatorConfig: {
           // Topic is created by a publisher, consumer relies on it already existing.

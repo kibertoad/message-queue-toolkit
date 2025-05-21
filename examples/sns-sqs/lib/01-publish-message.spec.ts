@@ -17,6 +17,14 @@ describe('Publish message', () => {
     await publisherManager.publish(UserConsumer.SUBSCRIBED_TOPIC_NAME, {
       type: 'user.created',
       payload: {
+        id: '456',
+        name: 'Jane Doe',
+      },
+    })
+
+    await publisherManager.publish(UserConsumer.SUBSCRIBED_TOPIC_NAME, {
+      type: 'user.created',
+      payload: {
         id: '123',
         name: 'John Doe',
       },
@@ -24,6 +32,9 @@ describe('Publish message', () => {
 
     const receivedMessage = await userConsumer.handlerSpy.waitForMessage({
       type: 'user.created',
+      payload: {
+        name: 'John Doe',
+      },
     })
 
     expect(receivedMessage.message.payload).toMatchInlineSnapshot(`
