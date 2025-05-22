@@ -23,7 +23,7 @@ describe('Test', () => {
     await testContext.dispose()
   })
 
-  it('should send and receive a message', { timeout: 10000 }, async () => {
+  it('should send and receive a message', async () => {
     // Given
     const clientId = randomUUID()
     // Use a fresh, unique topic per run to avoid stale state
@@ -62,7 +62,7 @@ describe('Test', () => {
     })
 
     // Then
-    await waitAndRetry(() => receivedMessages.length > 0, 10, 800)
+    await waitAndRetry(() => receivedMessages.length > 0)
     expect(receivedMessages).toHaveLength(1)
     expect(receivedMessages[0]?.value?.toString()).toBe(messageValue)
 
