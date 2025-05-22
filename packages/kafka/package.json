@@ -48,6 +48,7 @@
         "@lokalise/node-core": "^14.0.1",
         "@lokalise/universal-ts-utils": "^4.4.1",
         "@platformatic/kafka": "^1.1.0",
+        "node-rdkafka": "^3.4.0",
         "zod": "^3.25.7"
     },
     "peerDependencies": {
