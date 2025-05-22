@@ -1,4 +1,4 @@
-name: CI
+name: Kafka - confluentinc-kafka-javascript performance test
 
 on:
   push:
@@ -7,34 +7,32 @@ on:
   pull_request:
 
 jobs:
-  general:
-    strategy:
-      matrix:
-        node-version: [20.x, 22.x, 24.x]
-        package-name: [
-          '@message-queue-toolkit/amqp',
-          '@message-queue-toolkit/core',
-          # '@message-queue-toolkit/kafka',
-          '@message-queue-toolkit/metrics',
-          '@message-queue-toolkit/outbox-core',
-          '@message-queue-toolkit/redis-message-deduplication-store',
-          '@message-queue-toolkit/s3-payload-store',
-          '@message-queue-toolkit/schemas',
-          '@message-queue-toolkit/sns',
-          '@message-queue-toolkit/sqs'
-        ]
-    uses: kibertoad/message-queue-toolkit/.github/workflows/ci.common.yml@main
-    with:
-      node_version: ${{ matrix.node-version }}
-      package_name: ${{ matrix.package-name }}
-
-  automerge:
-    needs: [ general ]
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-      contents: write
     steps:
-      - uses: fastify/github-action-merge-dependabot@v3
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          node-version: 22.x
+
+      - name: Install
+        run: npm install --ignore-scripts
+
+      # We need to run @confluentinc/kafka-javascript scripts
+      - name: Run confluentinc kafka-javascript scripts
+        working-directory: packages/kafka
+        run: npm rebuild @confluentinc/kafka-javascript
+
+      - name: Docker start
+        run: npm run docker:start:ci -- --filter=@message-queue-toolkit/kafka
+
+      - name: Build TS
+        run: npm run build
+
+      - name: Run Tests
+        run: npm run test:ci -- --filter=@message-queue-toolkit/kafka
+
+      - name: Docker stop
+        run: npm run docker:stop:ci -- --filter=@message-queue-toolkit/kafka
