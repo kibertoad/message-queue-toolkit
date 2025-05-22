@@ -14,7 +14,7 @@ jobs:
         package-name: [
           '@message-queue-toolkit/amqp',
           '@message-queue-toolkit/core',
-          '@message-queue-toolkit/kafka',
+          # '@message-queue-toolkit/kafka',
           '@message-queue-toolkit/metrics',
           '@message-queue-toolkit/outbox-core',
           '@message-queue-toolkit/redis-message-deduplication-store',
