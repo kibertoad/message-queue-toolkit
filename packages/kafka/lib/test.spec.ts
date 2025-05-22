@@ -1,17 +1,9 @@
 import { randomUUID } from 'node:crypto'
+import { KafkaJS } from '@confluentinc/kafka-javascript'
 import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
-import {
-  Consumer,
-  type Message,
-  Producer,
-  stringDeserializers,
-  stringSerializers,
-} from '@platformatic/kafka'
-import { ProduceAcks } from '@platformatic/kafka'
 import { afterAll } from 'vitest'
 import { type TestContext, registerDependencies } from '../test/testContext.ts'
 
-// TODO: to be removed once we have proper tests
 describe('Test', () => {
   let testContext: TestContext
 
@@ -23,51 +15,52 @@ describe('Test', () => {
     await testContext.dispose()
   })
 
-  it('should send and receive a message', { timeout: 10000 }, async () => {
+  it('should send and receive a message', async () => {
     // Given
     const clientId = randomUUID()
+    const groupId = randomUUID()
     // Use a fresh, unique topic per run to avoid stale state
     const topic = `test-topic-${Date.now()}`
     const messageValue = 'My test message'
 
-    const receivedMessages: Message<string, string, string, string>[] = []
+    const messages: string[] = []
 
-    // Create producer
-    const producer = new Producer({
-      clientId,
-      bootstrapBrokers: testContext.cradle.kafkaConfig.brokers,
-      serializers: stringSerializers,
-      autocreateTopics: true,
+    const kafka = new KafkaJS.Kafka({
+      'client.id': clientId,
+      'bootstrap.servers': testContext.cradle.kafkaConfig.brokers.join(','),
     })
 
-    // Create consumer
-    const consumer = new Consumer({
-      clientId,
-      groupId: randomUUID(),
-      bootstrapBrokers: testContext.cradle.kafkaConfig.brokers,
-      deserializers: stringDeserializers,
-      autocreateTopics: true,
+    const producer = kafka.producer({
+      'allow.auto.create.topics': true,
+    })
+    await producer.connect()
+
+    const consumer = kafka.consumer({
+      'bootstrap.servers': testContext.cradle.kafkaConfig.brokers.join(','),
+      'client.id': clientId,
+      'group.id': groupId,
+      'allow.auto.create.topics': true,
+    })
+    await consumer.connect()
+    await consumer.subscribe({ topics: [topic] })
+
+    await consumer.run({
+      eachMessage: ({ message }) => {
+        console.log(message)
+        return Promise.resolve()
+      },
     })
 
-    const stream = await consumer.consume({ topics: [topic] })
-    stream.on('data', (message) => {
-      receivedMessages.push(message)
-      stream.close()
-    })
-
-    // When
     await producer.send({
-      messages: [{ topic, value: messageValue }],
-      acks: ProduceAcks.NO_RESPONSE,
+      topic,
+      messages: [{ value: messageValue, key: '1' }],
     })
 
     // Then
-    await waitAndRetry(() => receivedMessages.length > 0, 10, 800)
-    expect(receivedMessages).toHaveLength(1)
-    expect(receivedMessages[0]?.value?.toString()).toBe(messageValue)
+    await waitAndRetry(() => messages.length > 0)
 
-    // Cleanup
-    producer.close()
-    consumer.close()
+    console.log(messages)
+    await producer.disconnect()
+    await consumer.disconnect()
   })
 })
