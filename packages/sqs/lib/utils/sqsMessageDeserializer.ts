@@ -5,7 +5,7 @@ import type {
   ParseMessageResult,
 } from '@message-queue-toolkit/core'
 import { parseMessage } from '@message-queue-toolkit/core'
-import type { ZodType } from 'zod'
+import type { ZodType } from 'zod/v3'
 
 import type { SQSMessage } from '../types/MessageTypes.ts'
 

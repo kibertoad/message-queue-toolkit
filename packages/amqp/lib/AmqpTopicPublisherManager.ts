@@ -4,7 +4,7 @@ import type {
   MessageSchemaType,
   PublisherMessageMetadataType,
 } from '@message-queue-toolkit/core'
-import type z from 'zod'
+import type z from 'zod/v3'
 
 import type { AMQPDependencies, AMQPTopicPublisherConfig } from './AbstractAmqpService.ts'
 import type {

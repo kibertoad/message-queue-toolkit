@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod/v3'
 
 /**
  * When the payload is too large to be sent in a single message, it is offloaded to a storage service and a pointer to the offloaded payload is sent instead.

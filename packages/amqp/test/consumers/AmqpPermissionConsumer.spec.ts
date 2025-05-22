@@ -7,7 +7,7 @@ import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ZodError } from 'zod'
+import { ZodError } from 'zod/v3'
 
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver.ts'
 import { FakeLogger } from '../fakes/FakeLogger.ts'

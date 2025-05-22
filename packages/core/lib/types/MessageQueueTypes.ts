@@ -1,5 +1,5 @@
 import type { CommonLogger, TransactionObservabilityManager } from '@lokalise/node-core'
-import type { ZodSchema } from 'zod'
+import type { ZodSchema } from 'zod/v3'
 
 import type { PublicHandlerSpy } from '../queues/HandlerSpy.ts'
 

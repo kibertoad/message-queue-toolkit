@@ -8,7 +8,7 @@ import type {
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { SnsAwareEventDefinition } from '@message-queue-toolkit/schemas'
-import type z from 'zod'
+import type z from 'zod/v3'
 
 import type {
   AbstractSnsPublisher,
