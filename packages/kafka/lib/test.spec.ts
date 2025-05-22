@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { KafkaJS } from '@confluentinc/kafka-javascript'
 import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
-import { afterAll } from 'vitest'
 import { type TestContext, registerDependencies } from '../test/testContext.ts'
 
 describe('Test', () => {
@@ -20,35 +19,40 @@ describe('Test', () => {
     const clientId = randomUUID()
     const groupId = randomUUID()
     // Use a fresh, unique topic per run to avoid stale state
-    const topic = `test-topic-${Date.now()}`
+    const topic = `admin-test-topic-${Date.now()}`
     const messageValue = 'My test message'
-
-    const messages: string[] = []
 
     const kafka = new KafkaJS.Kafka({
       'client.id': clientId,
       'bootstrap.servers': testContext.cradle.kafkaConfig.brokers.join(','),
     })
 
-    const producer = kafka.producer({
-      'allow.auto.create.topics': true,
+    // Topics can be created from producers, but as we will first connect a consumer, we need to create the topic first
+    const admin = kafka.admin()
+    await admin.connect()
+    await admin.createTopics({
+      topics: [{ topic }],
     })
-    await producer.connect()
 
-    const consumer = kafka.consumer({
-      'group.id': groupId,
-      'allow.auto.create.topics': true,
-    })
+    const messages: string[] = []
+
+    const consumer = kafka.consumer({ 'group.id': groupId })
     await consumer.connect()
-    await consumer.subscribe({ topics: [topic] })
+    await consumer.subscribe({ topic })
 
     await consumer.run({
       eachMessage: ({ message }) => {
-        console.log(message)
+        const messageString = message.value?.toString()
+        if (messageString) messages.push(messageString)
         return Promise.resolve()
       },
     })
+    // Wait for the consumer to be assigned partitions
+    await waitAndRetry(() => consumer.assignment().length > 0, 100, 10)
 
+    // When
+    const producer = kafka.producer()
+    await producer.connect()
     await producer.send({
       topic,
       messages: [{ value: messageValue }],
@@ -57,8 +61,12 @@ describe('Test', () => {
     // Then
     await waitAndRetry(() => messages.length > 0)
 
-    console.log(messages)
-    await producer.disconnect()
+    // Cleaning up before checks to avoid stale state
     await consumer.disconnect()
+    await producer.disconnect()
+    await admin.disconnect()
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0]).toEqual(messageValue)
   })
 })
