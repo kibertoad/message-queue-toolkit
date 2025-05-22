@@ -32,7 +32,8 @@ jobs:
         run: npm run build
 
       - name: Run Tests
-        run: npm run test:ci -- --filter=@message-queue-toolkit/kafka
+        working-directory: packages/kafka
+        run: npm run test:ci
 
       - name: Docker stop
         run: npm run docker:stop:ci -- --filter=@message-queue-toolkit/kafka
