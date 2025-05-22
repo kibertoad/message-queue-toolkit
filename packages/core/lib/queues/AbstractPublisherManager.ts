@@ -1,4 +1,4 @@
-import type { TypeOf, z } from 'zod'
+import type { TypeOf, z } from 'zod/v3'
 
 import type { EventRegistry } from '../events/EventRegistry.ts'
 import type { PublisherBaseEventType } from '../events/baseEventSchemas.ts'
@@ -153,6 +153,23 @@ export abstract class AbstractPublisherManager<
           ...configOverrides,
         },
       )
+    }
+  }
+
+  async initRegisteredPublishers(publishersToInit?: EventTargets[]): Promise<void> {
+    if (publishersToInit) {
+      for (const eventTarget of publishersToInit) {
+        const resolvedPublisher = this.targetToPublisherMap[eventTarget]
+        if (!resolvedPublisher) {
+          throw new Error(`Unsupported publisher ${eventTarget}`)
+        }
+        await resolvedPublisher.init()
+      }
+      return
+    }
+
+    for (const eventTarget in this.targetToPublisherMap) {
+      await this.targetToPublisherMap[eventTarget].init()
     }
   }
 

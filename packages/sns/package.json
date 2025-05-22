@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/sns",
-    "version": "22.0.0",
+    "version": "22.2.0",
     "private": false,
     "license": "MIT",
     "description": "SNS adapter for message-queue-toolkit",
@@ -28,22 +28,22 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^13.3.0",
-        "sqs-consumer": "^11.1.0",
-        "zod": "^3.23.8"
+        "@lokalise/node-core": "^14.0.1",
+        "sqs-consumer": "^12.0.0",
+        "zod": "^3.25.7"
     },
     "peerDependencies": {
         "@aws-sdk/client-sns": "^3.632.0",
         "@aws-sdk/client-sqs": "^3.632.0",
         "@aws-sdk/client-sts": "^3.632.0",
-        "@message-queue-toolkit/core": ">=21.0.0",
-        "@message-queue-toolkit/schemas": ">=6.0.0",
-        "@message-queue-toolkit/sqs": ">=21.0.0"
+        "@message-queue-toolkit/core": ">=21.2.0",
+        "@message-queue-toolkit/schemas": ">=6.2.0",
+        "@message-queue-toolkit/sqs": ">=21.1.0"
     },
     "devDependencies": {
-        "@aws-sdk/client-s3": "^3.670.0",
-        "@aws-sdk/client-sns": "^3.670.0",
-        "@aws-sdk/client-sqs": "^3.670.0",
+        "@aws-sdk/client-s3": "^3.812.0",
+        "@aws-sdk/client-sns": "^3.812.0",
+        "@aws-sdk/client-sqs": "^3.812.0",
         "@biomejs/biome": "1.9.4",
         "@lokalise/biome-config": "^2.0.0",
         "@lokalise/tsconfig": "^1.3.0",
@@ -51,14 +51,14 @@
         "@message-queue-toolkit/redis-message-deduplication-store": "*",
         "@message-queue-toolkit/s3-payload-store": "*",
         "@message-queue-toolkit/sqs": "*",
-        "@types/node": "^22.7.5",
-        "@vitest/coverage-v8": "^3.0.7",
+        "@types/node": "^22.15.19",
+        "@vitest/coverage-v8": "^3.1.4",
         "awilix": "^12.0.1",
-        "awilix-manager": "^6.0.0",
-        "ioredis": "^5.3.2",
+        "awilix-manager": "^6.1.0",
+        "ioredis": "^5.6.1",
         "rimraf": "^6.0.1",
-        "typescript": "^5.7.2",
-        "vitest": "^3.0.7"
+        "typescript": "^5.8.3",
+        "vitest": "^3.1.4"
     },
     "homepage": "https://github.com/kibertoad/message-queue-toolkit",
     "repository": {

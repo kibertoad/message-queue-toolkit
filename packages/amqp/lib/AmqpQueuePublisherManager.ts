@@ -9,7 +9,7 @@ import type {
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { AmqpAwareEventDefinition } from '@message-queue-toolkit/schemas'
-import type z from 'zod'
+import type z from 'zod/v3'
 
 import type { AMQPPublisherOptions, AbstractAmqpPublisher } from './AbstractAmqpPublisher.ts'
 import type {
@@ -129,18 +129,6 @@ export class AmqpQueuePublisherManager<
       ...this.newPublisherOptions,
       queueOptions: {},
       queueName,
-    }
-  }
-
-  async initRegisteredPublishers(publishers?: string[]): Promise<void> {
-    for (const eventTarget in this.targetToPublisherMap) {
-      const queueName = eventTarget as NonNullable<SupportedEventDefinitions[number]['queueName']>
-
-      if (publishers?.length && !publishers.includes(queueName)) {
-        continue
-      }
-
-      await this.targetToPublisherMap[queueName].init()
     }
   }
 

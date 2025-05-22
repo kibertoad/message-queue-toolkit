@@ -1,5 +1,5 @@
 import type { CommonLogger, TransactionObservabilityManager } from '@lokalise/node-core'
-import type { ZodSchema } from 'zod'
+import type { ZodSchema } from 'zod/v3'
 
 import type { PublicHandlerSpy } from '../queues/HandlerSpy.ts'
 
@@ -25,11 +25,13 @@ export type MessageProcessingResultStatus = MessageProcessingResult['status']
 export interface SyncPublisher<MessagePayloadType extends object, MessageOptions> {
   handlerSpy: PublicHandlerSpy<MessagePayloadType>
   publish(message: MessagePayloadType, options: MessageOptions): void
+  init(): Promise<unknown>
 }
 
 export interface AsyncPublisher<MessagePayloadType extends object, MessageOptions> {
   handlerSpy: PublicHandlerSpy<MessagePayloadType>
   publish(message: MessagePayloadType, options: MessageOptions): Promise<unknown>
+  init(): Promise<unknown>
 }
 
 export type { TransactionObservabilityManager }

@@ -6,6 +6,7 @@ export default defineConfig({
     globals: true,
     watch: false,
     restoreMocks: true,
+    pool: 'threads',
     coverage: {
       provider: 'v8',
       include: ['lib/**/*.ts'],

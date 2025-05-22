@@ -1,6 +1,6 @@
 import type { Either } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
-import type { ZodSchema } from 'zod'
+import type { ZodSchema } from 'zod/v3'
 
 export type MessageSchemaContainerOptions<MessagePayloadSchemas extends object> = {
   messageDefinitions: readonly CommonEventDefinition[]
