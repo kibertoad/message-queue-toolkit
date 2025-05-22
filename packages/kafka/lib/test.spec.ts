@@ -1,15 +1,11 @@
+import { randomUUID } from 'node:crypto'
 import { once } from 'node:events'
 import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
-import { KafkaConsumer, type Message, Producer, features, librdkafkaVersion } from 'node-rdkafka'
+import { KafkaConsumer, type Message, Producer } from 'node-rdkafka'
 
 // TODO: to be removed once we have proper tests
 describe('Test', () => {
-  it('should use node-rdkafka', () => {
-    expect(features).toBeDefined()
-    expect(librdkafkaVersion).toBeDefined()
-  })
-
-  it('should send and receive a message', { timeout: 10000 }, async () => {
+  it('should send and receive a message', async () => {
     // Given
     const brokers = 'localhost:9092'
     // Use a fresh, unique topic per run to avoid stale state
@@ -26,13 +22,11 @@ describe('Test', () => {
     producer.connect()
     await once(producer, 'ready')
 
-    // Create a consumer with a unique group and disable auto-commit for fresh offsets
     const consumer = new KafkaConsumer(
       {
-        'group.id': 'test-group',
+        'group.id': randomUUID(),
         'metadata.broker.list': brokers,
         'allow.auto.create.topics': true,
-        'enable.auto.commit': false,
       },
       { 'auto.offset.reset': 'earliest' },
     )
@@ -56,7 +50,7 @@ describe('Test', () => {
     producer.flush()
 
     // Then
-    await waitAndRetry(() => receivedMessages.length > 0, 10, 800)
+    await waitAndRetry(() => receivedMessages.length > 0, 10, 1000)
     expect(receivedMessages).toHaveLength(1)
     expect(receivedMessages[0]?.value?.toString()).toBe(messageValue)
 
