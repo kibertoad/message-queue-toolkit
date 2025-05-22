@@ -36,8 +36,6 @@ describe('Test', () => {
     await producer.connect()
 
     const consumer = kafka.consumer({
-      'bootstrap.servers': testContext.cradle.kafkaConfig.brokers.join(','),
-      'client.id': clientId,
       'group.id': groupId,
       'allow.auto.create.topics': true,
     })
@@ -53,7 +51,7 @@ describe('Test', () => {
 
     await producer.send({
       topic,
-      messages: [{ value: messageValue, key: '1' }],
+      messages: [{ value: messageValue }],
     })
 
     // Then
