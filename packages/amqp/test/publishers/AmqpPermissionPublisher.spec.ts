@@ -4,7 +4,7 @@ import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
 import { Lifetime, asClass, asFunction } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { ZodError } from 'zod'
+import { ZodError } from 'zod/v3'
 
 import { deserializeAmqpMessage } from '../../lib/amqpMessageDeserializer.ts'
 import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer.ts'

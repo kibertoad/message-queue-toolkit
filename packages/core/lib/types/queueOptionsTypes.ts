@@ -1,5 +1,5 @@
 import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
-import type { ZodSchema } from 'zod'
+import type { ZodSchema } from 'zod/v3'
 
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes.ts'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer.ts'

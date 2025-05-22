@@ -1,4 +1,4 @@
-import type { TypeOf, z } from 'zod'
+import type { TypeOf, z } from 'zod/v3'
 
 import type { EventRegistry } from '../events/EventRegistry.ts'
 import type { PublisherBaseEventType } from '../events/baseEventSchemas.ts'

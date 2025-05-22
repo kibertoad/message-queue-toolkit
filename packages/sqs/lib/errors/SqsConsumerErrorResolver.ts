@@ -3,7 +3,7 @@ import { types } from 'node:util'
 import type { ErrorResolver } from '@lokalise/node-core'
 import { InternalError, isStandardizedError } from '@lokalise/node-core'
 import { MessageInvalidFormatError, MessageValidationError } from '@message-queue-toolkit/core'
-import { ZodError } from 'zod'
+import { ZodError } from 'zod/v3'
 
 export class SqsConsumerErrorResolver implements ErrorResolver {
   public processError(error: unknown): InternalError {

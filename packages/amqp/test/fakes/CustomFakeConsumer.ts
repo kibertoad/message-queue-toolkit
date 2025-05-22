@@ -1,6 +1,6 @@
 import type { PublisherBaseMessageType } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
-import type { ZodSchema } from 'zod'
+import type { ZodSchema } from 'zod/v3'
 
 import { AbstractAmqpQueueConsumer } from '../../lib/AbstractAmqpQueueConsumer.ts'
 import type { AMQPConsumerDependencies } from '../../lib/AbstractAmqpService.ts'

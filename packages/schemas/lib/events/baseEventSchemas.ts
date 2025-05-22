@@ -1,5 +1,5 @@
-import type { ZodLiteral, ZodObject, ZodOptional, ZodRawShape, ZodString } from 'zod'
-import { z } from 'zod'
+import type { ZodLiteral, ZodObject, ZodOptional, ZodRawShape, ZodString } from 'zod/v3'
+import { z } from 'zod/v3'
 import { MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA } from '../messages/messageDeduplicationSchemas.ts'
 
 // External message metadata that describe the context in which the message was created, primarily used for debugging purposes
