@@ -20,14 +20,16 @@ jobs:
       - name: Install
         run: npm install --ignore-scripts
 
-      - name: @confluentinc/kafka-javascript
+      # We need to run @confluentinc/kafka-javascript scripts
+      - name: Run confluentinc kafka-javascript scripts
+        working-directory: packages/kafka
         run: npm rebuild @confluentinc/kafka-javascript
-
-      - name: Build TS
-        run: npm run build -- --filter=@message-queue-toolkit/kafka
 
       - name: Docker start
         run: npm run docker:start:ci -- --filter=@message-queue-toolkit/kafka
+
+      - name: Build TS
+        run: npm run build
 
       - name: Run Tests
         run: npm run test:ci -- --filter=@message-queue-toolkit/kafka
