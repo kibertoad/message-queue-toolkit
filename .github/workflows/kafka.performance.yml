@@ -1,0 +1,36 @@
+name: Kafka - confluentinc-kafka-javascript performance test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Install
+        run: npm install --ignore-scripts
+
+      - name: @confluentinc/kafka-javascript
+        run: npm rebuild @confluentinc/kafka-javascript
+
+      - name: Build TS
+        run: npm run build -- --filter=@message-queue-toolkit/kafka
+
+      - name: Docker start
+        run: npm run docker:start:ci -- --filter=@message-queue-toolkit/kafka
+
+      - name: Run Tests
+        run: npm run test:ci -- --filter=@message-queue-toolkit/kafka
+
+      - name: Docker stop
+        run: npm run docker:stop:ci -- --filter=@message-queue-toolkit/kafka
