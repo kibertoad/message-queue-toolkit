@@ -28,7 +28,7 @@ jobs:
 
       - name: Run Tests
         working-directory: packages/kafka
-        run: npm run test:ci
+        run: npm run test:coverage
 
       - name: Docker stop
         run: npm run docker:stop:ci -- --filter=@message-queue-toolkit/kafka
