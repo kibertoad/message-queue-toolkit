@@ -20,7 +20,7 @@ jobs:
       - name: Install
         run: npm install --ignore-scripts
 
-      - name: @confluentinc/kafka-javascript
+      - name: @node-rdkafka rebuild
         run: npm rebuild @confluentinc/kafka-javascript
 
       - name: Build TS
