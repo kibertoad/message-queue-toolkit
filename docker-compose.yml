@@ -67,7 +67,7 @@ services:
       - kafka
     environment:
       DYNAMIC_CONFIG_ENABLED: 'true'
-      KAFKA_CLUSTERS_0_NAME: test
+      KAFKA_CLUSTERS_0_NAME: Local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
     restart: on-failure
 
