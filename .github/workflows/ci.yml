@@ -14,7 +14,6 @@ jobs:
         package-name: [
           '@message-queue-toolkit/amqp',
           '@message-queue-toolkit/core',
-          '@message-queue-toolkit/kafka',
           '@message-queue-toolkit/metrics',
           '@message-queue-toolkit/outbox-core',
           '@message-queue-toolkit/redis-message-deduplication-store',
@@ -27,6 +26,15 @@ jobs:
     with:
       node_version: ${{ matrix.node-version }}
       package_name: ${{ matrix.package-name }}
+
+  kafka:
+    strategy:
+      matrix:
+        node-version: [ 22.x, 24.x ]
+    uses: kibertoad/message-queue-toolkit/.github/workflows/ci.common.yml@main
+    with:
+      package_name: '@message-queue-toolkit/kafka'
+      node_version: ${{ matrix.node-version }}
 
   automerge:
     needs: [ general ]
