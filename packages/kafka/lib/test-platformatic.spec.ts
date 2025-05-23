@@ -3,16 +3,14 @@ import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
 import {
   Consumer,
   type Message,
+  ProduceAcks,
   Producer,
   stringDeserializers,
-  stringSerializers,
 } from '@platformatic/kafka'
-import { ProduceAcks } from '@platformatic/kafka'
-import { afterAll } from 'vitest'
+import { stringSerializers } from '@platformatic/kafka'
 import { type TestContext, registerDependencies } from '../test/testContext.ts'
 
-// TODO: to be removed once we have proper tests
-describe('Test', () => {
+describe('Test platformatic-kafka', () => {
   let testContext: TestContext
 
   beforeAll(async () => {
@@ -23,7 +21,7 @@ describe('Test', () => {
     await testContext.dispose()
   })
 
-  it('should send and receive a message', { timeout: 10000 }, async () => {
+  it('should send and receive a message', async () => {
     // Given
     const clientId = randomUUID()
     // Use a fresh, unique topic per run to avoid stale state
@@ -62,12 +60,13 @@ describe('Test', () => {
     })
 
     // Then
-    await waitAndRetry(() => receivedMessages.length > 0, 10, 800)
-    expect(receivedMessages).toHaveLength(1)
-    expect(receivedMessages[0]?.value?.toString()).toBe(messageValue)
+    await waitAndRetry(() => receivedMessages.length > 0)
 
     // Cleanup
     producer.close()
     consumer.close()
+
+    expect(receivedMessages).toHaveLength(1)
+    expect(receivedMessages[0]?.value?.toString()).toBe(messageValue)
   })
 })
