@@ -23,6 +23,10 @@ jobs:
       - name: Install
         run: npm install --ignore-scripts
 
+      - name: Run @confluentic/kafka-javascript scripts
+        if: ${{ inputs.package_name == '@message-queue-toolkit/kafka' }}
+        run: npm rebuild rebuild @confluentinc/kafka-javascript
+
       - name: Build TS
         run: npm run build -- --filter=${{ inputs.package_name }}
 
