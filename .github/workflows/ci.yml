@@ -27,17 +27,8 @@ jobs:
       node_version: ${{ matrix.node-version }}
       package_name: ${{ matrix.package-name }}
 
-  kafka:
-    strategy:
-      matrix:
-        node-version: [22.x, 24.x]
-    uses: kibertoad/message-queue-toolkit/.github/workflows/ci.common.yml@main
-    with:
-      node_version: ${{ matrix.node-version }}
-      package_name: '@message-queue-toolkit/kafka'
-
   automerge:
-    needs: [ general, kafka ]
+    needs: [ general ]
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
