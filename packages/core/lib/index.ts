@@ -42,7 +42,7 @@ export type {
   Prehandler,
   PreHandlingOutputs,
 } from './queues/HandlerContainer.ts'
-export { HandlerSpy } from './queues/HandlerSpy.ts'
+export { HandlerSpy, resolveHandlerSpy } from './queues/HandlerSpy.ts'
 export type { SpyResultInput, HandlerSpyParams, PublicHandlerSpy } from './queues/HandlerSpy.ts'
 
 export { MessageSchemaContainer } from './queues/MessageSchemaContainer.ts'
