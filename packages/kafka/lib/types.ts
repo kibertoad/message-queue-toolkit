@@ -8,4 +8,4 @@ export type KafkaConfig = {
 
 export type KafkaTopicCreatorLocator = { topic: string }
 
-export type KafkaDependencies = QueueDependencies
+export type KafkaDependencies = Omit<QueueDependencies, 'messageMetricsManager'>
