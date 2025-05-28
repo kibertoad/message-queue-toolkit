@@ -5,6 +5,7 @@ export type {
   TransactionObservabilityManager,
   SchemaMap,
   ExtraParams,
+  MessageProcessingResult,
 } from './types/MessageQueueTypes.ts'
 
 export {
@@ -42,8 +43,13 @@ export type {
   Prehandler,
   PreHandlingOutputs,
 } from './queues/HandlerContainer.ts'
-export { HandlerSpy, resolveHandlerSpy } from './queues/HandlerSpy.ts'
-export type { SpyResultInput, HandlerSpyParams, PublicHandlerSpy } from './queues/HandlerSpy.ts'
+export {
+  HandlerSpy,
+  resolveHandlerSpy,
+  type SpyResultInput,
+  type HandlerSpyParams,
+  type PublicHandlerSpy,
+} from './queues/HandlerSpy.ts'
 
 export { MessageSchemaContainer } from './queues/MessageSchemaContainer.ts'
 export type { MessageSchemaContainerOptions } from './queues/MessageSchemaContainer.ts'
