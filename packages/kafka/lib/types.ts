@@ -1,0 +1,11 @@
+import type { QueueDependencies } from '@message-queue-toolkit/core'
+import type { ConnectionOptions } from '@platformatic/kafka'
+
+export type KafkaConfig = {
+  brokers: string[]
+  clientId: string
+} & ConnectionOptions
+
+export type KafkaTopicCreatorLocator = { topic: string }
+
+export type KafkaDependencies = QueueDependencies
