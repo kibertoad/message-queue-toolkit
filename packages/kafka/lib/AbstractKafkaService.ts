@@ -5,7 +5,7 @@ import type { KafkaConfig, KafkaDependencies, KafkaTopicCreatorLocator } from '.
 export type BaseKafkaOptions = {
   kafka: KafkaConfig
 } & CommonQueueOptions & // TODO: what should we do with this message type field and others?
-  Omit<BaseOptions, keyof KafkaConfig> // Exclude properties that are already in KafkaConfig
+  Omit<BaseOptions, keyof KafkaConfig | 'autocreateTopics'> // Exclude properties that are already in KafkaConfig
 
 export abstract class AbstractKafkaService<
   MessagePayloadType extends object,
@@ -18,6 +18,13 @@ export abstract class AbstractKafkaService<
   KafkaTopicCreatorLocator,
   KafkaOptions
 > {
+  protected readonly options: KafkaOptions
+
+  constructor(dependencies: KafkaDependencies, options: KafkaOptions) {
+    super(dependencies, options)
+    this.options = options
+  }
+
   public override close(): Promise<void> {
     this.isInitted = false
     return Promise.resolve()

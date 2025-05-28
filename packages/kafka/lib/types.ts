@@ -2,7 +2,7 @@ import type { QueueDependencies } from '@message-queue-toolkit/core'
 import type { ConnectionOptions } from '@platformatic/kafka'
 
 export type KafkaConfig = {
-  brokers: string[]
+  bootstrapBrokers: string[]
   clientId: string
 } & ConnectionOptions
 
