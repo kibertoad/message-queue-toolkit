@@ -69,17 +69,6 @@ export abstract class AbstractKafkaPublisher<MessagePayload extends object>
     try {
       const parsedMessage = messageSchemaResult.result.parse(message)
 
-      if (this.options.logMessages) {
-        this.logger.debug(
-          {
-            type: this.resolveMessageType(parsedMessage),
-            message: stringValueSerializer(parsedMessage),
-            topics: this.topics,
-          },
-          'Kafka emitting message',
-        )
-      }
-
       // biome-ignore lint/style/noNonNullAssertion: Should always exist due to lazy init
       await this.producer!.send({
         messages: this.topics.map((topic) => ({ ...options, topic, value: parsedMessage })),

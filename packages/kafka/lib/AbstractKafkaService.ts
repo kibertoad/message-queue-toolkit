@@ -90,7 +90,13 @@ export abstract class AbstractKafkaService<
 
     if (this.options.logMessages) {
       this.logger.debug(
-        { message: stringValueSerializer(message), topics, processingResult },
+        {
+          message: stringValueSerializer(message),
+          topics,
+          processingResult,
+          messageId,
+          messageType: this.resolveMessageType(message),
+        },
         `Finished processing message ${messageId ?? 'unknown'}`,
       )
     }
