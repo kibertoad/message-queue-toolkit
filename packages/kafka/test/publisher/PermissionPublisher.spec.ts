@@ -103,6 +103,23 @@ describe('PermissionPublisher - init', () => {
   describe('publish', () => {
     const topics = [randomUUID(), randomUUID()]
 
+    it('should fail if there is no schema for message', async () => {
+      // Given
+      publisher = new PermissionPublisher(testContext.cradle, {
+        creationConfig: { topic: topics[0]! },
+      })
+
+      // When
+      const message = {
+        id: '1',
+        type: 'bad' as any, // Intentionally bad type to force the error
+        permissions: [],
+      } satisfies PermissionAdded
+      await expect(publisher.publish(message)).rejects.toThrowErrorMatchingInlineSnapshot(
+        '[Error: Unsupported message type: bad]',
+      )
+    })
+
     it('should fail if message does not match any schema', async () => {
       // Given
       publisher = new PermissionPublisher(testContext.cradle, {

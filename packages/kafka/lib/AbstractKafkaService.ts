@@ -107,7 +107,7 @@ export abstract class AbstractKafkaService<
           messageId,
           messageType: this.resolveMessageType(message),
         },
-        `Finished processing message ${messageId ?? 'unknown'}`,
+        `Finished processing message ${messageId}`,
       )
     }
   }
