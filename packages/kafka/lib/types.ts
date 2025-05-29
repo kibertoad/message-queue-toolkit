@@ -6,6 +6,8 @@ export type KafkaConfig = {
   clientId: string
 } & ConnectionOptions
 
-export type KafkaTopicCreatorLocator = { topic: string }
+export type KafkaTopicCreatorLocator =
+  | { topic: string; topics?: never }
+  | { topic?: never; topics: string[] }
 
 export type KafkaDependencies = Omit<QueueDependencies, 'messageMetricsManager'>

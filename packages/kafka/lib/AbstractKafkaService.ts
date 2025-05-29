@@ -34,6 +34,8 @@ export abstract class AbstractKafkaService<
   protected readonly errorReporter: ErrorReporter
   protected readonly logger: CommonLogger
 
+  protected readonly topics: string[]
+  protected readonly autocreateTopics: boolean
   protected readonly options: KafkaOptions
   protected readonly _handlerSpy?: HandlerSpy<MessagePayload>
 
@@ -42,6 +44,16 @@ export abstract class AbstractKafkaService<
     this.errorReporter = dependencies.errorReporter
     this.options = options
 
+    const { creationConfig, locatorConfig } = options
+    const topic =
+      creationConfig?.topics ??
+      creationConfig?.topic ??
+      locatorConfig?.topics ??
+      locatorConfig?.topic
+    if (!topic) throw new Error('Topic must be defined in creationConfig or locatorConfig')
+
+    this.topics = Array.isArray(topic) ? topic : [topic]
+    this.autocreateTopics = !!creationConfig
     this._handlerSpy = resolveHandlerSpy(options)
   }
 
@@ -69,16 +81,16 @@ export abstract class AbstractKafkaService<
   protected handleMessageProcessed(params: {
     message: MessagePayload | null
     processingResult: MessageProcessingResult
-    topicName: string
+    topics: string | string[]
   }) {
-    const { message, processingResult, topicName } = params
+    const { message, processingResult, topics } = params
     const messageId = this.resolveMessageId(message)
 
     this._handlerSpy?.addProcessedMessage({ message, processingResult }, messageId)
 
     if (this.options.logMessages) {
       this.logger.debug(
-        { message: stringValueSerializer(message), topicName, processingResult },
+        { message: stringValueSerializer(message), topics, processingResult },
         `Finished processing message ${messageId ?? 'unknown'}`,
       )
     }

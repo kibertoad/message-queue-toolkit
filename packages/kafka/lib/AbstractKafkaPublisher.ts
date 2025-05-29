@@ -25,18 +25,11 @@ export abstract class AbstractKafkaPublisher<MessagePayload extends object>
   implements AsyncPublisher<MessagePayload, KafkaMessageOptions>
 {
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayload>
-  private readonly topic: string
-  private readonly autocreateTopics: boolean
   private producer?: Producer<string, object, string, object>
 
   constructor(dependencies: KafkaDependencies, options: KafkaPublisherOptions<MessagePayload>) {
     super(dependencies, options)
 
-    const topic = this.options.creationConfig?.topic ?? this.options.locatorConfig?.topic
-    if (!topic) throw new Error('Topic must be defined in creationConfig or locatorConfig')
-
-    this.topic = topic
-    this.autocreateTopics = !!this.options.creationConfig
     this.messageSchemaContainer = new MessageSchemaContainer<MessagePayload>({
       messageSchemas: this.options.messageSchemas,
       messageDefinitions: [],
@@ -81,20 +74,20 @@ export abstract class AbstractKafkaPublisher<MessagePayload extends object>
           {
             type: this.resolveMessageType(parsedMessage),
             message: stringValueSerializer(parsedMessage),
-            topic: this.topic,
+            topics: this.topics,
           },
           'Kafka emitting message',
         )
       }
 
       await this.producer?.send({
-        messages: [{ ...options, topic: this.topic, value: parsedMessage }],
+        messages: this.topics.map((topic) => ({ ...options, topic, value: parsedMessage })),
       })
 
       this.handleMessageProcessed({
         message: parsedMessage,
         processingResult: { status: 'published' },
-        topicName: this.topic,
+        topics: this.topics,
       })
     } catch (e) {
       const error = e as Error
@@ -103,7 +96,7 @@ export abstract class AbstractKafkaPublisher<MessagePayload extends object>
         errorCode: 'KAFKA_PUBLISH_ERROR',
         cause: error,
         details: {
-          topic: this.topic,
+          topics: this.topics,
           publisher: this.constructor.name,
           message: stringValueSerializer(message),
         },
