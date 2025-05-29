@@ -38,7 +38,7 @@ export abstract class AbstractKafkaPublisher<MessagePayload extends object>
   }
 
   init(): Promise<void> {
-    if (!this.producer) return Promise.resolve()
+    if (this.producer) return Promise.resolve()
 
     this.producer = new Producer({
       ...this.options.kafka,
@@ -60,7 +60,7 @@ export abstract class AbstractKafkaPublisher<MessagePayload extends object>
     this.producer = undefined
   }
 
-  async publish(message: MessagePayload, options: KafkaMessageOptions): Promise<void> {
+  async publish(message: MessagePayload, options?: KafkaMessageOptions): Promise<void> {
     const messageSchemaResult = this.messageSchemaContainer.resolveSchema(message)
     if (messageSchemaResult.error) throw messageSchemaResult.error
 
@@ -80,7 +80,8 @@ export abstract class AbstractKafkaPublisher<MessagePayload extends object>
         )
       }
 
-      await this.producer?.send({
+      // biome-ignore lint/style/noNonNullAssertion: Should always exist due to lazy init
+      await this.producer!.send({
         messages: this.topics.map((topic) => ({ ...options, topic, value: parsedMessage })),
       })
 

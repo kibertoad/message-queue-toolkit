@@ -8,13 +8,13 @@ import {
   stringDeserializers,
 } from '@platformatic/kafka'
 import { stringSerializers } from '@platformatic/kafka'
-import { type TestContext, registerDependencies } from '../test/utils/testContext.ts'
+import { type TestContext, createTestContext } from '../test/utils/testContext.ts'
 
 describe('Test platformatic-kafka', () => {
   let testContext: TestContext
 
   beforeAll(async () => {
-    testContext = await registerDependencies()
+    testContext = await createTestContext()
   })
 
   afterAll(async () => {

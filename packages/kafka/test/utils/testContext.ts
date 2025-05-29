@@ -1,4 +1,6 @@
-import type { CommonLogger } from '@lokalise/node-core'
+import { randomUUID } from 'node:crypto'
+import type { CommonLogger, ErrorReporter } from '@lokalise/node-core'
+import { Admin } from '@platformatic/kafka'
 import {
   type AwilixContainer,
   Lifetime,
@@ -7,8 +9,7 @@ import {
   createContainer,
 } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
-import type {KafkaConfig} from "../../lib/index.js";
-import {randomUUID} from "node:crypto";
+import type { KafkaConfig, KafkaDependencies } from '../../lib/index.js'
 
 const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -16,13 +17,13 @@ type DiConfig = NameAndRegistrationPair<Dependencies>
 
 export type TestContext = AwilixContainer<Dependencies>
 
-export interface Dependencies {
+type Dependencies = {
   awilixManager: AwilixManager
-  logger: CommonLogger
   kafkaConfig: KafkaConfig
-}
+  kafkaAdmin: Admin
+} & KafkaDependencies
 
-export async function registerDependencies(): Promise<TestContext> {
+export const createTestContext = async (): Promise<TestContext> => {
   const diContainer = createContainer({
     injectionMode: 'PROXY',
   })
@@ -39,15 +40,33 @@ export async function registerDependencies(): Promise<TestContext> {
   return diContainer
 }
 
-const TEST_KAFKA_CONFIG: KafkaConfig = {
+export const getKafkaConfig = (): KafkaConfig => ({
   bootstrapBrokers: ['localhost:9092'],
   clientId: randomUUID(),
-}
+})
+
 // @ts-expect-error
 const TEST_LOGGER: CommonLogger = console
 
 const resolveDIConfig = (awilixManager: AwilixManager): DiConfig => ({
   awilixManager: asFunction(() => awilixManager, SINGLETON_CONFIG),
+  kafkaConfig: asFunction(getKafkaConfig, SINGLETON_CONFIG),
+  kafkaAdmin: asFunction(
+    ({ kafkaConfig }) =>
+      new Admin({
+        clientId: randomUUID(),
+        bootstrapBrokers: kafkaConfig.bootstrapBrokers,
+      }),
+    {
+      lifetime: Lifetime.SINGLETON,
+      asyncDispose: 'close',
+    },
+  ),
   logger: asFunction(() => TEST_LOGGER, SINGLETON_CONFIG),
-  kafkaConfig: asFunction(() => TEST_KAFKA_CONFIG, SINGLETON_CONFIG),
+  errorReporter: asFunction(
+    () =>
+      ({
+        report: () => {},
+      }) satisfies ErrorReporter,
+  ),
 })

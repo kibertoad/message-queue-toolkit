@@ -2,13 +2,13 @@ import { randomUUID } from 'node:crypto'
 import { KafkaJS } from '@confluentinc/kafka-javascript'
 import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
 import {} from '@platformatic/kafka'
-import { type TestContext, registerDependencies } from '../test/utils/testContext.ts'
+import { type TestContext, createTestContext } from '../test/utils/testContext.ts'
 
 describe('Test confluentic-kafka', () => {
   let testContext: TestContext
 
   beforeAll(async () => {
-    testContext = await registerDependencies()
+    testContext = await createTestContext()
   })
 
   afterAll(async () => {
