@@ -1,4 +1,10 @@
-import { type CommonLogger, type ErrorReporter, stringValueSerializer } from '@lokalise/node-core'
+import { types } from 'node:util'
+import {
+  type CommonLogger,
+  type ErrorReporter,
+  resolveGlobalErrorLogObject,
+  stringValueSerializer,
+} from '@lokalise/node-core'
 import {
   type HandlerSpy,
   type HandlerSpyParams,
@@ -100,5 +106,10 @@ export abstract class AbstractKafkaService<
         `Finished processing message ${messageId ?? 'unknown'}`,
       )
     }
+  }
+
+  protected handlerError(error: unknown, context: Record<string, unknown> = {}): void {
+    this.logger.error({ ...resolveGlobalErrorLogObject(error), ...context })
+    if (types.isNativeError(error)) this.errorReporter.report({ error, context })
   }
 }

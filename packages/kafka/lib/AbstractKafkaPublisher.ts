@@ -79,17 +79,18 @@ export abstract class AbstractKafkaPublisher<MessagePayload extends object>
         processingResult: { status: 'published' },
         topics: this.topics,
       })
-    } catch (e) {
-      const error = e as Error
+    } catch (error) {
+      const errorDetails = {
+        topics: this.topics,
+        publisher: this.constructor.name,
+        message: stringValueSerializer(message),
+      }
+      this.handlerError(error, errorDetails)
       throw new InternalError({
-        message: `Error while publishing to Kafka: ${error.message}`,
+        message: `Error while publishing to Kafka: ${(error as Error).message}`,
         errorCode: 'KAFKA_PUBLISH_ERROR',
         cause: error,
-        details: {
-          topics: this.topics,
-          publisher: this.constructor.name,
-          message: stringValueSerializer(message),
-        },
+        details: errorDetails,
       })
     }
   }

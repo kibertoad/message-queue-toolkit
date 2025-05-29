@@ -1,3 +1,4 @@
+import { InternalError } from '@lokalise/node-core'
 import type { Admin } from '@platformatic/kafka'
 import { afterAll } from 'vitest'
 import { type TestContext, createTestContext } from '../utils/testContext.js'
@@ -48,7 +49,7 @@ describe('PermissionPublisher - init', () => {
     })
 
     // When
-    let error: unknown | undefined
+    let error: any | undefined
     await publisher.init()
     try {
       await publisher.publish({
@@ -65,8 +66,9 @@ describe('PermissionPublisher - init', () => {
     expect(error).toMatchInlineSnapshot(
       '[InternalError: Error while publishing to Kafka: metadata failed 4 times.]',
     )
-
-    // TODO: error spy?
+    expect(error).toBeInstanceOf(InternalError)
+    expect(error.cause).toBeInstanceOf(AggregateError)
+    expect(error.cause.errors[0].errors[0].apiId).toBe('UNKNOWN_TOPIC_OR_PARTITION')
   })
 
   it.each([false, true])(
