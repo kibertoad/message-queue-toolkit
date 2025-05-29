@@ -8,7 +8,7 @@ import {
   stringDeserializers,
 } from '@platformatic/kafka'
 import { stringSerializers } from '@platformatic/kafka'
-import { type TestContext, registerDependencies } from '../test/testContext.ts'
+import { type TestContext, registerDependencies } from '../test/utils/testContext.ts'
 
 describe('Test platformatic-kafka', () => {
   let testContext: TestContext
@@ -33,7 +33,7 @@ describe('Test platformatic-kafka', () => {
     // Create producer
     const producer = new Producer({
       clientId,
-      bootstrapBrokers: testContext.cradle.kafkaConfig.brokers,
+      bootstrapBrokers: testContext.cradle.kafkaConfig.bootstrapBrokers,
       serializers: stringSerializers,
       autocreateTopics: true,
     })
@@ -42,7 +42,7 @@ describe('Test platformatic-kafka', () => {
     const consumer = new Consumer({
       clientId,
       groupId: randomUUID(),
-      bootstrapBrokers: testContext.cradle.kafkaConfig.brokers,
+      bootstrapBrokers: testContext.cradle.kafkaConfig.bootstrapBrokers,
       deserializers: stringDeserializers,
       autocreateTopics: true,
     })

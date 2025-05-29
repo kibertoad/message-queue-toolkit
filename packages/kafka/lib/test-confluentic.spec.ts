@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { KafkaJS } from '@confluentinc/kafka-javascript'
 import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
 import {} from '@platformatic/kafka'
-import { type TestContext, registerDependencies } from '../test/testContext.ts'
+import { type TestContext, registerDependencies } from '../test/utils/testContext.ts'
 
 describe('Test confluentic-kafka', () => {
   let testContext: TestContext
@@ -25,7 +25,7 @@ describe('Test confluentic-kafka', () => {
 
     const kafka = new KafkaJS.Kafka({
       'client.id': clientId,
-      'bootstrap.servers': testContext.cradle.kafkaConfig.brokers.join(','),
+      'bootstrap.servers': testContext.cradle.kafkaConfig.bootstrapBrokers.join(','),
     })
 
     // Topics can be created from producers, but as we will first connect a consumer, we need to create the topic first

@@ -7,6 +7,8 @@ import {
   createContainer,
 } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
+import type {KafkaConfig} from "../../lib/index.js";
+import {randomUUID} from "node:crypto";
 
 const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -37,10 +39,9 @@ export async function registerDependencies(): Promise<TestContext> {
   return diContainer
 }
 
-type KafkaConfig = { brokers: string[] }
-
 const TEST_KAFKA_CONFIG: KafkaConfig = {
-  brokers: ['localhost:9092'],
+  bootstrapBrokers: ['localhost:9092'],
+  clientId: randomUUID(),
 }
 // @ts-expect-error
 const TEST_LOGGER: CommonLogger = console
