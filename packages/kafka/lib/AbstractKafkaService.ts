@@ -56,9 +56,13 @@ export abstract class AbstractKafkaService<
       creationConfig?.topic ??
       locatorConfig?.topics ??
       locatorConfig?.topic
+    // Typing ensure that topic is defined, but we still check it at runtime
+    /* v8 ignore next */
     if (!topic) throw new Error('Topic must be defined in creationConfig or locatorConfig')
 
     this.topics = Array.isArray(topic) ? topic : [topic]
+    if (this.topics.length === 0) throw new Error('At least one topic must be defined')
+
     this.autocreateTopics = !!creationConfig
     this._handlerSpy = resolveHandlerSpy(options)
   }
