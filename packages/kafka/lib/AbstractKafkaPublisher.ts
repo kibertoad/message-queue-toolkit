@@ -25,14 +25,6 @@ export type KafkaMessageOptions = Omit<
   'topic' | 'value'
 >
 
-export type KafkaMessageToPublish<
-  TopicsConfig extends TopicConfig[],
-  Topic extends SupportedTopics<TopicsConfig>,
-> = {
-  topic: Topic
-  message: SupportedMessageValuesInputForTopic<TopicsConfig, Topic>
-}
-
 export abstract class AbstractKafkaPublisher<
   TopicsConfig extends TopicConfig[],
 > extends AbstractKafkaService<TopicsConfig, KafkaPublisherOptions<TopicsConfig>> {
