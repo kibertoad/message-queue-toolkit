@@ -14,15 +14,30 @@ export type KafkaTopicCreatorLocator<Topic extends string> =
 
 export type KafkaDependencies = Omit<QueueDependencies, 'messageMetricsManager'>
 
-export type TopicMessagesConfig<Topic extends string = string> = Record<Topic, ZodSchema[]>
-
-export type ExtractTopics<T> = Extract<keyof T, string>
-
-export type ExtractMessagePayloadsForTopic<
-  TopicMessages extends TopicMessagesConfig,
-  Topic extends ExtractTopics<TopicMessages>,
-> = z.infer<TopicMessages[Topic][number]>
-
-export type ExtractMessagePayloads<TopicMessages extends TopicMessagesConfig> = {
-  [Topic in ExtractTopics<TopicMessages>]: ExtractMessagePayloadsForTopic<TopicMessages, Topic>
+export type TopicConfig<Topic extends string = string> = {
+  topic: Topic
+  schemas: ZodSchema[]
 }
+
+export type SupportedTopics<TopicsConfig extends TopicConfig[]> = TopicsConfig[number]['topic']
+
+type MessageSchemasForTopic<
+  TopicsConfig extends TopicConfig[],
+  Topic extends SupportedTopics<TopicsConfig>,
+> = Extract<TopicsConfig[number], { topic: Topic }>['schemas'][number]
+export type SupportedMessageValuesInputForTopic<
+  TopicsConfig extends TopicConfig[],
+  Topic extends SupportedTopics<TopicsConfig>,
+> = z.input<MessageSchemasForTopic<TopicsConfig, Topic>>
+export type SupportedMessageValuesForTopic<
+  TopicsConfig extends TopicConfig[],
+  Topic extends SupportedTopics<TopicsConfig>,
+> = z.infer<MessageSchemasForTopic<TopicsConfig, Topic>>
+
+type MessageSchemas<TopicsConfig extends TopicConfig[]> = TopicsConfig[number]['schemas'][number]
+export type SupportedMessageValuesInput<TopicsConfig extends TopicConfig[]> = z.input<
+  MessageSchemas<TopicsConfig>
+>
+export type SupportedMessageValues<TopicsConfig extends TopicConfig[]> = z.input<
+  MessageSchemas<TopicsConfig>
+>

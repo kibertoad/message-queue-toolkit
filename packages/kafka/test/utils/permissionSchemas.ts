@@ -1,5 +1,5 @@
 import z from 'zod/v3'
-import type { TopicMessagesConfig } from '../../lib/index.js'
+import type { TopicConfig } from '../../lib/index.js'
 
 const BASE_SCHEMA = z.object({
   id: z.string(),
@@ -21,8 +21,11 @@ const PERMISSION_REMOVED_TOPIC = 'permission-removed'
 const PERMISSION_GENERAL_TOPIC = 'permission-general'
 export const TOPICS = [PERMISSION_ADDED_TOPIC, PERMISSION_REMOVED_TOPIC, PERMISSION_GENERAL_TOPIC]
 
-export const PERMISSION_TOPIC_MESSAGES_CONFIG = {
-  [PERMISSION_ADDED_TOPIC]: [PERMISSION_ADDED_SCHEMA],
-  [PERMISSION_REMOVED_TOPIC]: [PERMISSION_REMOVED_SCHEMA],
-  [PERMISSION_GENERAL_TOPIC]: [PERMISSION_ADDED_SCHEMA, PERMISSION_REMOVED_SCHEMA],
-} as const satisfies TopicMessagesConfig
+export const PERMISSION_TOPIC_MESSAGES_CONFIG = [
+  { topic: PERMISSION_ADDED_TOPIC, schemas: [PERMISSION_ADDED_SCHEMA] },
+  { topic: PERMISSION_REMOVED_TOPIC, schemas: [PERMISSION_REMOVED_SCHEMA] },
+  {
+    topic: PERMISSION_GENERAL_TOPIC,
+    schemas: [PERMISSION_ADDED_SCHEMA, PERMISSION_REMOVED_SCHEMA],
+  },
+] as const satisfies TopicConfig[]

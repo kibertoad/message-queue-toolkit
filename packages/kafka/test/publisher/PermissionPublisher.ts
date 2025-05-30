@@ -24,7 +24,7 @@ export class PermissionPublisher extends AbstractKafkaPublisher<
               topics: TOPICS as any, // adding cast to avoid having to make TOPICS readonly
             },
           }),
-      messageConfig: PERMISSION_TOPIC_MESSAGES_CONFIG,
+      topicsConfig: PERMISSION_TOPIC_MESSAGES_CONFIG,
       kafka: options.kafka ?? getKafkaConfig(),
       handlerSpy: options?.handlerSpy ?? true,
       logMessages: true,

@@ -10,16 +10,16 @@ import {
 import type { ZodSchema } from 'zod'
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.js'
 import type {
-  ExtractMessagePayloads,
-  ExtractMessagePayloadsForTopic,
-  ExtractTopics,
   KafkaDependencies,
-  TopicMessagesConfig,
+  SupportedMessageValuesInput,
+  SupportedMessageValuesInputForTopic,
+  SupportedTopics,
+  TopicConfig,
 } from './types.js'
 
-export type KafkaPublisherOptions<TopicMessages extends TopicMessagesConfig> = {
-  messageConfig: TopicMessages
-} & BaseKafkaOptions<ExtractTopics<TopicMessages>> &
+export type KafkaPublisherOptions<TopicsConfig extends TopicConfig[]> = {
+  topicsConfig: TopicsConfig
+} & BaseKafkaOptions<SupportedTopics<TopicsConfig>> &
   Omit<ProduceOptions<string, object, string, object>, 'autocreateTopics' | 'serializers'>
 
 export type KafkaMessageOptions = Omit<
@@ -28,37 +28,33 @@ export type KafkaMessageOptions = Omit<
 >
 
 export type KafkaMessageToPublish<
-  TopicMessages extends TopicMessagesConfig,
-  Topic extends ExtractTopics<TopicMessages>,
+  TopicsConfig extends TopicConfig[],
+  Topic extends SupportedTopics<TopicsConfig>,
 > = {
   topic: Topic
-  message: ExtractMessagePayloadsForTopic<TopicMessages, Topic>
+  message: SupportedMessageValuesInputForTopic<TopicsConfig, Topic>
 }
 
 export abstract class AbstractKafkaPublisher<
-  TopicMessages extends TopicMessagesConfig,
+  TopicsConfig extends TopicConfig[],
 > extends AbstractKafkaService<
-  ExtractTopics<TopicMessages>,
-  ExtractMessagePayloads<TopicMessages>,
-  KafkaPublisherOptions<TopicMessages>
+  SupportedTopics<TopicsConfig>,
+  SupportedMessageValuesInput<TopicsConfig>,
+  KafkaPublisherOptions<TopicsConfig>
 > {
-  // implements AsyncPublisher<ExtractMessagePayloads<TopicMessages>, KafkaMessageOptions>
   private readonly schemaContainers: Record<
     string,
-    MessageSchemaContainer<ExtractMessagePayloads<TopicMessages>>
+    MessageSchemaContainer<SupportedMessageValuesInput<TopicsConfig>>
   >
   private producer?: Producer<string, object, string, object>
 
-  constructor(dependencies: KafkaDependencies, options: KafkaPublisherOptions<TopicMessages>) {
+  constructor(dependencies: KafkaDependencies, options: KafkaPublisherOptions<TopicsConfig>) {
     super(dependencies, options)
 
     this.schemaContainers = {}
-    for (const [topic, schemas] of Object.entries(options.messageConfig)) {
-      this.schemaContainers[topic] = new MessageSchemaContainer<
-        ExtractMessagePayloads<TopicMessages>
-      >({
-        // biome-ignore lint/suspicious/noExplicitAny: It's fine
-        messageSchemas: schemas as any,
+    for (const { topic, schemas } of options.topicsConfig) {
+      this.schemaContainers[topic] = new MessageSchemaContainer({
+        messageSchemas: schemas,
         messageDefinitions: [],
         messageTypeField: this.options.messageTypeField,
       })
@@ -88,10 +84,10 @@ export abstract class AbstractKafkaPublisher<
     this.producer = undefined
   }
 
-  async publish<Topic extends ExtractTopics<TopicMessages>>(
+  async publish<Topic extends SupportedTopics<TopicsConfig>>(
     messages:
-      | KafkaMessageToPublish<TopicMessages, Topic>
-      | KafkaMessageToPublish<TopicMessages, Topic>[],
+      | KafkaMessageToPublish<TopicsConfig, Topic>
+      | KafkaMessageToPublish<TopicsConfig, Topic>[],
     options?: KafkaMessageOptions,
   ): Promise<void> {
     const messagesArray = Array.isArray(messages) ? messages : [messages]
@@ -133,8 +129,8 @@ export abstract class AbstractKafkaPublisher<
     }
   }
 
-  private getSchemasPerMessage<Topic extends ExtractTopics<TopicMessages>>(
-    messages: KafkaMessageToPublish<TopicMessages, Topic>[],
+  private getSchemasPerMessage<Topic extends SupportedTopics<TopicsConfig>>(
+    messages: KafkaMessageToPublish<TopicsConfig, Topic>[],
   ) {
     const schemaPerMessage = {} as Record<Topic, ZodSchema>
 
