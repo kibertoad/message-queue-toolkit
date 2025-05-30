@@ -136,18 +136,18 @@ describe('PermissionPublisher - init', () => {
       await expect(
         publisher.publish({ topic: 'permission-added', message }),
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
-      [InternalError: Error while publishing to Kafka: [
-        {
-          "code": "invalid_type",
-          "expected": "number",
-          "received": "undefined",
-          "path": [
-            "missing"
-          ],
-          "message": "Required"
-        }
-      ]]
-    `)
+        [InternalError: Error while publishing to Kafka: [
+          {
+            "code": "invalid_type",
+            "expected": "string",
+            "received": "number",
+            "path": [
+              "id"
+            ],
+            "message": "Expected string, received number"
+          }
+        ]]
+      `)
     })
   })
 })
