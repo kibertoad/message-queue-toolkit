@@ -7,7 +7,6 @@ import {
   jsonSerializer,
   stringSerializer,
 } from '@platformatic/kafka'
-import type { ZodSchema } from 'zod'
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.js'
 import type {
   KafkaDependencies,
@@ -79,38 +78,32 @@ export abstract class AbstractKafkaPublisher<
   }
 
   async publish<Topic extends SupportedTopics<TopicsConfig>>(
-    messages:
-      | KafkaMessageToPublish<TopicsConfig, Topic>
-      | KafkaMessageToPublish<TopicsConfig, Topic>[],
+    topic: Topic,
+    message: SupportedMessageValuesInputForTopic<TopicsConfig, Topic>,
     options?: KafkaMessageOptions,
   ): Promise<void> {
-    const messagesArray = Array.isArray(messages) ? messages : [messages]
-    if (!messagesArray.length) return Promise.resolve()
-    const schemaPerMessage = this.getSchemasPerMessage(messagesArray)
+    const schemaResult = this.schemaContainers[topic]?.resolveSchema(message)
+    if (!schemaResult) throw new Error(`Message schemas not found for topic: ${topic}`)
+    if (schemaResult.error) throw schemaResult.error
 
     await this.init() // lazy init
 
     try {
-      const messagesToSend = messagesArray.map(({ topic, message }) => ({
-        ...options,
-        topic,
-        value: schemaPerMessage[topic].parse(message),
-      }))
+      const parsedMessage = schemaResult.result.parse(message)
 
       // biome-ignore lint/style/noNonNullAssertion: Should always exist due to lazy init
-      await this.producer!.send({ messages: messagesToSend })
+      await this.producer!.send({ messages: [{ ...options, topic, value: parsedMessage }] })
 
-      for (const { topic, value } of messagesToSend) {
-        this.handleMessageProcessed({
-          message: value,
-          processingResult: { status: 'published' },
-          topic,
-        })
-      }
+      this.handleMessageProcessed({
+        message: parsedMessage,
+        processingResult: { status: 'published' },
+        topic,
+      })
     } catch (error) {
       const errorDetails = {
+        topic,
         publisher: this.constructor.name,
-        messages: stringValueSerializer(messages),
+        message: stringValueSerializer(message),
       }
       this.handlerError(error, errorDetails)
       throw new InternalError({
@@ -120,21 +113,5 @@ export abstract class AbstractKafkaPublisher<
         details: errorDetails,
       })
     }
-  }
-
-  private getSchemasPerMessage<Topic extends SupportedTopics<TopicsConfig>>(
-    messages: KafkaMessageToPublish<TopicsConfig, Topic>[],
-  ) {
-    const schemaPerMessage = {} as Record<Topic, ZodSchema>
-
-    for (const { topic, message } of messages) {
-      const messageSchemaResult = this.schemaContainers[topic]?.resolveSchema(message)
-      if (!messageSchemaResult) throw new Error(`Message schemas not found for topic: ${topic}`)
-      if (messageSchemaResult.error) throw messageSchemaResult.error
-
-      schemaPerMessage[topic] = messageSchemaResult.result
-    }
-
-    return schemaPerMessage
   }
 }
