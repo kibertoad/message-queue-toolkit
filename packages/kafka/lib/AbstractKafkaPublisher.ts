@@ -17,10 +17,9 @@ import type {
   TopicConfig,
 } from './types.js'
 
-export type KafkaPublisherOptions<TopicsConfig extends TopicConfig[]> = {
-  topicsConfig: TopicsConfig
-} & BaseKafkaOptions<SupportedTopics<TopicsConfig>> &
-  Omit<ProduceOptions<string, object, string, object>, 'autocreateTopics' | 'serializers'>
+export type KafkaPublisherOptions<TopicsConfig extends TopicConfig[]> =
+  BaseKafkaOptions<TopicsConfig> &
+    Omit<ProduceOptions<string, object, string, object>, 'serializers'>
 
 export type KafkaMessageOptions = Omit<
   MessageToProduce<string, object, string, object>,
@@ -37,16 +36,12 @@ export type KafkaMessageToPublish<
 
 export abstract class AbstractKafkaPublisher<
   TopicsConfig extends TopicConfig[],
-> extends AbstractKafkaService<
-  SupportedTopics<TopicsConfig>,
-  SupportedMessageValuesInput<TopicsConfig>,
-  KafkaPublisherOptions<TopicsConfig>
-> {
+> extends AbstractKafkaService<TopicsConfig, KafkaPublisherOptions<TopicsConfig>> {
+  private producer?: Producer<string, object, string, object>
   private readonly schemaContainers: Record<
     string,
     MessageSchemaContainer<SupportedMessageValuesInput<TopicsConfig>>
   >
-  private producer?: Producer<string, object, string, object>
 
   constructor(dependencies: KafkaDependencies, options: KafkaPublisherOptions<TopicsConfig>) {
     super(dependencies, options)
@@ -67,7 +62,6 @@ export abstract class AbstractKafkaPublisher<
     this.producer = new Producer({
       ...this.options.kafka,
       ...this.options,
-      autocreateTopics: this.autocreateTopics,
       serializers: {
         key: stringSerializer,
         value: jsonSerializer,
@@ -115,7 +109,6 @@ export abstract class AbstractKafkaPublisher<
       }
     } catch (error) {
       const errorDetails = {
-        topics: this.topics,
         publisher: this.constructor.name,
         messages: stringValueSerializer(messages),
       }

@@ -32,7 +32,7 @@ describe('PermissionPublisher - init', () => {
 
     it('should thrown an error if topics is empty', () => {
       expect(
-        () => new PermissionPublisher(testContext.cradle, { creationConfig: { topics: [] } }),
+        () => new PermissionPublisher(testContext.cradle, { topicsConfig: [] as any }),
       ).toThrowErrorMatchingInlineSnapshot('[Error: At least one topic must be defined]')
     })
 
@@ -49,7 +49,7 @@ describe('PermissionPublisher - init', () => {
     it('should fail if topic does not exists', async () => {
       // Given
       publisher = new PermissionPublisher(testContext.cradle, {
-        locatorConfig: { topic: 'permission-general' },
+        autocreateTopics: false,
       })
 
       // When
@@ -83,7 +83,7 @@ describe('PermissionPublisher - init', () => {
       async (lazyInit) => {
         // Given
         publisher = new PermissionPublisher(testContext.cradle, {
-          creationConfig: { topic: 'permission-general' },
+          autocreateTopics: true,
         })
 
         // When

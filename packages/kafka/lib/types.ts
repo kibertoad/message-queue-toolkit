@@ -3,16 +3,12 @@ import type { ConnectionOptions } from '@platformatic/kafka'
 import type { ZodSchema } from 'zod'
 import type z from 'zod/v3'
 
+export type KafkaDependencies = Omit<QueueDependencies, 'messageMetricsManager'>
+
 export type KafkaConfig = {
   bootstrapBrokers: string[]
   clientId: string
 } & ConnectionOptions
-
-export type KafkaTopicCreatorLocator<Topic extends string> =
-  | { topic: Topic; topics?: never }
-  | { topic?: never; topics: readonly Topic[] }
-
-export type KafkaDependencies = Omit<QueueDependencies, 'messageMetricsManager'>
 
 export type TopicConfig<Topic extends string = string> = {
   topic: Topic

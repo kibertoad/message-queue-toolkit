@@ -5,73 +5,55 @@ import {
   resolveGlobalErrorLogObject,
   stringValueSerializer,
 } from '@lokalise/node-core'
+import type { HandlerSpy, HandlerSpyParams } from '@message-queue-toolkit/core'
 import {
-  type HandlerSpy,
-  type HandlerSpyParams,
   type MessageProcessingResult,
   type PublicHandlerSpy,
   resolveHandlerSpy,
 } from '@message-queue-toolkit/core'
 import type { BaseOptions } from '@platformatic/kafka'
-import type { KafkaConfig, KafkaDependencies, KafkaTopicCreatorLocator } from './types.js'
+import type {
+  KafkaConfig,
+  KafkaDependencies,
+  SupportedMessageValues,
+  TopicConfig,
+} from './types.js'
 
-export type BaseKafkaOptions<Topic extends string> = {
+export type BaseKafkaOptions<TopicsConfig extends TopicConfig[]> = {
   kafka: KafkaConfig
+  topicsConfig: TopicsConfig
   messageTypeField: string
   messageIdField?: string
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
-} & (
-  | {
-      creationConfig: KafkaTopicCreatorLocator<Topic>
-      locatorConfig?: never
-    }
-  | {
-      creationConfig?: never
-      locatorConfig: KafkaTopicCreatorLocator<Topic>
-    }
-) &
-  Omit<BaseOptions, keyof KafkaConfig | 'autocreateTopics'> // Exclude properties that are already in KafkaConfig
+} & Omit<BaseOptions, keyof KafkaConfig> // Exclude properties that are already in KafkaConfig
 
 export abstract class AbstractKafkaService<
-  Topic extends string,
-  MessagePayload extends object,
-  KafkaOptions extends BaseKafkaOptions<Topic>,
+  TopicsConfig extends TopicConfig[],
+  KafkaOptions extends BaseKafkaOptions<TopicsConfig>,
 > {
   protected readonly errorReporter: ErrorReporter
   protected readonly logger: CommonLogger
 
-  protected readonly topics: Topic[]
-  protected readonly autocreateTopics: boolean
+  protected readonly topicsConfig: TopicsConfig
   protected readonly options: KafkaOptions
-  protected readonly _handlerSpy?: HandlerSpy<MessagePayload>
+  protected readonly _handlerSpy?: HandlerSpy<SupportedMessageValues<TopicsConfig>>
 
   constructor(dependencies: KafkaDependencies, options: KafkaOptions) {
     this.logger = dependencies.logger
     this.errorReporter = dependencies.errorReporter
     this.options = options
 
-    const { creationConfig, locatorConfig } = options
-    const topic =
-      creationConfig?.topics ??
-      creationConfig?.topic ??
-      locatorConfig?.topics ??
-      locatorConfig?.topic
-    // Typing ensure that topic is defined, but we still check it at runtime
-    /* v8 ignore next */
-    if (!topic) throw new Error('Topic must be defined in creationConfig or locatorConfig')
+    this.topicsConfig = options.topicsConfig
+    if (this.topicsConfig.length === 0) throw new Error('At least one topic must be defined')
 
-    this.topics = Array.isArray(topic) ? topic : [topic]
-    if (this.topics.length === 0) throw new Error('At least one topic must be defined')
-
-    this.autocreateTopics = !!creationConfig
     this._handlerSpy = resolveHandlerSpy(options)
   }
 
   abstract init(): Promise<void>
   abstract close(): Promise<void>
 
-  get handlerSpy(): PublicHandlerSpy<MessagePayload> {
+  get handlerSpy(): PublicHandlerSpy<SupportedMessageValues<TopicsConfig>> {
     if (this._handlerSpy) return this._handlerSpy
 
     throw new Error(
@@ -79,18 +61,22 @@ export abstract class AbstractKafkaService<
     )
   }
 
-  protected resolveMessageType(message: MessagePayload | null | undefined): string | undefined {
+  protected resolveMessageType(
+    message: SupportedMessageValues<TopicsConfig> | null | undefined,
+  ): string | undefined {
     // @ts-expect-error
     return message[this.options.messageTypeField]
   }
 
-  protected resolveMessageId(message: MessagePayload | null | undefined): string | undefined {
+  protected resolveMessageId(
+    message: SupportedMessageValues<TopicsConfig> | null | undefined,
+  ): string | undefined {
     // @ts-expect-error
     return message[this.options.messageIdField]
   }
 
   protected handleMessageProcessed(params: {
-    message: MessagePayload | null
+    message: SupportedMessageValues<TopicsConfig> | null
     processingResult: MessageProcessingResult
     topic: string
   }) {
