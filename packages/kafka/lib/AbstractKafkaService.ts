@@ -15,7 +15,7 @@ import {
 import type { BaseOptions } from '@platformatic/kafka'
 import type { KafkaConfig, KafkaDependencies, KafkaTopicCreatorLocator } from './types.js'
 
-export type BaseKafkaOptions = {
+export type BaseKafkaOptions<Topic extends string> = {
   kafka: KafkaConfig
   messageTypeField: string
   messageIdField?: string
@@ -23,24 +23,25 @@ export type BaseKafkaOptions = {
   logMessages?: boolean
 } & (
   | {
-      creationConfig: KafkaTopicCreatorLocator
+      creationConfig: KafkaTopicCreatorLocator<Topic>
       locatorConfig?: never
     }
   | {
       creationConfig?: never
-      locatorConfig: KafkaTopicCreatorLocator
+      locatorConfig: KafkaTopicCreatorLocator<Topic>
     }
 ) &
   Omit<BaseOptions, keyof KafkaConfig | 'autocreateTopics'> // Exclude properties that are already in KafkaConfig
 
 export abstract class AbstractKafkaService<
+  Topic extends string,
   MessagePayload extends object,
-  KafkaOptions extends BaseKafkaOptions = BaseKafkaOptions,
+  KafkaOptions extends BaseKafkaOptions<Topic>,
 > {
   protected readonly errorReporter: ErrorReporter
   protected readonly logger: CommonLogger
 
-  protected readonly topics: string[]
+  protected readonly topics: Topic[]
   protected readonly autocreateTopics: boolean
   protected readonly options: KafkaOptions
   protected readonly _handlerSpy?: HandlerSpy<MessagePayload>
@@ -91,9 +92,9 @@ export abstract class AbstractKafkaService<
   protected handleMessageProcessed(params: {
     message: MessagePayload | null
     processingResult: MessageProcessingResult
-    topics: string | string[]
+    topic: string
   }) {
-    const { message, processingResult, topics } = params
+    const { message, processingResult, topic } = params
     const messageId = this.resolveMessageId(message)
 
     this._handlerSpy?.addProcessedMessage({ message, processingResult }, messageId)
@@ -102,7 +103,7 @@ export abstract class AbstractKafkaService<
       this.logger.debug(
         {
           message: stringValueSerializer(message),
-          topics,
+          topic,
           processingResult,
           messageId,
           messageType: this.resolveMessageType(message),

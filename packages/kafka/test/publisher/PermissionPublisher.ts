@@ -3,38 +3,28 @@ import {
   type KafkaDependencies,
   type KafkaPublisherOptions,
 } from '../../lib/index.js'
-import {
-  PERMISSION_ADDED_SCHEMA,
-  PERMISSION_REMOVED_SCHEMA,
-  type PermissionAdded,
-  type PermissionRemoved,
-} from '../utils/permissionSchemas.js'
+import { PERMISSION_TOPIC_MESSAGES_CONFIG, TOPICS } from '../utils/permissionSchemas.js'
 import { getKafkaConfig } from '../utils/testContext.js'
 
-type MessagePayload = PermissionAdded | PermissionRemoved
-
-type PermissionPublisherOptions<MessagePayload extends object> = Partial<
+type PermissionPublisherOptions = Partial<
   Pick<
-    KafkaPublisherOptions<MessagePayload>,
-    'creationConfig' | 'locatorConfig' | 'handlerSpy' | 'kafka' | 'messageSchemas'
+    KafkaPublisherOptions<typeof PERMISSION_TOPIC_MESSAGES_CONFIG>,
+    'creationConfig' | 'locatorConfig' | 'handlerSpy' | 'kafka'
   >
 >
-export class PermissionPublisher extends AbstractKafkaPublisher<MessagePayload> {
-  public static readonly TOPIC_NAME = 'permission'
-
-  constructor(deps: KafkaDependencies, options: PermissionPublisherOptions<MessagePayload> = {}) {
+export class PermissionPublisher extends AbstractKafkaPublisher<
+  typeof PERMISSION_TOPIC_MESSAGES_CONFIG
+> {
+  constructor(deps: KafkaDependencies, options: PermissionPublisherOptions = {}) {
     super(deps, {
       ...(options.locatorConfig
         ? { locatorConfig: options.locatorConfig }
         : {
             creationConfig: options.creationConfig ?? {
-              topic: PermissionPublisher.TOPIC_NAME,
+              topics: TOPICS as any, // adding cast to avoid having to make TOPICS readonly
             },
           }),
-      messageSchemas: options.messageSchemas ?? [
-        PERMISSION_ADDED_SCHEMA,
-        PERMISSION_REMOVED_SCHEMA,
-      ],
+      messageConfig: PERMISSION_TOPIC_MESSAGES_CONFIG,
       kafka: options.kafka ?? getKafkaConfig(),
       handlerSpy: options?.handlerSpy ?? true,
       logMessages: true,

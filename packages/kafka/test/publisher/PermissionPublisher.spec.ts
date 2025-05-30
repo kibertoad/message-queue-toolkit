@@ -1,7 +1,5 @@
-import { randomUUID } from 'node:crypto'
 import { InternalError } from '@lokalise/node-core'
-import z from 'zod'
-import { PERMISSION_ADDED_SCHEMA, type PermissionAdded } from '../utils/permissionSchemas.js'
+import { type PermissionAdded, TOPICS } from '../utils/permissionSchemas.js'
 import { type TestContext, createTestContext } from '../utils/testContext.js'
 import { PermissionPublisher } from './PermissionPublisher.js'
 
@@ -25,7 +23,7 @@ describe('PermissionPublisher - init', () => {
     beforeEach(async () => {
       try {
         await testContext.cradle.kafkaAdmin.deleteTopics({
-          topics: [PermissionPublisher.TOPIC_NAME],
+          topics: TOPICS,
         })
       } catch (_) {
         // Ignore errors if the topic does not exist
@@ -51,7 +49,7 @@ describe('PermissionPublisher - init', () => {
     it('should fail if topic does not exists', async () => {
       // Given
       publisher = new PermissionPublisher(testContext.cradle, {
-        locatorConfig: { topic: PermissionPublisher.TOPIC_NAME },
+        locatorConfig: { topic: 'permission-general' },
       })
 
       // When
@@ -59,9 +57,12 @@ describe('PermissionPublisher - init', () => {
       await publisher.init()
       try {
         await publisher.publish({
-          id: '1',
-          type: 'added',
-          permissions: [],
+          topic: 'permission-general',
+          message: {
+            id: '1',
+            type: 'added',
+            permissions: [],
+          },
         })
       } catch (e) {
         error = e
@@ -82,15 +83,18 @@ describe('PermissionPublisher - init', () => {
       async (lazyInit) => {
         // Given
         publisher = new PermissionPublisher(testContext.cradle, {
-          creationConfig: { topic: PermissionPublisher.TOPIC_NAME },
+          creationConfig: { topic: 'permission-general' },
         })
 
         // When
         if (!lazyInit) await publisher.init()
         await publisher.publish({
-          id: '1',
-          type: 'added',
-          permissions: [],
+          topic: 'permission-general',
+          message: {
+            id: '1',
+            type: 'added',
+            permissions: [],
+          },
         })
 
         // Then
@@ -101,13 +105,9 @@ describe('PermissionPublisher - init', () => {
   })
 
   describe('publish', () => {
-    const topics = [randomUUID(), randomUUID()]
-
     it('should fail if there is no schema for message', async () => {
       // Given
-      publisher = new PermissionPublisher(testContext.cradle, {
-        creationConfig: { topic: topics[0]! },
-      })
+      publisher = new PermissionPublisher(testContext.cradle)
 
       // When
       const message = {
@@ -115,26 +115,27 @@ describe('PermissionPublisher - init', () => {
         type: 'bad' as any, // Intentionally bad type to force the error
         permissions: [],
       } satisfies PermissionAdded
-      await expect(publisher.publish(message)).rejects.toThrowErrorMatchingInlineSnapshot(
-        '[Error: Unsupported message type: bad]',
-      )
+      await expect(
+        publisher.publish({
+          topic: 'permission-added',
+          message,
+        }),
+      ).rejects.toThrowErrorMatchingInlineSnapshot('[Error: Unsupported message type: bad]')
     })
 
-    it('should fail if message does not match any schema', async () => {
+    it('should fail if message does not match schema', async () => {
       // Given
-      publisher = new PermissionPublisher(testContext.cradle, {
-        creationConfig: { topic: topics[0]! },
-        // Adding a bad schema to force the error, as any is needed due to type checking
-        messageSchemas: [PERMISSION_ADDED_SCHEMA.extend({ missing: z.number() }) as any],
-      })
+      publisher = new PermissionPublisher(testContext.cradle)
 
       // When
       const message = {
-        id: '1',
+        id: 1 as unknown as string,
         type: 'added',
         permissions: [],
       } satisfies PermissionAdded
-      await expect(publisher.publish(message)).rejects.toThrowErrorMatchingInlineSnapshot(`
+      await expect(
+        publisher.publish({ topic: 'permission-added', message }),
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
       [InternalError: Error while publishing to Kafka: [
         {
           "code": "invalid_type",
@@ -147,42 +148,6 @@ describe('PermissionPublisher - init', () => {
         }
       ]]
     `)
-    })
-
-    it('should publish to a single topic', async () => {
-      // Given
-      publisher = new PermissionPublisher(testContext.cradle, {
-        creationConfig: { topic: topics[0]! },
-      })
-
-      // When
-      await publisher.publish({
-        id: '1',
-        type: 'added',
-        permissions: [],
-      })
-
-      // Then
-      const emittedEvent = await publisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(emittedEvent.message).toMatchObject({ id: '1', type: 'added' })
-    })
-
-    it('should publish to a multiple topics', async () => {
-      // Given
-      publisher = new PermissionPublisher(testContext.cradle, {
-        creationConfig: { topics },
-      })
-
-      // When
-      await publisher.publish({
-        id: '1',
-        type: 'added',
-        permissions: [],
-      })
-
-      // Then
-      const emittedEvent = await publisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(emittedEvent.message).toMatchObject({ id: '1', type: 'added' })
     })
   })
 })
