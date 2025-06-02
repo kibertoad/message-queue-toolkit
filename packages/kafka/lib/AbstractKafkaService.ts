@@ -19,9 +19,8 @@ import type {
   TopicConfig,
 } from './types.js'
 
-export type BaseKafkaOptions<TopicsConfig extends TopicConfig[]> = {
+export type BaseKafkaOptions = {
   kafka: KafkaConfig
-  topicsConfig: TopicsConfig
   messageTypeField: string
   messageIdField?: string
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
@@ -30,12 +29,11 @@ export type BaseKafkaOptions<TopicsConfig extends TopicConfig[]> = {
 
 export abstract class AbstractKafkaService<
   TopicsConfig extends TopicConfig[],
-  KafkaOptions extends BaseKafkaOptions<TopicsConfig>,
+  KafkaOptions extends BaseKafkaOptions,
 > {
   protected readonly errorReporter: ErrorReporter
   protected readonly logger: CommonLogger
 
-  protected readonly topicsConfig: TopicsConfig
   protected readonly options: KafkaOptions
   protected readonly _handlerSpy?: HandlerSpy<SupportedMessageValues<TopicsConfig>>
 
@@ -43,9 +41,6 @@ export abstract class AbstractKafkaService<
     this.logger = dependencies.logger
     this.errorReporter = dependencies.errorReporter
     this.options = options
-
-    this.topicsConfig = options.topicsConfig
-    if (this.topicsConfig.length === 0) throw new Error('At least one topic must be defined')
 
     this._handlerSpy = resolveHandlerSpy(options)
   }

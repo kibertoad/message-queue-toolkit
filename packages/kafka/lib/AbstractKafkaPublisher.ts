@@ -16,9 +16,10 @@ import type {
   TopicConfig,
 } from './types.js'
 
-export type KafkaPublisherOptions<TopicsConfig extends TopicConfig[]> =
-  BaseKafkaOptions<TopicsConfig> &
-    Omit<ProduceOptions<string, object, string, object>, 'serializers'>
+export type KafkaPublisherOptions<TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
+  Omit<ProduceOptions<string, object, string, object>, 'serializers'> & {
+    topicsConfig: TopicsConfig
+  }
 
 export type KafkaMessageOptions = Omit<
   MessageToProduce<string, object, string, object>,
@@ -28,17 +29,22 @@ export type KafkaMessageOptions = Omit<
 export abstract class AbstractKafkaPublisher<
   TopicsConfig extends TopicConfig[],
 > extends AbstractKafkaService<TopicsConfig, KafkaPublisherOptions<TopicsConfig>> {
-  private producer?: Producer<string, object, string, object>
+  private readonly topicsConfig: TopicsConfig
   private readonly schemaContainers: Record<
     string,
     MessageSchemaContainer<SupportedMessageValuesInput<TopicsConfig>>
   >
 
+  private producer?: Producer<string, object, string, object>
+
   constructor(dependencies: KafkaDependencies, options: KafkaPublisherOptions<TopicsConfig>) {
     super(dependencies, options)
 
+    this.topicsConfig = options.topicsConfig
+    if (this.topicsConfig.length === 0) throw new Error('At least one topic must be defined')
+
     this.schemaContainers = {}
-    for (const { topic, schemas } of options.topicsConfig) {
+    for (const { topic, schemas } of this.topicsConfig) {
       this.schemaContainers[topic] = new MessageSchemaContainer({
         messageSchemas: schemas,
         messageDefinitions: [],
