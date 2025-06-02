@@ -8,6 +8,7 @@ import {
   stringValueSerializer,
 } from '@lokalise/node-core'
 import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
+import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema, ZodType } from 'zod/v3'
 
 import {
@@ -161,10 +162,14 @@ export abstract class AbstractQueueService<
     messageTypeField: string
   }) {
     const messageSchemas = options.handlers.map((entry) => entry.schema)
+    const messageDefinitions: CommonEventDefinition[] = options.handlers
+      .map((entry) => entry.definition)
+      .filter((entry) => entry !== undefined)
 
     return new MessageSchemaContainer<MessagePayloadSchemas>({
-      messageSchemas,
       messageTypeField: options.messageTypeField,
+      messageSchemas,
+      messageDefinitions,
     })
   }
 
@@ -175,8 +180,9 @@ export abstract class AbstractQueueService<
     const messageSchemas = options.messageSchemas
 
     return new MessageSchemaContainer<MessagePayloadSchemas>({
-      messageSchemas,
       messageTypeField: options.messageTypeField,
+      messageSchemas,
+      messageDefinitions: [],
     })
   }
 
