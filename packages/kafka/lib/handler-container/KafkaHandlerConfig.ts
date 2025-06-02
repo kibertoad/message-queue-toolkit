@@ -5,7 +5,7 @@ export type KafkaHandler<TopicsConfig extends TopicConfig[], Topic extends strin
   message: SupportedMessageValuesInputForTopic<TopicsConfig, Topic>,
 ) => Promise<void>
 
-export class KafkaTopicHandlerConfig<
+export class KafkaHandlerConfig<
   TopicsConfig extends TopicConfig[],
   Topic extends SupportedTopics<TopicsConfig>,
 > {

@@ -1,5 +1,5 @@
 import type { SupportedMessageValuesForTopic, SupportedTopics, TopicConfig } from '../types.js'
-import type { KafkaHandler, KafkaTopicHandlerConfig } from './KafkaTopicHandlerConfig.js'
+import type { KafkaHandler, KafkaHandlerConfig } from './KafkaHandlerConfig.js'
 
 const DEFAULT_HANDLER_KEY = Symbol('default-handler')
 
@@ -15,8 +15,8 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
   constructor(
     topicHandlers: Record<
       string,
-      | KafkaTopicHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>
-      | KafkaTopicHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>[]
+      | KafkaHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>
+      | KafkaHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>[]
     >,
     messageTypeField?: string,
   ) {
@@ -27,8 +27,8 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
   private mapTopicHandlers(
     topicHandlers: Record<
       string,
-      | KafkaTopicHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>
-      | KafkaTopicHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>[]
+      | KafkaHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>
+      | KafkaHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>[]
     >,
   ): Handlers<TopicsConfig> {
     const result: Handlers<TopicsConfig> = {}
