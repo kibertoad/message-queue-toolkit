@@ -64,7 +64,7 @@ export abstract class AbstractKafkaPublisher<
     return Promise.resolve()
   }
 
-  override async close(): Promise<void> {
+  async close(): Promise<void> {
     await this.producer?.close()
     this.producer = undefined
   }
