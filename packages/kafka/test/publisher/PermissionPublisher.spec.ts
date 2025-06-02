@@ -1,5 +1,11 @@
 import { InternalError } from '@lokalise/node-core'
-import { type PermissionAdded, type PermissionRemoved, TOPICS } from '../utils/permissionSchemas.js'
+import {
+  PERMISSION_ADDED_SCHEMA,
+  PERMISSION_GENERAL_TOPIC,
+  type PermissionAdded,
+  type PermissionRemoved,
+  TOPICS,
+} from '../utils/permissionSchemas.js'
 import { type TestContext, createTestContext } from '../utils/testContext.js'
 import { PermissionPublisher } from './PermissionPublisher.js'
 
@@ -96,14 +102,22 @@ describe('PermissionPublisher - init', () => {
         expect(emittedEvent.message).toMatchObject({ id: '1', type: 'added' })
       },
     )
+
+    it('should fail if message type is not supported and a topic has different schemas', () => {
+      // Given
+      expect(
+        () => new PermissionPublisher(testContext.cradle, { supportMessageTypes: false }),
+      ).toThrowErrorMatchingInlineSnapshot(
+        '[Error: if messageTypeField is not provided, messageSchemas must have a single schema]',
+      )
+    })
   })
 
   describe('publish', () => {
-    beforeEach(() => {
-      publisher = new PermissionPublisher(testContext.cradle)
-    })
-
     it('should fail if topic is not supported', async () => {
+      // Given
+      publisher = new PermissionPublisher(testContext.cradle)
+
       // When
       await expect(
         publisher.publish('bad topic' as any, {} as any), // Intentionally bad topic to force the error
@@ -114,6 +128,8 @@ describe('PermissionPublisher - init', () => {
 
     it('should fail if there is no schema for message type', async () => {
       // Given
+      publisher = new PermissionPublisher(testContext.cradle)
+
       const message = {
         id: '1',
         type: 'bad' as any, // Intentionally bad type to force the error
@@ -128,6 +144,8 @@ describe('PermissionPublisher - init', () => {
 
     it('should fail if message does not match schema', async () => {
       // Given
+      publisher = new PermissionPublisher(testContext.cradle)
+
       const message = {
         id: 1 as unknown as string,
         type: 'added',
@@ -154,6 +172,8 @@ describe('PermissionPublisher - init', () => {
 
     it('should publish messages', async () => {
       // Given
+      publisher = new PermissionPublisher(testContext.cradle)
+
       const message1 = {
         id: '1',
         type: 'added',
@@ -175,6 +195,40 @@ describe('PermissionPublisher - init', () => {
 
       const emittedEvent2 = await publisher.handlerSpy.waitForMessageWithId('2', 'published')
       expect(emittedEvent2.message).toMatchObject(message2)
+    })
+
+    it('should publish only messages meeting schema', async () => {
+      // Given
+      publisher = new PermissionPublisher(testContext.cradle, {
+        supportMessageTypes: false,
+        topicsConfig: [
+          {
+            topic: PERMISSION_GENERAL_TOPIC,
+            schemas: [PERMISSION_ADDED_SCHEMA],
+          },
+        ] as any, // we are not adding the other topics intentionally
+      })
+
+      const messageValid = {
+        id: '1',
+        type: 'added',
+        permissions: [],
+      } satisfies PermissionAdded
+      const messageInvalid = {
+        id: '2',
+        type: 'removed',
+        permissions: [],
+      } satisfies PermissionRemoved
+
+      // When&Then - valid
+      await publisher.publish(PERMISSION_GENERAL_TOPIC, messageValid)
+      const emittedEvent = await publisher.handlerSpy.waitForMessageWithId('1', 'published')
+      expect(emittedEvent.message).toMatchObject(messageValid)
+
+      // When&Then - invalid
+      await expect(
+        publisher.publish(PERMISSION_GENERAL_TOPIC, messageInvalid),
+      ).rejects.toThrowErrorMatchingInlineSnapshot('[Error: Unsupported message type: removed]')
     })
   })
 })

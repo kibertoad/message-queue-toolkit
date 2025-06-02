@@ -16,9 +16,9 @@ export const PERMISSION_REMOVED_SCHEMA = BASE_SCHEMA.extend({
 })
 export type PermissionRemoved = z.infer<typeof PERMISSION_REMOVED_SCHEMA>
 
-const PERMISSION_ADDED_TOPIC = 'permission-added'
-const PERMISSION_REMOVED_TOPIC = 'permission-removed'
-const PERMISSION_GENERAL_TOPIC = 'permission-general'
+export const PERMISSION_ADDED_TOPIC = 'permission-added'
+export const PERMISSION_REMOVED_TOPIC = 'permission-removed'
+export const PERMISSION_GENERAL_TOPIC = 'permission-general'
 export const TOPICS = [PERMISSION_ADDED_TOPIC, PERMISSION_REMOVED_TOPIC, PERMISSION_GENERAL_TOPIC]
 
 export const PERMISSION_TOPIC_MESSAGES_CONFIG = [
