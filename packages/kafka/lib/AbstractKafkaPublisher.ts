@@ -48,6 +48,7 @@ export abstract class AbstractKafkaPublisher<
       this.schemaContainers[topic] = new MessageSchemaContainer({
         messageSchemas: schemas,
         messageTypeField: this.options.messageTypeField,
+        messageDefinitions: [],
       })
     }
   }
