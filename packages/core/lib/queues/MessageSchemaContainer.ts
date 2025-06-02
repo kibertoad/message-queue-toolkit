@@ -13,7 +13,7 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
   private readonly messageTypeField?: string
 
   constructor(options: MessageSchemaContainerOptions<MessagePayloadSchemas>) {
-    if (options.messageTypeField === undefined && options.messageSchemas.length === 1) {
+    if (options.messageTypeField === undefined && options.messageSchemas.length > 1) {
       throw new Error(
         'if messageTypeField is not provided, messageSchemas must have a single schema',
       )
