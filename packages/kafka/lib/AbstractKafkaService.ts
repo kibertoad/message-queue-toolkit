@@ -21,7 +21,7 @@ import type {
 
 export type BaseKafkaOptions = {
   kafka: KafkaConfig
-  messageTypeField: string
+  messageTypeField?: string
   messageIdField?: string
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
@@ -59,14 +59,14 @@ export abstract class AbstractKafkaService<
   protected resolveMessageType(
     message: SupportedMessageValues<TopicsConfig> | null | undefined,
   ): string | undefined {
-    // @ts-expect-error
+    if (!this.options.messageTypeField || !message) return undefined
     return message[this.options.messageTypeField]
   }
 
   protected resolveMessageId(
     message: SupportedMessageValues<TopicsConfig> | null | undefined,
   ): string | undefined {
-    // @ts-expect-error
+    if (!this.options.messageIdField || !message) return undefined
     return message[this.options.messageIdField]
   }
 
