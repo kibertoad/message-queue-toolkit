@@ -107,7 +107,9 @@ describe('PermissionPublisher - init', () => {
       // When
       await expect(
         publisher.publish('bad topic' as any, {} as any), // Intentionally bad topic to force the error
-      ).rejects.toThrowErrorMatchingInlineSnapshot(`[Error: Message schemas not found for topic: bad topic]`)
+      ).rejects.toThrowErrorMatchingInlineSnapshot(
+        '[Error: Message schemas not found for topic: bad topic]',
+      )
     })
 
     it('should fail if there is no schema for message type', async () => {
