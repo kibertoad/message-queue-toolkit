@@ -228,7 +228,19 @@ describe('PermissionPublisher - init', () => {
       // When&Then - invalid
       await expect(
         publisher.publish(PERMISSION_GENERAL_TOPIC, messageInvalid),
-      ).rejects.toThrowErrorMatchingInlineSnapshot('[Error: Unsupported message type: removed]')
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
+        [InternalError: Error while publishing to Kafka: [
+          {
+            "received": "removed",
+            "code": "invalid_literal",
+            "expected": "added",
+            "path": [
+              "type"
+            ],
+            "message": "Invalid literal value, expected \\"added\\""
+          }
+        ]]
+      `)
     })
   })
 })
