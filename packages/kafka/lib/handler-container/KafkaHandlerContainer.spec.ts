@@ -13,6 +13,7 @@ const topicsConfig = [
   { topic: 'create', schemas: [CREATE_SCHEMA] },
   { topic: 'empty', schemas: [EMPTY_SCHEMA] },
 ] as const satisfies TopicConfig[]
+type TopicsConfig = typeof topicsConfig
 
 describe('KafkaHandlerContainer', () => {
   it('should return undefined for non-existing topic', () => {
@@ -29,7 +30,7 @@ describe('KafkaHandlerContainer', () => {
         new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()),
         new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()),
       ],
-    } satisfies KafkaHandlerRouting<typeof topicsConfig>
+    }
     const topicHandlers2 = {
       empty: [
         new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()),
@@ -50,7 +51,7 @@ describe('KafkaHandlerContainer', () => {
 
   it('should resolve handler with message type', () => {
     // Given
-    const topicHandlers = {
+    const topicHandlers: KafkaHandlerRouting<TopicsConfig, any> = {
       all: [
         new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()),
         new KafkaHandlerConfig(UPDATE_SCHEMA, () => Promise.resolve()),
@@ -58,10 +59,10 @@ describe('KafkaHandlerContainer', () => {
       ],
       create: [new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve())],
       empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve())],
-    } satisfies KafkaHandlerRouting<typeof topicsConfig>
+    }
 
     // When
-    const container = new KafkaHandlerContainer(topicHandlers, 'type')
+    const container = new KafkaHandlerContainer<TopicsConfig>(topicHandlers, 'type')
 
     // Then
     expect(container.resolveHandler('all', { type: 'create' })?.schema).toBe(CREATE_SCHEMA)
@@ -79,10 +80,10 @@ describe('KafkaHandlerContainer', () => {
 
   it('should resolve handler without message type', () => {
     // Given
-    const topicHandlers = {
+    const topicHandlers: KafkaHandlerRouting<TopicsConfig, any> = {
       create: [new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve())],
       empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve())],
-    } satisfies KafkaHandlerRouting<typeof topicsConfig>
+    }
 
     // When
     const container = new KafkaHandlerContainer(topicHandlers)

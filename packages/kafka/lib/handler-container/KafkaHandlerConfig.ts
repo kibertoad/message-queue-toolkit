@@ -1,22 +1,14 @@
 import type { ZodSchema } from 'zod'
-import type { SupportedMessageValuesInputForTopic, SupportedTopics, TopicConfig } from '../types.js'
 
-export type KafkaHandler<
-  TopicsConfig extends TopicConfig[],
-  Topic extends SupportedTopics<TopicsConfig>,
-> = (message: SupportedMessageValuesInputForTopic<TopicsConfig, Topic>) => Promise<void> | void
+export type KafkaHandler<MessageValue extends object> = (
+  message: MessageValue,
+) => Promise<void> | void
 
-export class KafkaHandlerConfig<
-  TopicsConfig extends TopicConfig[],
-  Topic extends SupportedTopics<TopicsConfig> = SupportedTopics<TopicsConfig>,
-> {
-  public readonly schema: ZodSchema<SupportedMessageValuesInputForTopic<TopicsConfig, Topic>>
-  public readonly handler: KafkaHandler<TopicsConfig, Topic>
+export class KafkaHandlerConfig<MessageValue extends object> {
+  public readonly schema: ZodSchema<MessageValue>
+  public readonly handler: KafkaHandler<MessageValue>
 
-  constructor(
-    schema: ZodSchema<SupportedMessageValuesInputForTopic<TopicsConfig, Topic>>,
-    handler: KafkaHandler<TopicsConfig, Topic>,
-  ) {
+  constructor(schema: ZodSchema<MessageValue>, handler: KafkaHandler<MessageValue>) {
     this.schema = schema
     this.handler = handler
   }

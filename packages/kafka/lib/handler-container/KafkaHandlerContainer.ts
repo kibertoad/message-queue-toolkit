@@ -1,4 +1,9 @@
-import type { SupportedMessageValuesForTopic, SupportedTopics, TopicConfig } from '../types.js'
+import type {
+  SupportedMessageValues,
+  SupportedMessageValuesForTopic,
+  SupportedTopics,
+  TopicConfig,
+} from '../types.js'
 import type { KafkaHandlerConfig } from './KafkaHandlerConfig.js'
 import type { KafkaHandlerRouting } from './KafkaHandlerRoutingBuilder.js'
 
@@ -6,7 +11,7 @@ const DEFAULT_HANDLER_KEY = Symbol('default-handler')
 
 type Handlers<TopicsConfig extends TopicConfig[]> = Record<
   string,
-  Record<string | symbol, KafkaHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>>
+  Record<string | symbol, KafkaHandlerConfig<SupportedMessageValues<TopicsConfig>>>
 >
 
 export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
@@ -47,7 +52,7 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
   resolveHandler<Topic extends SupportedTopics<TopicsConfig>>(
     topic: Topic,
     messageValue: SupportedMessageValuesForTopic<TopicsConfig, Topic>,
-  ): KafkaHandlerConfig<TopicsConfig, Topic> | undefined {
+  ): KafkaHandlerConfig<SupportedMessageValuesForTopic<TopicsConfig, Topic>> | undefined {
     const handlers = this.handlers[topic]
     if (!handlers) return undefined
 
