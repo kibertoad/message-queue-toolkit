@@ -75,7 +75,7 @@ export abstract class AbstractKafkaPublisher<
     let timeoutId: NodeJS.Timeout | undefined
 
     const initPromise = this.producer.initIdempotentProducer({ ...this.options })
-    const timeoutPromise = new Promise<void>((_, reject) => {
+    const timeoutPromise = new Promise((_, reject) => {
       timeoutId = setTimeout(() => reject(new Error('Producer init timed out')), INIT_TIMEOUT)
     })
 
