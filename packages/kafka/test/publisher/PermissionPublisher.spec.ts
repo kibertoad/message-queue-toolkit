@@ -9,7 +9,7 @@ import {
 import { type TestContext, createTestContext } from '../utils/testContext.ts'
 import { PermissionPublisher } from './PermissionPublisher.ts'
 
-describe('PermissionPublisher - init', () => {
+describe('PermissionPublisher', () => {
   let testContext: TestContext
   let publisher: PermissionPublisher
 
