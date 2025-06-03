@@ -16,8 +16,10 @@ import type {
   TopicConfig,
 } from './types.js'
 
+const INIT_TIMEOUT = 2000 // 2 seconds
+
 export type KafkaPublisherOptions<TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
-  Omit<ProduceOptions<string, object, string, object>, 'serializers'> & {
+  Omit<ProduceOptions<string, object, string, object>, 'serializers' | 'idempotent'> & {
     topicsConfig: TopicsConfig
   }
 
@@ -35,10 +37,12 @@ export abstract class AbstractKafkaPublisher<
     MessageSchemaContainer<SupportedMessageValuesInput<TopicsConfig>>
   >
 
-  private producer?: Producer<string, object, string, object>
+  private readonly producer: Producer<string, object, string, object>
+  private isInitiated: boolean
 
   constructor(dependencies: KafkaDependencies, options: KafkaPublisherOptions<TopicsConfig>) {
     super(dependencies, options)
+    this.isInitiated = false
 
     this.topicsConfig = options.topicsConfig
     if (this.topicsConfig.length === 0) throw new Error('At least one topic must be defined')
@@ -51,14 +55,11 @@ export abstract class AbstractKafkaPublisher<
         messageDefinitions: [],
       })
     }
-  }
-
-  init(): Promise<void> {
-    if (this.producer) return Promise.resolve()
 
     this.producer = new Producer({
       ...this.options.kafka,
       ...this.options,
+      idempotent: true,
       serializers: {
         key: stringSerializer,
         value: jsonSerializer,
@@ -66,13 +67,31 @@ export abstract class AbstractKafkaPublisher<
         headerValue: jsonSerializer,
       },
     })
+  }
 
-    return Promise.resolve()
+  async init(): Promise<void> {
+    if (this.isInitiated) return
+
+    let timeoutId: NodeJS.Timeout | undefined
+
+    const initPromise = this.producer.initIdempotentProducer({ ...this.options })
+    const timeoutPromise = new Promise<void>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('Producer init timed out')), INIT_TIMEOUT)
+    })
+
+    try {
+      await Promise.race([initPromise, timeoutPromise])
+      this.isInitiated = true
+    } finally {
+      clearTimeout(timeoutId)
+    }
   }
 
   async close(): Promise<void> {
-    await this.producer?.close()
-    this.producer = undefined
+    if (!this.isInitiated) return
+
+    await this.producer.close()
+    this.isInitiated = false
   }
 
   async publish<Topic extends SupportedTopics<TopicsConfig>>(
