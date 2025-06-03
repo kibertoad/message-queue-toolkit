@@ -16,10 +16,8 @@ import type {
   TopicConfig,
 } from './types.js'
 
-const INIT_TIMEOUT = 2000 // 2 seconds
-
 export type KafkaPublisherOptions<TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
-  Omit<ProduceOptions<string, object, string, object>, 'serializers' | 'idempotent'> & {
+  Omit<ProduceOptions<string, object, string, object>, 'serializers'> & {
     topicsConfig: TopicsConfig
   }
 
@@ -59,7 +57,6 @@ export abstract class AbstractKafkaPublisher<
     this.producer = new Producer({
       ...this.options.kafka,
       ...this.options,
-      idempotent: true,
       serializers: {
         key: stringSerializer,
         value: jsonSerializer,
@@ -72,18 +69,15 @@ export abstract class AbstractKafkaPublisher<
   async init(): Promise<void> {
     if (this.isInitiated) return
 
-    let timeoutId: NodeJS.Timeout | undefined
-
-    const initPromise = this.producer.initIdempotentProducer({ ...this.options })
-    const timeoutPromise = new Promise((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error('Producer init timed out')), INIT_TIMEOUT)
-    })
-
     try {
-      await Promise.race([initPromise, timeoutPromise])
+      await this.producer.listApis()
       this.isInitiated = true
-    } finally {
-      clearTimeout(timeoutId)
+    } catch (e) {
+      throw new InternalError({
+        message: 'Producer init failed',
+        errorCode: 'KAFKA_PRODUCER_INIT_ERROR',
+        cause: e,
+      })
     }
   }
 
