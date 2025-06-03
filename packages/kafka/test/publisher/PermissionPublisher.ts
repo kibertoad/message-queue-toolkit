@@ -2,9 +2,9 @@ import {
   AbstractKafkaPublisher,
   type KafkaDependencies,
   type KafkaPublisherOptions,
-} from '../../lib/index.js'
-import { PERMISSION_TOPIC_MESSAGES_CONFIG } from '../utils/permissionSchemas.js'
-import { getKafkaConfig } from '../utils/testContext.js'
+} from '../../lib/index.ts'
+import { PERMISSION_TOPIC_MESSAGES_CONFIG } from '../utils/permissionSchemas.ts'
+import { getKafkaConfig } from '../utils/testContext.ts'
 
 type PermissionPublisherOptions = Partial<
   Pick<

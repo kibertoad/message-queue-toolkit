@@ -3,8 +3,8 @@ import type {
   SupportedMessageValuesForTopic,
   SupportedTopics,
   TopicConfig,
-} from '../types.js'
-import type { KafkaHandlerConfig } from './KafkaHandlerConfig.js'
+} from '../types.ts'
+import type { KafkaHandlerConfig } from './KafkaHandlerConfig.ts'
 
 export type KafkaHandlerRouting<
   TopicsConfig extends TopicConfig[],

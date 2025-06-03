@@ -7,8 +7,8 @@ import {
   jsonDeserializer,
   stringDeserializer,
 } from '@platformatic/kafka'
-import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.js'
-import type { KafkaDependencies, TopicConfig } from './types.js'
+import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
+import type { KafkaDependencies, TopicConfig } from './types.ts'
 
 export type KafkaConsumerOptions<_TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
   Omit<ConsumerOptions<string, object, string, object>, 'deserializers' | 'autocommit'> &

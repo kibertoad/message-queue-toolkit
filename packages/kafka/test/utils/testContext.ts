@@ -9,7 +9,7 @@ import {
   createContainer,
 } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
-import type { KafkaConfig, KafkaDependencies } from '../../lib/index.js'
+import type { KafkaConfig, KafkaDependencies } from '../../lib/index.ts'
 
 const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 

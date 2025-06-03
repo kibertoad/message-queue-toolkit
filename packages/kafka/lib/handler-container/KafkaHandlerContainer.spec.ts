@@ -1,8 +1,8 @@
 import z from 'zod/v3'
-import type { TopicConfig } from '../types.js'
-import { KafkaHandlerConfig } from './KafkaHandlerConfig.js'
-import { KafkaHandlerContainer } from './KafkaHandlerContainer.js'
-import type { KafkaHandlerRouting } from './KafkaHandlerRoutingBuilder.js'
+import type { TopicConfig } from '../types.ts'
+import { KafkaHandlerConfig } from './KafkaHandlerConfig.ts'
+import { KafkaHandlerContainer } from './KafkaHandlerContainer.ts'
+import type { KafkaHandlerRouting } from './KafkaHandlerRoutingBuilder.ts'
 
 const CREATE_SCHEMA = z.object({ type: z.literal('create') })
 const UPDATE_SCHEMA = z.object({ type: z.literal('update') })

@@ -1,5 +1,5 @@
 import z from 'zod/v3'
-import type { TopicConfig } from '../../lib/index.js'
+import type { TopicConfig } from '../../lib/index.ts'
 
 const BASE_SCHEMA = z.object({
   id: z.string(),

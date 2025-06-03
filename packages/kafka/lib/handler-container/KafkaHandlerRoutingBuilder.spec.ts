@@ -1,8 +1,8 @@
 import { expectTypeOf } from 'vitest'
 import z from 'zod'
-import type { TopicConfig } from '../types.js'
-import { KafkaHandlerConfig } from './KafkaHandlerConfig.js'
-import { KafkaHandlerRoutingBuilder } from './KafkaHandlerRoutingBuilder.js'
+import type { TopicConfig } from '../types.ts'
+import { KafkaHandlerConfig } from './KafkaHandlerConfig.ts'
+import { KafkaHandlerRoutingBuilder } from './KafkaHandlerRoutingBuilder.ts'
 
 const CREATE_SCHEMA = z.object({ type: z.literal('create') })
 const UPDATE_SCHEMA = z.object({ type: z.literal('update') })

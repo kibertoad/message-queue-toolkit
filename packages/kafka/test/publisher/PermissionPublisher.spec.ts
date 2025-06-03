@@ -5,9 +5,9 @@ import {
   type PermissionAdded,
   type PermissionRemoved,
   TOPICS,
-} from '../utils/permissionSchemas.js'
-import { type TestContext, createTestContext } from '../utils/testContext.js'
-import { PermissionPublisher } from './PermissionPublisher.js'
+} from '../utils/permissionSchemas.ts'
+import { type TestContext, createTestContext } from '../utils/testContext.ts'
+import { PermissionPublisher } from './PermissionPublisher.ts'
 
 describe('PermissionPublisher - init', () => {
   let testContext: TestContext

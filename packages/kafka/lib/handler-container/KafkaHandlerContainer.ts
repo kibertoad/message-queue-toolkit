@@ -3,9 +3,9 @@ import type {
   SupportedMessageValuesForTopic,
   SupportedTopics,
   TopicConfig,
-} from '../types.js'
-import type { KafkaHandlerConfig } from './KafkaHandlerConfig.js'
-import type { KafkaHandlerRouting } from './KafkaHandlerRoutingBuilder.js'
+} from '../types.ts'
+import type { KafkaHandlerConfig } from './KafkaHandlerConfig.ts'
+import type { KafkaHandlerRouting } from './KafkaHandlerRoutingBuilder.ts'
 
 const DEFAULT_HANDLER_KEY = Symbol('default-handler')
 

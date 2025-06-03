@@ -17,7 +17,7 @@ import type {
   KafkaDependencies,
   SupportedMessageValues,
   TopicConfig,
-} from './types.js'
+} from './types.ts'
 
 export type BaseKafkaOptions = {
   kafka: KafkaConfig
