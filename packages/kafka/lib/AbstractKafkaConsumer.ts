@@ -53,11 +53,10 @@ export abstract class AbstractKafkaConsumer<
 
   async init(): Promise<void> {
     if (this.consumerStream) return Promise.resolve()
+    const topics = this.handlerContainer.topics
+    if (topics.length === 0) throw new Error('At least one topic must be defined')
 
-    this.consumerStream = await this.consumer.consume({
-      ...this.options,
-      topics: this.handlerContainer.topics,
-    })
+    this.consumerStream = await this.consumer.consume({ ...this.options, topics })
 
     this.consumerStream.on('data', async (message) => {
       await this.consume(message)
@@ -65,6 +64,8 @@ export abstract class AbstractKafkaConsumer<
   }
 
   async close(): Promise<void> {
+    if (!this.consumerStream) return Promise.resolve()
+
     await new Promise((done) => this.consumerStream?.close(done))
     this.consumerStream = undefined
     await this.consumer.close()

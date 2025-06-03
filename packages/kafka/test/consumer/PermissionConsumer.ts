@@ -10,7 +10,7 @@ import { getKafkaConfig } from '../utils/testContext.js'
 export type PermissionConsumerOptions = Partial<
   Pick<
     KafkaConsumerOptions<typeof PERMISSION_TOPIC_MESSAGES_CONFIG>,
-    'kafka' | 'handlerSpy' | 'autocreateTopics'
+    'kafka' | 'handlerSpy' | 'autocreateTopics' | 'handlers'
   >
 >
 
