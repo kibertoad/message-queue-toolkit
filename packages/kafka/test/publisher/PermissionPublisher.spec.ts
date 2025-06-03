@@ -79,6 +79,7 @@ describe('PermissionPublisher - init', () => {
         autocreateTopics: false,
       })
 
+      // When
       let error: any | undefined
       await publisher.init()
       try {
