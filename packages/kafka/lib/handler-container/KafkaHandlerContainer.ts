@@ -1,44 +1,34 @@
 import type { SupportedMessageValuesForTopic, SupportedTopics, TopicConfig } from '../types.js'
-import type { KafkaHandler, KafkaHandlerConfig } from './KafkaHandlerConfig.js'
+import type { KafkaHandlerConfig } from './KafkaHandlerConfig.js'
+import type { KafkaHandlerRouting } from './KafkaHandlerRoutingBuilder.js'
 
 const DEFAULT_HANDLER_KEY = Symbol('default-handler')
 
 type Handlers<TopicsConfig extends TopicConfig[]> = Record<
   string,
-  Record<string | symbol, KafkaHandler<TopicsConfig, SupportedTopics<TopicsConfig>>>
+  Record<string | symbol, KafkaHandlerConfig<TopicsConfig>>
 >
 
 export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
   private readonly handlers: Handlers<TopicsConfig>
   private readonly messageTypeField?: string
 
-  constructor(
-    topicHandlers: Record<
-      string,
-      | KafkaHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>
-      | KafkaHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>[]
-    >,
-    messageTypeField?: string,
-  ) {
+  constructor(topicHandlers: KafkaHandlerRouting<TopicsConfig>, messageTypeField?: string) {
     this.handlers = this.mapTopicHandlers(topicHandlers)
     this.messageTypeField = messageTypeField
   }
 
   private mapTopicHandlers(
-    topicHandlers: Record<
-      string,
-      | KafkaHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>
-      | KafkaHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>[]
-    >,
+    topicHandlerRouting: KafkaHandlerRouting<TopicsConfig>,
   ): Handlers<TopicsConfig> {
     const result: Handlers<TopicsConfig> = {}
-    for (const [topic, handlers] of Object.entries(topicHandlers)) {
+    for (const [topic, topicHandlers] of Object.entries(topicHandlerRouting)) {
       result[topic] = {}
 
-      for (const { schema, handler } of Array.isArray(handlers) ? handlers : [handlers]) {
+      for (const handler of topicHandlers) {
         let handlerKey = this.messageTypeField
           ? // @ts-ignore
-            schema.shape[this.messageTypeField]?.value
+            handler.schema.shape[this.messageTypeField]?.value
           : undefined
         handlerKey ??= DEFAULT_HANDLER_KEY
         if (result[topic][handlerKey]) {
@@ -55,7 +45,7 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
   resolveHandler<Topic extends SupportedTopics<TopicsConfig>>(
     topic: Topic,
     messageValue: SupportedMessageValuesForTopic<TopicsConfig, Topic>,
-  ): KafkaHandler<TopicsConfig, Topic> | undefined {
+  ): KafkaHandlerConfig<TopicsConfig, Topic> | undefined {
     const handlers = this.handlers[topic]
     if (!handlers) return undefined
 

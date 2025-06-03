@@ -7,7 +7,7 @@ export type KafkaHandler<TopicsConfig extends TopicConfig[], Topic extends strin
 
 export class KafkaHandlerConfig<
   TopicsConfig extends TopicConfig[],
-  Topic extends SupportedTopics<TopicsConfig>,
+  Topic extends SupportedTopics<TopicsConfig> = SupportedTopics<TopicsConfig>,
 > {
   public readonly schema: ZodSchema<SupportedMessageValuesInputForTopic<TopicsConfig, Topic>>
   public readonly handler: KafkaHandler<TopicsConfig, Topic>
