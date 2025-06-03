@@ -16,86 +16,118 @@ const topicsConfig = [
 type TopicsConfig = typeof topicsConfig
 
 describe('KafkaHandlerContainer', () => {
-  it('should return undefined for non-existing topic', () => {
-    const container = new KafkaHandlerContainer({})
+  describe('resolveHandler', () => {
+    it('should return undefined for non-existing topic', () => {
+      const container = new KafkaHandlerContainer({})
 
-    const handler = container.resolveHandler('non-existing-topic', {} as never)
-    expect(handler).toBeUndefined()
+      const handler = container.resolveHandler('non-existing-topic', {} as never)
+      expect(handler).toBeUndefined()
+    })
+
+    it('should throw error for duplicate message types', () => {
+      // Given
+      const topicHandlers1 = {
+        create: [
+          new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()),
+          new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()),
+        ],
+      }
+      const topicHandlers2 = {
+        empty: [
+          new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()),
+          new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()),
+        ],
+      } satisfies KafkaHandlerRouting<typeof topicsConfig>
+
+      // When & Then
+      expect(
+        () => new KafkaHandlerContainer(topicHandlers1, 'type'),
+      ).toThrowErrorMatchingInlineSnapshot(
+        '[Error: Duplicate handler key "create" for topic "create"]',
+      )
+      expect(() => new KafkaHandlerContainer(topicHandlers2)).toThrowErrorMatchingInlineSnapshot(
+        '[TypeError: Cannot convert a Symbol value to a string]',
+      )
+    })
+
+    it('should resolve handler with message type', () => {
+      // Given
+      const topicHandlers: KafkaHandlerRouting<TopicsConfig, any> = {
+        all: [
+          new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()),
+          new KafkaHandlerConfig(UPDATE_SCHEMA, () => Promise.resolve()),
+          new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()),
+        ],
+        create: [new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve())],
+        empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve())],
+      }
+
+      // When
+      const container = new KafkaHandlerContainer<TopicsConfig>(topicHandlers, 'type')
+
+      // Then
+      expect(container.resolveHandler('all', { type: 'create' })?.schema).toBe(CREATE_SCHEMA)
+      expect(container.resolveHandler('all', { type: 'update' })?.schema).toBe(UPDATE_SCHEMA)
+      expect(container.resolveHandler('all', { type: 'non-existing' })?.schema).toBe(EMPTY_SCHEMA)
+      expect(container.resolveHandler('all', {})?.schema).toBe(EMPTY_SCHEMA)
+
+      expect(container.resolveHandler('create', { type: 'create' })?.schema).toBe(CREATE_SCHEMA)
+      expect(container.resolveHandler('create', { type: 'update' as any })?.schema).toBe(undefined)
+      expect(container.resolveHandler('create', {} as any)?.schema).toBe(undefined)
+
+      expect(container.resolveHandler('empty', {} as any)?.schema).toBe(EMPTY_SCHEMA)
+      expect(container.resolveHandler('empty', { type: 'create' })?.schema).toBe(EMPTY_SCHEMA)
+    })
+
+    it('should resolve handler without message type', () => {
+      // Given
+      const topicHandlers: KafkaHandlerRouting<TopicsConfig, any> = {
+        create: [new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve())],
+        empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve())],
+      }
+
+      // When
+      const container = new KafkaHandlerContainer(topicHandlers)
+
+      // Then
+      expect(container.resolveHandler('create', { type: 'create' })?.schema).toBe(CREATE_SCHEMA)
+      expect(container.resolveHandler('create', { type: 'update' as any })?.schema).toBe(
+        CREATE_SCHEMA,
+      )
+      expect(container.resolveHandler('create', {} as any)?.schema).toBe(CREATE_SCHEMA)
+
+      expect(container.resolveHandler('empty', {} as any)?.schema).toBe(EMPTY_SCHEMA)
+      expect(container.resolveHandler('empty', { type: 'create' })?.schema).toBe(EMPTY_SCHEMA)
+    })
   })
 
-  it('should throw error for duplicate message types', () => {
-    // Given
-    const topicHandlers1 = {
-      create: [
-        new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()),
-        new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()),
-      ],
-    }
-    const topicHandlers2 = {
-      empty: [
-        new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()),
-        new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()),
-      ],
-    } satisfies KafkaHandlerRouting<typeof topicsConfig>
+  describe('topics', () => {
+    it('should not fail with empty topics', () => {
+      // When
+      const container = new KafkaHandlerContainer<TopicsConfig>({})
 
-    // When & Then
-    expect(
-      () => new KafkaHandlerContainer(topicHandlers1, 'type'),
-    ).toThrowErrorMatchingInlineSnapshot(
-      '[Error: Duplicate handler key "create" for topic "create"]',
-    )
-    expect(() => new KafkaHandlerContainer(topicHandlers2)).toThrowErrorMatchingInlineSnapshot(
-      '[TypeError: Cannot convert a Symbol value to a string]',
-    )
-  })
+      // Then
+      expect(container.topics).toEqual([])
+    })
 
-  it('should resolve handler with message type', () => {
-    // Given
-    const topicHandlers: KafkaHandlerRouting<TopicsConfig, any> = {
-      all: [
-        new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()),
-        new KafkaHandlerConfig(UPDATE_SCHEMA, () => Promise.resolve()),
-        new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()),
-      ],
-      create: [new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve())],
-      empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve())],
-    }
+    it('should return all topics', () => {
+      // Given
+      const topicHandlers: KafkaHandlerRouting<TopicsConfig, any> = {
+        all: [
+          new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()),
+          new KafkaHandlerConfig(UPDATE_SCHEMA, () => Promise.resolve()),
+          new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()),
+        ],
+        create: [new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve())],
+        empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve())],
+        another: [],
+      }
 
-    // When
-    const container = new KafkaHandlerContainer<TopicsConfig>(topicHandlers, 'type')
+      // When
+      const container = new KafkaHandlerContainer<TopicsConfig>(topicHandlers, 'type')
 
-    // Then
-    expect(container.resolveHandler('all', { type: 'create' })?.schema).toBe(CREATE_SCHEMA)
-    expect(container.resolveHandler('all', { type: 'update' })?.schema).toBe(UPDATE_SCHEMA)
-    expect(container.resolveHandler('all', { type: 'non-existing' })?.schema).toBe(EMPTY_SCHEMA)
-    expect(container.resolveHandler('all', {})?.schema).toBe(EMPTY_SCHEMA)
-
-    expect(container.resolveHandler('create', { type: 'create' })?.schema).toBe(CREATE_SCHEMA)
-    expect(container.resolveHandler('create', { type: 'update' as any })?.schema).toBe(undefined)
-    expect(container.resolveHandler('create', {} as any)?.schema).toBe(undefined)
-
-    expect(container.resolveHandler('empty', {} as any)?.schema).toBe(EMPTY_SCHEMA)
-    expect(container.resolveHandler('empty', { type: 'create' })?.schema).toBe(EMPTY_SCHEMA)
-  })
-
-  it('should resolve handler without message type', () => {
-    // Given
-    const topicHandlers: KafkaHandlerRouting<TopicsConfig, any> = {
-      create: [new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve())],
-      empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve())],
-    }
-
-    // When
-    const container = new KafkaHandlerContainer(topicHandlers)
-
-    // Then
-    expect(container.resolveHandler('create', { type: 'create' })?.schema).toBe(CREATE_SCHEMA)
-    expect(container.resolveHandler('create', { type: 'update' as any })?.schema).toBe(
-      CREATE_SCHEMA,
-    )
-    expect(container.resolveHandler('create', {} as any)?.schema).toBe(CREATE_SCHEMA)
-
-    expect(container.resolveHandler('empty', {} as any)?.schema).toBe(EMPTY_SCHEMA)
-    expect(container.resolveHandler('empty', { type: 'create' })?.schema).toBe(EMPTY_SCHEMA)
+      // Then
+      expect(container.topics).toEqual(['all', 'create', 'empty'])
+    })
   })
 })

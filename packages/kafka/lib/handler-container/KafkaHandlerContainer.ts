@@ -20,7 +20,6 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
 
   constructor(topicHandlers: KafkaHandlerRouting<TopicsConfig>, messageTypeField?: string) {
     this.messageTypeField = messageTypeField
-
     this.handlers = this.mapTopicHandlers(topicHandlers)
   }
 
@@ -30,6 +29,7 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
     const result: Handlers<TopicsConfig> = {}
 
     for (const [topic, topicHandlers] of Object.entries(topicHandlerRouting)) {
+      if (!topicHandlers.length) continue
       result[topic] = {}
 
       for (const handler of topicHandlers) {
@@ -39,7 +39,7 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
           : undefined
         handlerKey ??= DEFAULT_HANDLER_KEY
         if (result[topic][handlerKey]) {
-          throw new Error(`Duplicate handler key "${handlerKey}" for topic "${topic}"`)
+          throw new Error(`Duplicate handler for topic ${topic}`)
         }
 
         result[topic][handlerKey] = handler
@@ -62,5 +62,9 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
     return messageValueType
       ? (handlers[messageValueType] ?? handlers[DEFAULT_HANDLER_KEY])
       : handlers[DEFAULT_HANDLER_KEY]
+  }
+
+  get topics(): SupportedTopics<TopicsConfig>[] {
+    return Object.keys(this.handlers)
   }
 }
