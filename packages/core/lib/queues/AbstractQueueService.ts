@@ -167,9 +167,9 @@ export abstract class AbstractQueueService<
       .filter((entry) => entry !== undefined)
 
     return new MessageSchemaContainer<MessagePayloadSchemas>({
+      messageTypeField: options.messageTypeField,
       messageSchemas,
       messageDefinitions,
-      messageTypeField: options.messageTypeField,
     })
   }
 
@@ -178,12 +178,11 @@ export abstract class AbstractQueueService<
     messageTypeField: string
   }) {
     const messageSchemas = options.messageSchemas
-    const messageDefinitions: readonly CommonEventDefinition[] = []
 
     return new MessageSchemaContainer<MessagePayloadSchemas>({
-      messageSchemas,
-      messageDefinitions,
       messageTypeField: options.messageTypeField,
+      messageSchemas,
+      messageDefinitions: [],
     })
   }
 
