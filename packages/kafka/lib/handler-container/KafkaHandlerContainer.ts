@@ -34,7 +34,7 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
 
       for (const handler of topicHandlers) {
         let handlerKey = this.messageTypeField
-          ? // @ts-ignore
+          ? // @ts-expect-error
             handler.schema.shape[this.messageTypeField]?.value
           : undefined
         handlerKey ??= DEFAULT_HANDLER_KEY
