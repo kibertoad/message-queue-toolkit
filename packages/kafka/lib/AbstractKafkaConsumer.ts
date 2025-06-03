@@ -14,7 +14,10 @@ import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutin
 import type { KafkaDependencies, TopicConfig } from './types.ts'
 
 export type KafkaConsumerOptions<TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
-  Omit<ConsumerOptions<string, object, string, object>, 'deserializers' | 'autocommit'> &
+  Omit<
+    ConsumerOptions<string, object, string, object>,
+    'deserializers' | 'autocommit' | 'bootstrapBrokers'
+  > &
   Omit<ConsumeOptions<string, object, string, object>, 'topics'> & {
     handlers: KafkaHandlerRouting<TopicsConfig>
   }
