@@ -1,9 +1,10 @@
 import type { ZodSchema } from 'zod'
 import type { SupportedMessageValuesInputForTopic, SupportedTopics, TopicConfig } from '../types.js'
 
-export type KafkaHandler<TopicsConfig extends TopicConfig[], Topic extends string> = (
-  message: SupportedMessageValuesInputForTopic<TopicsConfig, Topic>,
-) => Promise<void>
+export type KafkaHandler<
+  TopicsConfig extends TopicConfig[],
+  Topic extends SupportedTopics<TopicsConfig>,
+> = (message: SupportedMessageValuesInputForTopic<TopicsConfig, Topic>) => Promise<void>
 
 export class KafkaHandlerConfig<
   TopicsConfig extends TopicConfig[],

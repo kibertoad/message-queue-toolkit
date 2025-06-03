@@ -6,7 +6,7 @@ const DEFAULT_HANDLER_KEY = Symbol('default-handler')
 
 type Handlers<TopicsConfig extends TopicConfig[]> = Record<
   string,
-  Record<string | symbol, KafkaHandlerConfig<TopicsConfig>>
+  Record<string | symbol, KafkaHandlerConfig<TopicsConfig, SupportedTopics<TopicsConfig>>>
 >
 
 export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
@@ -14,14 +14,16 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
   private readonly messageTypeField?: string
 
   constructor(topicHandlers: KafkaHandlerRouting<TopicsConfig>, messageTypeField?: string) {
-    this.handlers = this.mapTopicHandlers(topicHandlers)
     this.messageTypeField = messageTypeField
+
+    this.handlers = this.mapTopicHandlers(topicHandlers)
   }
 
   private mapTopicHandlers(
     topicHandlerRouting: KafkaHandlerRouting<TopicsConfig>,
   ): Handlers<TopicsConfig> {
     const result: Handlers<TopicsConfig> = {}
+
     for (const [topic, topicHandlers] of Object.entries(topicHandlerRouting)) {
       result[topic] = {}
 
@@ -49,10 +51,11 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
     const handlers = this.handlers[topic]
     if (!handlers) return undefined
 
-    let messageValueType = undefined
+    let messageValueType: string | undefined = undefined
     if (this.messageTypeField) messageValueType = messageValue[this.messageTypeField]
 
-    const handlerKey = messageValueType ?? DEFAULT_HANDLER_KEY
-    return handlers[handlerKey]
+    return messageValueType
+      ? (handlers[messageValueType] ?? handlers[DEFAULT_HANDLER_KEY])
+      : handlers[DEFAULT_HANDLER_KEY]
   }
 }
