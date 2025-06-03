@@ -4,7 +4,7 @@ import type { SupportedMessageValuesInputForTopic, SupportedTopics, TopicConfig 
 export type KafkaHandler<
   TopicsConfig extends TopicConfig[],
   Topic extends SupportedTopics<TopicsConfig>,
-> = (message: SupportedMessageValuesInputForTopic<TopicsConfig, Topic>) => Promise<void>
+> = (message: SupportedMessageValuesInputForTopic<TopicsConfig, Topic>) => Promise<void> | void
 
 export class KafkaHandlerConfig<
   TopicsConfig extends TopicConfig[],
