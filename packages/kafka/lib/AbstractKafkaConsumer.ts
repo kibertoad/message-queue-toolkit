@@ -95,11 +95,14 @@ export abstract class AbstractKafkaConsumer<
 
     const parseResult = handler.schema.safeParse(message.value)
     if (!parseResult.success) {
-      this.handlerError(parseResult.error, { message: stringValueSerializer(message) })
-      this.handleMessageProcessed({
-        message: message,
-        processingResult: { status: 'error', errorReason: 'invalidMessage' },
+      this.handlerError(parseResult.error, {
         topic: message.topic,
+        message: stringValueSerializer(message.value),
+      })
+      this.handleMessageProcessed({
+        topic: message.topic,
+        message: message.value,
+        processingResult: { status: 'error', errorReason: 'invalidMessage' },
       })
 
       return message.commit()
@@ -121,15 +124,15 @@ export abstract class AbstractKafkaConsumer<
 
     if (consumed) {
       this.handleMessageProcessed({
+        topic: message.topic,
         message: validatedMessage,
         processingResult: { status: 'consumed' },
-        topic: message.topic,
       })
     } else {
       this.handleMessageProcessed({
+        topic: message.topic,
         message: validatedMessage,
         processingResult: { status: 'error', errorReason: 'handlerError' },
-        topic: message.topic,
       })
     }
 
@@ -144,7 +147,10 @@ export abstract class AbstractKafkaConsumer<
       await handler(message)
       return true
     } catch (error) {
-      this.handlerError(error, { message: stringValueSerializer(message.value) })
+      this.handlerError(error, {
+        topic: message.topic,
+        message: stringValueSerializer(message.value),
+      })
     }
 
     return false
