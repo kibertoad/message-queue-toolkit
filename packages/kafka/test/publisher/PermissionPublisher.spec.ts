@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { InternalError } from '@lokalise/node-core'
 import {
   PERMISSION_ADDED_SCHEMA,
@@ -50,6 +51,26 @@ describe('PermissionPublisher', () => {
       expect(() => publisher?.handlerSpy).toThrowErrorMatchingInlineSnapshot(
         '[Error: HandlerSpy was not instantiated, please pass `handlerSpy` parameter during creation.]',
       )
+    })
+
+    it('should fail if kafka is not available', async () => {
+      // Given
+      publisher = new PermissionPublisher(testContext.cradle, {
+        kafka: { clientId: randomUUID(), bootstrapBrokers: ['localhost:9090'] },
+      })
+
+      // When - Then
+      await expect(publisher.init()).rejects.toThrowErrorMatchingInlineSnapshot(
+        '[InternalError: Producer init failed]',
+      )
+    })
+
+    it('should not fail on close if publisher is not started ', async () => {
+      // Given
+      publisher = new PermissionPublisher(testContext.cradle)
+
+      // When - Then
+      await expect(publisher.close()).resolves.not.toThrow()
     })
 
     it('should fail if topic does not exists', async () => {

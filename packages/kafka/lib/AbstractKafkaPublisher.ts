@@ -35,10 +35,12 @@ export abstract class AbstractKafkaPublisher<
     MessageSchemaContainer<SupportedMessageValuesInput<TopicsConfig>>
   >
 
-  private producer?: Producer<string, object, string, object>
+  private readonly producer: Producer<string, object, string, object>
+  private isInitiated: boolean
 
   constructor(dependencies: KafkaDependencies, options: KafkaPublisherOptions<TopicsConfig>) {
     super(dependencies, options)
+    this.isInitiated = false
 
     this.topicsConfig = options.topicsConfig
     if (this.topicsConfig.length === 0) throw new Error('At least one topic must be defined')
@@ -51,10 +53,6 @@ export abstract class AbstractKafkaPublisher<
         messageDefinitions: [],
       })
     }
-  }
-
-  init(): Promise<void> {
-    if (this.producer) return Promise.resolve()
 
     this.producer = new Producer({
       ...this.options.kafka,
@@ -66,13 +64,28 @@ export abstract class AbstractKafkaPublisher<
         headerValue: jsonSerializer,
       },
     })
+  }
 
-    return Promise.resolve()
+  async init(): Promise<void> {
+    if (this.isInitiated) return
+
+    try {
+      await this.producer.listApis()
+      this.isInitiated = true
+    } catch (e) {
+      throw new InternalError({
+        message: 'Producer init failed',
+        errorCode: 'KAFKA_PRODUCER_INIT_ERROR',
+        cause: e,
+      })
+    }
   }
 
   async close(): Promise<void> {
-    await this.producer?.close()
-    this.producer = undefined
+    if (!this.isInitiated) return
+
+    await this.producer.close()
+    this.isInitiated = false
   }
 
   async publish<Topic extends SupportedTopics<TopicsConfig>>(

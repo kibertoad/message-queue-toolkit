@@ -5,8 +5,9 @@ import {
   resolveGlobalErrorLogObject,
   stringValueSerializer,
 } from '@lokalise/node-core'
-import type { HandlerSpy, HandlerSpyParams } from '@message-queue-toolkit/core'
 import {
+  type HandlerSpy,
+  type HandlerSpyParams,
   type MessageProcessingResult,
   type PublicHandlerSpy,
   resolveHandlerSpy,
