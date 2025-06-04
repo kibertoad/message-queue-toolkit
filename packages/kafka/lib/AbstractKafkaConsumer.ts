@@ -1,4 +1,4 @@
-import { stringValueSerializer } from '@lokalise/node-core'
+import { InternalError, stringValueSerializer } from '@lokalise/node-core'
 import {
   type ConsumeOptions,
   Consumer,
@@ -42,6 +42,7 @@ export abstract class AbstractKafkaConsumer<
       ...this.options.kafka,
       ...this.options,
       autocommit: false, // Handling commits manually
+      connectTimeout: 1,
       deserializers: {
         key: stringDeserializer,
         value: jsonDeserializer,
@@ -56,7 +57,16 @@ export abstract class AbstractKafkaConsumer<
     const topics = this.handlerContainer.topics
     if (topics.length === 0) throw new Error('At least one topic must be defined')
 
-    this.consumerStream = await this.consumer.consume({ ...this.options, topics })
+    try {
+      const { handlers, ...consumeOptions } = this.options // Handlers cannot be passed to consume method
+      this.consumerStream = await this.consumer.consume({ ...consumeOptions, topics })
+    } catch (error) {
+      throw new InternalError({
+        message: 'Consumer init failed',
+        errorCode: 'KAFKA_CONSUMER_INIT_ERROR',
+        cause: error,
+      })
+    }
 
     this.consumerStream.on('data', async (message) => {
       await this.consume(message)
@@ -77,7 +87,7 @@ export abstract class AbstractKafkaConsumer<
 
   private async consume(message: Message<string, object, string, object>): Promise<void> {
     const handler = this.handlerContainer.resolveHandler(message.topic, message.value)
-    // if there is no handler for the message, we just ignore it (simulating subscription)
+    // if there is no handler for the message, we ignore it (simulating subscription)
     if (!handler) return message.commit()
 
     const parsedMessageValue = handler.schema.safeParse(message.value)
@@ -88,6 +98,7 @@ export abstract class AbstractKafkaConsumer<
         processingResult: { status: 'error', errorReason: 'invalidMessage' },
         topic: message.topic,
       })
+
       return message.commit()
     }
 
@@ -98,6 +109,7 @@ export abstract class AbstractKafkaConsumer<
         processingResult: { status: 'consumed' },
         topic: message.topic,
       })
+
       return message.commit()
     } catch (error) {
       this.handlerError(error, { message: stringValueSerializer(message) })

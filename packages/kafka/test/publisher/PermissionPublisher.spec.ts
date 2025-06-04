@@ -26,7 +26,7 @@ describe('PermissionPublisher', () => {
     await testContext.dispose()
   })
 
-  describe('init', () => {
+  describe('init - close', () => {
     beforeEach(async () => {
       try {
         await testContext.cradle.kafkaAdmin.deleteTopics({
