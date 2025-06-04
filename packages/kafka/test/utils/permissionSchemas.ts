@@ -1,17 +1,18 @@
 import z from 'zod/v3'
 import type { TopicConfig } from '../../lib/index.ts'
 
-const BASE_SCHEMA = z.object({
+export const PERMISSION_SCHEMA = z.object({
   id: z.string(),
   permissions: z.array(z.string()).describe('List of user permissions'),
 })
+export type Permission = z.infer<typeof PERMISSION_SCHEMA>
 
-export const PERMISSION_ADDED_SCHEMA = BASE_SCHEMA.extend({
+export const PERMISSION_ADDED_SCHEMA = PERMISSION_SCHEMA.extend({
   type: z.literal('added'),
 })
 export type PermissionAdded = z.infer<typeof PERMISSION_ADDED_SCHEMA>
 
-export const PERMISSION_REMOVED_SCHEMA = BASE_SCHEMA.extend({
+export const PERMISSION_REMOVED_SCHEMA = PERMISSION_SCHEMA.extend({
   type: z.literal('removed'),
 })
 export type PermissionRemoved = z.infer<typeof PERMISSION_REMOVED_SCHEMA>
@@ -26,6 +27,6 @@ export const PERMISSION_TOPIC_MESSAGES_CONFIG = [
   { topic: PERMISSION_REMOVED_TOPIC, schemas: [PERMISSION_REMOVED_SCHEMA] },
   {
     topic: PERMISSION_GENERAL_TOPIC,
-    schemas: [PERMISSION_ADDED_SCHEMA, PERMISSION_REMOVED_SCHEMA],
+    schemas: [PERMISSION_SCHEMA, PERMISSION_ADDED_SCHEMA, PERMISSION_REMOVED_SCHEMA],
   },
 ] as const satisfies TopicConfig[]
