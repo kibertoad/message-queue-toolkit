@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { Message } from '@platformatic/kafka'
 import {
   AbstractKafkaConsumer,
   type KafkaConsumerOptions,
@@ -29,9 +30,9 @@ export type PermissionConsumerOptions = Partial<
 export class PermissionConsumer extends AbstractKafkaConsumer<
   typeof PERMISSION_TOPIC_MESSAGES_CONFIG
 > {
-  private _addedMessages: PermissionAdded[] = []
-  private _removedMessages: PermissionRemoved[] = []
-  private _noTypeMessages: Permission[] = []
+  private _addedMessages: Message<string, PermissionAdded, string, object>[] = []
+  private _removedMessages: Message<string, PermissionRemoved, string, object>[] = []
+  private _noTypeMessages: Message<string, Permission, string, object>[] = []
 
   constructor(deps: KafkaDependencies, options: PermissionConsumerOptions = {}) {
     super(deps, {
@@ -80,15 +81,15 @@ export class PermissionConsumer extends AbstractKafkaConsumer<
     })
   }
 
-  get addedMessages(): PermissionAdded[] {
+  get addedMessages() {
     return this._addedMessages
   }
 
-  get removedMessages(): PermissionRemoved[] {
+  get removedMessages() {
     return this._removedMessages
   }
 
-  get noTypeMessages(): Permission[] {
+  get noTypeMessages() {
     return this._noTypeMessages
   }
 

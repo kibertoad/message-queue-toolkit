@@ -1,7 +1,8 @@
+import type { Message } from '@platformatic/kafka'
 import type { ZodSchema } from 'zod'
 
 export type KafkaHandler<MessageValue extends object> = (
-  message: MessageValue,
+  message: Message<string, MessageValue, string, object>,
 ) => Promise<void> | void
 
 export class KafkaHandlerConfig<MessageValue extends object> {
