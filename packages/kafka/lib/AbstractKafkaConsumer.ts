@@ -71,9 +71,8 @@ export abstract class AbstractKafkaConsumer<
       })
     }
 
-    this.consumerStream.on('data', async (message) => {
-      await this.consume(message)
-    })
+    this.consumerStream.on('data', (message) => this.consume(message))
+    this.consumerStream.on('error', (error) => this.handlerError(error))
   }
 
   async close(): Promise<void> {
