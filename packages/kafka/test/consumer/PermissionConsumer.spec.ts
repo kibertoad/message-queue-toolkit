@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { TOPICS } from '../utils/permissionSchemas.js'
+import { afterAll, expect } from 'vitest'
+import z from 'zod/v3'
+import { KafkaHandlerConfig } from '../../lib/index.js'
+import { PermissionPublisher } from '../publisher/PermissionPublisher.js'
+import { PERMISSION_REMOVED_SCHEMA, PERMISSION_SCHEMA, TOPICS } from '../utils/permissionSchemas.js'
 import { type TestContext, createTestContext } from '../utils/testContext.js'
 import { PermissionConsumer } from './PermissionConsumer.js'
 
@@ -99,6 +103,140 @@ describe('PermissionConsumer', () => {
 
       // When - Then
       await expect(consumer.init()).resolves.not.toThrowError()
+    })
+  })
+
+  describe('consume', () => {
+    let publisher: PermissionPublisher
+
+    beforeAll(() => {
+      publisher = new PermissionPublisher(testContext.cradle)
+    })
+
+    afterAll(async () => {
+      await publisher.close()
+    })
+
+    it('should consume messages with valid type', async () => {
+      // Given
+      consumer = new PermissionConsumer(testContext.cradle)
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
+
+      // Then
+      const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      expect(spy.message).toMatchObject({ id: '1' })
+      expect(consumer.addedMessages).toHaveLength(1)
+      expect(consumer.addedMessages[0]!.value).toEqual(spy.message)
+    })
+
+    it('should consume messages without type with default handler', async () => {
+      // Given
+      consumer = new PermissionConsumer(testContext.cradle)
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-general', { id: '1', permissions: [] })
+
+      // Then
+      const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      expect(spy.message).toMatchObject({ id: '1' })
+      expect(consumer.noTypeMessages).toHaveLength(1)
+      expect(consumer.noTypeMessages[0]!.value).toEqual(spy.message)
+    })
+
+    it('should react correctly if handler throws an error', async () => {
+      // Given
+      let counter = 0
+      consumer = new PermissionConsumer(testContext.cradle, {
+        handlers: {
+          'permission-added': [
+            new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
+              counter++
+              throw new Error('Test error')
+            }),
+          ],
+        },
+      })
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
+
+      // Then
+      const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
+      expect(spy.message).toMatchObject({ id: '1' })
+      expect(counter).toBe(3)
+    })
+
+    it('should consume message after initial error', async () => {
+      // Given
+      let counter = 0
+      consumer = new PermissionConsumer(testContext.cradle, {
+        handlers: {
+          'permission-added': [
+            new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
+              counter++
+              if (counter === 1) throw new Error('Test error')
+            }),
+          ],
+        },
+      })
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
+
+      // Then
+      const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      expect(spy.message).toMatchObject({ id: '1' })
+      expect(counter).toBe(2)
+    })
+
+    it('should ignore event if handler does not exists', async () => {
+      // Given
+      let removeCounter = 0
+      consumer = new PermissionConsumer(testContext.cradle, {
+        handlers: {
+          'permission-general': [
+            new KafkaHandlerConfig(PERMISSION_REMOVED_SCHEMA, () => {
+              removeCounter++
+            }),
+          ],
+        } as any,
+      })
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-general', { id: '1', type: 'added', permissions: [] })
+      await publisher.publish('permission-general', { id: '2', type: 'removed', permissions: [] })
+
+      // Then
+      await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+      expect(removeCounter).toBe(1)
+    })
+
+    it('should react correct to validation issues', async () => {
+      // Given
+      consumer = new PermissionConsumer(testContext.cradle, {
+        handlers: {
+          'permission-general': [
+            new KafkaHandlerConfig(PERMISSION_SCHEMA.extend({ id: z.number() }), () =>
+              Promise.resolve(),
+            ),
+          ],
+        },
+      } as any)
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-general', { id: '1', permissions: [] })
+
+      // Then
+      const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
+      expect(spy.processingResult).toMatchObject({ errorReason: 'invalidMessage' })
     })
   })
 })

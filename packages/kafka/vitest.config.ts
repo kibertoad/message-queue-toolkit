@@ -6,6 +6,11 @@ export default defineConfig({
     globals: true,
     watch: false,
     restoreMocks: true,
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
     coverage: {
       provider: 'v8',
       include: ['lib/**/*.ts'],
