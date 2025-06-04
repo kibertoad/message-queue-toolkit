@@ -83,9 +83,12 @@ export abstract class AbstractKafkaConsumer<
     await this.consumer.close()
   }
 
-  // TODO: Improve logging with logger child on constructor + add request context?
-  // TODO: Message logging
-  // TODO: Observability
+  /*
+  TODO: https://lokalise.atlassian.net/browse/EDEXP-493
+    - Improve logging with logger child on constructor + add request context?
+    - Message logging
+    - Observability
+   */
 
   private async consume(message: Message<string, object, string, object>): Promise<void> {
     const handler = this.handlerContainer.resolveHandler(message.topic, message.value)
