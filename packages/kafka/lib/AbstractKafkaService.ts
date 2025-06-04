@@ -57,22 +57,18 @@ export abstract class AbstractKafkaService<
     )
   }
 
-  protected resolveMessageType(
-    message: SupportedMessageValues<TopicsConfig> | null | undefined,
-  ): string | undefined {
-    if (!this.options.messageTypeField || !message) return undefined
+  protected resolveMessageType(message: SupportedMessageValues<TopicsConfig>): string | undefined {
+    if (!this.options.messageTypeField) return undefined
     return message[this.options.messageTypeField]
   }
 
-  protected resolveMessageId(
-    message: SupportedMessageValues<TopicsConfig> | null | undefined,
-  ): string | undefined {
-    if (!this.options.messageIdField || !message) return undefined
+  protected resolveMessageId(message: SupportedMessageValues<TopicsConfig>): string | undefined {
+    if (!this.options.messageIdField) return undefined
     return message[this.options.messageIdField]
   }
 
   protected handleMessageProcessed(params: {
-    message: SupportedMessageValues<TopicsConfig> | null
+    message: SupportedMessageValues<TopicsConfig>
     processingResult: MessageProcessingResult
     topic: string
   }) {

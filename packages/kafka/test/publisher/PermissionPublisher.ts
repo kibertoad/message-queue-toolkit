@@ -11,7 +11,9 @@ type PermissionPublisherOptions = Partial<
     KafkaPublisherOptions<typeof PERMISSION_TOPIC_MESSAGES_CONFIG>,
     'handlerSpy' | 'kafka' | 'autocreateTopics' | 'topicsConfig'
   >
->
+> & {
+  disableMessageTypeField?: boolean
+}
 
 export class PermissionPublisher extends AbstractKafkaPublisher<
   typeof PERMISSION_TOPIC_MESSAGES_CONFIG
@@ -23,8 +25,8 @@ export class PermissionPublisher extends AbstractKafkaPublisher<
       autocreateTopics: options.autocreateTopics ?? true,
       handlerSpy: options?.handlerSpy ?? true,
       logMessages: true,
-      messageIdField: 'id',
-      messageTypeField: 'type',
+      messageIdField: options.disableMessageTypeField === true ? undefined : 'id',
+      messageTypeField: options.disableMessageTypeField === true ? undefined : 'type',
     })
   }
 }

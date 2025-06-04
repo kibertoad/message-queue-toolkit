@@ -4,6 +4,8 @@ import z from 'zod/v3'
 import {
   PERMISSION_ADDED_SCHEMA,
   PERMISSION_GENERAL_TOPIC,
+  PERMISSION_SCHEMA,
+  type Permission,
   type PermissionAdded,
   type PermissionRemoved,
   TOPICS,
@@ -252,6 +254,31 @@ describe('PermissionPublisher', () => {
       await expect(
         publisher.publish(PERMISSION_GENERAL_TOPIC, message),
       ).rejects.toThrowErrorMatchingInlineSnapshot('[Error: Unsupported message type: updated]')
+    })
+
+    it('should publish messages when message type is not used', async () => {
+      // Given
+      publisher = new PermissionPublisher(testContext.cradle, {
+        disableMessageTypeField: true,
+        topicsConfig: [
+          {
+            topic: PERMISSION_GENERAL_TOPIC,
+            schemas: [PERMISSION_SCHEMA],
+          },
+        ] as any, // we are not adding the other topics intentionally
+      })
+
+      const message = {
+        id: '1',
+        permissions: [],
+      } satisfies Permission
+
+      // When
+      await publisher.publish(PERMISSION_GENERAL_TOPIC, message)
+
+      // Then
+      const emittedEvent = await publisher.handlerSpy.waitForMessageWithId('1', 'published')
+      expect(emittedEvent.message).toMatchObject(message)
     })
 
     it('should publish only messages meeting schema', async () => {
