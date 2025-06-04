@@ -44,7 +44,7 @@ describe('KafkaHandlerContainer', () => {
         () => new KafkaHandlerContainer(topicHandlers1, 'type'),
       ).toThrowErrorMatchingInlineSnapshot('[Error: Duplicate handler for topic create]')
       expect(() => new KafkaHandlerContainer(topicHandlers2)).toThrowErrorMatchingInlineSnapshot(
-        '[TypeError: Cannot convert a Symbol value to a string]',
+        '[Error: Duplicate handler for topic empty]',
       )
     })
 
