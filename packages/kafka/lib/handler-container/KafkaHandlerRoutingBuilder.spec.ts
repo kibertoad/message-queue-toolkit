@@ -45,10 +45,10 @@ describe('KafkaHandlerRoutingBuilder', () => {
     // Then
     expect(routing).toEqual({
       all: [
-        new KafkaHandlerConfig(CREATE_SCHEMA, expect.any(Function)),
-        new KafkaHandlerConfig(UPDATE_SCHEMA, expect.any(Function)),
+        new KafkaHandlerConfig(CREATE_SCHEMA, expect.any(Function) as any),
+        new KafkaHandlerConfig(UPDATE_SCHEMA, expect.any(Function) as any),
       ],
-      empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, expect.any(Function))],
+      empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, expect.any(Function) as any)],
     })
   })
 })
