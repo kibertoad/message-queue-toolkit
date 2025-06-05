@@ -24,6 +24,10 @@ export type KafkaConsumerOptions<TopicsConfig extends TopicConfig[]> = BaseKafka
     handlers: KafkaHandlerRouting<TopicsConfig>
   }
 
+/*
+TODO: Proper retry mechanism + DLQ -> https://lokalise.atlassian.net/browse/EDEXP-498
+In the meantime, we will retry in memory up to 3 times
+ */
 const MAX_IN_MEMORY_RETRIES = 3
 
 export abstract class AbstractKafkaConsumer<
