@@ -17,7 +17,8 @@ type TopicsConfig = typeof topicsConfig
 
 describe('KafkaHandlerRoutingBuilder', () => {
   it('should build routing config', () => {
-    type ExpectedMessage<MessageValue> = Message<string, MessageValue, string, object>
+    type ExpectedMessage<MessageValue> = Message<string, MessageValue, string, string>
+
     // Given
     const builder = new KafkaHandlerRoutingBuilder<TopicsConfig>()
       .addConfig(
