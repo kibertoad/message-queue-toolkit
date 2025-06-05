@@ -4,7 +4,7 @@ import {
   type KafkaPublisherOptions,
 } from '../../lib/index.ts'
 import { PERMISSION_TOPIC_MESSAGES_CONFIG } from '../utils/permissionSchemas.ts'
-import { TEST_KAFKA_CONFIG } from '../utils/testKafkaConfig.js'
+import { getKafkaConfig } from '../utils/testContext.ts'
 
 type PermissionPublisherOptions = Partial<
   Pick<
@@ -21,7 +21,7 @@ export class PermissionPublisher extends AbstractKafkaPublisher<
   constructor(deps: KafkaDependencies, options: PermissionPublisherOptions = {}) {
     super(deps, {
       topicsConfig: options.topicsConfig ?? PERMISSION_TOPIC_MESSAGES_CONFIG,
-      kafka: options.kafka ?? TEST_KAFKA_CONFIG,
+      kafka: options.kafka ?? getKafkaConfig(),
       autocreateTopics: options.autocreateTopics ?? true,
       handlerSpy: options?.handlerSpy ?? true,
       logMessages: true,
