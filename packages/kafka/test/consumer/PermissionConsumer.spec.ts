@@ -74,7 +74,7 @@ describe('PermissionConsumer', () => {
     it('should fail if kafka is not available', async () => {
       // Given
       consumer = new PermissionConsumer(testContext.cradle, {
-        kafka: { clientId: randomUUID(), bootstrapBrokers: ['localhost:9091'] },
+        kafka: { clientId: randomUUID(), bootstrapBrokers: ['test.com'] },
         connectTimeout: 10, // Short timeout to trigger failure quick
       })
 
@@ -87,7 +87,7 @@ describe('PermissionConsumer', () => {
     it('should fail if kafka is not available', async () => {
       // Given
       consumer = new PermissionConsumer(testContext.cradle, {
-        kafka: { clientId: randomUUID(), bootstrapBrokers: ['localhost:9091'] },
+        kafka: { clientId: randomUUID(), bootstrapBrokers: ['test.com'] },
         connectTimeout: 10, // Short timeout to trigger failure quick
       })
 
