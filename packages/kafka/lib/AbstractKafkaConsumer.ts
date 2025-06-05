@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { setTimeout } from 'node:timers/promises'
 import { InternalError, stringValueSerializer } from '@lokalise/node-core'
 import {
@@ -12,15 +13,15 @@ import {
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
 import { KafkaHandlerContainer } from './handler-container/KafkaHandlerContainer.js'
 import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.js'
-import type { KafkaHandler } from './handler-container/index.js'
+import type { KafkaHandler, RequestContext } from './handler-container/index.js'
 import type { KafkaDependencies, TopicConfig } from './types.ts'
 
 export type KafkaConsumerOptions<TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
   Omit<
-    ConsumerOptions<string, object, string, object>,
+    ConsumerOptions<string, object, string, string>,
     'deserializers' | 'autocommit' | 'bootstrapBrokers'
   > &
-  Omit<ConsumeOptions<string, object, string, object>, 'topics'> & {
+  Omit<ConsumeOptions<string, object, string, string>, 'topics'> & {
     handlers: KafkaHandlerRouting<TopicsConfig>
   }
 
@@ -33,8 +34,8 @@ const MAX_IN_MEMORY_RETRIES = 3
 export abstract class AbstractKafkaConsumer<
   TopicsConfig extends TopicConfig[],
 > extends AbstractKafkaService<TopicsConfig, KafkaConsumerOptions<TopicsConfig>> {
-  private readonly consumer: Consumer<string, object, string, object>
-  private consumerStream?: MessagesStream<string, object, string, object>
+  private readonly consumer: Consumer<string, object, string, string>
+  private consumerStream?: MessagesStream<string, object, string, string>
 
   private readonly handlerContainer: KafkaHandlerContainer<TopicsConfig>
 
@@ -54,7 +55,7 @@ export abstract class AbstractKafkaConsumer<
         key: stringDeserializer,
         value: jsonDeserializer,
         headerKey: stringDeserializer,
-        headerValue: jsonDeserializer,
+        headerValue: stringDeserializer,
       },
     })
   }
@@ -89,12 +90,9 @@ export abstract class AbstractKafkaConsumer<
 
   /*
   TODO: https://lokalise.atlassian.net/browse/EDEXP-493
-    - Improve logging with logger child on constructor + add request context?
-    - Message logging
     - Observability
    */
-
-  private async consume(message: Message<string, object, string, object>): Promise<void> {
+  private async consume(message: Message<string, object, string, string>): Promise<void> {
     const handler = this.handlerContainer.resolveHandler(message.topic, message.value)
     // if there is no handler for the message, we ignore it (simulating subscription)
     if (!handler) return message.commit()
@@ -116,13 +114,19 @@ export abstract class AbstractKafkaConsumer<
 
     const validatedMessage = parseResult.data
 
+    const requestContext = this.getRequestContext(message)
+
     let retries = 0
     let consumed = false
     do {
       // exponential backoff -> 2^(retry-1)
       if (retries > 0) await setTimeout(Math.pow(2, retries - 1))
 
-      consumed = await this.tryToConsume({ ...message, value: validatedMessage }, handler.handler)
+      consumed = await this.tryToConsume(
+        { ...message, value: validatedMessage },
+        handler.handler,
+        requestContext,
+      )
       if (consumed) break
 
       retries++
@@ -146,11 +150,12 @@ export abstract class AbstractKafkaConsumer<
   }
 
   private async tryToConsume<MessageValue extends object>(
-    message: Message<string, MessageValue, string, object>,
+    message: Message<string, MessageValue, string, string>,
     handler: KafkaHandler<MessageValue>,
+    requestContext: RequestContext,
   ): Promise<boolean> {
     try {
-      await handler(message)
+      await handler(message, requestContext)
       return true
     } catch (error) {
       this.handlerError(error, {
@@ -160,5 +165,18 @@ export abstract class AbstractKafkaConsumer<
     }
 
     return false
+  }
+
+  private getRequestContext(message: Message<string, object, string, string>): RequestContext {
+    const reqId = message.headers.get('x-request-id') ?? randomUUID()
+
+    return {
+      reqId: reqId,
+      logger: this.logger.child({
+        'x-request-id': reqId,
+        topic: message.topic,
+        messageKey: message.key,
+      }),
+    }
   }
 }

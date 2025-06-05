@@ -17,12 +17,12 @@ import type {
 } from './types.ts'
 
 export type KafkaPublisherOptions<TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
-  Omit<ProduceOptions<string, object, string, object>, 'serializers'> & {
+  Omit<ProduceOptions<string, object, string, string>, 'serializers'> & {
     topicsConfig: TopicsConfig
   }
 
 export type KafkaMessageOptions = Omit<
-  MessageToProduce<string, object, string, object>,
+  MessageToProduce<string, object, string, string>,
   'topic' | 'value'
 >
 
@@ -35,7 +35,7 @@ export abstract class AbstractKafkaPublisher<
     MessageSchemaContainer<SupportedMessageValuesInput<TopicsConfig>>
   >
 
-  private readonly producer: Producer<string, object, string, object>
+  private readonly producer: Producer<string, object, string, string>
   private isInitiated: boolean
 
   constructor(dependencies: KafkaDependencies, options: KafkaPublisherOptions<TopicsConfig>) {
@@ -61,7 +61,7 @@ export abstract class AbstractKafkaPublisher<
         key: stringSerializer,
         value: jsonSerializer,
         headerKey: stringSerializer,
-        headerValue: jsonSerializer,
+        headerValue: stringSerializer,
       },
     })
   }

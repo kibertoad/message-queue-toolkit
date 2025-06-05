@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { CommonLogger, ErrorReporter } from '@lokalise/node-core'
+import { type ErrorReporter, globalLogger } from '@lokalise/node-core'
 import { Admin } from '@platformatic/kafka'
 import {
   type AwilixContainer,
@@ -45,9 +45,6 @@ export const getKafkaConfig = (): KafkaConfig => ({
   clientId: randomUUID(),
 })
 
-// @ts-expect-error
-const TEST_LOGGER: CommonLogger = console
-
 const resolveDIConfig = (awilixManager: AwilixManager): DiConfig => ({
   awilixManager: asFunction(() => awilixManager, SINGLETON_CONFIG),
   kafkaConfig: asFunction(getKafkaConfig, SINGLETON_CONFIG),
@@ -62,7 +59,7 @@ const resolveDIConfig = (awilixManager: AwilixManager): DiConfig => ({
       asyncDispose: 'close',
     },
   ),
-  logger: asFunction(() => TEST_LOGGER, SINGLETON_CONFIG),
+  logger: asFunction(() => globalLogger, SINGLETON_CONFIG),
   errorReporter: asFunction(
     () =>
       ({

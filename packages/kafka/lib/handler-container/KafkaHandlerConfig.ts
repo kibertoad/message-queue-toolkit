@@ -9,7 +9,7 @@ export interface RequestContext {
 }
 
 export type KafkaHandler<MessageValue extends object> = (
-  message: Message<string, MessageValue, string, object>,
+  message: Message<string, MessageValue, string, string>,
   requestContext: RequestContext,
 ) => Promise<void> | void
 
