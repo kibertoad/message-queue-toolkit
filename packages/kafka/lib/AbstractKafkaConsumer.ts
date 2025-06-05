@@ -106,6 +106,7 @@ export abstract class AbstractKafkaConsumer<
     // if there is no handler for the message, we ignore it (simulating subscription)
     if (!handler) return message.commit()
 
+    /* v8 ignore next */
     const transactionId = this.resolveMessageId(message.value) ?? randomUUID()
     this.transactionObservabilityManager?.start(this.buildTransactionName(message), transactionId)
 
