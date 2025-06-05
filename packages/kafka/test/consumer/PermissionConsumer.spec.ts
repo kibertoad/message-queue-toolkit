@@ -242,13 +242,21 @@ describe('PermissionConsumer', () => {
       expect(spy.processingResult).toMatchObject({ errorReason: 'invalidMessage' })
     })
 
-    it('should build request context correctly', async () => {
+    it('should build request context correctly and use observability manager', async () => {
       // Given
+      const { transactionObservabilityManager } = testContext.cradle
+
+      const startTransactionSpy = vi.spyOn(transactionObservabilityManager, 'start')
+      const stopTransactionSpy = vi.spyOn(transactionObservabilityManager, 'stop')
+
       const handlerCalls: { messageValue: any; requestContext: RequestContext }[] = []
       consumer = new PermissionConsumer(testContext.cradle, {
         handlers: {
-          'permission-added': [
+          'permission-general': [
             new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message, requestContext) => {
+              handlerCalls.push({ messageValue: message.value, requestContext })
+            }),
+            new KafkaHandlerConfig(PERMISSION_SCHEMA, (message, requestContext) => {
               handlerCalls.push({ messageValue: message.value, requestContext })
             }),
           ],
@@ -259,7 +267,7 @@ describe('PermissionConsumer', () => {
       // When
       const requestId = 'test-request-id'
       await publisher.publish(
-        'permission-added',
+        'permission-general',
         {
           id: '1',
           type: 'added',
@@ -267,9 +275,8 @@ describe('PermissionConsumer', () => {
         },
         { headers: { 'x-request-id': requestId } },
       )
-      await publisher.publish('permission-added', {
+      await publisher.publish('permission-general', {
         id: '2',
-        type: 'added',
         permissions: [],
       })
 
@@ -283,6 +290,11 @@ describe('PermissionConsumer', () => {
       expect(spy2.message).toMatchObject({ id: '2' })
       expect(spy2.message).toEqual(handlerCalls[1]!.messageValue)
       expect(handlerCalls[1]!.requestContext).not.toMatchObject({ reqId: requestId })
+
+      expect(startTransactionSpy).toHaveBeenCalledWith('kafka:permission-general:added', '1')
+      expect(stopTransactionSpy).toHaveBeenCalledWith('1')
+      expect(startTransactionSpy).toHaveBeenCalledWith('kafka:permission-general', '2')
+      expect(stopTransactionSpy).toHaveBeenCalledWith('2')
     })
   })
 })

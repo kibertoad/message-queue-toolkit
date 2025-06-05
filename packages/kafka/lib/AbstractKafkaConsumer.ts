@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { setTimeout } from 'node:timers/promises'
-import { InternalError, stringValueSerializer } from '@lokalise/node-core'
+import {
+  InternalError,
+  type TransactionObservabilityManager,
+  stringValueSerializer,
+} from '@lokalise/node-core'
+import type { QueueConsumerDependencies } from '@message-queue-toolkit/core'
 import {
   type ConsumeOptions,
   Consumer,
@@ -11,10 +16,13 @@ import {
   stringDeserializer,
 } from '@platformatic/kafka'
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
-import { KafkaHandlerContainer } from './handler-container/KafkaHandlerContainer.js'
-import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.js'
-import type { KafkaHandler, RequestContext } from './handler-container/index.js'
+import { KafkaHandlerContainer } from './handler-container/KafkaHandlerContainer.ts'
+import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.ts'
+import type { KafkaHandler, RequestContext } from './handler-container/index.ts'
 import type { KafkaDependencies, TopicConfig } from './types.ts'
+
+export type KafkaConsumerDependencies = KafkaDependencies &
+  Pick<QueueConsumerDependencies, 'transactionObservabilityManager'>
 
 export type KafkaConsumerOptions<TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
   Omit<
@@ -37,11 +45,16 @@ export abstract class AbstractKafkaConsumer<
   private readonly consumer: Consumer<string, object, string, string>
   private consumerStream?: MessagesStream<string, object, string, string>
 
+  private readonly transactionObservabilityManager: TransactionObservabilityManager
   private readonly handlerContainer: KafkaHandlerContainer<TopicsConfig>
 
-  constructor(dependencies: KafkaDependencies, options: KafkaConsumerOptions<TopicsConfig>) {
+  constructor(
+    dependencies: KafkaConsumerDependencies,
+    options: KafkaConsumerOptions<TopicsConfig>,
+  ) {
     super(dependencies, options)
 
+    this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.handlerContainer = new KafkaHandlerContainer<TopicsConfig>(
       options.handlers,
       options.messageTypeField,
@@ -88,14 +101,13 @@ export abstract class AbstractKafkaConsumer<
     await this.consumer.close()
   }
 
-  /*
-  TODO: https://lokalise.atlassian.net/browse/EDEXP-493
-    - Observability
-   */
   private async consume(message: Message<string, object, string, string>): Promise<void> {
     const handler = this.handlerContainer.resolveHandler(message.topic, message.value)
     // if there is no handler for the message, we ignore it (simulating subscription)
     if (!handler) return message.commit()
+
+    const transactionId = this.resolveMessageId(message.value) ?? randomUUID()
+    this.transactionObservabilityManager?.start(this.buildTransactionName(message), transactionId)
 
     const parseResult = handler.schema.safeParse(message.value)
     if (!parseResult.success) {
@@ -146,6 +158,8 @@ export abstract class AbstractKafkaConsumer<
       })
     }
 
+    this.transactionObservabilityManager?.stop(transactionId)
+
     return message.commit()
   }
 
@@ -165,6 +179,15 @@ export abstract class AbstractKafkaConsumer<
     }
 
     return false
+  }
+
+  private buildTransactionName(message: Message<string, object, string, string>) {
+    const messageType = this.resolveMessageType(message.value)
+
+    let name = `kafka:${message.topic}`
+    if (messageType) name += `:${message.key}`
+
+    return name
   }
 
   private getRequestContext(message: Message<string, object, string, string>): RequestContext {
