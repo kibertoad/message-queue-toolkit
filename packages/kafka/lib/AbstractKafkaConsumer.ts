@@ -185,7 +185,7 @@ export abstract class AbstractKafkaConsumer<
     const messageType = this.resolveMessageType(message.value)
 
     let name = `kafka:${message.topic}`
-    if (messageType) name += `:${message.key}`
+    if (messageType?.trim().length) name += `:${messageType}`
 
     return name
   }
