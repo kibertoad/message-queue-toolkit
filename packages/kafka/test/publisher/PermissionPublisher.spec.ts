@@ -1,16 +1,19 @@
 import { randomUUID } from 'node:crypto'
 import { InternalError } from '@lokalise/node-core'
+import z from 'zod/v3'
 import {
   PERMISSION_ADDED_SCHEMA,
   PERMISSION_GENERAL_TOPIC,
+  PERMISSION_SCHEMA,
+  type Permission,
   type PermissionAdded,
   type PermissionRemoved,
   TOPICS,
-} from '../utils/permissionSchemas.js'
-import { type TestContext, createTestContext } from '../utils/testContext.js'
-import { PermissionPublisher } from './PermissionPublisher.js'
+} from '../utils/permissionSchemas.ts'
+import { type TestContext, createTestContext } from '../utils/testContext.ts'
+import { PermissionPublisher } from './PermissionPublisher.ts'
 
-describe('PermissionPublisher - init', () => {
+describe('PermissionPublisher', () => {
   let testContext: TestContext
   let publisher: PermissionPublisher
 
@@ -26,7 +29,7 @@ describe('PermissionPublisher - init', () => {
     await testContext.dispose()
   })
 
-  describe('init', () => {
+  describe('init - close', () => {
     beforeEach(async () => {
       try {
         await testContext.cradle.kafkaAdmin.deleteTopics({
@@ -56,7 +59,8 @@ describe('PermissionPublisher - init', () => {
     it('should fail if kafka is not available', async () => {
       // Given
       publisher = new PermissionPublisher(testContext.cradle, {
-        kafka: { clientId: randomUUID(), bootstrapBrokers: ['localhost:9090'] },
+        // port 9090 is not valid
+        kafka: { bootstrapBrokers: ['localhost:9090'], clientId: randomUUID() },
       })
 
       // When - Then
@@ -124,12 +128,31 @@ describe('PermissionPublisher - init', () => {
       },
     )
 
-    it('should fail if message type is not supported and a topic has different schemas', () => {
-      // Given
+    it('should fail if a message has more than one schema', () => {
       expect(
-        () => new PermissionPublisher(testContext.cradle, { supportMessageTypes: false }),
+        () =>
+          new PermissionPublisher(testContext.cradle, {
+            topicsConfig: [
+              {
+                topic: 'permission-added',
+                schemas: [PERMISSION_ADDED_SCHEMA, PERMISSION_ADDED_SCHEMA],
+              },
+            ] as any,
+          }),
+      ).toThrowErrorMatchingInlineSnapshot('[Error: Duplicate schema for type: added]')
+
+      expect(
+        () =>
+          new PermissionPublisher(testContext.cradle, {
+            topicsConfig: [
+              {
+                topic: 'permission-added',
+                schemas: [z.object({}), z.object({})],
+              },
+            ] as any,
+          }),
       ).toThrowErrorMatchingInlineSnapshot(
-        '[Error: if messageTypeField is not provided, messageSchemas must have a single schema]',
+        '[Error: Duplicate schema for type: Symbol(NO_MESSAGE_TYPE)]',
       )
     })
   })
@@ -218,10 +241,50 @@ describe('PermissionPublisher - init', () => {
       expect(emittedEvent2.message).toMatchObject(message2)
     })
 
+    it('should throw an error if message is not supported', async () => {
+      // Given
+      publisher = new PermissionPublisher(testContext.cradle)
+
+      const message = {
+        id: '1',
+        type: 'updated' as any,
+        permissions: [],
+      } satisfies PermissionAdded
+
+      // When&Then - invalid
+      await expect(
+        publisher.publish(PERMISSION_GENERAL_TOPIC, message),
+      ).rejects.toThrowErrorMatchingInlineSnapshot('[Error: Unsupported message type: updated]')
+    })
+
+    it('should publish messages when message type is not used', async () => {
+      // Given
+      publisher = new PermissionPublisher(testContext.cradle, {
+        disableMessageTypeField: true,
+        topicsConfig: [
+          {
+            topic: PERMISSION_GENERAL_TOPIC,
+            schemas: [PERMISSION_SCHEMA],
+          },
+        ] as any, // we are not adding the other topics intentionally
+      })
+
+      const message = {
+        id: '1',
+        permissions: [],
+      } satisfies Permission
+
+      // When
+      await publisher.publish(PERMISSION_GENERAL_TOPIC, message)
+
+      // Then
+      const emittedEvent = await publisher.handlerSpy.waitForMessageWithId('1', 'published')
+      expect(emittedEvent.message).toMatchObject(message)
+    })
+
     it('should publish only messages meeting schema', async () => {
       // Given
       publisher = new PermissionPublisher(testContext.cradle, {
-        supportMessageTypes: false,
         topicsConfig: [
           {
             topic: PERMISSION_GENERAL_TOPIC,
@@ -236,10 +299,10 @@ describe('PermissionPublisher - init', () => {
         permissions: [],
       } satisfies PermissionAdded
       const messageInvalid = {
-        id: '2',
-        type: 'removed',
+        id: 2 as any,
+        type: 'added',
         permissions: [],
-      } satisfies PermissionRemoved
+      } satisfies PermissionAdded
 
       // When&Then - valid
       await publisher.publish(PERMISSION_GENERAL_TOPIC, messageValid)
@@ -252,13 +315,13 @@ describe('PermissionPublisher - init', () => {
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
         [InternalError: Error while publishing to Kafka: [
           {
-            "received": "removed",
-            "code": "invalid_literal",
-            "expected": "added",
+            "code": "invalid_type",
+            "expected": "string",
+            "received": "number",
             "path": [
-              "type"
+              "id"
             ],
-            "message": "Invalid literal value, expected \\"added\\""
+            "message": "Expected string, received number"
           }
         ]]
       `)

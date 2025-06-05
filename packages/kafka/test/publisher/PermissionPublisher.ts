@@ -2,9 +2,9 @@ import {
   AbstractKafkaPublisher,
   type KafkaDependencies,
   type KafkaPublisherOptions,
-} from '../../lib/index.js'
-import { PERMISSION_TOPIC_MESSAGES_CONFIG } from '../utils/permissionSchemas.js'
-import { getKafkaConfig } from '../utils/testContext.js'
+} from '../../lib/index.ts'
+import { PERMISSION_TOPIC_MESSAGES_CONFIG } from '../utils/permissionSchemas.ts'
+import { getKafkaConfig } from '../utils/testContext.ts'
 
 type PermissionPublisherOptions = Partial<
   Pick<
@@ -12,7 +12,7 @@ type PermissionPublisherOptions = Partial<
     'handlerSpy' | 'kafka' | 'autocreateTopics' | 'topicsConfig'
   >
 > & {
-  supportMessageTypes?: boolean
+  disableMessageTypeField?: boolean
 }
 
 export class PermissionPublisher extends AbstractKafkaPublisher<
@@ -25,8 +25,8 @@ export class PermissionPublisher extends AbstractKafkaPublisher<
       autocreateTopics: options.autocreateTopics ?? true,
       handlerSpy: options?.handlerSpy ?? true,
       logMessages: true,
-      messageIdField: options.supportMessageTypes === false ? undefined : 'id',
-      messageTypeField: options.supportMessageTypes === false ? undefined : 'type',
+      messageIdField: options.disableMessageTypeField === true ? undefined : 'id',
+      messageTypeField: options.disableMessageTypeField === true ? undefined : 'type',
     })
   }
 }

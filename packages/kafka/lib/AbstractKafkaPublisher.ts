@@ -7,14 +7,14 @@ import {
   jsonSerializer,
   stringSerializer,
 } from '@platformatic/kafka'
-import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.js'
+import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
 import type {
   KafkaDependencies,
   SupportedMessageValuesInput,
   SupportedMessageValuesInputForTopic,
   SupportedTopics,
   TopicConfig,
-} from './types.js'
+} from './types.ts'
 
 export type KafkaPublisherOptions<TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
   Omit<ProduceOptions<string, object, string, object>, 'serializers'> & {
