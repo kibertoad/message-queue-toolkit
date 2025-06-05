@@ -18,7 +18,7 @@ import {
   type PermissionAdded,
   type PermissionRemoved,
 } from '../utils/permissionSchemas.js'
-import { getKafkaConfig } from '../utils/testContext.js'
+import { TEST_KAFKA_CONFIG } from '../utils/testKafkaConfig.js'
 
 export type PermissionConsumerOptions = Partial<
   Pick<
@@ -73,7 +73,7 @@ export class PermissionConsumer extends AbstractKafkaConsumer<
       autocreateTopics: options.autocreateTopics ?? true,
       clientId: randomUUID(),
       groupId: randomUUID(),
-      kafka: options.kafka ?? getKafkaConfig(),
+      kafka: options.kafka ?? TEST_KAFKA_CONFIG,
       logMessages: true,
       handlerSpy: options.handlerSpy ?? true,
       messageIdField: 'id',

@@ -10,6 +10,7 @@ import {
 } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import type { KafkaConfig, KafkaDependencies } from '../../lib/index.ts'
+import { TEST_KAFKA_CONFIG } from './testKafkaConfig.js'
 
 const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -40,17 +41,12 @@ export const createTestContext = async (): Promise<TestContext> => {
   return diContainer
 }
 
-export const getKafkaConfig = (): KafkaConfig => ({
-  bootstrapBrokers: ['localhost:9092'],
-  clientId: randomUUID(),
-})
-
 // @ts-expect-error
 const TEST_LOGGER: CommonLogger = console
 
 const resolveDIConfig = (awilixManager: AwilixManager): DiConfig => ({
   awilixManager: asFunction(() => awilixManager, SINGLETON_CONFIG),
-  kafkaConfig: asFunction(getKafkaConfig, SINGLETON_CONFIG),
+  kafkaConfig: asFunction(() => TEST_KAFKA_CONFIG, SINGLETON_CONFIG),
   kafkaAdmin: asFunction(
     ({ kafkaConfig }) =>
       new Admin({
