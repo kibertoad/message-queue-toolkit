@@ -59,7 +59,8 @@ describe('PermissionPublisher', () => {
     it('should fail if kafka is not available', async () => {
       // Given
       publisher = new PermissionPublisher(testContext.cradle, {
-        kafka: { clientId: randomUUID(), bootstrapBrokers: ['test.com'] },
+        // port 9090 is not valid
+        kafka: { bootstrapBrokers: ['localhost:9090'], clientId: randomUUID() },
       })
 
       // When - Then

@@ -74,20 +74,8 @@ describe('PermissionConsumer', () => {
     it('should fail if kafka is not available', async () => {
       // Given
       consumer = new PermissionConsumer(testContext.cradle, {
-        kafka: { clientId: randomUUID(), bootstrapBrokers: ['test.com'] },
-        connectTimeout: 10, // Short timeout to trigger failure quick
-      })
-
-      // When - Then
-      await expect(consumer.init()).rejects.toThrowErrorMatchingInlineSnapshot(
-        '[InternalError: Consumer init failed]',
-      )
-    })
-
-    it('should fail if kafka is not available', async () => {
-      // Given
-      consumer = new PermissionConsumer(testContext.cradle, {
-        kafka: { clientId: randomUUID(), bootstrapBrokers: ['test.com'] },
+        // port 9090 is not valid
+        kafka: { bootstrapBrokers: ['localhost:9090'], clientId: randomUUID() },
         connectTimeout: 10, // Short timeout to trigger failure quick
       })
 
