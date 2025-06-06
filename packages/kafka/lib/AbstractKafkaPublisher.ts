@@ -8,6 +8,7 @@ import {
   stringSerializer,
 } from '@platformatic/kafka'
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
+import type { RequestContext } from './handler-container/index.js'
 import type {
   KafkaDependencies,
   SupportedMessageValuesInput,
@@ -91,6 +92,7 @@ export abstract class AbstractKafkaPublisher<
   async publish<Topic extends SupportedTopics<TopicsConfig>>(
     topic: Topic,
     message: SupportedMessageValuesInputForTopic<TopicsConfig, Topic>,
+    requestContext?: RequestContext,
     options?: KafkaMessageOptions,
   ): Promise<void> {
     const schemaResult = this.schemaContainers[topic]?.resolveSchema(message)
@@ -102,8 +104,15 @@ export abstract class AbstractKafkaPublisher<
     try {
       const parsedMessage = schemaResult.result.parse(message)
 
+      const headers = {
+        ...options?.headers,
+        [this.resolveHeaderRequestIdField()]: requestContext?.reqId ?? '',
+      }
+
       // biome-ignore lint/style/noNonNullAssertion: Should always exist due to lazy init
-      await this.producer!.send({ messages: [{ ...options, topic, value: parsedMessage }] })
+      await this.producer!.send({
+        messages: [{ ...options, topic, value: parsedMessage, headers }],
+      })
 
       this.handleMessageProcessed({
         message: parsedMessage,

@@ -9,7 +9,7 @@ import { getKafkaConfig } from '../utils/testContext.ts'
 type PermissionPublisherOptions = Partial<
   Pick<
     KafkaPublisherOptions<typeof PERMISSION_TOPIC_MESSAGES_CONFIG>,
-    'handlerSpy' | 'kafka' | 'autocreateTopics' | 'topicsConfig'
+    'handlerSpy' | 'kafka' | 'autocreateTopics' | 'topicsConfig' | 'headerRequestIdField'
   >
 > & {
   disableMessageTypeField?: boolean
@@ -27,6 +27,7 @@ export class PermissionPublisher extends AbstractKafkaPublisher<
       logMessages: true,
       messageIdField: options.disableMessageTypeField === true ? undefined : 'id',
       messageTypeField: options.disableMessageTypeField === true ? undefined : 'type',
+      headerRequestIdField: options.headerRequestIdField,
     })
   }
 }

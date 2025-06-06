@@ -24,6 +24,12 @@ export type BaseKafkaOptions = {
   kafka: KafkaConfig
   messageTypeField?: string
   messageIdField?: string
+  /**
+   * The field in the message headers that contains the request ID.
+   * This is used to correlate logs and transactions with the request.
+   * Defaults to 'x-request-id'.
+   */
+  headerRequestIdField?: string
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
 } & Omit<BaseOptions, keyof KafkaConfig> // Exclude properties that are already in KafkaConfig
@@ -65,6 +71,10 @@ export abstract class AbstractKafkaService<
   protected resolveMessageId(message: SupportedMessageValues<TopicsConfig>): string | undefined {
     if (!this.options.messageIdField) return undefined
     return message[this.options.messageIdField]
+  }
+
+  protected resolveHeaderRequestIdField(): string {
+    return this.options.headerRequestIdField ?? 'x-request-id'
   }
 
   protected handleMessageProcessed(params: {

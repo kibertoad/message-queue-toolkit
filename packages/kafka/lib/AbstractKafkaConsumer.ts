@@ -31,13 +31,6 @@ export type KafkaConsumerOptions<TopicsConfig extends TopicConfig[]> = BaseKafka
   > &
   Omit<ConsumeOptions<string, object, string, string>, 'topics'> & {
     handlers: KafkaHandlerRouting<TopicsConfig>
-    messageTypeField: string
-    /**
-     * The field in the message headers that contains the request ID.
-     * This is used to correlate logs and transactions with the request.
-     * Defaults to 'x-request-id'.
-     */
-    headerRequestIdField?: string
   }
 
 /*
@@ -199,8 +192,7 @@ export abstract class AbstractKafkaConsumer<
   }
 
   private getRequestContext(message: Message<string, object, string, string>): RequestContext {
-    const headerRequestIdField = this.options.headerRequestIdField ?? 'x-request-id'
-    const reqId = message.headers.get(headerRequestIdField) ?? randomUUID()
+    const reqId = message.headers.get(this.resolveHeaderRequestIdField()) ?? randomUUID()
 
     return {
       reqId,

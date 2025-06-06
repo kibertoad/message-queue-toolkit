@@ -246,16 +246,18 @@ describe('PermissionConsumer', () => {
   describe('observability - request context', () => {
     let publisher: PermissionPublisher
 
-    beforeAll(() => {
-      publisher = new PermissionPublisher(testContext.cradle)
-    })
-
-    afterAll(async () => {
+    afterEach(async () => {
       await publisher.close()
     })
 
+    const buildPublisher = (headerRequestIdField?: string) => {
+      publisher = new PermissionPublisher(testContext.cradle, { headerRequestIdField })
+    }
+
     it('should use transaction observability manager', async () => {
       // Given
+      buildPublisher()
+
       const { transactionObservabilityManager } = testContext.cradle
       const startTransactionSpy = vi.spyOn(transactionObservabilityManager, 'start')
       const stopTransactionSpy = vi.spyOn(transactionObservabilityManager, 'stop')
@@ -286,6 +288,8 @@ describe('PermissionConsumer', () => {
 
     it('should use request context with default request id from headers', async () => {
       // Given
+      buildPublisher()
+
       const handlerCalls: { messageValue: any; requestContext: RequestContext }[] = []
       consumer = new PermissionConsumer(testContext.cradle, {
         handlers: {
@@ -310,7 +314,7 @@ describe('PermissionConsumer', () => {
           type: 'added',
           permissions: [],
         },
-        { headers: { 'x-request-id': requestId } },
+        { reqId: requestId, logger: testContext.cradle.logger },
       )
       await publisher.publish('permission-general', {
         id: '2',
@@ -332,6 +336,8 @@ describe('PermissionConsumer', () => {
     it('should use request context with default request id from headers', async () => {
       // Given
       const headerRequestIdField = 'my-field'
+      buildPublisher(headerRequestIdField)
+
       const handlerCalls: { messageValue: any; requestContext: RequestContext }[] = []
       consumer = new PermissionConsumer(testContext.cradle, {
         headerRequestIdField,
@@ -354,7 +360,7 @@ describe('PermissionConsumer', () => {
           type: 'added',
           permissions: [],
         },
-        { headers: { [headerRequestIdField]: requestId } },
+        { reqId: requestId, logger: testContext.cradle.logger },
       )
 
       // Then
