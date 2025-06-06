@@ -361,6 +361,7 @@ describe('PermissionConsumer', () => {
           permissions: [],
         },
         { reqId: requestId, logger: testContext.cradle.logger },
+        { headers: { 'x-request-id': 'another-id' } },
       )
 
       // Then

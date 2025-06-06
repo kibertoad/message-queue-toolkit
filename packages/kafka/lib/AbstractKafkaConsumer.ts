@@ -192,7 +192,8 @@ export abstract class AbstractKafkaConsumer<
   }
 
   private getRequestContext(message: Message<string, object, string, string>): RequestContext {
-    const reqId = message.headers.get(this.resolveHeaderRequestIdField()) ?? randomUUID()
+    let reqId = message.headers.get(this.resolveHeaderRequestIdField())
+    if (!reqId || reqId.trim().length === 0) reqId = randomUUID()
 
     return {
       reqId,
