@@ -20,7 +20,12 @@ import { getKafkaConfig } from '../utils/testContext.js'
 export type PermissionConsumerOptions = Partial<
   Pick<
     KafkaConsumerOptions<typeof PERMISSION_TOPIC_MESSAGES_CONFIG>,
-    'kafka' | 'handlerSpy' | 'autocreateTopics' | 'handlers' | 'connectTimeout'
+    | 'kafka'
+    | 'handlerSpy'
+    | 'autocreateTopics'
+    | 'handlers'
+    | 'connectTimeout'
+    | 'headerRequestIdField'
   >
 >
 
@@ -73,6 +78,7 @@ export class PermissionConsumer extends AbstractKafkaConsumer<
       kafka: options.kafka ?? getKafkaConfig(),
       logMessages: true,
       handlerSpy: options.handlerSpy ?? true,
+      headerRequestIdField: options.headerRequestIdField,
       messageIdField: 'id',
       messageTypeField: 'type',
     })

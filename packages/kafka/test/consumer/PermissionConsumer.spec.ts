@@ -241,14 +241,51 @@ describe('PermissionConsumer', () => {
       const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
       expect(spy.processingResult).toMatchObject({ errorReason: 'invalidMessage' })
     })
+  })
 
-    it('should build request context correctly and use observability manager', async () => {
+  describe('observability - request context', () => {
+    let publisher: PermissionPublisher
+
+    beforeAll(() => {
+      publisher = new PermissionPublisher(testContext.cradle)
+    })
+
+    afterAll(async () => {
+      await publisher.close()
+    })
+
+    it('should use transaction observability manager', async () => {
       // Given
       const { transactionObservabilityManager } = testContext.cradle
-
       const startTransactionSpy = vi.spyOn(transactionObservabilityManager, 'start')
       const stopTransactionSpy = vi.spyOn(transactionObservabilityManager, 'stop')
 
+      consumer = new PermissionConsumer(testContext.cradle)
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-general', {
+        id: '1',
+        type: 'added',
+        permissions: [],
+      })
+      await publisher.publish('permission-general', {
+        id: '2',
+        permissions: [],
+      })
+
+      // Then
+      await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      expect(startTransactionSpy).toHaveBeenCalledWith('kafka:permission-general:added', '1')
+      expect(stopTransactionSpy).toHaveBeenCalledWith('1')
+
+      await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+      expect(startTransactionSpy).toHaveBeenCalledWith('kafka:permission-general', '2')
+      expect(stopTransactionSpy).toHaveBeenCalledWith('2')
+    })
+
+    it('should use request context with default request id from headers', async () => {
+      // Given
       const handlerCalls: { messageValue: any; requestContext: RequestContext }[] = []
       consumer = new PermissionConsumer(testContext.cradle, {
         handlers: {
@@ -290,11 +327,41 @@ describe('PermissionConsumer', () => {
       expect(spy2.message).toMatchObject({ id: '2' })
       expect(spy2.message).toEqual(handlerCalls[1]!.messageValue)
       expect(handlerCalls[1]!.requestContext).not.toMatchObject({ reqId: requestId })
+    })
 
-      expect(startTransactionSpy).toHaveBeenCalledWith('kafka:permission-general:added', '1')
-      expect(stopTransactionSpy).toHaveBeenCalledWith('1')
-      expect(startTransactionSpy).toHaveBeenCalledWith('kafka:permission-general', '2')
-      expect(stopTransactionSpy).toHaveBeenCalledWith('2')
+    it('should use request context with default request id from headers', async () => {
+      // Given
+      const headerRequestIdField = 'my-field'
+      const handlerCalls: { messageValue: any; requestContext: RequestContext }[] = []
+      consumer = new PermissionConsumer(testContext.cradle, {
+        headerRequestIdField,
+        handlers: {
+          'permission-general': [
+            new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message, requestContext) => {
+              handlerCalls.push({ messageValue: message.value, requestContext })
+            }),
+          ],
+        },
+      } as any)
+      await consumer.init()
+
+      // When
+      const requestId = 'test-request-id'
+      await publisher.publish(
+        'permission-general',
+        {
+          id: '1',
+          type: 'added',
+          permissions: [],
+        },
+        { headers: { [headerRequestIdField]: requestId } },
+      )
+
+      // Then
+      const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      expect(spy.message).toMatchObject({ id: '1' })
+      expect(spy.message).toEqual(handlerCalls[0]!.messageValue)
+      expect(handlerCalls[0]!.requestContext).toMatchObject({ reqId: requestId })
     })
   })
 })
