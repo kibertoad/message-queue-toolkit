@@ -73,6 +73,7 @@ const resolveDIConfig = (awilixManager: AwilixManager): DiConfig => ({
       ({
         report: () => {},
       }) satisfies ErrorReporter,
+    SINGLETON_CONFIG,
   ),
   transactionObservabilityManager: asFunction(
     () =>

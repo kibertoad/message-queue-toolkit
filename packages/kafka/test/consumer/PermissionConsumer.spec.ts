@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
+import { Producer, stringSerializers } from '@platformatic/kafka'
 import { afterAll, expect } from 'vitest'
 import z from 'zod/v3'
 import { KafkaHandlerConfig, type RequestContext } from '../../lib/index.js'
@@ -243,6 +245,29 @@ describe('PermissionConsumer', () => {
       // Then
       const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
       expect(spy.processingResult).toMatchObject({ errorReason: 'invalidMessage' })
+    })
+
+    it('should ignore non json messages', async () => {
+      // Given
+      const errorSpy = vi.spyOn(testContext.cradle.errorReporter, 'report')
+
+      const producer = new Producer<string, string, string, string>({
+        ...testContext.cradle.kafkaConfig,
+        clientId: randomUUID(),
+        autocreateTopics: true,
+        serializers: stringSerializers,
+      })
+      consumer = new PermissionConsumer(testContext.cradle)
+      await consumer.init()
+
+      // When
+      await producer.send({
+        messages: [{ topic: 'permission-general', value: 'not valid json' }],
+      })
+
+      // Then
+      await waitAndRetry(() => errorSpy.mock.calls.length > 0, 10, 100)
+      expect(errorSpy).not.toHaveBeenCalled()
     })
   })
 
