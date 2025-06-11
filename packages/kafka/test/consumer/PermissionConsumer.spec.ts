@@ -268,6 +268,8 @@ describe('PermissionConsumer', () => {
       // Then
       await waitAndRetry(() => errorSpy.mock.calls.length > 0, 10, 100)
       expect(errorSpy).not.toHaveBeenCalled()
+
+      await producer.close()
     })
   })
 
