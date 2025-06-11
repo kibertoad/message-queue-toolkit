@@ -80,8 +80,11 @@ describe('PermissionConsumer', () => {
       // Given
       consumer = new PermissionConsumer(testContext.cradle, {
         // port 9090 is not valid
-        kafka: { bootstrapBrokers: ['localhost:9090'], clientId: randomUUID() },
-        connectTimeout: 10, // Short timeout to trigger failure quick
+        kafka: {
+          bootstrapBrokers: ['localhost:9090'],
+          clientId: randomUUID(),
+          connectTimeout: 10, // Short timeout to trigger failure quick
+        },
       })
 
       // When - Then
