@@ -19,7 +19,7 @@ import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaServ
 import { KafkaHandlerContainer } from './handler-container/KafkaHandlerContainer.ts'
 import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.ts'
 import type { KafkaHandler, RequestContext } from './handler-container/index.ts'
-import type { KafkaDependencies, TopicConfig } from './types.ts'
+import type { KafkaConfig, KafkaDependencies, TopicConfig } from './types.ts'
 
 export type KafkaConsumerDependencies = KafkaDependencies &
   Pick<QueueConsumerDependencies, 'transactionObservabilityManager'>
@@ -27,7 +27,7 @@ export type KafkaConsumerDependencies = KafkaDependencies &
 export type KafkaConsumerOptions<TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
   Omit<
     ConsumerOptions<string, object, string, string>,
-    'deserializers' | 'autocommit' | 'bootstrapBrokers'
+    'deserializers' | 'autocommit' | keyof KafkaConfig
   > &
   Omit<ConsumeOptions<string, object, string, string>, 'topics'> & {
     handlers: KafkaHandlerRouting<TopicsConfig>
