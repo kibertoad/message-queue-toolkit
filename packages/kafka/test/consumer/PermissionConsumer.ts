@@ -2,13 +2,10 @@ import { randomUUID } from 'node:crypto'
 import type { Message } from '@platformatic/kafka'
 import {
   AbstractKafkaConsumer,
+  type KafkaConsumerDependencies,
   type KafkaConsumerOptions,
 } from '../../lib/AbstractKafkaConsumer.js'
-import {
-  type KafkaDependencies,
-  KafkaHandlerConfig,
-  KafkaHandlerRoutingBuilder,
-} from '../../lib/index.js'
+import { KafkaHandlerConfig, KafkaHandlerRoutingBuilder } from '../../lib/index.js'
 import {
   PERMISSION_ADDED_SCHEMA,
   PERMISSION_REMOVED_SCHEMA,
@@ -23,18 +20,23 @@ import { getKafkaConfig } from '../utils/testContext.js'
 export type PermissionConsumerOptions = Partial<
   Pick<
     KafkaConsumerOptions<typeof PERMISSION_TOPIC_MESSAGES_CONFIG>,
-    'kafka' | 'handlerSpy' | 'autocreateTopics' | 'handlers' | 'connectTimeout'
+    | 'kafka'
+    | 'handlerSpy'
+    | 'autocreateTopics'
+    | 'handlers'
+    | 'connectTimeout'
+    | 'headerRequestIdField'
   >
 >
 
 export class PermissionConsumer extends AbstractKafkaConsumer<
   typeof PERMISSION_TOPIC_MESSAGES_CONFIG
 > {
-  private _addedMessages: Message<string, PermissionAdded, string, object>[] = []
-  private _removedMessages: Message<string, PermissionRemoved, string, object>[] = []
-  private _noTypeMessages: Message<string, Permission, string, object>[] = []
+  private _addedMessages: Message<string, PermissionAdded, string, string>[] = []
+  private _removedMessages: Message<string, PermissionRemoved, string, string>[] = []
+  private _noTypeMessages: Message<string, Permission, string, string>[] = []
 
-  constructor(deps: KafkaDependencies, options: PermissionConsumerOptions = {}) {
+  constructor(deps: KafkaConsumerDependencies, options: PermissionConsumerOptions = {}) {
     super(deps, {
       handlers:
         options.handlers ??
@@ -76,6 +78,7 @@ export class PermissionConsumer extends AbstractKafkaConsumer<
       kafka: options.kafka ?? getKafkaConfig(),
       logMessages: true,
       handlerSpy: options.handlerSpy ?? true,
+      headerRequestIdField: options.headerRequestIdField,
       messageIdField: 'id',
       messageTypeField: 'type',
     })

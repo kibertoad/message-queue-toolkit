@@ -8,6 +8,7 @@ import {
   stringSerializer,
 } from '@platformatic/kafka'
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
+import type { RequestContext } from './handler-container/index.js'
 import type {
   KafkaDependencies,
   SupportedMessageValuesInput,
@@ -17,12 +18,12 @@ import type {
 } from './types.ts'
 
 export type KafkaPublisherOptions<TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
-  Omit<ProduceOptions<string, object, string, object>, 'serializers'> & {
+  Omit<ProduceOptions<string, object, string, string>, 'serializers'> & {
     topicsConfig: TopicsConfig
   }
 
 export type KafkaMessageOptions = Omit<
-  MessageToProduce<string, object, string, object>,
+  MessageToProduce<string, object, string, string>,
   'topic' | 'value'
 >
 
@@ -35,7 +36,7 @@ export abstract class AbstractKafkaPublisher<
     MessageSchemaContainer<SupportedMessageValuesInput<TopicsConfig>>
   >
 
-  private readonly producer: Producer<string, object, string, object>
+  private readonly producer: Producer<string, object, string, string>
   private isInitiated: boolean
 
   constructor(dependencies: KafkaDependencies, options: KafkaPublisherOptions<TopicsConfig>) {
@@ -61,7 +62,7 @@ export abstract class AbstractKafkaPublisher<
         key: stringSerializer,
         value: jsonSerializer,
         headerKey: stringSerializer,
-        headerValue: jsonSerializer,
+        headerValue: stringSerializer,
       },
     })
   }
@@ -91,6 +92,7 @@ export abstract class AbstractKafkaPublisher<
   async publish<Topic extends SupportedTopics<TopicsConfig>>(
     topic: Topic,
     message: SupportedMessageValuesInputForTopic<TopicsConfig, Topic>,
+    requestContext?: RequestContext,
     options?: KafkaMessageOptions,
   ): Promise<void> {
     const schemaResult = this.schemaContainers[topic]?.resolveSchema(message)
@@ -102,8 +104,15 @@ export abstract class AbstractKafkaPublisher<
     try {
       const parsedMessage = schemaResult.result.parse(message)
 
+      const headers = {
+        ...options?.headers,
+        [this.resolveHeaderRequestIdField()]: requestContext?.reqId ?? '',
+      }
+
       // biome-ignore lint/style/noNonNullAssertion: Should always exist due to lazy init
-      await this.producer!.send({ messages: [{ ...options, topic, value: parsedMessage }] })
+      await this.producer!.send({
+        messages: [{ ...options, topic, value: parsedMessage, headers }],
+      })
 
       this.handleMessageProcessed({
         message: parsedMessage,

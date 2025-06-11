@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import type { CommonLogger, ErrorReporter } from '@lokalise/node-core'
+import {
+  type CommonLogger,
+  type ErrorReporter,
+  type TransactionObservabilityManager,
+  globalLogger,
+} from '@lokalise/node-core'
 import { Admin } from '@platformatic/kafka'
 import {
   type AwilixContainer,
@@ -9,7 +14,7 @@ import {
   createContainer,
 } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
-import type { KafkaConfig, KafkaDependencies } from '../../lib/index.ts'
+import type { KafkaConfig } from '../../lib/index.ts'
 
 const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -21,7 +26,10 @@ type Dependencies = {
   awilixManager: AwilixManager
   kafkaConfig: KafkaConfig
   kafkaAdmin: Admin
-} & KafkaDependencies
+  errorReporter: ErrorReporter
+  logger: CommonLogger
+  transactionObservabilityManager: TransactionObservabilityManager
+}
 
 export const createTestContext = async (): Promise<TestContext> => {
   const diContainer = createContainer({
@@ -45,9 +53,6 @@ export const getKafkaConfig = (): KafkaConfig => ({
   clientId: randomUUID(),
 })
 
-// @ts-expect-error
-const TEST_LOGGER: CommonLogger = console
-
 const resolveDIConfig = (awilixManager: AwilixManager): DiConfig => ({
   awilixManager: asFunction(() => awilixManager, SINGLETON_CONFIG),
   kafkaConfig: asFunction(getKafkaConfig, SINGLETON_CONFIG),
@@ -62,11 +67,21 @@ const resolveDIConfig = (awilixManager: AwilixManager): DiConfig => ({
       asyncDispose: 'close',
     },
   ),
-  logger: asFunction(() => TEST_LOGGER, SINGLETON_CONFIG),
+  logger: asFunction(() => globalLogger, SINGLETON_CONFIG),
   errorReporter: asFunction(
     () =>
       ({
         report: () => {},
       }) satisfies ErrorReporter,
+  ),
+  transactionObservabilityManager: asFunction(
+    () =>
+      ({
+        start: vi.fn(),
+        stop: vi.fn(),
+        startWithGroup: vi.fn(),
+        addCustomAttributes: vi.fn(),
+      }) satisfies TransactionObservabilityManager,
+    SINGLETON_CONFIG,
   ),
 })
