@@ -12,7 +12,6 @@ import {
   type ConsumerOptions,
   type Message,
   type MessagesStream,
-  jsonDeserializer,
   stringDeserializer,
 } from '@platformatic/kafka'
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
@@ -20,6 +19,7 @@ import { KafkaHandlerContainer } from './handler-container/KafkaHandlerContainer
 import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.ts'
 import type { KafkaHandler, RequestContext } from './handler-container/index.ts'
 import type { KafkaConfig, KafkaDependencies, TopicConfig } from './types.ts'
+import { safeJsonDeserializer } from './utils/safeJsonDeserializer.js'
 
 export type KafkaConsumerDependencies = KafkaDependencies &
   Pick<QueueConsumerDependencies, 'transactionObservabilityManager'>
@@ -66,7 +66,7 @@ export abstract class AbstractKafkaConsumer<
       autocommit: false, // Handling commits manually
       deserializers: {
         key: stringDeserializer,
-        value: jsonDeserializer,
+        value: safeJsonDeserializer,
         headerKey: stringDeserializer,
         headerValue: stringDeserializer,
       },
@@ -102,6 +102,9 @@ export abstract class AbstractKafkaConsumer<
   }
 
   private async consume(message: Message<string, object, string, string>): Promise<void> {
+    // message.value can be undefined if the message is not JSON-serializable
+    if (!message.value) return message.commit()
+
     const handler = this.handlerContainer.resolveHandler(message.topic, message.value)
     // if there is no handler for the message, we ignore it (simulating subscription)
     if (!handler) return message.commit()

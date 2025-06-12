@@ -38,7 +38,7 @@ services:
     restart: on-failure
 
   kafka:
-    image: apache/kafka:latest
+    image: apache/kafka:3.7.1
     container_name: kafka
     ports:
       - 9092:9092
