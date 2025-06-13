@@ -9,24 +9,30 @@ import type { KafkaHandlerRouting } from './KafkaHandlerRoutingBuilder.ts'
 
 const DEFAULT_HANDLER_KEY = Symbol('default-handler')
 
-type Handlers<TopicsConfig extends TopicConfig[]> = Record<
+type Handlers<TopicsConfig extends TopicConfig[], ExecutionContext> = Record<
   string,
-  Record<string | symbol, KafkaHandlerConfig<SupportedMessageValues<TopicsConfig>>>
+  Record<
+    string | symbol,
+    KafkaHandlerConfig<SupportedMessageValues<TopicsConfig>, ExecutionContext>
+  >
 >
 
-export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
-  private readonly handlers: Handlers<TopicsConfig>
+export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[], ExecutionContext> {
+  private readonly handlers: Handlers<TopicsConfig, ExecutionContext>
   private readonly messageTypeField?: string
 
-  constructor(topicHandlers: KafkaHandlerRouting<TopicsConfig>, messageTypeField?: string) {
+  constructor(
+    topicHandlers: KafkaHandlerRouting<TopicsConfig, ExecutionContext>,
+    messageTypeField?: string,
+  ) {
     this.messageTypeField = messageTypeField
     this.handlers = this.mapTopicHandlers(topicHandlers)
   }
 
   private mapTopicHandlers(
-    topicHandlerRouting: KafkaHandlerRouting<TopicsConfig>,
-  ): Handlers<TopicsConfig> {
-    const result: Handlers<TopicsConfig> = {}
+    topicHandlerRouting: KafkaHandlerRouting<TopicsConfig, ExecutionContext>,
+  ): Handlers<TopicsConfig, ExecutionContext> {
+    const result: Handlers<TopicsConfig, ExecutionContext> = {}
 
     for (const [topic, topicHandlers] of Object.entries(topicHandlerRouting)) {
       if (!topicHandlers.length) continue
@@ -52,7 +58,9 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[]> {
   resolveHandler<Topic extends SupportedTopics<TopicsConfig>>(
     topic: Topic,
     messageValue: SupportedMessageValuesForTopic<TopicsConfig, Topic>,
-  ): KafkaHandlerConfig<SupportedMessageValuesForTopic<TopicsConfig, Topic>> | undefined {
+  ):
+    | KafkaHandlerConfig<SupportedMessageValuesForTopic<TopicsConfig, Topic>, ExecutionContext>
+    | undefined {
     const handlers = this.handlers[topic]
     if (!handlers) return undefined
 

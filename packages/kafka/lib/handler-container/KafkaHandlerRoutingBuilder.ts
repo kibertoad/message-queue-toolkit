@@ -8,23 +8,27 @@ import type { KafkaHandlerConfig } from './KafkaHandlerConfig.ts'
 
 export type KafkaHandlerRouting<
   TopicsConfig extends TopicConfig[],
+  ExecutionContext,
   MessageValue extends SupportedMessageValues<TopicsConfig> = SupportedMessageValues<TopicsConfig>,
-> = Record<string, KafkaHandlerConfig<MessageValue>[]>
+> = Record<string, KafkaHandlerConfig<MessageValue, ExecutionContext>[]>
 
-export class KafkaHandlerRoutingBuilder<TopicsConfig extends TopicConfig[]> {
-  private readonly configs: KafkaHandlerRouting<TopicsConfig> = {}
+export class KafkaHandlerRoutingBuilder<
+  const TopicsConfig extends TopicConfig[],
+  ExecutionContext,
+> {
+  private readonly configs: KafkaHandlerRouting<TopicsConfig, ExecutionContext> = {}
 
   addConfig<
     Topic extends SupportedTopics<TopicsConfig>,
     MessageValue extends SupportedMessageValuesForTopic<TopicsConfig, Topic>,
-  >(topic: Topic, config: KafkaHandlerConfig<MessageValue>): this {
+  >(topic: Topic, config: KafkaHandlerConfig<MessageValue, ExecutionContext>): this {
     this.configs[topic] ??= []
     this.configs[topic].push(config)
 
     return this
   }
 
-  build(): KafkaHandlerRouting<TopicsConfig> {
+  build(): KafkaHandlerRouting<TopicsConfig, ExecutionContext> {
     return this.configs
   }
 }
