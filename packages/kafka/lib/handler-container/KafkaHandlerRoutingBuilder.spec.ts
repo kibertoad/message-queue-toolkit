@@ -15,30 +15,37 @@ const topicsConfig = [
 ] as const satisfies TopicConfig[]
 type TopicsConfig = typeof topicsConfig
 
+type ExecutionContext = {
+  hello: string
+}
+
 describe('KafkaHandlerRoutingBuilder', () => {
   it('should build routing config', () => {
     type ExpectedMessage<MessageValue> = Message<string, MessageValue, string, string>
 
     // Given
-    const builder = new KafkaHandlerRoutingBuilder<TopicsConfig>()
+    const builder = new KafkaHandlerRoutingBuilder<TopicsConfig, ExecutionContext>()
       .addConfig(
         'all',
-        new KafkaHandlerConfig(CREATE_SCHEMA, (message, requestContext) => {
+        new KafkaHandlerConfig(CREATE_SCHEMA, (message, executionContext, requestContext) => {
           expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.infer<typeof CREATE_SCHEMA>>>()
+          expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
           expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
         }),
       )
       .addConfig(
         'all',
-        new KafkaHandlerConfig(UPDATE_SCHEMA, (message, requestContext) => {
+        new KafkaHandlerConfig(UPDATE_SCHEMA, (message, executionContext, requestContext) => {
           expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.infer<typeof UPDATE_SCHEMA>>>()
+          expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
           expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
         }),
       )
       .addConfig(
         'empty',
-        new KafkaHandlerConfig(EMPTY_SCHEMA, (message, requestContext) => {
+        new KafkaHandlerConfig(EMPTY_SCHEMA, (message, executionContext, requestContext) => {
           expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.infer<typeof EMPTY_SCHEMA>>>()
+          expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
           expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
         }),
       )

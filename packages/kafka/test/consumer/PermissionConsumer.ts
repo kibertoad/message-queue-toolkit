@@ -17,65 +17,82 @@ import {
 } from '../utils/permissionSchemas.js'
 import { getKafkaConfig } from '../utils/testContext.js'
 
+type ExecutionContext = {
+  incrementAmount: number
+}
+
 export type PermissionConsumerOptions = Partial<
   Pick<
-    KafkaConsumerOptions<typeof PERMISSION_TOPIC_MESSAGES_CONFIG>,
+    KafkaConsumerOptions<typeof PERMISSION_TOPIC_MESSAGES_CONFIG, ExecutionContext>,
     'kafka' | 'handlerSpy' | 'autocreateTopics' | 'handlers' | 'headerRequestIdField'
   >
 >
 
 export class PermissionConsumer extends AbstractKafkaConsumer<
-  typeof PERMISSION_TOPIC_MESSAGES_CONFIG
+  typeof PERMISSION_TOPIC_MESSAGES_CONFIG,
+  ExecutionContext
 > {
   private _addedMessages: Message<string, PermissionAdded, string, string>[] = []
   private _removedMessages: Message<string, PermissionRemoved, string, string>[] = []
   private _noTypeMessages: Message<string, Permission, string, string>[] = []
 
   constructor(deps: KafkaConsumerDependencies, options: PermissionConsumerOptions = {}) {
-    super(deps, {
-      handlers:
-        options.handlers ??
-        new KafkaHandlerRoutingBuilder<typeof PERMISSION_TOPIC_MESSAGES_CONFIG>()
-          .addConfig(
-            'permission-added',
-            new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message) => {
-              this._addedMessages.push(message)
-            }),
-          )
-          .addConfig(
-            'permission-removed',
-            new KafkaHandlerConfig(PERMISSION_REMOVED_SCHEMA, (message) => {
-              this._removedMessages.push(message)
-            }),
-          )
-          .addConfig(
-            'permission-general',
-            new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message) => {
-              this._addedMessages.push(message)
-            }),
-          )
-          .addConfig(
-            'permission-general',
-            new KafkaHandlerConfig(PERMISSION_REMOVED_SCHEMA, (message) => {
-              this._removedMessages.push(message)
-            }),
-          )
-          .addConfig(
-            'permission-general',
-            new KafkaHandlerConfig(PERMISSION_SCHEMA, (message) => {
-              this._noTypeMessages.push(message)
-            }),
-          )
-          .build(),
-      autocreateTopics: options.autocreateTopics ?? true,
-      groupId: randomUUID(),
-      kafka: options.kafka ?? getKafkaConfig(),
-      logMessages: true,
-      handlerSpy: options.handlerSpy ?? true,
-      headerRequestIdField: options.headerRequestIdField,
-      messageIdField: 'id',
-      messageTypeField: 'type',
-    })
+    super(
+      deps,
+      {
+        handlers:
+          options.handlers ??
+          new KafkaHandlerRoutingBuilder<
+            typeof PERMISSION_TOPIC_MESSAGES_CONFIG,
+            ExecutionContext
+          >()
+            .addConfig(
+              'permission-added',
+              new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message, executionContext) => {
+                executionContext.incrementAmount++
+                this._addedMessages.push(message)
+              }),
+            )
+            .addConfig(
+              'permission-removed',
+              new KafkaHandlerConfig(PERMISSION_REMOVED_SCHEMA, (message, executionContext) => {
+                executionContext.incrementAmount++
+                this._removedMessages.push(message)
+              }),
+            )
+            .addConfig(
+              'permission-general',
+              new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message, executionContext) => {
+                executionContext.incrementAmount++
+                this._addedMessages.push(message)
+              }),
+            )
+            .addConfig(
+              'permission-general',
+              new KafkaHandlerConfig(PERMISSION_REMOVED_SCHEMA, (message) => {
+                this._removedMessages.push(message)
+              }),
+            )
+            .addConfig(
+              'permission-general',
+              new KafkaHandlerConfig(PERMISSION_SCHEMA, (message) => {
+                this._noTypeMessages.push(message)
+              }),
+            )
+            .build(),
+        autocreateTopics: options.autocreateTopics ?? true,
+        groupId: randomUUID(),
+        kafka: options.kafka ?? getKafkaConfig(),
+        logMessages: true,
+        handlerSpy: options.handlerSpy ?? true,
+        headerRequestIdField: options.headerRequestIdField,
+        messageIdField: 'id',
+        messageTypeField: 'type',
+      },
+      {
+        incrementAmount: 0,
+      },
+    )
   }
 
   get addedMessages() {

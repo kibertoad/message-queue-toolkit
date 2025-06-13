@@ -324,10 +324,10 @@ describe('PermissionConsumer', () => {
       consumer = new PermissionConsumer(testContext.cradle, {
         handlers: {
           'permission-general': [
-            new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message, requestContext) => {
+            new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message, _, requestContext) => {
               handlerCalls.push({ messageValue: message.value, requestContext })
             }),
-            new KafkaHandlerConfig(PERMISSION_SCHEMA, (message, requestContext) => {
+            new KafkaHandlerConfig(PERMISSION_SCHEMA, (message, _, requestContext) => {
               handlerCalls.push({ messageValue: message.value, requestContext })
             }),
           ],
@@ -373,7 +373,7 @@ describe('PermissionConsumer', () => {
         headerRequestIdField,
         handlers: {
           'permission-general': [
-            new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message, requestContext) => {
+            new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message, _, requestContext) => {
               handlerCalls.push({ messageValue: message.value, requestContext })
             }),
           ],
