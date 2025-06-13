@@ -24,13 +24,16 @@ import { safeJsonDeserializer } from './utils/safeJsonDeserializer.js'
 export type KafkaConsumerDependencies = KafkaDependencies &
   Pick<QueueConsumerDependencies, 'transactionObservabilityManager'>
 
-export type KafkaConsumerOptions<TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
+export type KafkaConsumerOptions<
+  TopicsConfig extends TopicConfig[],
+  ExecutionContext,
+> = BaseKafkaOptions &
   Omit<
     ConsumerOptions<string, object, string, string>,
     'deserializers' | 'autocommit' | keyof KafkaConfig
   > &
   Omit<ConsumeOptions<string, object, string, string>, 'topics'> & {
-    handlers: KafkaHandlerRouting<TopicsConfig>
+    handlers: KafkaHandlerRouting<TopicsConfig, ExecutionContext>
   }
 
 /*
@@ -41,24 +44,28 @@ const MAX_IN_MEMORY_RETRIES = 3
 
 export abstract class AbstractKafkaConsumer<
   TopicsConfig extends TopicConfig[],
-> extends AbstractKafkaService<TopicsConfig, KafkaConsumerOptions<TopicsConfig>> {
+  ExecutionContext,
+> extends AbstractKafkaService<TopicsConfig, KafkaConsumerOptions<TopicsConfig, ExecutionContext>> {
   private readonly consumer: Consumer<string, object, string, string>
   private consumerStream?: MessagesStream<string, object, string, string>
 
   private readonly transactionObservabilityManager: TransactionObservabilityManager
-  private readonly handlerContainer: KafkaHandlerContainer<TopicsConfig>
+  private readonly handlerContainer: KafkaHandlerContainer<TopicsConfig, ExecutionContext>
+  private readonly executionContext: ExecutionContext
 
   constructor(
     dependencies: KafkaConsumerDependencies,
-    options: KafkaConsumerOptions<TopicsConfig>,
+    options: KafkaConsumerOptions<TopicsConfig, ExecutionContext>,
+    executionContext: ExecutionContext,
   ) {
     super(dependencies, options)
 
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
-    this.handlerContainer = new KafkaHandlerContainer<TopicsConfig>(
+    this.handlerContainer = new KafkaHandlerContainer<TopicsConfig, ExecutionContext>(
       options.handlers,
       options.messageTypeField,
     )
+    this.executionContext = executionContext
 
     this.consumer = new Consumer({
       ...this.options.kafka,
@@ -169,11 +176,11 @@ export abstract class AbstractKafkaConsumer<
 
   private async tryToConsume<MessageValue extends object>(
     message: Message<string, MessageValue, string, string>,
-    handler: KafkaHandler<MessageValue>,
+    handler: KafkaHandler<MessageValue, ExecutionContext>,
     requestContext: RequestContext,
   ): Promise<boolean> {
     try {
-      await handler(message, requestContext)
+      await handler(message, this.executionContext, requestContext)
       return true
     } catch (error) {
       this.handlerError(error, {
