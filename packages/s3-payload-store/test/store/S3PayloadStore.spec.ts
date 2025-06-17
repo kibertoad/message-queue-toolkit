@@ -3,7 +3,7 @@ import { Readable } from 'node:stream'
 import { S3 } from '@aws-sdk/client-s3'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { S3PayloadStore } from '../../lib/S3PayloadStore.ts'
+import { S3PayloadStore, resolvePayloadStoreConfig } from '../../lib/S3PayloadStore.ts'
 import { assertEmptyBucket, getObjectContent, objectExists } from '../utils/s3Utils.ts'
 import { streamToString } from '../utils/streamUtils.ts'
 import { TEST_AWS_CONFIG } from '../utils/testS3Config.ts'
@@ -86,6 +86,33 @@ describe('S3PayloadStore', () => {
     })
     it('gracefully handles non-existing key', async () => {
       await expect(store.deletePayload('non-existing-key')).resolves.not.toThrow()
+    })
+  })
+  describe('resolvePayloadStoreConfig', () => {
+    it('should return undefined if s3PayloadOffloadingBucket is not set', () => {
+      const result = resolvePayloadStoreConfig({ s3: {} as any })
+      expect(result).toBeUndefined()
+    })
+    it('should throw an error if S3 is not defined', () => {
+      expect(() =>
+        resolvePayloadStoreConfig(
+          { s3: undefined },
+          {
+            s3PayloadOffloadingBucket: 'test-bucket',
+            messageSizeThreshold: 1,
+          },
+        ),
+      ).toThrowError('AWS S3 client is required for payload offloading')
+    })
+    it('should payload store config', () => {
+      const result = resolvePayloadStoreConfig(
+        { s3: {} as any },
+        { s3PayloadOffloadingBucket: 'test-bucket', messageSizeThreshold: 1 },
+      )
+      expect(result).toEqual({
+        store: expect.any(S3PayloadStore),
+        messageSizeThreshold: 1,
+      })
     })
   })
 })

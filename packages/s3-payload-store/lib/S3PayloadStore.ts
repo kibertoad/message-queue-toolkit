@@ -5,6 +5,28 @@ import type { S3 } from '@aws-sdk/client-s3'
 import { NoSuchKey } from '@aws-sdk/client-s3'
 import type { PayloadStoreTypes, SerializedPayload } from '@message-queue-toolkit/core'
 
+export type S3AwareDependencies = { s3?: S3 }
+export type MessageQueuePayloadOffloadingConfig = {
+  s3PayloadOffloadingBucket?: string
+  messageSizeThreshold: number
+}
+
+export function resolvePayloadStoreConfig(
+  dependencies: S3AwareDependencies,
+  config?: MessageQueuePayloadOffloadingConfig,
+) {
+  if (!config?.s3PayloadOffloadingBucket) return undefined
+  if (!dependencies.s3) throw new Error('AWS S3 client is required for payload offloading')
+
+  return {
+    store: new S3PayloadStore(
+      { s3: dependencies.s3 },
+      { bucketName: config.s3PayloadOffloadingBucket },
+    ),
+    messageSizeThreshold: config.messageSizeThreshold,
+  }
+}
+
 export type S3PayloadStoreDependencies = {
   s3: S3
 }
