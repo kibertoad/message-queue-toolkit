@@ -26,7 +26,7 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/background-jobs-common": "^12.4.4",
+        "@lokalise/background-jobs-common": "^13.0.0",
         "@supercharge/promise-pool": "^3.2.0",
         "uuidv7": "^1.0.2"
     },
