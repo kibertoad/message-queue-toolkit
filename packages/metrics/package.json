@@ -33,7 +33,7 @@
         "prom-client": ">=15.0.0"
     },
     "devDependencies": {
-        "@biomejs/biome": "1.9.4",
+        "@biomejs/biome": "2.0.5",
         "@lokalise/biome-config": "^2.0.0",
         "@lokalise/tsconfig": "^1.3.0",
         "@message-queue-toolkit/core": "*",
