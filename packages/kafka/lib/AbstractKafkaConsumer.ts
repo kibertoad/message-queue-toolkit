@@ -21,12 +21,8 @@ import { KafkaHandlerContainer } from './handler-container/KafkaHandlerContainer
 import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.ts'
 import type { KafkaHandler, RequestContext } from './handler-container/index.ts'
 import type { KafkaConfig, KafkaDependencies, TopicConfig } from './types.ts'
+import { ILLEGAL_GENERATION, REBALANCE_IN_PROGRESS, UNKNOWN_MEMBER_ID } from './utils/errorCodes.js'
 import { safeJsonDeserializer } from './utils/safeJsonDeserializer.js'
-import {
-  ILLEGAL_GENERATION,
-  REBALANCE_IN_PROGRESS,
-  UNKNOWN_MEMBER_ID,
-} from './utils/errorCodes.js';
 
 export type KafkaConsumerDependencies = KafkaDependencies &
   Pick<QueueConsumerDependencies, 'transactionObservabilityManager'>
@@ -109,8 +105,12 @@ export abstract class AbstractKafkaConsumer<
     }
 
     this.consumer.on('consumer:group:join', (_) => this.logger.info('Consumer is joining a group'))
-    this.consumer.on('consumer:rejoin', (_) => this.logger.info('Consumer is re-joining a group after a rebalance'))
-    this.consumer.on('consumer:group:leave', (_) => this.logger.info('Consumer is leaving the group'))
+    this.consumer.on('consumer:rejoin', (_) =>
+      this.logger.info('Consumer is re-joining a group after a rebalance'),
+    )
+    this.consumer.on('consumer:group:leave', (_) =>
+      this.logger.info('Consumer is leaving the group'),
+    )
     this.consumer.on('consumer:group:rebalance', (_) => this.logger.info('Group is rebalancing'))
 
     this.consumerStream.on('data', (message) => this.consume(message))
@@ -211,7 +211,10 @@ export abstract class AbstractKafkaConsumer<
 
   private async commitMessage(message: Message<string, object, string, string>) {
     try {
-      this.logger.debug({ topic: message.topic, offset: message.offset, timestamp: message.timestamp }, 'Trying to commit message')
+      this.logger.debug(
+        { topic: message.topic, offset: message.offset, timestamp: message.timestamp },
+        'Trying to commit message',
+      )
       await message.commit()
     } catch (error) {
       if (error instanceof ResponseError && 'code' in error) {
@@ -227,19 +230,20 @@ export abstract class AbstractKafkaConsumer<
       if (
         error instanceof ProtocolError &&
         error.apiCode &&
-        (
-          error.apiCode === ILLEGAL_GENERATION ||
+        (error.apiCode === ILLEGAL_GENERATION ||
           error.apiCode === UNKNOWN_MEMBER_ID ||
-          error.apiCode === REBALANCE_IN_PROGRESS
-        )
+          error.apiCode === REBALANCE_IN_PROGRESS)
       ) {
-        this.logger.error({
-          apiCode: error.apiCode,
-          apiId: error.apiId,
-          responseErrorMessage: responseError.message,
-          protocolErrorMessage: error.message,
-          error: responseError,
-        }, `Failed to commit message: ${error.message}`)
+        this.logger.error(
+          {
+            apiCode: error.apiCode,
+            apiId: error.apiId,
+            responseErrorMessage: responseError.message,
+            protocolErrorMessage: error.message,
+            error: responseError,
+          },
+          `Failed to commit message: ${error.message}`,
+        )
       } else {
         // If error is not recognized, rethrow it
         throw responseError
