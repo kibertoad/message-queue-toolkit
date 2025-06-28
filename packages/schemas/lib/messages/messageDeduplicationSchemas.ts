@@ -21,4 +21,4 @@ export const MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA = z.object({
     .describe('message lock refresh interval in seconds'),
 })
 
-export type MessageDeduplicationOptions = z.infer<typeof MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA>
+export type MessageDeduplicationOptions = z.input<typeof MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA>

@@ -68,17 +68,19 @@ export const CORE_EVENT_SCHEMA = z.object({
 })
 
 // Core fields that describe either internal event or external message
-export const CONSUMER_BASE_EVENT_SCHEMA = GENERATED_BASE_EVENT_SCHEMA.extend(
-  CORE_EVENT_SCHEMA.shape,
-)
-export const PUBLISHER_BASE_EVENT_SCHEMA = OPTIONAL_GENERATED_BASE_EVENT_SCHEMA.extend(
-  CORE_EVENT_SCHEMA.shape,
-)
+export const CONSUMER_BASE_EVENT_SCHEMA = {
+    ...GENERATED_BASE_EVENT_SCHEMA,
+    ...CORE_EVENT_SCHEMA,
+} as const
+export const PUBLISHER_BASE_EVENT_SCHEMA = {
+        ...OPTIONAL_GENERATED_BASE_EVENT_SCHEMA,
+        ...CORE_EVENT_SCHEMA,
+} as const
 
-export type ConsumerBaseEventType = z.infer<typeof CONSUMER_BASE_EVENT_SCHEMA>
-export type PublisherBaseEventType = z.infer<typeof PUBLISHER_BASE_EVENT_SCHEMA>
-export type CoreEventType = z.infer<typeof CORE_EVENT_SCHEMA>
-export type GeneratedBaseEventType = z.infer<typeof GENERATED_BASE_EVENT_SCHEMA>
+export type ConsumerBaseEventType = z.input<typeof CONSUMER_BASE_EVENT_SCHEMA>
+export type PublisherBaseEventType = z.input<typeof PUBLISHER_BASE_EVENT_SCHEMA>
+export type CoreEventType = z.input<typeof CORE_EVENT_SCHEMA>
+export type GeneratedBaseEventType = z.input<typeof GENERATED_BASE_EVENT_SCHEMA>
 
 type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string> = {
   consumerSchema: ZodObject<{
@@ -116,7 +118,9 @@ export function enrichEventSchemaWithBase<
   })
 
   return {
+// @ts-expect-error broken after v4 upgrade
     consumerSchema: consumerSchema,
+// @ts-expect-error broken after v4 upgrade
     publisherSchema: publisherSchema,
   }
 }

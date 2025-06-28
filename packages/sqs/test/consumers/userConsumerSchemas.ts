@@ -15,7 +15,7 @@ export const PERMISSIONS_ADD_MESSAGE_SCHEMA = z.object({
   id: z.string(),
   messageType: z.literal('add'),
   timestamp: z.string().optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
   deduplicationId: z.string().optional(),
   deduplicationOptions: MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA.optional(),
 })

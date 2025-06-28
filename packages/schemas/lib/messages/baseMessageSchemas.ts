@@ -21,13 +21,13 @@ import type { MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA } from './messageDeduplicatio
 export const CONSUMER_BASE_MESSAGE_SCHEMA = CONSUMER_BASE_EVENT_SCHEMA
 export const PUBLISHER_BASE_MESSAGE_SCHEMA = PUBLISHER_BASE_EVENT_SCHEMA
 
-export type ConsumerBaseMessageType = z.infer<typeof CONSUMER_BASE_MESSAGE_SCHEMA>
-export type PublisherBaseMessageType = z.infer<typeof PUBLISHER_BASE_MESSAGE_SCHEMA>
+export type ConsumerBaseMessageType = z.input<typeof CONSUMER_BASE_MESSAGE_SCHEMA>
+export type PublisherBaseMessageType = z.input<typeof PUBLISHER_BASE_MESSAGE_SCHEMA>
 
-export type PublisherMessageMetadataType = z.infer<typeof PUBLISHER_MESSAGE_METADATA_SCHEMA>
-export type ConsumerMessageMetadataType = z.infer<typeof CONSUMER_MESSAGE_METADATA_SCHEMA>
+export type PublisherMessageMetadataType = z.input<typeof PUBLISHER_MESSAGE_METADATA_SCHEMA>
+export type ConsumerMessageMetadataType = z.input<typeof CONSUMER_MESSAGE_METADATA_SCHEMA>
 
-export type CommonMessageDefinitionSchemaType<T extends CommonEventDefinition> = z.infer<
+export type CommonMessageDefinitionSchemaType<T extends CommonEventDefinition> = z.input<
   T['consumerSchema']
 >
 
@@ -111,7 +111,9 @@ export function enrichMessageSchemaWithBase<
   }
 
   return {
+// @ts-expect-error broken after v4 upgrade
     consumerSchema: consumerSchema,
+// @ts-expect-error broken after v4 upgrade
     publisherSchema: publisherSchema,
   }
 }

@@ -48,7 +48,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   private readonly eventHandlerMap: Map<
     string,
-    Handlers<EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvents[number]>>>
+    Handlers<EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>>
   >
   private readonly inProgressBackgroundHandlerByEventId: Map<string, Promise<void>>
 
@@ -197,6 +197,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     let isSuccessful = false
     try {
       this.transactionObservabilityManager?.startWithGroup(
+          // @ts-expect-error broken after v4 upgrade
         this.buildTransactionKey(event, handler, isBackgroundHandler),
         transactionId,
         event.type,

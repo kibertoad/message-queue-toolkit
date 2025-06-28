@@ -14,7 +14,7 @@ export const SNS_MESSAGE_BODY_SCHEMA = z.object({
       z.string(),
       z.object({
         Type: z.string(),
-        Value: z.unknown(),
+        Value: z.any(),
       }),
     )
     .optional(),
