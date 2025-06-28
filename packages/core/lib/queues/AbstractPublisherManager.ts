@@ -1,4 +1,4 @@
-import type { TypeOf, z } from 'zod/v3'
+import type { TypeOf, z } from 'zod/v4'
 
 import type { EventRegistry } from '../events/EventRegistry.ts'
 import type { PublisherBaseEventType } from '../events/baseEventSchemas.ts'
@@ -55,7 +55,7 @@ export abstract class AbstractPublisherManager<
   protected readonly newPublisherOptions: OptionsType
 
   protected readonly metadataFiller: MetadataFiller<
-    z.infer<SupportedEventDefinitions[number]['consumerSchema']>,
+    z.input<SupportedEventDefinitions[number]['consumerSchema']>,
     MetadataType
   >
   protected readonly metadataField: string

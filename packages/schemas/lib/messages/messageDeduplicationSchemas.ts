@@ -1,4 +1,4 @@
-import { z } from 'zod/v3'
+import { z } from 'zod/v4'
 
 export const MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA = z.object({
   deduplicationWindowSeconds: z

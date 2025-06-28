@@ -5,7 +5,8 @@ import z, {
   type ZodString,
   type ZodRawShape,
   type ZodNullable,
-} from 'zod/v3'
+  type core,
+} from 'zod/v4'
 import {
   CONSUMER_BASE_EVENT_SCHEMA,
   type CONSUMER_MESSAGE_METADATA_SCHEMA,
@@ -38,7 +39,7 @@ export type MetadataObject = ZodObject<
     originatedFrom: ZodString
     correlationId: ZodString
   },
-  'strip'
+  core.$strip
 >
 
 type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string> = {
@@ -52,7 +53,7 @@ type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string>
       payload: T
       metadata: MetadataObject
     },
-    'strip'
+      core.$strip
   >
 
   publisherSchema: ZodObject<
@@ -71,11 +72,11 @@ type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string>
             originatedFrom: ZodOptional<ZodString>
             correlationId: ZodOptional<ZodString>
           },
-          'strip'
+            core.$strip
         >
       >
     },
-    'strip'
+      core.$strip
   >
 }
 

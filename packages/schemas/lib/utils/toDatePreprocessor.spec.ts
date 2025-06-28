@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { z } from 'zod/v3'
+import { z } from 'zod/v4'
 
 import { toDatePreprocessor } from './toDateProcessor.ts'
 
