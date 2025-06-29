@@ -61,8 +61,7 @@ export const TestEvents = {
 } as const satisfies Record<string, SnsAwareEventDefinition>
 
 export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
-export type TestEventPublishPayloadsType = z.input<TestEventsType[number]['publisherSchema']>
-export type TestEventConsumerPayloadsType = z.output<TestEventsType[number]['consumerSchema']>
+export type TestEventPublishPayloadsType = z.output<TestEventsType[number]['publisherSchema']>
 
 export async function registerDependencies(
   dependencyOverrides: DependencyOverrides = {},
@@ -150,7 +149,6 @@ export async function registerDependencies(
           metadataFiller: new CommonMetadataFiller({
             serviceId: 'service',
           }),
-          // @ts-expect-error broken after v4 migration
           publisherFactory: new CommonSnsPublisherFactory(),
           newPublisherOptions: {
             handlerSpy: true,

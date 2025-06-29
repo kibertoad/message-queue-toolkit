@@ -10,7 +10,7 @@ export class CustomFakeConsumer extends AbstractAmqpQueueConsumer<
   unknown
 > {
   public static readonly QUEUE_NAME = 'dummy-queue'
-  constructor(dependencies: AMQPConsumerDependencies, schema: ZodSchema) {
+  constructor(dependencies: AMQPConsumerDependencies, schema: ZodSchema<any>) {
     super(
       dependencies,
       {
