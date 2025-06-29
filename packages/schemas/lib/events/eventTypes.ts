@@ -12,11 +12,11 @@ export function isCommonEventDefinition(entity: unknown): entity is CommonEventD
 
 const consumerSchema = CONSUMER_BASE_EVENT_SCHEMA.extend({
   metadata: MetadataObjectSchema,
-  payload: z.any(),
+  payload: z.looseObject({}),
 })
 
 const publisherSchema = PUBLISHER_BASE_EVENT_SCHEMA.extend({
-  payload: z.any(),
+  payload: z.looseObject({}),
 })
 
 export type CommonEventDefinition = {

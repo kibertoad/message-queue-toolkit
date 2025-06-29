@@ -5,17 +5,17 @@ export const PERMISSION_SCHEMA = z.object({
   id: z.string(),
   permissions: z.array(z.string()).describe('List of user permissions'),
 })
-export type Permission = z.infer<typeof PERMISSION_SCHEMA>
+export type Permission = z.output<typeof PERMISSION_SCHEMA>
 
 export const PERMISSION_ADDED_SCHEMA = PERMISSION_SCHEMA.extend({
   type: z.literal('added'),
 })
-export type PermissionAdded = z.infer<typeof PERMISSION_ADDED_SCHEMA>
+export type PermissionAdded = z.output<typeof PERMISSION_ADDED_SCHEMA>
 
 export const PERMISSION_REMOVED_SCHEMA = PERMISSION_SCHEMA.extend({
   type: z.literal('removed'),
 })
-export type PermissionRemoved = z.infer<typeof PERMISSION_REMOVED_SCHEMA>
+export type PermissionRemoved = z.output<typeof PERMISSION_REMOVED_SCHEMA>
 
 export const PERMISSION_ADDED_TOPIC = 'permission-added'
 export const PERMISSION_REMOVED_TOPIC = 'permission-removed'

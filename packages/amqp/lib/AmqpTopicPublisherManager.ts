@@ -22,20 +22,20 @@ import { CommonAmqpTopicPublisherFactory } from './CommonAmqpPublisherFactory.ts
 
 export class AmqpTopicPublisherManager<
   PublisherType extends AbstractAmqpTopicPublisher<
-    z.infer<SupportedEventDefinitions[number]['publisherSchema']>
+    z.output<SupportedEventDefinitions[number]['publisherSchema']>
   >,
   SupportedEventDefinitions extends AmqpAwareEventDefinition[],
   MetadataType = PublisherMessageMetadataType,
 > extends AbstractPublisherManager<
   AmqpAwareEventDefinition,
   NonNullable<SupportedEventDefinitions[number]['exchange']>,
-  AbstractAmqpTopicPublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+  AbstractAmqpTopicPublisher<z.output<SupportedEventDefinitions[number]['publisherSchema']>>,
   AMQPDependencies,
   AMQPTopicPublisherConfig,
   AMQPTopicPublisherConfig,
   AmqpMessageSchemaType<AmqpAwareEventDefinition>,
   Omit<
-    AMQPTopicPublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+    AMQPTopicPublisherOptions<z.output<SupportedEventDefinitions[number]['publisherSchema']>>,
     'messageSchemas' | 'locatorConfig' | 'exchange'
   >,
   SupportedEventDefinitions,
@@ -47,8 +47,8 @@ export class AmqpTopicPublisherManager<
     options: AmqpPublisherManagerOptions<
       PublisherType,
       AmqpTopicMessageOptions,
-      AMQPTopicPublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
-      z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
+      AMQPTopicPublisherOptions<z.output<SupportedEventDefinitions[number]['publisherSchema']>>,
+      z.output<SupportedEventDefinitions[number]['publisherSchema']>,
       MetadataType,
       AMQPTopicPublisherConfig,
       AMQPTopicPublisherConfig
@@ -73,7 +73,7 @@ export class AmqpTopicPublisherManager<
     exchange: string,
   ): Partial<
     Omit<
-      AMQPTopicPublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+      AMQPTopicPublisherOptions<z.output<SupportedEventDefinitions[number]['publisherSchema']>>,
       'messageSchemas' | 'locatorConfig'
     >
   > {

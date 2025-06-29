@@ -1,4 +1,4 @@
-import type { ZodSchema } from 'zod/v3'
+import type { ZodSchema } from 'zod/v4'
 
 // See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_version.html
 const POLICY_VERSION = '2012-10-17'

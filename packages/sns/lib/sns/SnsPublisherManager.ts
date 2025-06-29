@@ -8,7 +8,7 @@ import type {
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { SnsAwareEventDefinition } from '@message-queue-toolkit/schemas'
-import type z from 'zod/v3'
+import type z from 'zod/v4'
 
 import type {
   AbstractSnsPublisher,
@@ -45,22 +45,22 @@ export type SnsPublisherManagerOptions<
   }
 }
 
-export type SnsMessageSchemaType<T extends SnsAwareEventDefinition> = z.infer<T['publisherSchema']>
+export type SnsMessageSchemaType<T extends SnsAwareEventDefinition> = z.output<T['publisherSchema']>
 
 export class SnsPublisherManager<
-  T extends AbstractSnsPublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+  T extends AbstractSnsPublisher<z.input<SupportedEventDefinitions[number]['publisherSchema']>>,
   SupportedEventDefinitions extends SnsAwareEventDefinition[],
   MetadataType = PublisherMessageMetadataType,
 > extends AbstractPublisherManager<
   SnsAwareEventDefinition,
   NonNullable<SupportedEventDefinitions[number]['snsTopic']>,
-  AbstractSnsPublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+  AbstractSnsPublisher<z.input<SupportedEventDefinitions[number]['publisherSchema']>>,
   SNSDependencies,
   SNSCreationConfig,
   SNSTopicLocatorType,
   SnsMessageSchemaType<SnsAwareEventDefinition>,
   Omit<
-    SNSPublisherOptions<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+    SNSPublisherOptions<z.input<SupportedEventDefinitions[number]['publisherSchema']>>,
     'messageSchemas' | 'creationConfig' | 'locatorConfig'
   >,
   SupportedEventDefinitions,
@@ -71,7 +71,7 @@ export class SnsPublisherManager<
     dependencies: SnsPublisherManagerDependencies<SupportedEventDefinitions>,
     options: SnsPublisherManagerOptions<
       T,
-      z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
+      z.input<SupportedEventDefinitions[number]['publisherSchema']>,
       MetadataType
     >,
   ) {

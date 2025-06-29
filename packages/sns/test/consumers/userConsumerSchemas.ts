@@ -1,5 +1,5 @@
 import { MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA } from '@message-queue-toolkit/schemas'
-import z from 'zod/v3'
+import z from 'zod/v4'
 
 export const PERMISSIONS_MESSAGE_SCHEMA = z.object({
   id: z.string(),
@@ -29,7 +29,7 @@ export const PERMISSIONS_REMOVE_MESSAGE_SCHEMA = z.object({
   deduplicationOptions: MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA.optional(),
 })
 
-export type PERMISSIONS_MESSAGE_TYPE = z.infer<typeof PERMISSIONS_MESSAGE_SCHEMA>
+export type PERMISSIONS_MESSAGE_TYPE = z.output<typeof PERMISSIONS_MESSAGE_SCHEMA>
 
-export type PERMISSIONS_ADD_MESSAGE_TYPE = z.infer<typeof PERMISSIONS_ADD_MESSAGE_SCHEMA>
-export type PERMISSIONS_REMOVE_MESSAGE_TYPE = z.infer<typeof PERMISSIONS_REMOVE_MESSAGE_SCHEMA>
+export type PERMISSIONS_ADD_MESSAGE_TYPE = z.output<typeof PERMISSIONS_ADD_MESSAGE_SCHEMA>
+export type PERMISSIONS_REMOVE_MESSAGE_TYPE = z.output<typeof PERMISSIONS_REMOVE_MESSAGE_SCHEMA>

@@ -63,27 +63,27 @@ export type AmqpPublisherManagerOptions<
   }
 }
 
-export type AmqpMessageSchemaType<T extends AmqpAwareEventDefinition> = z.infer<
+export type AmqpMessageSchemaType<T extends AmqpAwareEventDefinition> = z.output<
   T['publisherSchema']
 >
 
 export class AmqpQueuePublisherManager<
   T extends AbstractAmqpQueuePublisher<
-    z.infer<SupportedEventDefinitions[number]['publisherSchema']>
+    z.output<SupportedEventDefinitions[number]['publisherSchema']>
   >,
   SupportedEventDefinitions extends AmqpAwareEventDefinition[],
   MetadataType = PublisherMessageMetadataType,
 > extends AbstractPublisherManager<
   AmqpAwareEventDefinition,
   NonNullable<SupportedEventDefinitions[number]['queueName']>,
-  AbstractAmqpQueuePublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+  AbstractAmqpQueuePublisher<z.output<SupportedEventDefinitions[number]['publisherSchema']>>,
   AMQPDependencies,
   AMQPQueueCreationConfig,
   AMQPQueueLocator,
   AmqpMessageSchemaType<AmqpAwareEventDefinition>,
   Omit<
     AMQPPublisherOptions<
-      z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
+      z.output<SupportedEventDefinitions[number]['publisherSchema']>,
       AMQPQueueCreationConfig,
       AMQPQueueLocator
     >,
@@ -99,11 +99,11 @@ export class AmqpQueuePublisherManager<
       T,
       AmqpQueueMessageOptions,
       AMQPPublisherOptions<
-        z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
+        z.output<SupportedEventDefinitions[number]['publisherSchema']>,
         AMQPQueueCreationConfig,
         AMQPQueueLocator
       >,
-      z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
+      z.output<SupportedEventDefinitions[number]['publisherSchema']>,
       MetadataType
     >,
   ) {

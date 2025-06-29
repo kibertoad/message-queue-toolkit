@@ -71,7 +71,7 @@ export const OPTIONAL_GENERATED_BASE_EVENT_SCHEMA = z.object({
 // Base event fields that are always defined manually
 export const CORE_EVENT_SCHEMA = z.object({
   type: z.literal<string>('<replace.me>').describe('event type name'),
-  payload: z.optional(z.object({})).describe('event payload based on type'),
+  payload: z.optional(z.looseObject({})).describe('event payload based on type'),
 })
 
 // Core fields that describe either internal event or external message

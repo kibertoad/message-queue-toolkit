@@ -81,7 +81,7 @@ export const TestEvents = {
 } as const satisfies Record<string, AmqpAwareEventDefinition>
 
 export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
-export type TestEventPublishPayloadsType = z.infer<TestEventsType[number]['publisherSchema']>
+export type TestEventPublishPayloadsType = z.output<TestEventsType[number]['publisherSchema']>
 
 const TestLogger: CommonLogger = pino()
 

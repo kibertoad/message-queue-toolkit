@@ -55,7 +55,7 @@ export abstract class AbstractPublisherManager<
   protected readonly newPublisherOptions: OptionsType
 
   protected readonly metadataFiller: MetadataFiller<
-    z.input<SupportedEventDefinitions[number]['consumerSchema']>,
+    z.input<SupportedEventDefinitions[number]['publisherSchema']>,
     MetadataType
   >
   protected readonly metadataField: string
@@ -92,7 +92,7 @@ export abstract class AbstractPublisherManager<
     newPublisherOptions: OptionsType
     publisherDependencies: DependenciesType
     metadataFiller: MetadataFiller<
-      z.input<SupportedEventDefinitions[number]['consumerSchema']>,
+      z.input<SupportedEventDefinitions[number]['publisherSchema']>,
       MetadataType
     >
     eventRegistry: EventRegistry<SupportedEventDefinitions>
@@ -235,8 +235,8 @@ export abstract class AbstractPublisherManager<
     precedingEventMetadata?: Partial<MetadataType>,
   ): MessageSchemaType<SupportedEventDefinitions[number]> {
     const producedMetadata = this.metadataFiller.produceMetadata(
-      // @ts-ignore
       message,
+      // @ts-ignore
       messageDefinition,
       precedingEventMetadata,
     )

@@ -13,7 +13,7 @@ import {
   type QueuePublisherOptions,
   type ResolvedMessage,
 } from '@message-queue-toolkit/core'
-import type { ZodSchema } from 'zod/v3'
+import type { ZodSchema } from 'zod/v4'
 
 import type { SQSMessage } from '../types/MessageTypes.ts'
 import { resolveOutgoingMessageAttributes } from '../utils/messageUtils.ts'
