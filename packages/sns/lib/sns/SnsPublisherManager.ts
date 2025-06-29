@@ -1,7 +1,6 @@
 import type {
   EventRegistry,
   MessagePublishType,
-  MessageSchemaType,
   MetadataFiller,
   PublisherBaseEventType,
   PublisherMessageMetadataType,
@@ -96,7 +95,7 @@ export class SnsPublisherManager<
     message: MessagePublishType<SupportedEventDefinitions[number]>,
     precedingEventMetadata?: Partial<MetadataType>,
     messageOptions?: SNSMessageOptions,
-  ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+  ): Promise<MessagePublishType<SupportedEventDefinitions[number]>> {
     // Purpose of this override is to provide better name for the first argument
     // For SNS it is going to be topic
     return super.publish(topic, message, precedingEventMetadata, messageOptions)
