@@ -47,6 +47,17 @@ describe('toDatePreprocessor', () => {
       SCHEMA.parse({
         createdAt: (x: string) => x,
       }),
-    ).toThrow(/Expected date, received function/)
+    ).toThrowErrorMatchingInlineSnapshot(`
+      [ZodError: [
+        {
+          "expected": "date",
+          "code": "invalid_type",
+          "path": [
+            "createdAt"
+          ],
+          "message": "Invalid input: expected date, received function"
+        }
+      ]]
+    `)
   })
 })

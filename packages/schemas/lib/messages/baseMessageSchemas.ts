@@ -6,6 +6,7 @@ import z, {
   type ZodRawShape,
   type ZodNullable,
   type core,
+  type ZodISODateTime,
 } from 'zod/v4'
 import {
   CONSUMER_BASE_EVENT_SCHEMA,
@@ -42,24 +43,31 @@ export type MetadataObject = ZodObject<
   core.$strip
 >
 
+export const MetadataObjectSchema = z.object({
+  schemaVersion: z.string(),
+  producedBy: z.string(),
+  originatedFrom: z.string(),
+  correlationId: z.string(),
+})
+
 type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string> = {
   consumerSchema: ZodObject<
     {
       id: ZodString
-      timestamp: ZodString
+      timestamp: ZodISODateTime
       type: ZodLiteral<Z>
       deduplicationId: ZodOptional<ZodNullable<ZodString>>
       deduplicationOptions: ZodOptional<ZodNullable<typeof MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA>>
       payload: T
       metadata: MetadataObject
     },
-      core.$strip
+    core.$strip
   >
 
   publisherSchema: ZodObject<
     {
       id: ZodOptional<ZodString>
-      timestamp: ZodOptional<ZodString>
+      timestamp: ZodOptional<ZodISODateTime>
       type: ZodLiteral<Z>
       deduplicationId: ZodOptional<ZodNullable<ZodString>>
       deduplicationOptions: ZodOptional<ZodNullable<typeof MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA>>
@@ -72,11 +80,11 @@ type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string>
             originatedFrom: ZodOptional<ZodString>
             correlationId: ZodOptional<ZodString>
           },
-            core.$strip
+          core.$strip
         >
       >
     },
-      core.$strip
+    core.$strip
   >
 }
 
@@ -111,9 +119,7 @@ export function enrichMessageSchemaWithBase<
   }
 
   return {
-// @ts-expect-error broken after v4 upgrade
     consumerSchema: consumerSchema,
-// @ts-expect-error broken after v4 upgrade
     publisherSchema: publisherSchema,
   }
 }

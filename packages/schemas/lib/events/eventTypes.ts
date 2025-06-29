@@ -1,8 +1,7 @@
-import type { core, ZodObject, ZodTypeAny } from 'zod/v4'
-import type z from 'zod/v4'
+import { z } from 'zod/v4'
 
-import type { MetadataObject } from '../messages/baseMessageSchemas.js'
-import type { CONSUMER_BASE_EVENT_SCHEMA, PUBLISHER_BASE_EVENT_SCHEMA } from './baseEventSchemas.ts'
+import { MetadataObjectSchema } from '../messages/baseMessageSchemas.js'
+import { CONSUMER_BASE_EVENT_SCHEMA, PUBLISHER_BASE_EVENT_SCHEMA } from './baseEventSchemas.ts'
 
 export type EventTypeNames<EventDefinition extends CommonEventDefinition> =
   CommonEventDefinitionConsumerSchemaType<EventDefinition>['type']
@@ -11,18 +10,18 @@ export function isCommonEventDefinition(entity: unknown): entity is CommonEventD
   return (entity as CommonEventDefinition).publisherSchema !== undefined
 }
 
+const consumerSchema = CONSUMER_BASE_EVENT_SCHEMA.extend({
+  metadata: MetadataObjectSchema,
+  payload: z.any(),
+})
+
+const publisherSchema = PUBLISHER_BASE_EVENT_SCHEMA.extend({
+  payload: z.any(),
+})
+
 export type CommonEventDefinition = {
-  consumerSchema: ZodObject<
-    Omit<(typeof CONSUMER_BASE_EVENT_SCHEMA)['shape'], 'payload' | 'metadata'> & {
-      metadata: MetadataObject
-      payload: ZodTypeAny
-    }, core.$strip
-  >
-  publisherSchema: ZodObject<
-    Omit<(typeof PUBLISHER_BASE_EVENT_SCHEMA)['shape'], 'payload'> & {
-      payload: ZodTypeAny
-    }, core.$strip
-  >
+  consumerSchema: typeof consumerSchema
+  publisherSchema: typeof publisherSchema
   schemaVersion?: string
 
   //
@@ -43,14 +42,14 @@ export type CommonEventDefinitionPublisherSchemaType<T extends CommonEventDefini
 
 export type EventHandler<
   EventDefinitionSchema extends
-      CommonEventDefinitionConsumerSchemaType<CommonEventDefinition> = CommonEventDefinitionConsumerSchemaType<CommonEventDefinition>,
+    CommonEventDefinitionConsumerSchemaType<CommonEventDefinition> = CommonEventDefinitionConsumerSchemaType<CommonEventDefinition>,
 > = {
   readonly eventHandlerId: string
   handleEvent(event: EventDefinitionSchema): void | Promise<void>
 }
 
 export type AnyEventHandler<EventDefinitions extends CommonEventDefinition[]> = EventHandler<
-    CommonEventDefinitionConsumerSchemaType<EventDefinitions[number]>
+  CommonEventDefinitionConsumerSchemaType<EventDefinitions[number]>
 >
 
 export type SingleEventHandler<
@@ -62,6 +61,6 @@ type EventFromArrayByTypeName<
   EventDefinition extends CommonEventDefinition[],
   EventTypeName extends EventTypeNames<EventDefinition[number]>,
 > = Extract<
-    CommonEventDefinitionConsumerSchemaType<EventDefinition[number]>,
+  CommonEventDefinitionConsumerSchemaType<EventDefinition[number]>,
   { type: EventTypeName }
 >

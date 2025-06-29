@@ -197,7 +197,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     let isSuccessful = false
     try {
       this.transactionObservabilityManager?.startWithGroup(
-          // @ts-expect-error broken after v4 upgrade
+        // @ts-expect-error broken after v4 upgrade
         this.buildTransactionKey(event, handler, isBackgroundHandler),
         transactionId,
         event.type,
@@ -225,7 +225,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   private buildTransactionKey<SupportedEvent extends SupportedEvents[number]>(
     event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
-    handler: EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvent>>,
+    handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvent>>,
     isBackgroundHandler: boolean,
   ): string {
     return `${isBackgroundHandler ? 'bg' : 'fg'}_event_listener:${event.type}:${handler.eventHandlerId}`

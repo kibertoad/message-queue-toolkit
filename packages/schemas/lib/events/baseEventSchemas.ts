@@ -1,4 +1,11 @@
-import type { ZodLiteral, ZodObject, ZodOptional, ZodRawShape, ZodString } from 'zod/v4'
+import type {
+  ZodISODateTime,
+  ZodLiteral,
+  ZodObject,
+  ZodOptional,
+  ZodRawShape,
+  ZodString,
+} from 'zod/v4'
 import { z } from 'zod/v4'
 import { MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA } from '../messages/messageDeduplicationSchemas.ts'
 
@@ -68,14 +75,14 @@ export const CORE_EVENT_SCHEMA = z.object({
 })
 
 // Core fields that describe either internal event or external message
-export const CONSUMER_BASE_EVENT_SCHEMA = {
-    ...GENERATED_BASE_EVENT_SCHEMA,
-    ...CORE_EVENT_SCHEMA,
-} as const
-export const PUBLISHER_BASE_EVENT_SCHEMA = {
-        ...OPTIONAL_GENERATED_BASE_EVENT_SCHEMA,
-        ...CORE_EVENT_SCHEMA,
-} as const
+export const CONSUMER_BASE_EVENT_SCHEMA = z.object({
+  ...GENERATED_BASE_EVENT_SCHEMA.shape,
+  ...CORE_EVENT_SCHEMA.shape,
+})
+export const PUBLISHER_BASE_EVENT_SCHEMA = z.object({
+  ...OPTIONAL_GENERATED_BASE_EVENT_SCHEMA.shape,
+  ...CORE_EVENT_SCHEMA.shape,
+})
 
 export type ConsumerBaseEventType = z.input<typeof CONSUMER_BASE_EVENT_SCHEMA>
 export type PublisherBaseEventType = z.input<typeof PUBLISHER_BASE_EVENT_SCHEMA>
@@ -85,14 +92,14 @@ export type GeneratedBaseEventType = z.input<typeof GENERATED_BASE_EVENT_SCHEMA>
 type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string> = {
   consumerSchema: ZodObject<{
     id: ZodString
-    timestamp: ZodString
+    timestamp: ZodISODateTime
     type: ZodLiteral<Z>
     payload: T
   }>
 
   publisherSchema: ZodObject<{
     id: ZodOptional<ZodString>
-    timestamp: ZodOptional<ZodString>
+    timestamp: ZodOptional<ZodISODateTime>
     type: ZodLiteral<Z>
     payload: T
   }>
@@ -109,18 +116,16 @@ export function enrichEventSchemaWithBase<
   })
 
   const consumerSchema = z.object({
-      ...GENERATED_BASE_EVENT_SCHEMA,
-      ...baseSchema
+    ...GENERATED_BASE_EVENT_SCHEMA.shape,
+    ...baseSchema.shape,
   })
   const publisherSchema = z.object({
-      ...OPTIONAL_GENERATED_BASE_EVENT_SCHEMA,
-      ...baseSchema
+    ...OPTIONAL_GENERATED_BASE_EVENT_SCHEMA.shape,
+    ...baseSchema.shape,
   })
 
   return {
-// @ts-expect-error broken after v4 upgrade
     consumerSchema: consumerSchema,
-// @ts-expect-error broken after v4 upgrade
     publisherSchema: publisherSchema,
   }
 }
