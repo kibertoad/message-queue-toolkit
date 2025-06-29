@@ -2,14 +2,13 @@ import type {
   CommonCreationConfigType,
   EventRegistry,
   MessagePublishType,
-  MessageSchemaType,
   MetadataFiller,
   PublisherBaseEventType,
   PublisherMessageMetadataType,
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { AmqpAwareEventDefinition } from '@message-queue-toolkit/schemas'
-import type z from 'zod/v3'
+import type z from 'zod/v4'
 
 import type { AMQPPublisherOptions, AbstractAmqpPublisher } from './AbstractAmqpPublisher.ts'
 import type {
@@ -63,27 +62,27 @@ export type AmqpPublisherManagerOptions<
   }
 }
 
-export type AmqpMessageSchemaType<T extends AmqpAwareEventDefinition> = z.output<
+export type AmqpMessageSchemaType<T extends AmqpAwareEventDefinition> = z.input<
   T['publisherSchema']
 >
 
 export class AmqpQueuePublisherManager<
   T extends AbstractAmqpQueuePublisher<
-    z.output<SupportedEventDefinitions[number]['publisherSchema']>
+    z.input<SupportedEventDefinitions[number]['publisherSchema']>
   >,
   SupportedEventDefinitions extends AmqpAwareEventDefinition[],
   MetadataType = PublisherMessageMetadataType,
 > extends AbstractPublisherManager<
   AmqpAwareEventDefinition,
   NonNullable<SupportedEventDefinitions[number]['queueName']>,
-  AbstractAmqpQueuePublisher<z.output<SupportedEventDefinitions[number]['publisherSchema']>>,
+  AbstractAmqpQueuePublisher<z.input<SupportedEventDefinitions[number]['publisherSchema']>>,
   AMQPDependencies,
   AMQPQueueCreationConfig,
   AMQPQueueLocator,
   AmqpMessageSchemaType<AmqpAwareEventDefinition>,
   Omit<
     AMQPPublisherOptions<
-      z.output<SupportedEventDefinitions[number]['publisherSchema']>,
+      z.input<SupportedEventDefinitions[number]['publisherSchema']>,
       AMQPQueueCreationConfig,
       AMQPQueueLocator
     >,
@@ -99,11 +98,11 @@ export class AmqpQueuePublisherManager<
       T,
       AmqpQueueMessageOptions,
       AMQPPublisherOptions<
-        z.output<SupportedEventDefinitions[number]['publisherSchema']>,
+        z.input<SupportedEventDefinitions[number]['publisherSchema']>,
         AMQPQueueCreationConfig,
         AMQPQueueLocator
       >,
-      z.output<SupportedEventDefinitions[number]['publisherSchema']>,
+      z.input<SupportedEventDefinitions[number]['publisherSchema']>,
       MetadataType
     >,
   ) {
@@ -135,7 +134,7 @@ export class AmqpQueuePublisherManager<
   /**
    * @deprecated use `publishSync` instead.
    */
-  override publish(): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+  override publish(): Promise<MessagePublishType<SupportedEventDefinitions[number]>> {
     throw new Error('Please use `publishSync` method for AMQP publisher managers')
   }
 
@@ -144,7 +143,7 @@ export class AmqpQueuePublisherManager<
     message: MessagePublishType<SupportedEventDefinitions[number]>,
     precedingEventMetadata?: Partial<MetadataType>,
     messageOptions?: AmqpQueueMessageOptions,
-  ): MessageSchemaType<SupportedEventDefinitions[number]> {
+  ): MessagePublishType<SupportedEventDefinitions[number]> {
     const publisher = this.targetToPublisherMap[queue]
     if (!publisher) {
       throw new Error(`No publisher for queue ${queue}`)

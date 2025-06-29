@@ -1,10 +1,6 @@
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
-import type {
-  MessagePublishType,
-  MessageSchemaType,
-  PublisherMessageMetadataType,
-} from '@message-queue-toolkit/core'
-import type z from 'zod/v3'
+import type { MessagePublishType, PublisherMessageMetadataType } from '@message-queue-toolkit/core'
+import type z from 'zod/v4'
 
 import type { AMQPDependencies, AMQPTopicPublisherConfig } from './AbstractAmqpService.ts'
 import type {
@@ -22,20 +18,20 @@ import { CommonAmqpTopicPublisherFactory } from './CommonAmqpPublisherFactory.ts
 
 export class AmqpTopicPublisherManager<
   PublisherType extends AbstractAmqpTopicPublisher<
-    z.output<SupportedEventDefinitions[number]['publisherSchema']>
+    z.input<SupportedEventDefinitions[number]['publisherSchema']>
   >,
   SupportedEventDefinitions extends AmqpAwareEventDefinition[],
   MetadataType = PublisherMessageMetadataType,
 > extends AbstractPublisherManager<
   AmqpAwareEventDefinition,
   NonNullable<SupportedEventDefinitions[number]['exchange']>,
-  AbstractAmqpTopicPublisher<z.output<SupportedEventDefinitions[number]['publisherSchema']>>,
+  AbstractAmqpTopicPublisher<z.input<SupportedEventDefinitions[number]['publisherSchema']>>,
   AMQPDependencies,
   AMQPTopicPublisherConfig,
   AMQPTopicPublisherConfig,
   AmqpMessageSchemaType<AmqpAwareEventDefinition>,
   Omit<
-    AMQPTopicPublisherOptions<z.output<SupportedEventDefinitions[number]['publisherSchema']>>,
+    AMQPTopicPublisherOptions<z.input<SupportedEventDefinitions[number]['publisherSchema']>>,
     'messageSchemas' | 'locatorConfig' | 'exchange'
   >,
   SupportedEventDefinitions,
@@ -47,8 +43,8 @@ export class AmqpTopicPublisherManager<
     options: AmqpPublisherManagerOptions<
       PublisherType,
       AmqpTopicMessageOptions,
-      AMQPTopicPublisherOptions<z.output<SupportedEventDefinitions[number]['publisherSchema']>>,
-      z.output<SupportedEventDefinitions[number]['publisherSchema']>,
+      AMQPTopicPublisherOptions<z.input<SupportedEventDefinitions[number]['publisherSchema']>>,
+      z.input<SupportedEventDefinitions[number]['publisherSchema']>,
       MetadataType,
       AMQPTopicPublisherConfig,
       AMQPTopicPublisherConfig
@@ -95,7 +91,7 @@ export class AmqpTopicPublisherManager<
   /**
    * @deprecated use `publishSync` instead.
    */
-  override publish(): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+  override publish(): Promise<MessagePublishType<SupportedEventDefinitions[number]>> {
     throw new Error('Please use `publishSync` method for AMQP publisher managers')
   }
 
@@ -104,7 +100,7 @@ export class AmqpTopicPublisherManager<
     message: MessagePublishType<SupportedEventDefinitions[number]>,
     messageOptions?: AmqpTopicMessageOptions,
     precedingEventMetadata?: Partial<MetadataType>,
-  ): MessageSchemaType<SupportedEventDefinitions[number]> {
+  ): MessagePublishType<SupportedEventDefinitions[number]> {
     const publisher = this.targetToPublisherMap[exchange]
     if (!publisher) {
       throw new Error(`No publisher for exchange ${exchange}`)

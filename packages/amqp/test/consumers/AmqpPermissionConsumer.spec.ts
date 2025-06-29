@@ -7,7 +7,7 @@ import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction } from 'awilix'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ZodError } from 'zod/v3'
+import { ZodError } from 'zod/v4'
 
 import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver.ts'
 import { FakeLogger } from '../fakes/FakeLogger.ts'
@@ -373,13 +373,12 @@ describe('AmqpPermissionConsumer', () => {
         `
         [ZodError: [
           {
-            "code": "invalid_type",
             "expected": "string",
-            "received": "number",
+            "code": "invalid_type",
             "path": [
               "id"
             ],
-            "message": "Expected string, received number"
+            "message": "Invalid input: expected string, received number"
           }
         ]]
       `,

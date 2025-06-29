@@ -195,7 +195,7 @@ export abstract class AbstractPublisherManager<
     message: MessagePublishType<SupportedEventDefinitions[number]>,
     precedingEventMetadata?: Partial<MetadataType>,
     messageOptions?: MessageOptionsType,
-  ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+  ): Promise<MessagePublishType<SupportedEventDefinitions[number]>> {
     const publisher = this.targetToPublisherMap[eventTarget]
     if (!publisher) {
       throw new Error(
@@ -233,7 +233,7 @@ export abstract class AbstractPublisherManager<
     messageDefinition: EventDefinitionType | undefined,
     message: MessagePublishType<SupportedEventDefinitions[number]>,
     precedingEventMetadata?: Partial<MetadataType>,
-  ): MessageSchemaType<SupportedEventDefinitions[number]> {
+  ): MessagePublishType<SupportedEventDefinitions[number]> {
     const producedMetadata = this.metadataFiller.produceMetadata(
       message,
       // @ts-ignore

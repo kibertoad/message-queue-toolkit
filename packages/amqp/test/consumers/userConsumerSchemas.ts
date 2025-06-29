@@ -1,4 +1,4 @@
-import z from 'zod/v3'
+import z from 'zod/v4'
 
 export const PERMISSIONS_MESSAGE_SCHEMA = z.object({
   id: z.string(),
