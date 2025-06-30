@@ -48,7 +48,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   private readonly eventHandlerMap: Map<
     string,
-    Handlers<EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvents[number]>>>
+    Handlers<EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>>
   >
   private readonly inProgressBackgroundHandlerByEventId: Map<string, Promise<void>>
 
@@ -223,8 +223,8 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   }
 
   private buildTransactionKey<SupportedEvent extends SupportedEvents[number]>(
-    event: CommonEventDefinitionPublisherSchemaType<SupportedEvent>,
-    handler: EventHandler<CommonEventDefinitionPublisherSchemaType<SupportedEvent>>,
+    event: CommonEventDefinitionConsumerSchemaType<SupportedEvent>,
+    handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvent>>,
     isBackgroundHandler: boolean,
   ): string {
     return `${isBackgroundHandler ? 'bg' : 'fg'}_event_listener:${event.type}:${handler.eventHandlerId}`

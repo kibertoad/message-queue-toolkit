@@ -11,7 +11,7 @@ import type { BarrierResult, ProcessedMessageMetadata } from '@message-queue-too
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction, asValue } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ZodError } from 'zod/v3'
+import { ZodError } from 'zod/v4'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver.ts'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'

@@ -28,7 +28,7 @@ export type SupportedMessageValuesInputForTopic<
 export type SupportedMessageValuesForTopic<
   TopicsConfig extends TopicConfig[],
   Topic extends SupportedTopics<TopicsConfig>,
-> = z.infer<MessageSchemasForTopic<TopicsConfig, Topic>>
+> = z.output<MessageSchemasForTopic<TopicsConfig, Topic>>
 
 type MessageSchemas<TopicsConfig extends TopicConfig[]> = TopicsConfig[number]['schemas'][number]
 export type SupportedMessageValuesInput<TopicsConfig extends TopicConfig[]> = z.input<

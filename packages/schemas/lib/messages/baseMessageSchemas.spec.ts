@@ -1,5 +1,5 @@
 import { expectTypeOf } from 'vitest'
-import { z } from 'zod/v3'
+import { z } from 'zod/v4'
 import type { SnsAwareEventDefinition } from '../vendors/snsSchemas.ts'
 import { enrichMessageSchemaWithBase } from './baseMessageSchemas.ts'
 

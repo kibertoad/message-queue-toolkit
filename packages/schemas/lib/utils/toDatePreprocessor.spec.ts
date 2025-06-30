@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { z } from 'zod/v3'
+import { z } from 'zod/v4'
 
 import { toDatePreprocessor } from './toDateProcessor.ts'
 
@@ -47,6 +47,17 @@ describe('toDatePreprocessor', () => {
       SCHEMA.parse({
         createdAt: (x: string) => x,
       }),
-    ).toThrow(/Expected date, received function/)
+    ).toThrowErrorMatchingInlineSnapshot(`
+      [ZodError: [
+        {
+          "expected": "date",
+          "code": "invalid_type",
+          "path": [
+            "createdAt"
+          ],
+          "message": "Invalid input: expected date, received function"
+        }
+      ]]
+    `)
   })
 })

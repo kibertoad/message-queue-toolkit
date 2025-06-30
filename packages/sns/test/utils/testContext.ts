@@ -15,7 +15,7 @@ import { FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
 import type { Resolver } from 'awilix'
 import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
-import { z } from 'zod/v3'
+import { z } from 'zod/v4'
 
 import type { CommonSnsPublisher } from '../../lib/sns/CommonSnsPublisherFactory.ts'
 import { CommonSnsPublisherFactory } from '../../lib/sns/CommonSnsPublisherFactory.ts'
@@ -61,8 +61,7 @@ export const TestEvents = {
 } as const satisfies Record<string, SnsAwareEventDefinition>
 
 export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
-export type TestEventPublishPayloadsType = z.infer<TestEventsType[number]['publisherSchema']>
-export type TestEventConsumerPayloadsType = z.infer<TestEventsType[number]['consumerSchema']>
+export type TestEventPublishPayloadsType = z.output<TestEventsType[number]['publisherSchema']>
 
 export async function registerDependencies(
   dependencyOverrides: DependencyOverrides = {},

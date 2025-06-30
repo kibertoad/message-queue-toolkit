@@ -1,4 +1,4 @@
-import type { TypeOf, z } from 'zod/v3'
+import type { z } from 'zod/v4'
 
 import type { EventRegistry } from '../events/EventRegistry.ts'
 import type { PublisherBaseEventType } from '../events/baseEventSchemas.ts'
@@ -9,9 +9,9 @@ import type { CommonCreationConfigType, QueuePublisherOptions } from '../types/q
 
 import type { PublicHandlerSpy } from './HandlerSpy.ts'
 
-export type MessagePublishType<T extends CommonEventDefinition> = z.infer<T['publisherSchema']>
+export type MessagePublishType<T extends CommonEventDefinition> = z.input<T['publisherSchema']>
 
-export type MessageSchemaType<T extends CommonEventDefinition> = z.infer<T['consumerSchema']>
+export type MessageSchemaType<T extends CommonEventDefinition> = z.input<T['consumerSchema']>
 
 export type AbstractPublisherFactory<
   PublisherType extends AsyncPublisher<object, unknown> | SyncPublisher<object, unknown>,
@@ -55,7 +55,7 @@ export abstract class AbstractPublisherManager<
   protected readonly newPublisherOptions: OptionsType
 
   protected readonly metadataFiller: MetadataFiller<
-    z.infer<SupportedEventDefinitions[number]['consumerSchema']>,
+    z.input<SupportedEventDefinitions[number]['publisherSchema']>,
     MetadataType
   >
   protected readonly metadataField: string
@@ -92,7 +92,7 @@ export abstract class AbstractPublisherManager<
     newPublisherOptions: OptionsType
     publisherDependencies: DependenciesType
     metadataFiller: MetadataFiller<
-      TypeOf<SupportedEventDefinitions[number]['consumerSchema']>,
+      z.input<SupportedEventDefinitions[number]['publisherSchema']>,
       MetadataType
     >
     eventRegistry: EventRegistry<SupportedEventDefinitions>
@@ -235,8 +235,8 @@ export abstract class AbstractPublisherManager<
     precedingEventMetadata?: Partial<MetadataType>,
   ): MessageSchemaType<SupportedEventDefinitions[number]> {
     const producedMetadata = this.metadataFiller.produceMetadata(
-      // @ts-ignore
       message,
+      // @ts-ignore
       messageDefinition,
       precedingEventMetadata,
     )

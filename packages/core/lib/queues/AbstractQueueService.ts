@@ -9,7 +9,7 @@ import {
 } from '@lokalise/node-core'
 import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
-import type { ZodSchema, ZodType } from 'zod/v3'
+import type { ZodSchema, ZodType } from 'zod/v4'
 
 import {
   MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA,

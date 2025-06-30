@@ -3,7 +3,7 @@ import { type Resolver, asClass } from 'awilix'
 import { Lifetime, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import { pino } from 'pino'
-import { z } from 'zod/v3'
+import { z } from 'zod/v4'
 
 import type { TransactionObservabilityManager } from '@lokalise/node-core'
 import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/schemas'

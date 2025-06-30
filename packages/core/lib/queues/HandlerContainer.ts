@@ -1,7 +1,7 @@
 import type { Either } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import { isCommonEventDefinition } from '@message-queue-toolkit/schemas'
-import type { ZodSchema } from 'zod/v3'
+import type { ZodSchema } from 'zod/v4'
 
 import type { DoNotProcessMessageError } from '../errors/DoNotProcessError.ts'
 import type { RetryMessageLaterError } from '../errors/RetryMessageLaterError.ts'

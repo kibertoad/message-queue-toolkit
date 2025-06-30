@@ -1,4 +1,4 @@
-import z from 'zod/v3'
+import z from 'zod/v4'
 
 export type CommonMessage = {
   messageType: string
@@ -14,7 +14,7 @@ export const SNS_MESSAGE_BODY_SCHEMA = z.object({
       z.string(),
       z.object({
         Type: z.string(),
-        Value: z.unknown(),
+        Value: z.any(),
       }),
     )
     .optional(),
@@ -25,4 +25,4 @@ export const SNS_MESSAGE_BODY_SCHEMA = z.object({
   UnsubscribeURL: z.string(),
 })
 
-export type SNS_MESSAGE_BODY_TYPE = z.infer<typeof SNS_MESSAGE_BODY_SCHEMA>
+export type SNS_MESSAGE_BODY_TYPE = z.output<typeof SNS_MESSAGE_BODY_SCHEMA>

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
-import z from 'zod/v3'
+import z from 'zod/v4'
 
 import { SnsSqsEntityConsumer } from '../../test/consumers/SnsSqsEntityConsumer.ts'
 import type {
