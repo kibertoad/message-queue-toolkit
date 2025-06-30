@@ -31,8 +31,8 @@
         "uuidv7": "^1.0.2"
     },
     "peerDependencies": {
-        "@message-queue-toolkit/core": ">=21.0.0",
-        "@message-queue-toolkit/schemas": ">=6.0.0"
+        "@message-queue-toolkit/core": ">=22.0.0",
+        "@message-queue-toolkit/schemas": ">=7.0.0"
     },
     "devDependencies": {
         "@biomejs/biome": "1.9.4",
