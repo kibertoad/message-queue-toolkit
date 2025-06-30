@@ -5,7 +5,6 @@ import z, {
   type ZodString,
   type ZodRawShape,
   type ZodNullable,
-  type core,
   type ZodISODateTime,
 } from 'zod/v4'
 import {
@@ -33,15 +32,12 @@ export type CommonMessageDefinitionSchemaType<T extends CommonEventDefinition> =
 >
 
 // IDE type inference works better for whatever reason if MetadataObject is directly shared between ReturnType and CommonEventDefinition
-export type MetadataObject = ZodObject<
-  {
-    schemaVersion: ZodString
-    producedBy: ZodString
-    originatedFrom: ZodString
-    correlationId: ZodString
-  },
-  core.$strip
->
+export type MetadataObject = ZodObject<{
+  schemaVersion: ZodString
+  producedBy: ZodString
+  originatedFrom: ZodString
+  correlationId: ZodString
+}>
 
 export const MetadataObjectSchema = z.object({
   schemaVersion: z.string(),
@@ -51,41 +47,32 @@ export const MetadataObjectSchema = z.object({
 })
 
 type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string> = {
-  consumerSchema: ZodObject<
-    {
-      id: ZodString
-      timestamp: ZodISODateTime
-      type: ZodLiteral<Z>
-      deduplicationId: ZodOptional<ZodNullable<ZodString>>
-      deduplicationOptions: ZodOptional<ZodNullable<typeof MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA>>
-      payload: T
-      metadata: MetadataObject
-    },
-    core.$strip
-  >
+  consumerSchema: ZodObject<{
+    id: ZodString
+    timestamp: ZodISODateTime
+    type: ZodLiteral<Z>
+    deduplicationId: ZodOptional<ZodNullable<ZodString>>
+    deduplicationOptions: ZodOptional<ZodNullable<typeof MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA>>
+    payload: T
+    metadata: MetadataObject
+  }>
 
-  publisherSchema: ZodObject<
-    {
-      id: ZodOptional<ZodString>
-      timestamp: ZodOptional<ZodISODateTime>
-      type: ZodLiteral<Z>
-      deduplicationId: ZodOptional<ZodNullable<ZodString>>
-      deduplicationOptions: ZodOptional<ZodNullable<typeof MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA>>
-      payload: T
-      metadata: ZodOptional<
-        ZodObject<
-          {
-            schemaVersion: ZodOptional<ZodString>
-            producedBy: ZodOptional<ZodString>
-            originatedFrom: ZodOptional<ZodString>
-            correlationId: ZodOptional<ZodString>
-          },
-          core.$strip
-        >
-      >
-    },
-    core.$strip
-  >
+  publisherSchema: ZodObject<{
+    id: ZodOptional<ZodString>
+    timestamp: ZodOptional<ZodISODateTime>
+    type: ZodLiteral<Z>
+    deduplicationId: ZodOptional<ZodNullable<ZodString>>
+    deduplicationOptions: ZodOptional<ZodNullable<typeof MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA>>
+    payload: T
+    metadata: ZodOptional<
+      ZodObject<{
+        schemaVersion: ZodOptional<ZodString>
+        producedBy: ZodOptional<ZodString>
+        originatedFrom: ZodOptional<ZodString>
+        correlationId: ZodOptional<ZodString>
+      }>
+    >
+  }>
 }
 
 export type SchemaMetadata = {
