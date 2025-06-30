@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { CommonMetadataFiller } from './MetadataFiller.ts'
 
 const TEST_MESSAGE = {
+  payload: {},
   type: 'test.message',
 }
 
