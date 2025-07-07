@@ -91,6 +91,6 @@ export {
   type AcquireLockOptions,
   type DeduplicationRequester,
   DeduplicationRequesterEnum,
-  AcquireLockTimeoutError,
   noopReleasableLock,
 } from './message-deduplication/messageDeduplicationTypes.ts'
+export * from './message-deduplication/AcquireLockTimeoutError.ts'
