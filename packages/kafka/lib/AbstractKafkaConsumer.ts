@@ -12,6 +12,8 @@ import {
   type ConsumerOptions,
   type Message,
   type MessagesStream,
+  ProtocolError,
+  ResponseError,
   stringDeserializer,
 } from '@platformatic/kafka'
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
@@ -19,6 +21,7 @@ import { KafkaHandlerContainer } from './handler-container/KafkaHandlerContainer
 import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.ts'
 import type { KafkaHandler, RequestContext } from './handler-container/index.ts'
 import type { KafkaConfig, KafkaDependencies, TopicConfig } from './types.ts'
+import { ILLEGAL_GENERATION, REBALANCE_IN_PROGRESS, UNKNOWN_MEMBER_ID } from './utils/errorCodes.js'
 import { safeJsonDeserializer } from './utils/safeJsonDeserializer.js'
 
 export type KafkaConsumerDependencies = KafkaDependencies &
@@ -35,6 +38,12 @@ export type KafkaConsumerOptions<
   Omit<ConsumeOptions<string, object, string, string>, 'topics'> & {
     handlers: KafkaHandlerRouting<TopicsConfig, ExecutionContext>
   }
+
+const commitErrorCodesToIgnore = new Set([
+  ILLEGAL_GENERATION,
+  UNKNOWN_MEMBER_ID,
+  REBALANCE_IN_PROGRESS,
+])
 
 /*
 TODO: Proper retry mechanism + DLQ -> https://lokalise.atlassian.net/browse/EDEXP-498
@@ -78,6 +87,20 @@ export abstract class AbstractKafkaConsumer<
         headerValue: stringDeserializer,
       },
     })
+
+    const logDetails = { origin: this.constructor.name, groupId: this.options.groupId }
+    this.consumer.on('consumer:group:join', (_) =>
+      this.logger.debug(logDetails, 'Consumer is joining a group'),
+    )
+    this.consumer.on('consumer:rejoin', (_) =>
+      this.logger.debug(logDetails, 'Consumer is re-joining a group after a rebalance'),
+    )
+    this.consumer.on('consumer:group:leave', (_) =>
+      this.logger.debug(logDetails, 'Consumer is leaving the group'),
+    )
+    this.consumer.on('consumer:group:rebalance', (_) =>
+      this.logger.debug(logDetails, 'Group is rebalancing'),
+    )
   }
 
   async init(): Promise<void> {
@@ -110,11 +133,11 @@ export abstract class AbstractKafkaConsumer<
 
   private async consume(message: Message<string, object, string, string>): Promise<void> {
     // message.value can be undefined if the message is not JSON-serializable
-    if (!message.value) return message.commit()
+    if (!message.value) return this.commitMessage(message)
 
     const handler = this.handlerContainer.resolveHandler(message.topic, message.value)
     // if there is no handler for the message, we ignore it (simulating subscription)
-    if (!handler) return message.commit()
+    if (!handler) return this.commitMessage(message)
 
     /* v8 ignore next */
     const transactionId = this.resolveMessageId(message.value) ?? randomUUID()
@@ -132,7 +155,7 @@ export abstract class AbstractKafkaConsumer<
         processingResult: { status: 'error', errorReason: 'invalidMessage' },
       })
 
-      return message.commit()
+      return this.commitMessage(message)
     }
 
     const validatedMessage = parseResult.data
@@ -171,7 +194,7 @@ export abstract class AbstractKafkaConsumer<
 
     this.transactionObservabilityManager?.stop(transactionId)
 
-    return message.commit()
+    return this.commitMessage(message)
   }
 
   private async tryToConsume<MessageValue extends object>(
@@ -190,6 +213,46 @@ export abstract class AbstractKafkaConsumer<
     }
 
     return false
+  }
+
+  private async commitMessage(message: Message<string, object, string, string>) {
+    try {
+      this.logger.debug(
+        { topic: message.topic, offset: message.offset, timestamp: message.timestamp },
+        'Trying to commit message',
+      )
+      await message.commit()
+    } catch (error) {
+      if (error instanceof ResponseError) {
+        return this.handleResponseErrorOnCommit(error)
+      }
+      throw error
+    }
+  }
+
+  private handleResponseErrorOnCommit(responseError: ResponseError) {
+    // Some errors are expected during group rebalancing, so we handle them gracefully
+    for (const error of responseError.errors) {
+      if (
+        error instanceof ProtocolError &&
+        error.apiCode &&
+        commitErrorCodesToIgnore.has(error.apiCode)
+      ) {
+        this.logger.error(
+          {
+            apiCode: error.apiCode,
+            apiId: error.apiId,
+            responseErrorMessage: responseError.message,
+            protocolErrorMessage: error.message,
+            error: responseError,
+          },
+          `Failed to commit message: ${error.message}`,
+        )
+      } else {
+        // If error is not recognized, rethrow it
+        throw responseError
+      }
+    }
   }
 
   private buildTransactionName(message: Message<string, object, string, string>) {
