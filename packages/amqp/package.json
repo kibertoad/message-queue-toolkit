@@ -38,7 +38,7 @@
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.4",
-        "@lokalise/biome-config": "^2.0.0",
+        "@lokalise/biome-config": "^3.0.1",
         "@lokalise/tsconfig": "^2.0.0",
         "@message-queue-toolkit/core": "*",
         "@types/amqplib": "0.10.7",

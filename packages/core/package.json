@@ -36,7 +36,7 @@
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.4",
-        "@lokalise/biome-config": "^2.0.0",
+        "@lokalise/biome-config": "^3.0.1",
         "@lokalise/tsconfig": "^2.0.0",
         "@types/node": "^24.0.3",
         "@types/tmp": "^0.2.6",
