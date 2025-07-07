@@ -41,4 +41,4 @@ jobs:
         run: npm run docker:stop:ci -- --filter=${{ inputs.package_name }}
 
       - name: Run lint
-        run: npm run lint
+        run: npm run lint -- --filter=${{ inputs.package_name }}
