@@ -16,9 +16,11 @@ import {
   type MessageDeduplicationOptions,
 } from '@message-queue-toolkit/schemas'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors.ts'
-import { isAcquireLockTimeoutError } from '../message-deduplication/AcquireLockTimeoutError.js'
 import {
   type AcquireLockTimeoutError,
+  isAcquireLockTimeoutError,
+} from '../message-deduplication/AcquireLockTimeoutError.js'
+import {
   DEFAULT_MESSAGE_DEDUPLICATION_OPTIONS,
   type DeduplicationRequester,
   DeduplicationRequesterEnum,
