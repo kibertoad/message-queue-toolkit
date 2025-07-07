@@ -38,7 +38,7 @@ export abstract class AbstractAmqpQueuePublisher<
 
     this.queueName = options.locatorConfig
       ? options.locatorConfig.queueName
-      : // biome-ignore lint/style/noNonNullAssertion: <explanation>
+      : // biome-ignore lint/style/noNonNullAssertion: this is expected
         options.creationConfig!.queueName
   }
 

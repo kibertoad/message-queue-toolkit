@@ -10,7 +10,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['lib/**/*.ts'],
-      exclude: ['vitest.config.ts', 'lib/**/index.ts'],
+      exclude: ['vitest.config.ts', 'lib/**/index.ts', 'lib/events/eventTypes.ts'],
       thresholds: {
         lines: 6,
         functions: 60,

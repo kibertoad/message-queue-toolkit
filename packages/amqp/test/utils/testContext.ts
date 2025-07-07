@@ -12,7 +12,7 @@ import type { NameAndRegistrationPair } from 'awilix'
 import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import { pino } from 'pino'
-import { z } from 'zod/v3'
+import { z } from 'zod/v4'
 import { AmqpConnectionManager } from '../../lib/AmqpConnectionManager.ts'
 import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager.ts'
 import { AmqpQueuePublisherManager } from '../../lib/AmqpQueuePublisherManager.ts'
@@ -81,7 +81,7 @@ export const TestEvents = {
 } as const satisfies Record<string, AmqpAwareEventDefinition>
 
 export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
-export type TestEventPublishPayloadsType = z.infer<TestEventsType[number]['publisherSchema']>
+export type TestEventPublishPayloadsType = z.output<TestEventsType[number]['publisherSchema']>
 
 const TestLogger: CommonLogger = pino()
 

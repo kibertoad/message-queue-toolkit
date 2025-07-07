@@ -11,7 +11,7 @@ import {
 } from '@message-queue-toolkit/schemas'
 import { type Logger, pino } from 'pino'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
+import { z } from 'zod/v4'
 import { InMemoryOutboxAccumulator } from '../lib/accumulators.ts'
 import { type OutboxDependencies, OutboxEventEmitter, OutboxProcessor } from '../lib/outbox.ts'
 import { InMemoryOutboxStorage } from './InMemoryOutboxStorage.ts'

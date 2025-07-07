@@ -1,4 +1,4 @@
-import { z } from 'zod/v3'
+import { z } from 'zod/v4'
 
 /**
  * When the payload is too large to be sent in a single message, it is offloaded to a storage service and a pointer to the offloaded payload is sent instead.
@@ -12,7 +12,7 @@ export const OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA = z
   // Pass-through allows to pass message ID, type, timestamp and message-deduplication-related fields that are using dynamic keys.
   .passthrough()
 
-export type OffloadedPayloadPointerPayload = z.infer<
+export type OffloadedPayloadPointerPayload = z.output<
   typeof OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA
 >
 

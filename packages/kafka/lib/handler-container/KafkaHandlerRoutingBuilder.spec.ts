@@ -28,7 +28,7 @@ describe('KafkaHandlerRoutingBuilder', () => {
       .addConfig(
         'all',
         new KafkaHandlerConfig(CREATE_SCHEMA, (message, executionContext, requestContext) => {
-          expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.infer<typeof CREATE_SCHEMA>>>()
+          expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.output<typeof CREATE_SCHEMA>>>()
           expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
           expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
         }),
@@ -36,7 +36,7 @@ describe('KafkaHandlerRoutingBuilder', () => {
       .addConfig(
         'all',
         new KafkaHandlerConfig(UPDATE_SCHEMA, (message, executionContext, requestContext) => {
-          expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.infer<typeof UPDATE_SCHEMA>>>()
+          expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.output<typeof UPDATE_SCHEMA>>>()
           expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
           expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
         }),
@@ -44,7 +44,7 @@ describe('KafkaHandlerRoutingBuilder', () => {
       .addConfig(
         'empty',
         new KafkaHandlerConfig(EMPTY_SCHEMA, (message, executionContext, requestContext) => {
-          expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.infer<typeof EMPTY_SCHEMA>>>()
+          expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.output<typeof EMPTY_SCHEMA>>>()
           expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
           expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
         }),

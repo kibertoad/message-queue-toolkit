@@ -9,7 +9,7 @@ import type {
 } from '@message-queue-toolkit/core'
 import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { AmqpAwareEventDefinition } from '@message-queue-toolkit/schemas'
-import type z from 'zod/v3'
+import type z from 'zod/v4'
 
 import type { AMQPPublisherOptions, AbstractAmqpPublisher } from './AbstractAmqpPublisher.ts'
 import type {
@@ -63,27 +63,27 @@ export type AmqpPublisherManagerOptions<
   }
 }
 
-export type AmqpMessageSchemaType<T extends AmqpAwareEventDefinition> = z.infer<
+export type AmqpMessageSchemaType<T extends AmqpAwareEventDefinition> = z.input<
   T['publisherSchema']
 >
 
 export class AmqpQueuePublisherManager<
   T extends AbstractAmqpQueuePublisher<
-    z.infer<SupportedEventDefinitions[number]['publisherSchema']>
+    z.input<SupportedEventDefinitions[number]['publisherSchema']>
   >,
   SupportedEventDefinitions extends AmqpAwareEventDefinition[],
   MetadataType = PublisherMessageMetadataType,
 > extends AbstractPublisherManager<
   AmqpAwareEventDefinition,
   NonNullable<SupportedEventDefinitions[number]['queueName']>,
-  AbstractAmqpQueuePublisher<z.infer<SupportedEventDefinitions[number]['publisherSchema']>>,
+  AbstractAmqpQueuePublisher<z.input<SupportedEventDefinitions[number]['publisherSchema']>>,
   AMQPDependencies,
   AMQPQueueCreationConfig,
   AMQPQueueLocator,
   AmqpMessageSchemaType<AmqpAwareEventDefinition>,
   Omit<
     AMQPPublisherOptions<
-      z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
+      z.input<SupportedEventDefinitions[number]['publisherSchema']>,
       AMQPQueueCreationConfig,
       AMQPQueueLocator
     >,
@@ -99,11 +99,11 @@ export class AmqpQueuePublisherManager<
       T,
       AmqpQueueMessageOptions,
       AMQPPublisherOptions<
-        z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
+        z.input<SupportedEventDefinitions[number]['publisherSchema']>,
         AMQPQueueCreationConfig,
         AMQPQueueLocator
       >,
-      z.infer<SupportedEventDefinitions[number]['publisherSchema']>,
+      z.input<SupportedEventDefinitions[number]['publisherSchema']>,
       MetadataType
     >,
   ) {
@@ -152,7 +152,10 @@ export class AmqpQueuePublisherManager<
 
     const messageDefinition = this.resolveMessageDefinition(queue, message)
     const resolvedMessage = this.resolveMessage(messageDefinition, message, precedingEventMetadata)
-    publisher.publish(resolvedMessage, messageOptions)
+    publisher.publish(
+      resolvedMessage as MessagePublishType<SupportedEventDefinitions[number]>,
+      messageOptions,
+    )
     return resolvedMessage
   }
 
