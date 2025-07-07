@@ -81,6 +81,20 @@ export abstract class AbstractKafkaConsumer<
         headerValue: stringDeserializer,
       },
     })
+
+    const logDetails = { origin: this.constructor.name, groupId: this.options.groupId }
+    this.consumer.on('consumer:group:join', (_) =>
+      this.logger.debug(logDetails, 'Consumer is joining a group'),
+    )
+    this.consumer.on('consumer:rejoin', (_) =>
+      this.logger.debug(logDetails, 'Consumer is re-joining a group after a rebalance'),
+    )
+    this.consumer.on('consumer:group:leave', (_) =>
+      this.logger.debug(logDetails, 'Consumer is leaving the group'),
+    )
+    this.consumer.on('consumer:group:rebalance', (_) =>
+      this.logger.debug(logDetails, 'Group is rebalancing'),
+    )
   }
 
   async init(): Promise<void> {
@@ -90,11 +104,6 @@ export abstract class AbstractKafkaConsumer<
 
     try {
       const { handlers, ...consumeOptions } = this.options // Handlers cannot be passed to consume method
-      await this.consumer.joinGroup({
-        sessionTimeout: consumeOptions.sessionTimeout,
-        rebalanceTimeout: consumeOptions.rebalanceTimeout,
-        heartbeatInterval: consumeOptions.heartbeatInterval,
-      })
       this.consumerStream = await this.consumer.consume({ ...consumeOptions, topics })
     } catch (error) {
       throw new InternalError({
@@ -103,15 +112,6 @@ export abstract class AbstractKafkaConsumer<
         cause: error,
       })
     }
-
-    this.consumer.on('consumer:group:join', (_) => this.logger.info('Consumer is joining a group'))
-    this.consumer.on('consumer:rejoin', (_) =>
-      this.logger.info('Consumer is re-joining a group after a rebalance'),
-    )
-    this.consumer.on('consumer:group:leave', (_) =>
-      this.logger.info('Consumer is leaving the group'),
-    )
-    this.consumer.on('consumer:group:rebalance', (_) => this.logger.info('Group is rebalancing'))
 
     this.consumerStream.on('data', (message) => this.consume(message))
     this.consumerStream.on('error', (error) => this.handlerError(error))
