@@ -1,13 +1,15 @@
 import { isError } from '@lokalise/node-core'
 
-const AcquireLockTimeoutErrorName = 'AcquireLockTimeoutError'
-
+const AcquireLockTimeoutErrorSymbol = Symbol.for('ACQUIRE_LOCK_TIMEOUT_ERROR')
 export class AcquireLockTimeoutError extends Error {
   constructor(message?: string) {
     super(message)
-    this.name = AcquireLockTimeoutErrorName
+    Object.defineProperty(this, AcquireLockTimeoutErrorSymbol, {
+      value: true,
+    })
   }
 }
 
 export const isAcquireLockTimeoutError = (error: unknown): error is AcquireLockTimeoutError =>
-  isError(error) && error.name === AcquireLockTimeoutErrorName
+  // biome-ignore lint/suspicious/noExplicitAny: Expected
+  isError(error) && (error as any)[AcquireLockTimeoutErrorSymbol] === true
