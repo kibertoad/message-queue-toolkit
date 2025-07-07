@@ -39,6 +39,12 @@ export type KafkaConsumerOptions<
     handlers: KafkaHandlerRouting<TopicsConfig, ExecutionContext>
   }
 
+const commitErrorCodesToIgnore = new Set([
+  ILLEGAL_GENERATION,
+  UNKNOWN_MEMBER_ID,
+  REBALANCE_IN_PROGRESS,
+])
+
 /*
 TODO: Proper retry mechanism + DLQ -> https://lokalise.atlassian.net/browse/EDEXP-498
 In the meantime, we will retry in memory up to 3 times
@@ -217,7 +223,7 @@ export abstract class AbstractKafkaConsumer<
       )
       await message.commit()
     } catch (error) {
-      if (error instanceof ResponseError && 'code' in error) {
+      if (error instanceof ResponseError) {
         return this.handleResponseErrorOnCommit(error)
       }
       throw error
@@ -230,9 +236,7 @@ export abstract class AbstractKafkaConsumer<
       if (
         error instanceof ProtocolError &&
         error.apiCode &&
-        (error.apiCode === ILLEGAL_GENERATION ||
-          error.apiCode === UNKNOWN_MEMBER_ID ||
-          error.apiCode === REBALANCE_IN_PROGRESS)
+        commitErrorCodesToIgnore.has(error.apiCode)
       ) {
         this.logger.error(
           {
