@@ -17,7 +17,10 @@ import {
 } from '@message-queue-toolkit/schemas'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors.ts'
 import {
-  AcquireLockTimeoutError,
+  type AcquireLockTimeoutError,
+  isAcquireLockTimeoutError,
+} from '../message-deduplication/AcquireLockTimeoutError.js'
+import {
   DEFAULT_MESSAGE_DEDUPLICATION_OPTIONS,
   type DeduplicationRequester,
   DeduplicationRequesterEnum,
@@ -644,7 +647,7 @@ export abstract class AbstractQueueService<
       deduplicationOptions,
     )
 
-    if (acquireLockResult.error && !(acquireLockResult.error instanceof AcquireLockTimeoutError)) {
+    if (acquireLockResult.error && !isAcquireLockTimeoutError(acquireLockResult.error)) {
       this.handleError(acquireLockResult.error)
       return { result: noopReleasableLock }
     }
