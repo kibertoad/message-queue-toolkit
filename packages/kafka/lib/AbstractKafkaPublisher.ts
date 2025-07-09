@@ -111,15 +111,14 @@ export abstract class AbstractKafkaPublisher<
         [this.resolveHeaderRequestIdField()]: requestContext?.reqId ?? '',
       }
 
-      // biome-ignore lint/style/noNonNullAssertion: Should always exist due to lazy init
-      await this.producer!.send({
-        messages: [{ ...options, topic, value: parsedMessage, headers }],
+      const kafkaMessage = { ...options, topic, value: parsedMessage, headers }
+      await this.producer?.send({
+        messages: [kafkaMessage],
       })
 
       this.handleMessageProcessed({
-        message: parsedMessage,
+        message: kafkaMessage,
         processingResult: { status: 'published' },
-        topic,
         messageProcessingStartTimestamp,
       })
     } catch (error) {

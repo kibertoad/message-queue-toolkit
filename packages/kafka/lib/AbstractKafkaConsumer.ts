@@ -152,8 +152,7 @@ export abstract class AbstractKafkaConsumer<
         message: stringValueSerializer(message.value),
       })
       this.handleMessageProcessed({
-        topic: message.topic,
-        message: message.value,
+        message: message,
         processingResult: { status: 'error', errorReason: 'invalidMessage' },
         messageProcessingStartTimestamp,
       })
@@ -183,15 +182,13 @@ export abstract class AbstractKafkaConsumer<
 
     if (consumed) {
       this.handleMessageProcessed({
-        topic: message.topic,
-        message: validatedMessage,
+        message: message,
         processingResult: { status: 'consumed' },
         messageProcessingStartTimestamp,
       })
     } else {
       this.handleMessageProcessed({
-        topic: message.topic,
-        message: validatedMessage,
+        message: message,
         processingResult: { status: 'error', errorReason: 'handlerError' },
         messageProcessingStartTimestamp,
       })

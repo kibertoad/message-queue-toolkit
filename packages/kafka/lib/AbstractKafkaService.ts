@@ -5,7 +5,7 @@ import {
   resolveGlobalErrorLogObject,
   stringValueSerializer,
 } from '@lokalise/node-core'
-import type { MakeRequired } from '@lokalise/universal-ts-utils/node'
+import type { MakeRequired, MayOmit } from '@lokalise/universal-ts-utils/node'
 import {
   type HandlerSpy,
   type HandlerSpyParams,
@@ -14,7 +14,7 @@ import {
   type PublicHandlerSpy,
   resolveHandlerSpy,
 } from '@message-queue-toolkit/core'
-import type { BaseOptions } from '@platformatic/kafka'
+import type { BaseOptions, Message } from '@platformatic/kafka'
 import type {
   KafkaConfig,
   KafkaDependencies,
@@ -35,6 +35,11 @@ export type BaseKafkaOptions = {
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
 } & Omit<BaseOptions, keyof KafkaConfig> // Exclude properties that are already in KafkaConfig
+
+type ProcessedMessage = MayOmit<
+  Pick<Message<string, object, string, string>, 'topic' | 'value' | 'timestamp'>,
+  'timestamp'
+>
 
 export abstract class AbstractKafkaService<
   TopicsConfig extends TopicConfig[],
@@ -93,22 +98,21 @@ export abstract class AbstractKafkaService<
   }
 
   protected handleMessageProcessed(params: {
-    message: SupportedMessageValues<TopicsConfig>
+    message: ProcessedMessage
     processingResult: MessageProcessingResult
     messageProcessingStartTimestamp: number
-    topic: string
   }) {
-    const { message, processingResult, topic } = params
-    const messageId = this.resolveMessageId(message) ?? 'unknown'
-    const messageType = this.resolveMessageType(message) ?? 'unknown'
+    const { message, processingResult } = params
+    const messageId = this.resolveMessageId(message.value)
+    const messageType = this.resolveMessageType(message.value)
 
-    this._handlerSpy?.addProcessedMessage({ message, processingResult }, messageId)
+    this._handlerSpy?.addProcessedMessage({ message: message.value, processingResult }, messageId)
 
     if (this.options.logMessages) {
       this.logger.debug(
         {
-          message: stringValueSerializer(message),
-          topic,
+          message: stringValueSerializer(message.value),
+          topic: message.topic,
           processingResult,
           messageId,
           messageType,
@@ -119,12 +123,12 @@ export abstract class AbstractKafkaService<
 
     if (this.messageMetricsManager) {
       this.messageMetricsManager.registerProcessedMessage({
-        message,
+        message: message.value,
         processingResult,
-        queueName: topic,
-        messageId,
-        messageType,
-        messageTimestamp: message.timestamp, // TODO: which is the format of this?
+        queueName: message.topic,
+        messageId: messageId ?? 'unknown',
+        messageType: messageType ?? 'unknown',
+        messageTimestamp: undefined, // message.timestamp, // TODO: which is the format of this?
         messageProcessingStartTimestamp: params.messageProcessingStartTimestamp,
         messageProcessingEndTimestamp: Date.now(),
       })
