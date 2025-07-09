@@ -39,7 +39,6 @@ services:
 
   kafka:
     image: apache/kafka:3.7.1
-    container_name: kafka
     ports:
       - 9092:9092
     environment:
@@ -59,7 +58,6 @@ services:
     restart: on-failure
 
   kafka-ui:
-    container_name: kafka-ui
     image: provectuslabs/kafka-ui:latest
     ports:
       - 8080:8080
