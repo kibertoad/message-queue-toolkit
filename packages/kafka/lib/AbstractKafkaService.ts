@@ -5,6 +5,7 @@ import {
   resolveGlobalErrorLogObject,
   stringValueSerializer,
 } from '@lokalise/node-core'
+import type { MakeRequired } from '@lokalise/universal-ts-utils/node'
 import {
   type HandlerSpy,
   type HandlerSpyParams,
@@ -45,14 +46,14 @@ export abstract class AbstractKafkaService<
     SupportedMessageValues<TopicsConfig>
   >
 
-  protected readonly options: KafkaOptions
+  protected readonly options: MakeRequired<KafkaOptions, 'messageIdField'>
   protected readonly _handlerSpy?: HandlerSpy<SupportedMessageValues<TopicsConfig>>
 
   constructor(dependencies: KafkaDependencies, options: KafkaOptions) {
     this.logger = dependencies.logger
     this.errorReporter = dependencies.errorReporter
     this.messageMetricsManager = dependencies.messageMetricsManager
-    this.options = options
+    this.options = { ...options, messageIdField: options.messageIdField ?? 'id' }
 
     this._handlerSpy = resolveHandlerSpy(options)
   }
@@ -70,12 +71,21 @@ export abstract class AbstractKafkaService<
 
   protected resolveMessageType(message: SupportedMessageValues<TopicsConfig>): string | undefined {
     if (!this.options.messageTypeField) return undefined
-    return message[this.options.messageTypeField]
+
+    const type = message[this.options.messageTypeField] as unknown
+    if (!type) return undefined
+    if (typeof type === 'string') return type
+
+    return undefined
   }
 
   protected resolveMessageId(message: SupportedMessageValues<TopicsConfig>): string | undefined {
-    if (!this.options.messageIdField) return undefined
-    return message[this.options.messageIdField]
+    // @ts-expect-error
+    const id = message[this.options.messageIdField] as unknown
+    if (!id) return undefined
+    if (typeof id === 'string') return id
+
+    return undefined
   }
 
   protected resolveHeaderRequestIdField(): string {
