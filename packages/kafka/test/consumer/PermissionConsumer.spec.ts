@@ -308,11 +308,17 @@ describe('PermissionConsumer', () => {
 
       // Then
       await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
-      expect(startTransactionSpy).toHaveBeenCalledWith('kafka:permission-general:added', '1')
+      expect(startTransactionSpy).toHaveBeenCalledWith(
+        'kafka:PermissionConsumer:permission-general:added',
+        '1',
+      )
       expect(stopTransactionSpy).toHaveBeenCalledWith('1')
 
       await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
-      expect(startTransactionSpy).toHaveBeenCalledWith('kafka:permission-general', '2')
+      expect(startTransactionSpy).toHaveBeenCalledWith(
+        'kafka:PermissionConsumer:permission-general',
+        '2',
+      )
       expect(stopTransactionSpy).toHaveBeenCalledWith('2')
     })
 
