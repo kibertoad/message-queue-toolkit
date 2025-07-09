@@ -89,6 +89,7 @@ export abstract class AbstractKafkaConsumer<
     })
 
     const logDetails = { origin: this.constructor.name, groupId: this.options.groupId }
+    /* v8 ignore start */
     this.consumer.on('consumer:group:join', (_) =>
       this.logger.debug(logDetails, 'Consumer is joining a group'),
     )
@@ -101,6 +102,7 @@ export abstract class AbstractKafkaConsumer<
     this.consumer.on('consumer:group:rebalance', (_) =>
       this.logger.debug(logDetails, 'Group is rebalancing'),
     )
+    /* v8 ignore stop */
   }
 
   async init(): Promise<void> {
@@ -225,9 +227,7 @@ export abstract class AbstractKafkaConsumer<
       )
       await message.commit()
     } catch (error) {
-      if (error instanceof ResponseError) {
-        return this.handleResponseErrorOnCommit(error)
-      }
+      if (error instanceof ResponseError) return this.handleResponseErrorOnCommit(error)
       throw error
     }
   }

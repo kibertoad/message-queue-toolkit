@@ -271,6 +271,19 @@ describe('PermissionConsumer', () => {
 
       await producer.close()
     })
+
+    it('should work for messages without id field', async () => {
+      // Given
+      consumer = new PermissionConsumer(testContext.cradle, { messageIdField: 'invalid' })
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-general', { id: '1', permissions: [] })
+
+      // Then
+      const spyResult = await consumer.handlerSpy.waitForMessage({ permissions: [] }, 'consumed')
+      expect(spyResult).toBeDefined()
+    })
   })
 
   describe('observability - request context', () => {

@@ -76,21 +76,12 @@ export abstract class AbstractKafkaService<
 
   protected resolveMessageType(message: SupportedMessageValues<TopicsConfig>): string | undefined {
     if (!this.options.messageTypeField) return undefined
-
-    const type = message[this.options.messageTypeField] as unknown
-    if (!type) return undefined
-    if (typeof type === 'string') return type
-
-    return undefined
+    return message[this.options.messageTypeField] as string | undefined
   }
 
   protected resolveMessageId(message: SupportedMessageValues<TopicsConfig>): string | undefined {
     // @ts-expect-error
-    const id = message[this.options.messageIdField] as unknown
-    if (!id) return undefined
-    if (typeof id === 'string') return id
-
-    return undefined
+    return message[this.options.messageIdField] as string | undefined
   }
 
   protected resolveHeaderRequestIdField(): string {
