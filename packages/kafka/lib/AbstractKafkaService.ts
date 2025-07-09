@@ -128,7 +128,7 @@ export abstract class AbstractKafkaService<
         queueName: message.topic,
         messageId: messageId ?? 'unknown',
         messageType: messageType ?? 'unknown',
-        messageTimestamp: undefined, // message.timestamp, // TODO: which is the format of this?
+        messageTimestamp: message.timestamp ? Number(message.timestamp) : undefined,
         messageProcessingStartTimestamp: params.messageProcessingStartTimestamp,
         messageProcessingEndTimestamp: Date.now(),
       })
