@@ -135,6 +135,8 @@ export abstract class AbstractKafkaConsumer<
     // message.value can be undefined if the message is not JSON-serializable
     if (!message.value) return this.commitMessage(message)
 
+    const messageProcessingStartTimestamp = Date.now()
+
     const handler = this.handlerContainer.resolveHandler(message.topic, message.value)
     // if there is no handler for the message, we ignore it (simulating subscription)
     if (!handler) return this.commitMessage(message)
@@ -153,6 +155,7 @@ export abstract class AbstractKafkaConsumer<
         topic: message.topic,
         message: message.value,
         processingResult: { status: 'error', errorReason: 'invalidMessage' },
+        messageProcessingStartTimestamp,
       })
 
       return this.commitMessage(message)
@@ -183,12 +186,14 @@ export abstract class AbstractKafkaConsumer<
         topic: message.topic,
         message: validatedMessage,
         processingResult: { status: 'consumed' },
+        messageProcessingStartTimestamp,
       })
     } else {
       this.handleMessageProcessed({
         topic: message.topic,
         message: validatedMessage,
         processingResult: { status: 'error', errorReason: 'handlerError' },
+        messageProcessingStartTimestamp,
       })
     }
 

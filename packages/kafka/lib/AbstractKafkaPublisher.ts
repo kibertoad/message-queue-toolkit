@@ -95,6 +95,8 @@ export abstract class AbstractKafkaPublisher<
     requestContext?: RequestContext,
     options?: KafkaMessageOptions,
   ): Promise<void> {
+    const messageProcessingStartTimestamp = Date.now()
+
     const schemaResult = this.schemaContainers[topic]?.resolveSchema(message)
     if (!schemaResult) throw new Error(`Message schemas not found for topic: ${topic}`)
     if (schemaResult.error) throw schemaResult.error
@@ -118,6 +120,7 @@ export abstract class AbstractKafkaPublisher<
         message: parsedMessage,
         processingResult: { status: 'published' },
         topic,
+        messageProcessingStartTimestamp,
       })
     } catch (error) {
       const errorDetails = {
