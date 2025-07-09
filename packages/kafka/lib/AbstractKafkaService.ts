@@ -8,6 +8,7 @@ import {
 import {
   type HandlerSpy,
   type HandlerSpyParams,
+  type MessageMetricsManager,
   type MessageProcessingResult,
   type PublicHandlerSpy,
   resolveHandlerSpy,
@@ -40,6 +41,9 @@ export abstract class AbstractKafkaService<
 > {
   protected readonly errorReporter: ErrorReporter
   protected readonly logger: CommonLogger
+  protected readonly messageMetricsManager?: MessageMetricsManager<
+    SupportedMessageValues<TopicsConfig>
+  >
 
   protected readonly options: KafkaOptions
   protected readonly _handlerSpy?: HandlerSpy<SupportedMessageValues<TopicsConfig>>
@@ -47,6 +51,7 @@ export abstract class AbstractKafkaService<
   constructor(dependencies: KafkaDependencies, options: KafkaOptions) {
     this.logger = dependencies.logger
     this.errorReporter = dependencies.errorReporter
+    this.messageMetricsManager = dependencies.messageMetricsManager
     this.options = options
 
     this._handlerSpy = resolveHandlerSpy(options)
@@ -80,10 +85,12 @@ export abstract class AbstractKafkaService<
   protected handleMessageProcessed(params: {
     message: SupportedMessageValues<TopicsConfig>
     processingResult: MessageProcessingResult
+    messageProcessingStartTimestamp: number
     topic: string
   }) {
     const { message, processingResult, topic } = params
-    const messageId = this.resolveMessageId(message)
+    const messageId = this.resolveMessageId(message) ?? 'unknown'
+    const messageType = this.resolveMessageType(message) ?? 'unknown'
 
     this._handlerSpy?.addProcessedMessage({ message, processingResult }, messageId)
 
@@ -94,10 +101,23 @@ export abstract class AbstractKafkaService<
           topic,
           processingResult,
           messageId,
-          messageType: this.resolveMessageType(message),
+          messageType,
         },
         `Finished processing message ${messageId}`,
       )
+    }
+
+    if (this.messageMetricsManager) {
+      this.messageMetricsManager.registerProcessedMessage({
+        message,
+        processingResult,
+        queueName: topic,
+        messageId,
+        messageType,
+        messageTimestamp: message.timestamp, // TODO: which is the format of this?
+        messageProcessingStartTimestamp: params.messageProcessingStartTimestamp,
+        messageProcessingEndTimestamp: Date.now(),
+      })
     }
   }
 

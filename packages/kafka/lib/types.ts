@@ -3,7 +3,7 @@ import type { ConnectionOptions } from '@platformatic/kafka'
 import type { ZodSchema } from 'zod'
 import type z from 'zod/v3'
 
-export type KafkaDependencies = Omit<QueueDependencies, 'messageMetricsManager'>
+export type KafkaDependencies = QueueDependencies
 
 export type KafkaConfig = {
   bootstrapBrokers: string[]
