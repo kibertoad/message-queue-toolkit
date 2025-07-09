@@ -258,7 +258,7 @@ export abstract class AbstractKafkaConsumer<
   private buildTransactionName(message: Message<string, object, string, string>) {
     const messageType = this.resolveMessageType(message.value)
 
-    let name = `kafka:${message.topic}`
+    let name = `kafka:${this.constructor.name}:${message.topic}`
     if (messageType?.trim().length) name += `:${messageType.trim()}`
 
     return name
