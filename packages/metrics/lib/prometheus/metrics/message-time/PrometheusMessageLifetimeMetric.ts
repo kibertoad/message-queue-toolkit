@@ -7,9 +7,8 @@ export class PrometheusMessageLifetimeMetric<
   protected calculateObservedValue(
     metadata: ProcessedMessageMetadata<MessagePayload>,
   ): number | null {
-    if (!metadata.messageTimestamp) {
-      return null
-    }
+    if (!metadata.messageTimestamp) return null
+
     return metadata.messageProcessingEndTimestamp - metadata.messageTimestamp
   }
 }
