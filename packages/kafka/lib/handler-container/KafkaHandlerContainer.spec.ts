@@ -4,7 +4,7 @@ import { KafkaHandlerConfig } from './KafkaHandlerConfig.ts'
 import { KafkaHandlerContainer } from './KafkaHandlerContainer.ts'
 import type { KafkaHandlerRouting } from './KafkaHandlerRoutingBuilder.ts'
 
-const CREATE_SCHEMA = z.object({ type: z.literal('create') })
+const CREATE_SCHEMA = z.object({ type: z.literal('create'), prop: z.string().transform((val) => Number(val)) })
 const UPDATE_SCHEMA = z.object({ type: z.literal('update') })
 const EMPTY_SCHEMA = z.object({})
 
@@ -69,8 +69,8 @@ describe('KafkaHandlerContainer', () => {
       expect(container.resolveHandler('all', { type: 'non-existing' })?.schema).toBe(EMPTY_SCHEMA)
       expect(container.resolveHandler('all', {})?.schema).toBe(EMPTY_SCHEMA)
 
-      expect(container.resolveHandler('create', { type: 'create' })?.schema).toBe(CREATE_SCHEMA)
-      expect(container.resolveHandler('create', { type: 'update' as any })?.schema).toBe(undefined)
+      expect(container.resolveHandler('create', { type: 'create', prop: 1 })?.schema).toBe(CREATE_SCHEMA)
+      expect(container.resolveHandler('create', { type: 'update' as any, prop: 1 })?.schema).toBe(undefined)
       expect(container.resolveHandler('create', {} as any)?.schema).toBe(undefined)
 
       expect(container.resolveHandler('empty', {} as any)?.schema).toBe(EMPTY_SCHEMA)
@@ -88,8 +88,8 @@ describe('KafkaHandlerContainer', () => {
       const container = new KafkaHandlerContainer(topicHandlers)
 
       // Then
-      expect(container.resolveHandler('create', { type: 'create' })?.schema).toBe(CREATE_SCHEMA)
-      expect(container.resolveHandler('create', { type: 'update' as any })?.schema).toBe(
+      expect(container.resolveHandler('create', { type: 'create', prop: 1 })?.schema).toBe(CREATE_SCHEMA)
+      expect(container.resolveHandler('create', { type: 'update' as any, prop: 1 })?.schema).toBe(
         CREATE_SCHEMA,
       )
       expect(container.resolveHandler('create', {} as any)?.schema).toBe(CREATE_SCHEMA)
