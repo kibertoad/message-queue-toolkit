@@ -5,14 +5,16 @@ import {
   resolveGlobalErrorLogObject,
   stringValueSerializer,
 } from '@lokalise/node-core'
+import type { MakeRequired, MayOmit } from '@lokalise/universal-ts-utils/node'
 import {
   type HandlerSpy,
   type HandlerSpyParams,
+  type MessageMetricsManager,
   type MessageProcessingResult,
   type PublicHandlerSpy,
   resolveHandlerSpy,
 } from '@message-queue-toolkit/core'
-import type { BaseOptions } from '@platformatic/kafka'
+import type { BaseOptions, Message } from '@platformatic/kafka'
 import type {
   KafkaConfig,
   KafkaDependencies,
@@ -34,20 +36,29 @@ export type BaseKafkaOptions = {
   logMessages?: boolean
 } & Omit<BaseOptions, keyof KafkaConfig> // Exclude properties that are already in KafkaConfig
 
+type ProcessedMessage = MayOmit<
+  Pick<Message<string, object, string, string>, 'topic' | 'value' | 'timestamp'>,
+  'timestamp'
+>
+
 export abstract class AbstractKafkaService<
   TopicsConfig extends TopicConfig[],
   KafkaOptions extends BaseKafkaOptions,
 > {
   protected readonly errorReporter: ErrorReporter
   protected readonly logger: CommonLogger
+  protected readonly messageMetricsManager?: MessageMetricsManager<
+    SupportedMessageValues<TopicsConfig>
+  >
 
-  protected readonly options: KafkaOptions
+  protected readonly options: MakeRequired<KafkaOptions, 'messageIdField'>
   protected readonly _handlerSpy?: HandlerSpy<SupportedMessageValues<TopicsConfig>>
 
   constructor(dependencies: KafkaDependencies, options: KafkaOptions) {
     this.logger = dependencies.logger
     this.errorReporter = dependencies.errorReporter
-    this.options = options
+    this.messageMetricsManager = dependencies.messageMetricsManager
+    this.options = { ...options, messageIdField: options.messageIdField ?? 'id' }
 
     this._handlerSpy = resolveHandlerSpy(options)
   }
@@ -65,12 +76,12 @@ export abstract class AbstractKafkaService<
 
   protected resolveMessageType(message: SupportedMessageValues<TopicsConfig>): string | undefined {
     if (!this.options.messageTypeField) return undefined
-    return message[this.options.messageTypeField]
+    return message[this.options.messageTypeField] as string | undefined
   }
 
   protected resolveMessageId(message: SupportedMessageValues<TopicsConfig>): string | undefined {
-    if (!this.options.messageIdField) return undefined
-    return message[this.options.messageIdField]
+    // @ts-expect-error
+    return message[this.options.messageIdField] as string | undefined
   }
 
   protected resolveHeaderRequestIdField(): string {
@@ -78,26 +89,40 @@ export abstract class AbstractKafkaService<
   }
 
   protected handleMessageProcessed(params: {
-    message: SupportedMessageValues<TopicsConfig>
+    message: ProcessedMessage
     processingResult: MessageProcessingResult
-    topic: string
+    messageProcessingStartTimestamp: number
   }) {
-    const { message, processingResult, topic } = params
-    const messageId = this.resolveMessageId(message)
+    const { message, processingResult } = params
+    const messageId = this.resolveMessageId(message.value)
+    const messageType = this.resolveMessageType(message.value)
 
-    this._handlerSpy?.addProcessedMessage({ message, processingResult }, messageId)
+    this._handlerSpy?.addProcessedMessage({ message: message.value, processingResult }, messageId)
 
     if (this.options.logMessages) {
       this.logger.debug(
         {
-          message: stringValueSerializer(message),
-          topic,
+          message: stringValueSerializer(message.value),
+          topic: message.topic,
           processingResult,
           messageId,
-          messageType: this.resolveMessageType(message),
+          messageType,
         },
         `Finished processing message ${messageId}`,
       )
+    }
+
+    if (this.messageMetricsManager) {
+      this.messageMetricsManager.registerProcessedMessage({
+        message: message.value,
+        processingResult,
+        queueName: message.topic,
+        messageId: messageId ?? 'unknown',
+        messageType: messageType ?? 'unknown',
+        messageTimestamp: message.timestamp ? Number(message.timestamp) : undefined,
+        messageProcessingStartTimestamp: params.messageProcessingStartTimestamp,
+        messageProcessingEndTimestamp: Date.now(),
+      })
     }
   }
 

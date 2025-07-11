@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
 import { Producer, stringSerializers } from '@platformatic/kafka'
-import { afterAll, expect } from 'vitest'
+import { type MockInstance, afterAll, expect } from 'vitest'
 import z from 'zod/v3'
 import { KafkaHandlerConfig, type RequestContext } from '../../lib/index.js'
 import { PermissionPublisher } from '../publisher/PermissionPublisher.js'
@@ -271,10 +271,28 @@ describe('PermissionConsumer', () => {
 
       await producer.close()
     })
+
+    it('should work for messages without id field', async () => {
+      // Given
+      consumer = new PermissionConsumer(testContext.cradle, { messageIdField: 'invalid' })
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-general', { id: '1', permissions: [] })
+
+      // Then
+      const spyResult = await consumer.handlerSpy.waitForMessage({ permissions: [] }, 'consumed')
+      expect(spyResult).toBeDefined()
+    })
   })
 
   describe('observability - request context', () => {
     let publisher: PermissionPublisher
+    let metricSpy: MockInstance
+
+    beforeEach(() => {
+      metricSpy = vi.spyOn(testContext.cradle.messageMetricsManager, 'registerProcessedMessage')
+    })
 
     afterEach(async () => {
       await publisher.close()
@@ -283,44 +301,6 @@ describe('PermissionConsumer', () => {
     const buildPublisher = (headerRequestIdField?: string) => {
       publisher = new PermissionPublisher(testContext.cradle, { headerRequestIdField })
     }
-
-    it('should use transaction observability manager', async () => {
-      // Given
-      buildPublisher()
-
-      const { transactionObservabilityManager } = testContext.cradle
-      const startTransactionSpy = vi.spyOn(transactionObservabilityManager, 'start')
-      const stopTransactionSpy = vi.spyOn(transactionObservabilityManager, 'stop')
-
-      consumer = new PermissionConsumer(testContext.cradle)
-      await consumer.init()
-
-      // When
-      await publisher.publish('permission-general', {
-        id: '1',
-        type: 'added',
-        permissions: [],
-      })
-      await publisher.publish('permission-general', {
-        id: '2',
-        permissions: [],
-      })
-
-      // Then
-      await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
-      expect(startTransactionSpy).toHaveBeenCalledWith(
-        'kafka:PermissionConsumer:permission-general:added',
-        '1',
-      )
-      expect(stopTransactionSpy).toHaveBeenCalledWith('1')
-
-      await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
-      expect(startTransactionSpy).toHaveBeenCalledWith(
-        'kafka:PermissionConsumer:permission-general',
-        '2',
-      )
-      expect(stopTransactionSpy).toHaveBeenCalledWith('2')
-    })
 
     it('should use request context with default request id from headers', async () => {
       // Given
@@ -405,6 +385,141 @@ describe('PermissionConsumer', () => {
       expect(spy.message).toMatchObject({ id: '1' })
       expect(spy.message).toEqual(handlerCalls[0]!.messageValue)
       expect(handlerCalls[0]!.requestContext).toMatchObject({ reqId: requestId })
+    })
+
+    it('should use transaction observability manager', async () => {
+      // Given
+      buildPublisher()
+
+      const { transactionObservabilityManager } = testContext.cradle
+      const startTransactionSpy = vi.spyOn(transactionObservabilityManager, 'start')
+      const stopTransactionSpy = vi.spyOn(transactionObservabilityManager, 'stop')
+
+      consumer = new PermissionConsumer(testContext.cradle)
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-general', {
+        id: '1',
+        type: 'added',
+        permissions: [],
+      })
+      await publisher.publish('permission-general', {
+        id: '2',
+        permissions: [],
+      })
+
+      // Then
+      await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      expect(startTransactionSpy).toHaveBeenCalledWith(
+        'kafka:PermissionConsumer:permission-general:added',
+        '1',
+      )
+      expect(stopTransactionSpy).toHaveBeenCalledWith('1')
+
+      await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+      expect(startTransactionSpy).toHaveBeenCalledWith(
+        'kafka:PermissionConsumer:permission-general',
+        '2',
+      )
+      expect(stopTransactionSpy).toHaveBeenCalledWith('2')
+    })
+
+    it('should use metrics manager to measure successful messages', async () => {
+      // Given
+      buildPublisher()
+
+      consumer = new PermissionConsumer(testContext.cradle)
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-general', { id: '1', permissions: [] })
+
+      // Then
+      const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      expect(spy.message).toMatchObject({ id: '1' })
+
+      expect(metricSpy).toHaveBeenCalledTimes(2) // publish + consume
+      expect(metricSpy).toHaveBeenCalledWith({
+        queueName: 'permission-general',
+        messageId: '1',
+        message: expect.objectContaining({ id: '1' }),
+        messageType: 'unknown',
+        messageTimestamp: expect.any(Number),
+        processingResult: { status: 'consumed' },
+        messageProcessingStartTimestamp: expect.any(Number),
+        messageProcessingEndTimestamp: expect.any(Number),
+      })
+    })
+
+    it('should use metrics to measure validation issues', async () => {
+      // Given
+      buildPublisher()
+
+      consumer = new PermissionConsumer(testContext.cradle, {
+        handlers: {
+          'permission-general': [
+            new KafkaHandlerConfig(PERMISSION_SCHEMA.extend({ id: z.number() }), () =>
+              Promise.resolve(),
+            ),
+          ],
+        },
+      } as any)
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-general', { id: '1', permissions: [] })
+
+      // Then
+      const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
+      expect(spy.processingResult).toMatchObject({ errorReason: 'invalidMessage' })
+
+      expect(metricSpy).toHaveBeenCalledTimes(2) // publish + consume
+      expect(metricSpy).toHaveBeenCalledWith({
+        queueName: 'permission-general',
+        messageId: '1',
+        message: expect.objectContaining({ id: '1' }),
+        messageType: 'unknown',
+        messageTimestamp: expect.any(Number),
+        processingResult: { status: 'error', errorReason: 'invalidMessage' },
+        messageProcessingStartTimestamp: expect.any(Number),
+        messageProcessingEndTimestamp: expect.any(Number),
+      })
+    })
+
+    it('should use metrics to measure handler errors', async () => {
+      // Given
+      buildPublisher()
+
+      consumer = new PermissionConsumer(testContext.cradle, {
+        handlers: {
+          'permission-general': [
+            new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
+              throw new Error('Test error')
+            }),
+          ],
+        },
+      } as any)
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-general', { id: '1', permissions: [] })
+
+      // Then
+      const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
+      expect(spy.processingResult).toMatchObject({ errorReason: 'handlerError' })
+
+      expect(metricSpy).toHaveBeenCalledTimes(2) // publish + consume
+      expect(metricSpy).toHaveBeenCalledWith({
+        queueName: 'permission-general',
+        messageId: '1',
+        message: expect.objectContaining({ id: '1' }),
+        messageType: 'unknown',
+        messageTimestamp: expect.any(Number),
+        processingResult: { status: 'error', errorReason: 'handlerError' },
+        messageProcessingStartTimestamp: expect.any(Number),
+        messageProcessingEndTimestamp: expect.any(Number),
+      })
     })
   })
 })

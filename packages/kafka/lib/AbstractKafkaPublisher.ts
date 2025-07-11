@@ -95,6 +95,8 @@ export abstract class AbstractKafkaPublisher<
     requestContext?: RequestContext,
     options?: KafkaMessageOptions,
   ): Promise<void> {
+    const messageProcessingStartTimestamp = Date.now()
+
     const schemaResult = this.schemaContainers[topic]?.resolveSchema(message)
     if (!schemaResult) throw new Error(`Message schemas not found for topic: ${topic}`)
     if (schemaResult.error) throw schemaResult.error
@@ -109,15 +111,15 @@ export abstract class AbstractKafkaPublisher<
         [this.resolveHeaderRequestIdField()]: requestContext?.reqId ?? '',
       }
 
-      // biome-ignore lint/style/noNonNullAssertion: Should always exist due to lazy init
-      await this.producer!.send({
-        messages: [{ ...options, topic, value: parsedMessage, headers }],
+      const kafkaMessage = { ...options, topic, value: parsedMessage, headers }
+      await this.producer?.send({
+        messages: [kafkaMessage],
       })
 
       this.handleMessageProcessed({
-        message: parsedMessage,
+        message: kafkaMessage,
         processingResult: { status: 'published' },
-        topic,
+        messageProcessingStartTimestamp,
       })
     } catch (error) {
       const errorDetails = {

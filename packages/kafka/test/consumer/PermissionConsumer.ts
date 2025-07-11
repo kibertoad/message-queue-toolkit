@@ -24,7 +24,12 @@ type ExecutionContext = {
 export type PermissionConsumerOptions = Partial<
   Pick<
     KafkaConsumerOptions<typeof PERMISSION_TOPIC_MESSAGES_CONFIG, ExecutionContext>,
-    'kafka' | 'handlerSpy' | 'autocreateTopics' | 'handlers' | 'headerRequestIdField'
+    | 'kafka'
+    | 'handlerSpy'
+    | 'autocreateTopics'
+    | 'handlers'
+    | 'headerRequestIdField'
+    | 'messageIdField'
   >
 >
 
@@ -86,7 +91,7 @@ export class PermissionConsumer extends AbstractKafkaConsumer<
         logMessages: true,
         handlerSpy: options.handlerSpy ?? true,
         headerRequestIdField: options.headerRequestIdField,
-        messageIdField: 'id',
+        messageIdField: options.messageIdField,
         messageTypeField: 'type',
       },
       {
