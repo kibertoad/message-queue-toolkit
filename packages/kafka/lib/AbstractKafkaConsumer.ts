@@ -112,7 +112,7 @@ export abstract class AbstractKafkaConsumer<
 
     try {
       const { handlers, ...consumeOptions } = this.options // Handlers cannot be passed to consume method
-      
+
       // https://github.com/platformatic/kafka/blob/main/docs/consumer.md#my-consumer-is-not-receiving-any-message-when-the-application-restarts
       await this.consumer.joinGroup({
         sessionTimeout: consumeOptions.sessionTimeout,
