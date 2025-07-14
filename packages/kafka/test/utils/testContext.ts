@@ -5,6 +5,7 @@ import {
   type TransactionObservabilityManager,
   globalLogger,
 } from '@lokalise/node-core'
+import type { MessageMetricsManager } from '@message-queue-toolkit/core'
 import { Admin } from '@platformatic/kafka'
 import {
   type AwilixContainer,
@@ -29,6 +30,7 @@ type Dependencies = {
   errorReporter: ErrorReporter
   logger: CommonLogger
   transactionObservabilityManager: TransactionObservabilityManager
+  messageMetricsManager: MessageMetricsManager<object>
 }
 
 export const createTestContext = async (): Promise<TestContext> => {
@@ -83,6 +85,12 @@ const resolveDIConfig = (awilixManager: AwilixManager): DiConfig => ({
         startWithGroup: vi.fn(),
         addCustomAttributes: vi.fn(),
       }) satisfies TransactionObservabilityManager,
+    SINGLETON_CONFIG,
+  ),
+  messageMetricsManager: asFunction(
+    () => ({
+      registerProcessedMessage: () => undefined,
+    }),
     SINGLETON_CONFIG,
   ),
 })

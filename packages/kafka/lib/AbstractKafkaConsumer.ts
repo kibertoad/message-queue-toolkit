@@ -89,6 +89,7 @@ export abstract class AbstractKafkaConsumer<
     })
 
     const logDetails = { origin: this.constructor.name, groupId: this.options.groupId }
+    /* v8 ignore start */
     this.consumer.on('consumer:group:join', (_) =>
       this.logger.debug(logDetails, 'Consumer is joining a group'),
     )
@@ -101,6 +102,7 @@ export abstract class AbstractKafkaConsumer<
     this.consumer.on('consumer:group:rebalance', (_) =>
       this.logger.debug(logDetails, 'Group is rebalancing'),
     )
+    /* v8 ignore stop */
   }
 
   async init(): Promise<void> {
@@ -135,6 +137,8 @@ export abstract class AbstractKafkaConsumer<
     // message.value can be undefined if the message is not JSON-serializable
     if (!message.value) return this.commitMessage(message)
 
+    const messageProcessingStartTimestamp = Date.now()
+
     const handler = this.handlerContainer.resolveHandler(message.topic, message.value)
     // if there is no handler for the message, we ignore it (simulating subscription)
     if (!handler) return this.commitMessage(message)
@@ -150,9 +154,9 @@ export abstract class AbstractKafkaConsumer<
         message: stringValueSerializer(message.value),
       })
       this.handleMessageProcessed({
-        topic: message.topic,
-        message: message.value,
+        message: message,
         processingResult: { status: 'error', errorReason: 'invalidMessage' },
+        messageProcessingStartTimestamp,
       })
 
       return this.commitMessage(message)
@@ -180,15 +184,15 @@ export abstract class AbstractKafkaConsumer<
 
     if (consumed) {
       this.handleMessageProcessed({
-        topic: message.topic,
-        message: validatedMessage,
+        message: message,
         processingResult: { status: 'consumed' },
+        messageProcessingStartTimestamp,
       })
     } else {
       this.handleMessageProcessed({
-        topic: message.topic,
-        message: validatedMessage,
+        message: message,
         processingResult: { status: 'error', errorReason: 'handlerError' },
+        messageProcessingStartTimestamp,
       })
     }
 
@@ -223,9 +227,7 @@ export abstract class AbstractKafkaConsumer<
       )
       await message.commit()
     } catch (error) {
-      if (error instanceof ResponseError) {
-        return this.handleResponseErrorOnCommit(error)
-      }
+      if (error instanceof ResponseError) return this.handleResponseErrorOnCommit(error)
       throw error
     }
   }

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { InternalError } from '@lokalise/node-core'
+import type { MockInstance } from 'vitest'
 import z from 'zod/v3'
 import {
   PERMISSION_ADDED_SCHEMA,
@@ -158,6 +159,12 @@ describe('PermissionPublisher', () => {
   })
 
   describe('publish', () => {
+    let metricsSpy: MockInstance
+
+    beforeEach(() => {
+      metricsSpy = vi.spyOn(testContext.cradle.messageMetricsManager, 'registerProcessedMessage')
+    })
+
     it('should fail if topic is not supported', async () => {
       // Given
       publisher = new PermissionPublisher(testContext.cradle)
@@ -239,6 +246,28 @@ describe('PermissionPublisher', () => {
 
       const emittedEvent2 = await publisher.handlerSpy.waitForMessageWithId('2', 'published')
       expect(emittedEvent2.message).toMatchObject(message2)
+
+      expect(metricsSpy).toHaveBeenCalledTimes(2)
+      expect(metricsSpy).toHaveBeenNthCalledWith(1, {
+        queueName: 'permission-added',
+        messageId: '1',
+        message: message1,
+        messageType: 'added',
+        messageTimestamp: undefined,
+        processingResult: { status: 'published' },
+        messageProcessingStartTimestamp: expect.any(Number),
+        messageProcessingEndTimestamp: expect.any(Number),
+      })
+      expect(metricsSpy).toHaveBeenNthCalledWith(2, {
+        queueName: 'permission-removed',
+        messageId: '2',
+        message: message2,
+        messageType: 'removed',
+        messageTimestamp: undefined,
+        processingResult: { status: 'published' },
+        messageProcessingStartTimestamp: expect.any(Number),
+        messageProcessingEndTimestamp: expect.any(Number),
+      })
     })
 
     it('should throw an error if message is not supported', async () => {
@@ -280,6 +309,18 @@ describe('PermissionPublisher', () => {
       // Then
       const emittedEvent = await publisher.handlerSpy.waitForMessageWithId('1', 'published')
       expect(emittedEvent.message).toMatchObject(message)
+
+      expect(metricsSpy).toHaveBeenCalledTimes(1)
+      expect(metricsSpy).toHaveBeenNthCalledWith(1, {
+        queueName: 'permission-general',
+        messageId: '1',
+        message: message,
+        messageType: 'unknown',
+        messageTimestamp: undefined,
+        processingResult: { status: 'published' },
+        messageProcessingStartTimestamp: expect.any(Number),
+        messageProcessingEndTimestamp: expect.any(Number),
+      })
     })
 
     it('should publish only messages meeting schema', async () => {
