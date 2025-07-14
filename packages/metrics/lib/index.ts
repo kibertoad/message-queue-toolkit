@@ -1,5 +1,7 @@
+export * from './prometheus/metrics/message-time/PrometheusMessageTimeMetric.ts'
 export * from './prometheus/metrics/message-time/PrometheusMessageLifetimeMetric.ts'
 export * from './prometheus/metrics/message-time/PrometheusMessageProcessingTimeMetric.ts'
+export * from './prometheus/metrics/message-time/PrometheusMessageQueueTimeMetric.ts'
 export * from './prometheus/metrics/message-error/PrometheusMessageErrorCounter.ts'
 export * from './prometheus/PrometheusMessageMetric.ts'
 export * from './prometheus/types.ts'

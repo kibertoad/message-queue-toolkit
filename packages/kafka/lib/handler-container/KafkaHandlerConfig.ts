@@ -1,6 +1,6 @@
 import type { CommonLogger } from '@lokalise/node-core'
 import type { Message } from '@platformatic/kafka'
-import type { ZodSchema } from 'zod'
+import type { ZodSchema, ZodTypeDef } from 'zod'
 
 export interface RequestContext {
   logger: CommonLogger
@@ -14,11 +14,11 @@ export type KafkaHandler<MessageValue extends object, ExecutionContext> = (
 ) => Promise<void> | void
 
 export class KafkaHandlerConfig<MessageValue extends object, ExecutionContext> {
-  public readonly schema: ZodSchema<MessageValue>
+  public readonly schema: ZodSchema<MessageValue, ZodTypeDef, unknown>
   public readonly handler: KafkaHandler<MessageValue, ExecutionContext>
 
   constructor(
-    schema: ZodSchema<MessageValue>,
+    schema: ZodSchema<MessageValue, ZodTypeDef, unknown>,
     handler: KafkaHandler<MessageValue, ExecutionContext>,
   ) {
     this.schema = schema
