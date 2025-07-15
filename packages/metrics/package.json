@@ -60,9 +60,5 @@
         "rabbitmq",
         "rabbit"
     ],
-    "files": [
-        "README.md",
-        "LICENSE",
-        "dist/*"
-    ]
+    "files": ["README.md", "LICENSE", "dist/*"]
 }
