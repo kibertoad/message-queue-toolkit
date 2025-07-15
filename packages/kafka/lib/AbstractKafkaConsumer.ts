@@ -169,7 +169,7 @@ export abstract class AbstractKafkaConsumer<
       return this.commitMessage(message)
     }
 
-    const validatedMessage = {...message, value: parseResult.data}
+    const validatedMessage = { ...message, value: parseResult.data }
 
     const requestContext = this.getRequestContext(message)
 
@@ -179,11 +179,7 @@ export abstract class AbstractKafkaConsumer<
       // exponential backoff -> 2^(retry-1)
       if (retries > 0) await setTimeout(Math.pow(2, retries - 1))
 
-      consumed = await this.tryToConsume(
-        validatedMessage,
-        handler.handler,
-        requestContext,
-      )
+      consumed = await this.tryToConsume(validatedMessage, handler.handler, requestContext)
       if (consumed) break
 
       retries++
