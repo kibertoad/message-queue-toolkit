@@ -130,7 +130,7 @@ describe('SnsPermissionPublisher - single-store payload offloading', () => {
       // Check that the published message's body is a pointer to the offloaded payload.
       expect(receivedSnsMessages.length).toBe(1)
       const snsMessageBodyParseResult = SNS_MESSAGE_BODY_SCHEMA.safeParse(
-        JSON.parse(receivedSnsMessages[0]!.Body!),
+        JSON.parse(receivedSnsMessages[0].Body!),
       )
       expect(snsMessageBodyParseResult.success).toBe(true)
 

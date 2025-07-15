@@ -95,22 +95,26 @@ describe('AmqpPermissionConsumer', () => {
 
       await newConsumer.close()
 
-      expect(logger.loggedMessages.length).toBe(6)
+      expect(logger.loggedMessages.length).toBe(4)
       expect(logger.loggedMessages).toMatchObject([
         'Propagating new connection across 0 receivers',
-        {
-          id: '1',
-          messageType: 'add',
-        },
         'timestamp not defined, adding it automatically',
-        expect.any(Object),
         {
-          id: '1',
-          messageType: 'add',
-          timestamp: expect.any(String),
+          processedMessageMetadata: expect.objectContaining({
+            processingResult: { status: 'published' },
+          }),
         },
         {
-          processedMessageMetadata: expect.any(String),
+          processedMessageMetadata: expect.objectContaining({
+            messageId: '1',
+            messageType: 'add',
+            processingResult: { status: 'consumed' },
+          }),
+          message: {
+            id: '1',
+            messageType: 'add',
+            timestamp: expect.any(String),
+          },
         },
       ])
     })
@@ -405,7 +409,7 @@ describe('AmqpPermissionConsumer', () => {
       await waitAndRetry(() => errorReporterSpy.mock.calls.length > 0)
 
       expect(errorReporterSpy.mock.calls).toHaveLength(1)
-      expect(errorReporterSpy.mock.calls[0]![0]!.error).toMatchObject({
+      expect(errorReporterSpy.mock.calls[0]?.[0]?.error).toMatchObject({
         message: 'Unsupported message type: bad',
       })
     })

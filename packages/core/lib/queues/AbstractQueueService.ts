@@ -114,6 +114,10 @@ export abstract class AbstractQueueService<
    * Used to know the store-based message deduplication options
    */
   protected readonly messageDeduplicationOptionsField: string
+  /**
+   * Used to know where metadata is stored - for debug logging purposes only
+   */
+  protected readonly messageMetadataField: string
   protected readonly errorReporter: ErrorReporter
   public readonly logger: CommonLogger
   protected readonly messageIdField: string
@@ -157,6 +161,7 @@ export abstract class AbstractQueueService<
     this.messageDeduplicationIdField = options.messageDeduplicationIdField ?? 'deduplicationId'
     this.messageDeduplicationOptionsField =
       options.messageDeduplicationOptionsField ?? 'deduplicationOptions'
+    this.messageMetadataField = options.messageMetadataField ?? 'metadata'
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig
@@ -239,15 +244,36 @@ export abstract class AbstractQueueService<
   /**
    * Format message for logging
    */
-  protected resolveMessageLog(message: MessagePayloadSchemas, _messageType: string): unknown {
-    return message
+  protected resolveMessageLog(
+    _processedMessageMetadata: ProcessedMessageMetadata<MessagePayloadSchemas>,
+  ): unknown | null {
+    return null
   }
 
-  /**
-   * Log preformatted and potentially presanitized message payload
-   */
-  protected logMessage(messageLogEntry: unknown) {
-    this.logger.debug(messageLogEntry)
+  protected logMessageProcessed(
+    processedMessageMetadata: ProcessedMessageMetadata<MessagePayloadSchemas>,
+  ) {
+    const processedMessageMetadataLog = {
+      processingResult: processedMessageMetadata.processingResult,
+      messageId: processedMessageMetadata.messageId,
+      messageType: processedMessageMetadata.messageType,
+      queueName: processedMessageMetadata.queueName,
+      messageTimestamp: processedMessageMetadata.messageTimestamp,
+      messageDeduplicationId: processedMessageMetadata.messageDeduplicationId,
+      messageProcessingStartTimestamp: processedMessageMetadata.messageProcessingStartTimestamp,
+      messageProcessingEndTimestamp: processedMessageMetadata.messageProcessingEndTimestamp,
+      messageMetadata: stringValueSerializer(processedMessageMetadata.messageMetadata),
+    }
+
+    const resolvedMessageLog = this.resolveMessageLog(processedMessageMetadata)
+
+    this.logger.debug(
+      {
+        processedMessageMetadata: processedMessageMetadataLog,
+        ...(resolvedMessageLog ? { message: resolvedMessageLog } : {}),
+      },
+      `Finished processing message ${processedMessageMetadata.messageId}`,
+    )
   }
 
   protected handleError(err: unknown, context?: Record<string, unknown>) {
@@ -284,8 +310,8 @@ export abstract class AbstractQueueService<
       messageType,
     )
 
-    const debugLoggingEnabled = this.logMessages && this.logger.isLevelEnabled('debug')
-    if (!debugLoggingEnabled && !this.messageMetricsManager) return
+    const debugMessageLoggingEnabled = this.logMessages && this.logger.isLevelEnabled('debug')
+    if (!debugMessageLoggingEnabled && !this.messageMetricsManager) return
 
     const processedMessageMetadata = this.resolveProcessedMessageMetadata(
       message,
@@ -295,11 +321,8 @@ export abstract class AbstractQueueService<
       params.queueName,
       messageId,
     )
-    if (debugLoggingEnabled) {
-      this.logger.debug(
-        { processedMessageMetadata: stringValueSerializer(processedMessageMetadata) },
-        `Finished processing message ${processedMessageMetadata.messageId}`,
-      )
+    if (debugMessageLoggingEnabled) {
+      this.logMessageProcessed(processedMessageMetadata)
     }
     if (this.messageMetricsManager) {
       this.messageMetricsManager.registerProcessedMessage(processedMessageMetadata)
@@ -324,6 +347,11 @@ export abstract class AbstractQueueService<
         ? // @ts-ignore
           message[this.messageDeduplicationId]
         : undefined
+    const messageMetadata =
+      message && this.messageMetadataField in message
+        ? // @ts-ignore
+          message[this.messageMetadataField]
+        : undefined
 
     return {
       processingResult,
@@ -335,6 +363,7 @@ export abstract class AbstractQueueService<
       messageDeduplicationId,
       messageProcessingStartTimestamp,
       messageProcessingEndTimestamp,
+      messageMetadata,
     }
   }
 

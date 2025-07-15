@@ -443,15 +443,21 @@ describe('SqsPermissionConsumer', () => {
 
       await newConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
-      expect(logger.loggedMessages.length).toBe(2)
+      expect(logger.loggedMessages.length).toBe(1)
       expect(logger.loggedMessages).toMatchObject([
         {
-          id: '1',
-          messageType: 'add',
-          timestamp: expect.any(String),
-        },
-        {
-          processedMessageMetadata: expect.any(String),
+          processedMessageMetadata: expect.objectContaining({
+            messageId: '1',
+            messageType: 'add',
+            processingResult: {
+              status: 'consumed',
+            },
+          }),
+          message: {
+            id: '1',
+            messageType: 'add',
+            timestamp: expect.any(String),
+          },
         },
       ])
       await newConsumer.close()
