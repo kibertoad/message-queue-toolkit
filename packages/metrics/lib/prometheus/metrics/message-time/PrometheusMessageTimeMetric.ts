@@ -3,6 +3,7 @@ import type { Histogram } from 'prom-client'
 import type promClient from 'prom-client'
 import { PrometheusMessageMetric } from '../../PrometheusMessageMetric.ts'
 import type { PrometheusMetricParams } from '../../types.ts'
+import type {MakeRequired} from '@lokalise/universal-ts-utils/node';
 
 export abstract class PrometheusMessageTimeMetric<
   MessagePayload extends object,
@@ -12,7 +13,7 @@ export abstract class PrometheusMessageTimeMetric<
 > {
   protected createMetric(
     client: typeof promClient,
-    metricParams: PrometheusMetricParams<MessagePayload>,
+    metricParams: MakeRequired<PrometheusMetricParams<MessagePayload>, 'buckets'>,
   ): Histogram<'messageType' | 'version' | 'queue' | 'result'> {
     return new client.Histogram({
       name: metricParams.name,

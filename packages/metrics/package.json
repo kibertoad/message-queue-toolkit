@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/metrics",
-    "version": "4.1.0",
+    "version": "4.1.1",
     "private": false,
     "license": "MIT",
     "description": "Utilities for collecting metrics in message-queue-toolkit",
@@ -26,7 +26,8 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^14.0.1"
+        "@lokalise/node-core": "^14.0.1",
+        "@lokalise/universal-ts-utils": "^4.4.1"
     },
     "peerDependencies": {
         "@message-queue-toolkit/core": ">=21.0.0",
@@ -59,5 +60,9 @@
         "rabbitmq",
         "rabbit"
     ],
-    "files": ["README.md", "LICENSE", "dist/*"]
+    "files": [
+        "README.md",
+        "LICENSE",
+        "dist/*"
+    ]
 }
