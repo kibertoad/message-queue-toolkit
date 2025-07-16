@@ -51,7 +51,7 @@
         "@lokalise/node-core": "^14.1.0",
         "@lokalise/universal-ts-utils": "^4.4.1",
         "@platformatic/kafka": "^1.7.0",
-        "zod": "^3.25.7"
+        "zod": "^4.0.5"
     },
     "peerDependencies": {
         "@message-queue-toolkit/core": "21.3.0",
