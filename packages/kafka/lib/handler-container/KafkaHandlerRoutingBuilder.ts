@@ -18,10 +18,13 @@ export class KafkaHandlerRoutingBuilder<
 > {
   private readonly configs: KafkaHandlerRouting<TopicsConfig, ExecutionContext> = {}
 
-  addConfig<
-    Topic extends SupportedTopics<TopicsConfig>,
-    MessageValue extends SupportedMessageValuesForTopic<TopicsConfig, Topic>,
-  >(topic: Topic, config: KafkaHandlerConfig<MessageValue, ExecutionContext>): this {
+  addConfig<Topic extends SupportedTopics<TopicsConfig>>(
+    topic: Topic,
+    config: KafkaHandlerConfig<
+      SupportedMessageValuesForTopic<TopicsConfig, Topic>,
+      ExecutionContext
+    >,
+  ): this {
     this.configs[topic] ??= []
     this.configs[topic].push(config)
 
