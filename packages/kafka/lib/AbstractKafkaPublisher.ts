@@ -11,7 +11,7 @@ import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaServ
 import type { RequestContext } from './handler-container/index.ts'
 import type {
   KafkaDependencies,
-  SupportedMessageValuesInput,
+  SupportedMessageValuesForTopic,
   SupportedMessageValuesInputForTopic,
   SupportedTopics,
   TopicConfig,
@@ -31,10 +31,7 @@ export abstract class AbstractKafkaPublisher<
   TopicsConfig extends TopicConfig[],
 > extends AbstractKafkaService<TopicsConfig, KafkaPublisherOptions<TopicsConfig>> {
   private readonly topicsConfig: TopicsConfig
-  private readonly schemaContainers: Record<
-    string,
-    MessageSchemaContainer<SupportedMessageValuesInput<TopicsConfig>>
-  >
+  private readonly schemaContainers: Record<string, MessageSchemaContainer<object>>
 
   private readonly producer: Producer<string, object, string, string>
   private isInitiated: boolean
@@ -97,14 +94,17 @@ export abstract class AbstractKafkaPublisher<
   ): Promise<void> {
     const messageProcessingStartTimestamp = Date.now()
 
-    const schemaResult = this.schemaContainers[topic]?.resolveSchema(message)
+    const schemaResult = this.schemaContainers[topic]?.resolveSchema(message as object)
     if (!schemaResult) throw new Error(`Message schemas not found for topic: ${topic}`)
     if (schemaResult.error) throw schemaResult.error
 
     await this.init() // lazy init
 
     try {
-      const parsedMessage = schemaResult.result.parse(message)
+      const parsedMessage = schemaResult.result.parse(message) as SupportedMessageValuesForTopic<
+        TopicsConfig,
+        Topic
+      >
 
       const headers = {
         ...options?.headers,

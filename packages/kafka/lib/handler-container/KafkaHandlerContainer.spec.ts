@@ -46,9 +46,9 @@ describe('KafkaHandlerContainer', () => {
       expect(
         () => new KafkaHandlerContainer(topicHandlers1 as any, 'type'),
       ).toThrowErrorMatchingInlineSnapshot('[Error: Duplicate handler for topic create]')
-      expect(() => new KafkaHandlerContainer(topicHandlers2 as any)).toThrowErrorMatchingInlineSnapshot(
-        '[Error: Duplicate handler for topic empty]',
-      )
+      expect(
+        () => new KafkaHandlerContainer(topicHandlers2 as any),
+      ).toThrowErrorMatchingInlineSnapshot('[Error: Duplicate handler for topic empty]')
     })
 
     it('should resolve handler with message type', () => {
