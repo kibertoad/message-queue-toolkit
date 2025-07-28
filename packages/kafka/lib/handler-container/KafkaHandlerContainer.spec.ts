@@ -44,9 +44,9 @@ describe('KafkaHandlerContainer', () => {
 
       // When & Then
       expect(
-        () => new KafkaHandlerContainer(topicHandlers1, 'type'),
+        () => new KafkaHandlerContainer(topicHandlers1 as any, 'type'),
       ).toThrowErrorMatchingInlineSnapshot('[Error: Duplicate handler for topic create]')
-      expect(() => new KafkaHandlerContainer(topicHandlers2)).toThrowErrorMatchingInlineSnapshot(
+      expect(() => new KafkaHandlerContainer(topicHandlers2 as any)).toThrowErrorMatchingInlineSnapshot(
         '[Error: Duplicate handler for topic empty]',
       )
     })
