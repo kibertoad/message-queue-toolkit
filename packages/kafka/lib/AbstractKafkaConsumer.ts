@@ -26,8 +26,8 @@ import type {
   SupportedMessageValues,
   TopicConfig,
 } from './types.ts'
-import { ILLEGAL_GENERATION, REBALANCE_IN_PROGRESS, UNKNOWN_MEMBER_ID } from './utils/errorCodes.js'
-import { safeJsonDeserializer } from './utils/safeJsonDeserializer.js'
+import { ILLEGAL_GENERATION, REBALANCE_IN_PROGRESS, UNKNOWN_MEMBER_ID } from './utils/errorCodes.ts'
+import { safeJsonDeserializer } from './utils/safeJsonDeserializer.ts'
 
 export type KafkaConsumerDependencies = KafkaDependencies &
   Pick<QueueConsumerDependencies, 'transactionObservabilityManager'>
