@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { InternalError } from '@lokalise/node-core'
 import type { MockInstance } from 'vitest'
-import z from 'zod/v3'
+import z from 'zod/v4'
 import {
   PERMISSION_ADDED_SCHEMA,
   PERMISSION_GENERAL_TOPIC,

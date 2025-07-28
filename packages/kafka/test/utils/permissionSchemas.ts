@@ -1,4 +1,4 @@
-import z from 'zod/v3'
+import z from 'zod/v4'
 import type { TopicConfig } from '../../lib/index.ts'
 
 export const PERMISSION_SCHEMA = z.object({

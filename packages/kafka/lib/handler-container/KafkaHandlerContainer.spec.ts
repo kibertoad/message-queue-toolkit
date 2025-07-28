@@ -1,4 +1,4 @@
-import z from 'zod/v3'
+import z from 'zod/v4'
 import type { TopicConfig } from '../types.ts'
 import { KafkaHandlerConfig } from './KafkaHandlerConfig.ts'
 import { KafkaHandlerContainer } from './KafkaHandlerContainer.ts'

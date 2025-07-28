@@ -1,6 +1,6 @@
 import type { Message } from '@platformatic/kafka'
 import { expectTypeOf } from 'vitest'
-import z from 'zod'
+import z from 'zod/v4'
 import type { TopicConfig } from '../types.ts'
 import { KafkaHandlerConfig, type RequestContext } from './KafkaHandlerConfig.ts'
 import { KafkaHandlerRoutingBuilder } from './KafkaHandlerRoutingBuilder.ts'

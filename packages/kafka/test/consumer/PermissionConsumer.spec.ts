@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
 import { Producer, stringSerializers } from '@platformatic/kafka'
 import { type MockInstance, afterAll, expect } from 'vitest'
-import z from 'zod/v3'
+import z from 'zod/v4'
 import { KafkaHandlerConfig, type RequestContext } from '../../lib/index.js'
 import { PermissionPublisher } from '../publisher/PermissionPublisher.js'
 import {

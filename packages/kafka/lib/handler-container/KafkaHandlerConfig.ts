@@ -1,6 +1,6 @@
 import type { CommonLogger } from '@lokalise/node-core'
 import type { Message } from '@platformatic/kafka'
-import type { ZodSchema, ZodTypeDef } from 'zod'
+import type { ZodSchema } from 'zod/v4'
 
 export interface RequestContext {
   logger: CommonLogger

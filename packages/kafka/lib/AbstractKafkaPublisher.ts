@@ -11,8 +11,8 @@ import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaServ
 import type { RequestContext } from './handler-container/index.js'
 import type {
   KafkaDependencies,
+  SupportedMessageValuesForTopicInput,
   SupportedMessageValuesInput,
-  SupportedMessageValuesInputForTopic,
   SupportedTopics,
   TopicConfig,
 } from './types.ts'
@@ -91,7 +91,7 @@ export abstract class AbstractKafkaPublisher<
 
   async publish<Topic extends SupportedTopics<TopicsConfig>>(
     topic: Topic,
-    message: SupportedMessageValuesInputForTopic<TopicsConfig, Topic>,
+    message: SupportedMessageValuesForTopicInput<TopicsConfig, Topic>,
     requestContext?: RequestContext,
     options?: KafkaMessageOptions,
   ): Promise<void> {

@@ -1,7 +1,6 @@
 import type { QueueDependencies } from '@message-queue-toolkit/core'
 import type { ConnectionOptions } from '@platformatic/kafka'
-import type { ZodSchema } from 'zod'
-import type z from 'zod/v3'
+import type { ZodSchema, z } from 'zod/v4'
 
 export type KafkaDependencies = QueueDependencies
 
