@@ -33,6 +33,6 @@ type MessageSchemas<TopicsConfig extends TopicConfig[]> = TopicsConfig[number]['
 export type SupportedMessageValuesInput<TopicsConfig extends TopicConfig[]> = z.input<
   MessageSchemas<TopicsConfig>
 >
-export type SupportedMessageValues<TopicsConfig extends TopicConfig[]> = z.input<
+export type SupportedMessageValues<TopicsConfig extends TopicConfig[]> = z.output<
   MessageSchemas<TopicsConfig>
 >
