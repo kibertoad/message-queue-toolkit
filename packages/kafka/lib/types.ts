@@ -11,7 +11,7 @@ export type KafkaConfig = {
 
 export type TopicConfig<Topic extends string = string> = {
   topic: Topic
-  schemas: ZodSchema[]
+  schemas: ZodSchema<object>[]
 }
 
 export type SupportedTopics<TopicsConfig extends TopicConfig[]> = TopicsConfig[number]['topic']

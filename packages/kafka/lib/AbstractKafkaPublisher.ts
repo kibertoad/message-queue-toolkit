@@ -8,11 +8,11 @@ import {
   stringSerializer,
 } from '@platformatic/kafka'
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
-import type { RequestContext } from './handler-container/index.js'
+import type { RequestContext } from './handler-container/index.ts'
 import type {
   KafkaDependencies,
-  SupportedMessageValuesInputForTopic,
   SupportedMessageValuesInput,
+  SupportedMessageValuesInputForTopic,
   SupportedTopics,
   TopicConfig,
 } from './types.ts'

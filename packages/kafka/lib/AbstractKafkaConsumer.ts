@@ -20,7 +20,12 @@ import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaServ
 import { KafkaHandlerContainer } from './handler-container/KafkaHandlerContainer.ts'
 import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.ts'
 import type { KafkaHandler, RequestContext } from './handler-container/index.ts'
-import type { KafkaConfig, KafkaDependencies, TopicConfig } from './types.ts'
+import type {
+  KafkaConfig,
+  KafkaDependencies,
+  SupportedMessageValues,
+  TopicConfig,
+} from './types.ts'
 import { ILLEGAL_GENERATION, REBALANCE_IN_PROGRESS, UNKNOWN_MEMBER_ID } from './utils/errorCodes.js'
 import { safeJsonDeserializer } from './utils/safeJsonDeserializer.js'
 
@@ -128,7 +133,11 @@ export abstract class AbstractKafkaConsumer<
       })
     }
 
-    this.consumerStream.on('data', (message) => this.consume(message))
+    this.consumerStream.on('data', (message) =>
+      this.consume(
+        message as Message<string, SupportedMessageValues<TopicsConfig>, string, string>,
+      ),
+    )
     this.consumerStream.on('error', (error) => this.handlerError(error))
   }
 
@@ -140,7 +149,9 @@ export abstract class AbstractKafkaConsumer<
     await this.consumer.close()
   }
 
-  private async consume(message: Message<string, object, string, string>): Promise<void> {
+  private async consume(
+    message: Message<string, SupportedMessageValues<TopicsConfig>, string, string>,
+  ): Promise<void> {
     // message.value can be undefined if the message is not JSON-serializable
     if (!message.value) return this.commitMessage(message)
 
@@ -260,7 +271,9 @@ export abstract class AbstractKafkaConsumer<
     }
   }
 
-  private buildTransactionName(message: Message<string, object, string, string>) {
+  private buildTransactionName(
+    message: Message<string, SupportedMessageValues<TopicsConfig>, string, string>,
+  ) {
     const messageType = this.resolveMessageType(message.value)
 
     let name = `kafka:${this.constructor.name}:${message.topic}`

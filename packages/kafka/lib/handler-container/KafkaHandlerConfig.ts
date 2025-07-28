@@ -14,11 +14,13 @@ export type KafkaHandler<MessageValue extends object, ExecutionContext> = (
 ) => Promise<void> | void
 
 export class KafkaHandlerConfig<MessageValue extends object, ExecutionContext> {
-  public readonly schema: ZodSchema<MessageValue, ZodTypeDef, unknown>
+  // biome-ignore lint/suspicious/noExplicitAny: Input for schema is flexible
+  public readonly schema: ZodSchema<MessageValue, any>
   public readonly handler: KafkaHandler<MessageValue, ExecutionContext>
 
   constructor(
-    schema: ZodSchema<MessageValue, ZodTypeDef, unknown>,
+    // biome-ignore lint/suspicious/noExplicitAny: Input for schema is flexible
+    schema: ZodSchema<MessageValue, any>,
     handler: KafkaHandler<MessageValue, ExecutionContext>,
   ) {
     this.schema = schema

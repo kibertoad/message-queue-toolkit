@@ -3,16 +3,16 @@ import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
 import { Producer, stringSerializers } from '@platformatic/kafka'
 import { type MockInstance, afterAll, expect } from 'vitest'
 import z from 'zod/v4'
-import { KafkaHandlerConfig, type RequestContext } from '../../lib/index.js'
-import { PermissionPublisher } from '../publisher/PermissionPublisher.js'
+import { KafkaHandlerConfig, type RequestContext } from '../../lib/index.ts'
+import { PermissionPublisher } from '../publisher/PermissionPublisher.ts'
 import {
   PERMISSION_ADDED_SCHEMA,
   PERMISSION_REMOVED_SCHEMA,
   PERMISSION_SCHEMA,
   TOPICS,
-} from '../utils/permissionSchemas.js'
-import { type TestContext, createTestContext } from '../utils/testContext.js'
-import { PermissionConsumer } from './PermissionConsumer.js'
+} from '../utils/permissionSchemas.ts'
+import { type TestContext, createTestContext } from '../utils/testContext.ts'
+import { PermissionConsumer } from './PermissionConsumer.ts'
 
 describe('PermissionConsumer', () => {
   let testContext: TestContext

@@ -67,9 +67,13 @@ describe('KafkaHandlerContainer', () => {
       const container = new KafkaHandlerContainer(topicHandlers, 'type')
 
       // Then
-      expect(container.resolveHandler('all', { type: 'create' })?.schema).toBe(CREATE_SCHEMA)
+      expect(container.resolveHandler('all', { type: 'create', prop: 1 })?.schema).toBe(
+        CREATE_SCHEMA,
+      )
       expect(container.resolveHandler('all', { type: 'update' })?.schema).toBe(UPDATE_SCHEMA)
-      expect(container.resolveHandler('all', { type: 'non-existing' })?.schema).toBe(EMPTY_SCHEMA)
+      expect(container.resolveHandler('all', { type: 'non-existing' as any })?.schema).toBe(
+        EMPTY_SCHEMA,
+      )
       expect(container.resolveHandler('all', {})?.schema).toBe(EMPTY_SCHEMA)
 
       expect(container.resolveHandler('create', { type: 'create', prop: 1 })?.schema).toBe(
@@ -81,7 +85,9 @@ describe('KafkaHandlerContainer', () => {
       expect(container.resolveHandler('create', {} as any)?.schema).toBe(undefined)
 
       expect(container.resolveHandler('empty', {} as any)?.schema).toBe(EMPTY_SCHEMA)
-      expect(container.resolveHandler('empty', { type: 'create' })?.schema).toBe(EMPTY_SCHEMA)
+      expect(container.resolveHandler('empty', { type: 'create' } as any)?.schema).toBe(
+        EMPTY_SCHEMA,
+      )
     })
 
     it('should resolve handler without message type', () => {
@@ -104,7 +110,9 @@ describe('KafkaHandlerContainer', () => {
       expect(container.resolveHandler('create', {} as any)?.schema).toBe(CREATE_SCHEMA)
 
       expect(container.resolveHandler('empty', {} as any)?.schema).toBe(EMPTY_SCHEMA)
-      expect(container.resolveHandler('empty', { type: 'create' })?.schema).toBe(EMPTY_SCHEMA)
+      expect(container.resolveHandler('empty', { type: 'create' } as any)?.schema).toBe(
+        EMPTY_SCHEMA,
+      )
     })
   })
 
