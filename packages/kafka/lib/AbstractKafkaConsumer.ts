@@ -19,10 +19,11 @@ import {
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
 import { KafkaHandlerContainer } from './handler-container/KafkaHandlerContainer.ts'
 import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.ts'
-import type { KafkaHandler, RequestContext } from './handler-container/index.ts'
+import type { KafkaHandler } from './handler-container/index.ts'
 import type {
   KafkaConfig,
   KafkaDependencies,
+  RequestContext,
   SupportedMessageValues,
   TopicConfig,
 } from './types.ts'

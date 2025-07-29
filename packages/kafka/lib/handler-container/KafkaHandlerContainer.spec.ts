@@ -2,7 +2,7 @@ import z from 'zod/v4'
 import type { TopicConfig } from '../types.ts'
 import { KafkaHandlerConfig } from './KafkaHandlerConfig.ts'
 import { KafkaHandlerContainer } from './KafkaHandlerContainer.ts'
-import type { KafkaHandlerRouting } from './KafkaHandlerRoutingBuilder.ts'
+import { KafkaHandlerRoutingBuilder } from './KafkaHandlerRoutingBuilder.ts'
 
 const CREATE_SCHEMA = z.object({
   type: z.literal('create'),
@@ -53,18 +53,15 @@ describe('KafkaHandlerContainer', () => {
 
     it('should resolve handler with message type', () => {
       // Given
-      const topicHandlers: KafkaHandlerRouting<TopicsConfig, any, any> = {
-        all: [
-          new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()),
-          new KafkaHandlerConfig(UPDATE_SCHEMA, () => Promise.resolve()),
-          new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()),
-        ],
-        create: [new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve())],
-        empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve())],
-      }
+      const routing = new KafkaHandlerRoutingBuilder<TopicsConfig, any>()
+        .addConfig('all', new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()))
+        .addConfig('all', new KafkaHandlerConfig(UPDATE_SCHEMA, () => Promise.resolve()))
+        .addConfig('all', new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()))
+        .addConfig('create', new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()))
+        .addConfig('empty', new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()))
 
       // When
-      const container = new KafkaHandlerContainer(topicHandlers, 'type')
+      const container = new KafkaHandlerContainer(routing.build(), 'type')
 
       // Then
       expect(container.resolveHandler('all', { type: 'create', prop: 1 })?.schema).toBe(
@@ -92,13 +89,12 @@ describe('KafkaHandlerContainer', () => {
 
     it('should resolve handler without message type', () => {
       // Given
-      const topicHandlers: KafkaHandlerRouting<TopicsConfig, any, any> = {
-        create: [new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve())],
-        empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve())],
-      }
+      const routing = new KafkaHandlerRoutingBuilder<TopicsConfig, any>()
+        .addConfig('create', new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()))
+        .addConfig('empty', new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()))
 
       // When
-      const container = new KafkaHandlerContainer(topicHandlers)
+      const container = new KafkaHandlerContainer(routing.build())
 
       // Then
       expect(container.resolveHandler('create', { type: 'create', prop: 1 })?.schema).toBe(
@@ -127,19 +123,15 @@ describe('KafkaHandlerContainer', () => {
 
     it('should return all topics', () => {
       // Given
-      const topicHandlers: KafkaHandlerRouting<TopicsConfig, any, any> = {
-        all: [
-          new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()),
-          new KafkaHandlerConfig(UPDATE_SCHEMA, () => Promise.resolve()),
-          new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()),
-        ],
-        create: [new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve())],
-        empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve())],
-        another: [],
-      }
+      const routing = new KafkaHandlerRoutingBuilder<TopicsConfig, any>()
+        .addConfig('all', new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()))
+        .addConfig('all', new KafkaHandlerConfig(UPDATE_SCHEMA, () => Promise.resolve()))
+        .addConfig('all', new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()))
+        .addConfig('create', new KafkaHandlerConfig(CREATE_SCHEMA, () => Promise.resolve()))
+        .addConfig('empty', new KafkaHandlerConfig(EMPTY_SCHEMA, () => Promise.resolve()))
 
       // When
-      const container = new KafkaHandlerContainer(topicHandlers, 'type')
+      const container = new KafkaHandlerContainer({ ...routing.build(), another: [] }, 'type')
 
       // Then
       expect(container.topics).toEqual(['all', 'create', 'empty'])

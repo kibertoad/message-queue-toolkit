@@ -1,6 +1,12 @@
+import type { CommonLogger } from '@lokalise/node-core'
 import type { QueueDependencies } from '@message-queue-toolkit/core'
 import type { ConnectionOptions } from '@platformatic/kafka'
 import type { ZodSchema, z } from 'zod/v4'
+
+export interface RequestContext {
+  logger: CommonLogger
+  reqId: string
+}
 
 export type KafkaDependencies = QueueDependencies
 
