@@ -209,13 +209,12 @@ describe('PermissionPublisher', () => {
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
         [InternalError: Error while publishing to Kafka: [
           {
-            "code": "invalid_type",
             "expected": "string",
-            "received": "number",
+            "code": "invalid_type",
             "path": [
               "id"
             ],
-            "message": "Expected string, received number"
+            "message": "Invalid input: expected string, received number"
           }
         ]]
       `)
@@ -356,13 +355,12 @@ describe('PermissionPublisher', () => {
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
         [InternalError: Error while publishing to Kafka: [
           {
-            "code": "invalid_type",
             "expected": "string",
-            "received": "number",
+            "code": "invalid_type",
             "path": [
               "id"
             ],
-            "message": "Expected string, received number"
+            "message": "Invalid input: expected string, received number"
           }
         ]]
       `)
