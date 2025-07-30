@@ -40,7 +40,7 @@
         "@aws-sdk/client-s3": "^3.812.0",
         "@aws-sdk/client-sqs": "^3.812.0",
         "@biomejs/biome": "^1.9.4",
-        "@lokalise/biome-config": "^2.0.0",
+        "@lokalise/biome-config": "^3.1.0",
         "@lokalise/tsconfig": "^2.0.0",
         "@message-queue-toolkit/core": "*",
         "@message-queue-toolkit/redis-message-deduplication-store": "*",
