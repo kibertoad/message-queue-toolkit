@@ -1,8 +1,8 @@
 import type { Message } from '@platformatic/kafka'
 import { expectTypeOf } from 'vitest'
-import z from 'zod'
-import type { TopicConfig } from '../types.ts'
-import { KafkaHandlerConfig, type RequestContext } from './KafkaHandlerConfig.ts'
+import z from 'zod/v4'
+import type { RequestContext, TopicConfig } from '../types.ts'
+import { KafkaHandlerConfig } from './KafkaHandlerConfig.ts'
 import { KafkaHandlerRoutingBuilder } from './KafkaHandlerRoutingBuilder.ts'
 
 const CREATE_SCHEMA = z.object({ type: z.literal('create') })

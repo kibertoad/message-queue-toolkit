@@ -6,11 +6,10 @@ import type {
 } from '../types.ts'
 import type { KafkaHandlerConfig } from './KafkaHandlerConfig.ts'
 
-export type KafkaHandlerRouting<
-  TopicsConfig extends TopicConfig[],
-  ExecutionContext,
-  MessageValue extends SupportedMessageValues<TopicsConfig> = SupportedMessageValues<TopicsConfig>,
-> = Record<string, KafkaHandlerConfig<MessageValue, ExecutionContext>[]>
+export type KafkaHandlerRouting<TopicsConfig extends TopicConfig[], ExecutionContext> = Record<
+  string,
+  KafkaHandlerConfig<SupportedMessageValues<TopicsConfig>, ExecutionContext>[]
+>
 
 export class KafkaHandlerRoutingBuilder<
   const TopicsConfig extends TopicConfig[],
@@ -23,7 +22,9 @@ export class KafkaHandlerRoutingBuilder<
     MessageValue extends SupportedMessageValuesForTopic<TopicsConfig, Topic>,
   >(topic: Topic, config: KafkaHandlerConfig<MessageValue, ExecutionContext>): this {
     this.configs[topic] ??= []
-    this.configs[topic].push(config)
+    this.configs[topic].push(
+      config as KafkaHandlerConfig<SupportedMessageValues<TopicsConfig>, ExecutionContext>,
+    )
 
     return this
   }

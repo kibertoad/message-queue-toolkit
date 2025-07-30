@@ -1,5 +1,5 @@
 import { stringValueSerializer } from '@lokalise/node-core'
-import { safeJsonDeserializer } from './safeJsonDeserializer.js'
+import { safeJsonDeserializer } from './safeJsonDeserializer.ts'
 
 describe('safeJsonDeserializer', () => {
   it('should deserialize valid JSON strings', () => {
