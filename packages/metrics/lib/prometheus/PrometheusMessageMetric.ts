@@ -9,6 +9,8 @@ import type { MessageVersionGeneratingFunction, PrometheusMetricParams } from '.
 export abstract class PrometheusMessageMetric<
   MessagePayload extends object,
   MetricType extends Metric,
+  MetricParams extends
+    PrometheusMetricParams<MessagePayload> = PrometheusMetricParams<MessagePayload>,
 > implements MessageMetricsManager<MessagePayload>
 {
   /** Fallbacks to null if metrics are disabled on app level */
@@ -16,13 +18,13 @@ export abstract class PrometheusMessageMetric<
 
   protected readonly messageVersionGeneratingFunction: MessageVersionGeneratingFunction<MessagePayload>
 
-  private readonly metricParams: PrometheusMetricParams<MessagePayload>
+  private readonly metricParams: MetricParams
 
   /**
    * @param metricParams - metrics parameters (see PrometheusMetricParams)
    * @param client - use it to specify custom Prometheus client
    */
-  constructor(metricParams: PrometheusMetricParams<MessagePayload>, client?: typeof promClient) {
+  constructor(metricParams: MetricParams, client?: typeof promClient) {
     this.metricParams = metricParams
     this.messageVersionGeneratingFunction =
       this.resolveMessageVersionGeneratingFunction(metricParams)
@@ -38,15 +40,12 @@ export abstract class PrometheusMessageMetric<
   }
 
   private resolveMessageVersionGeneratingFunction(
-    metricParams: PrometheusMetricParams<MessagePayload>,
+    metricParams: MetricParams,
   ): MessageVersionGeneratingFunction<MessagePayload> {
     const messageVersion = metricParams.messageVersion
     return typeof messageVersion === 'function' ? messageVersion : () => messageVersion
   }
 
-  protected abstract createMetric(
-    client: typeof promClient,
-    metricParams: PrometheusMetricParams<MessagePayload>,
-  ): MetricType
+  protected abstract createMetric(client: typeof promClient, metricParams: MetricParams): MetricType
   abstract registerProcessedMessage(metadata: ProcessedMessageMetadata<MessagePayload>): void
 }

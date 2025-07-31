@@ -1,3 +1,4 @@
+import type { MakeRequired } from '@lokalise/universal-ts-utils/node'
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import type { Histogram } from 'prom-client'
 import type promClient from 'prom-client'
@@ -9,7 +10,8 @@ export abstract class PrometheusMessageTimeMetric<
   MessagePayload extends object,
 > extends PrometheusMessageMetric<
   MessagePayload,
-  Histogram<'messageType' | 'version' | 'queue' | 'result'>
+  Histogram<'messageType' | 'version' | 'queue' | 'result'>,
+  MakeRequired<PrometheusMetricParams<MessagePayload>, 'buckets'>
 > {
   protected createMetric(
     client: typeof promClient,

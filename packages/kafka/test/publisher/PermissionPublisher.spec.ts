@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { InternalError } from '@lokalise/node-core'
 import type { MockInstance } from 'vitest'
-import z from 'zod/v3'
+import z from 'zod/v4'
 import {
   PERMISSION_ADDED_SCHEMA,
   PERMISSION_GENERAL_TOPIC,
@@ -209,13 +209,12 @@ describe('PermissionPublisher', () => {
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
         [InternalError: Error while publishing to Kafka: [
           {
-            "code": "invalid_type",
             "expected": "string",
-            "received": "number",
+            "code": "invalid_type",
             "path": [
               "id"
             ],
-            "message": "Expected string, received number"
+            "message": "Invalid input: expected string, received number"
           }
         ]]
       `)
@@ -356,13 +355,12 @@ describe('PermissionPublisher', () => {
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
         [InternalError: Error while publishing to Kafka: [
           {
-            "code": "invalid_type",
             "expected": "string",
-            "received": "number",
+            "code": "invalid_type",
             "path": [
               "id"
             ],
-            "message": "Expected string, received number"
+            "message": "Invalid input: expected string, received number"
           }
         ]]
       `)

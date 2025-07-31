@@ -4,8 +4,8 @@ import {
   AbstractKafkaConsumer,
   type KafkaConsumerDependencies,
   type KafkaConsumerOptions,
-} from '../../lib/AbstractKafkaConsumer.js'
-import { KafkaHandlerConfig, KafkaHandlerRoutingBuilder } from '../../lib/index.js'
+} from '../../lib/AbstractKafkaConsumer.ts'
+import { KafkaHandlerConfig, KafkaHandlerRoutingBuilder } from '../../lib/index.ts'
 import {
   PERMISSION_ADDED_SCHEMA,
   PERMISSION_REMOVED_SCHEMA,
@@ -14,8 +14,8 @@ import {
   type Permission,
   type PermissionAdded,
   type PermissionRemoved,
-} from '../utils/permissionSchemas.js'
-import { getKafkaConfig } from '../utils/testContext.js'
+} from '../utils/permissionSchemas.ts'
+import { getKafkaConfig } from '../utils/testContext.ts'
 
 type ExecutionContext = {
   incrementAmount: number

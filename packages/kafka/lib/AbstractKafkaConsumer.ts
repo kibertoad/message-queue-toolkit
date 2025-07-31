@@ -19,10 +19,16 @@ import {
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
 import { KafkaHandlerContainer } from './handler-container/KafkaHandlerContainer.ts'
 import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.ts'
-import type { KafkaHandler, RequestContext } from './handler-container/index.ts'
-import type { KafkaConfig, KafkaDependencies, TopicConfig } from './types.ts'
-import { ILLEGAL_GENERATION, REBALANCE_IN_PROGRESS, UNKNOWN_MEMBER_ID } from './utils/errorCodes.js'
-import { safeJsonDeserializer } from './utils/safeJsonDeserializer.js'
+import type { KafkaHandler } from './handler-container/index.ts'
+import type {
+  KafkaConfig,
+  KafkaDependencies,
+  RequestContext,
+  SupportedMessageValues,
+  TopicConfig,
+} from './types.ts'
+import { ILLEGAL_GENERATION, REBALANCE_IN_PROGRESS, UNKNOWN_MEMBER_ID } from './utils/errorCodes.ts'
+import { safeJsonDeserializer } from './utils/safeJsonDeserializer.ts'
 
 export type KafkaConsumerDependencies = KafkaDependencies &
   Pick<QueueConsumerDependencies, 'transactionObservabilityManager'>
@@ -128,7 +134,11 @@ export abstract class AbstractKafkaConsumer<
       })
     }
 
-    this.consumerStream.on('data', (message) => this.consume(message))
+    this.consumerStream.on('data', (message) =>
+      this.consume(
+        message as Message<string, SupportedMessageValues<TopicsConfig>, string, string>,
+      ),
+    )
     this.consumerStream.on('error', (error) => this.handlerError(error))
   }
 
@@ -140,7 +150,9 @@ export abstract class AbstractKafkaConsumer<
     await this.consumer.close()
   }
 
-  private async consume(message: Message<string, object, string, string>): Promise<void> {
+  private async consume(
+    message: Message<string, SupportedMessageValues<TopicsConfig>, string, string>,
+  ): Promise<void> {
     // message.value can be undefined if the message is not JSON-serializable
     if (!message.value) return this.commitMessage(message)
 
@@ -169,7 +181,7 @@ export abstract class AbstractKafkaConsumer<
       return this.commitMessage(message)
     }
 
-    const validatedMessage = parseResult.data
+    const validatedMessage = { ...message, value: parseResult.data }
 
     const requestContext = this.getRequestContext(message)
 
@@ -179,11 +191,7 @@ export abstract class AbstractKafkaConsumer<
       // exponential backoff -> 2^(retry-1)
       if (retries > 0) await setTimeout(Math.pow(2, retries - 1))
 
-      consumed = await this.tryToConsume(
-        { ...message, value: validatedMessage },
-        handler.handler,
-        requestContext,
-      )
+      consumed = await this.tryToConsume(validatedMessage, handler.handler, requestContext)
       if (consumed) break
 
       retries++
@@ -191,13 +199,13 @@ export abstract class AbstractKafkaConsumer<
 
     if (consumed) {
       this.handleMessageProcessed({
-        message: message,
+        message: validatedMessage,
         processingResult: { status: 'consumed' },
         messageProcessingStartTimestamp,
       })
     } else {
       this.handleMessageProcessed({
-        message: message,
+        message: validatedMessage,
         processingResult: { status: 'error', errorReason: 'handlerError' },
         messageProcessingStartTimestamp,
       })
@@ -205,7 +213,7 @@ export abstract class AbstractKafkaConsumer<
 
     this.transactionObservabilityManager?.stop(transactionId)
 
-    return this.commitMessage(message)
+    return this.commitMessage(validatedMessage)
   }
 
   private async tryToConsume<MessageValue extends object>(
@@ -264,7 +272,9 @@ export abstract class AbstractKafkaConsumer<
     }
   }
 
-  private buildTransactionName(message: Message<string, object, string, string>) {
+  private buildTransactionName(
+    message: Message<string, SupportedMessageValues<TopicsConfig>, string, string>,
+  ) {
     const messageType = this.resolveMessageType(message.value)
 
     let name = `kafka:${this.constructor.name}:${message.topic}`

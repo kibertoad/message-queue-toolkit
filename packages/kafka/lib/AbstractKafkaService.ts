@@ -36,8 +36,11 @@ export type BaseKafkaOptions = {
   logMessages?: boolean
 } & Omit<BaseOptions, keyof KafkaConfig> // Exclude properties that are already in KafkaConfig
 
-type ProcessedMessage = MayOmit<
-  Pick<Message<string, object, string, string>, 'topic' | 'value' | 'timestamp'>,
+type ProcessedMessage<TopicsConfig extends TopicConfig[]> = MayOmit<
+  Pick<
+    Message<string, SupportedMessageValues<TopicsConfig>, string, string>,
+    'topic' | 'value' | 'timestamp'
+  >,
   'timestamp'
 >
 
@@ -76,6 +79,7 @@ export abstract class AbstractKafkaService<
 
   protected resolveMessageType(message: SupportedMessageValues<TopicsConfig>): string | undefined {
     if (!this.options.messageTypeField) return undefined
+    // @ts-expect-error
     return message[this.options.messageTypeField] as string | undefined
   }
 
@@ -89,7 +93,7 @@ export abstract class AbstractKafkaService<
   }
 
   protected handleMessageProcessed(params: {
-    message: ProcessedMessage
+    message: ProcessedMessage<TopicsConfig>
     processingResult: MessageProcessingResult
     messageProcessingStartTimestamp: number
   }) {
