@@ -29,7 +29,7 @@
     },
     "dependencies": {
         "@lokalise/node-core": "^14.0.1",
-        "zod": "^3.25.67"
+        "zod": "^4.0.14"
     },
     "peerDependencies": {
         "@message-queue-toolkit/core": ">=22.0.0",
