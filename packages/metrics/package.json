@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/metrics",
-    "version": "4.1.1",
+    "version": "4.2.0",
     "private": false,
     "license": "MIT",
     "description": "Utilities for collecting metrics in message-queue-toolkit",
