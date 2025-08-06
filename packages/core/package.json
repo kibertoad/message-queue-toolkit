@@ -26,13 +26,15 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^14.0.1",
+        "@lokalise/node-core": "^14.2.0",
         "@message-queue-toolkit/schemas": "^7.0.0",
         "fast-equals": "^5.2.2",
         "json-stream-stringify": "^3.1.6",
         "tmp": "^0.2.3",
-        "toad-cache": "^3.7.0",
-        "zod": "^3.25.67"
+        "toad-cache": "^3.7.0"
+    },
+    "peerDependencies": {
+        "zod": ">=3.25.76 <5.0.0"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.4",
@@ -44,8 +46,9 @@
         "awilix": "^12.0.5",
         "awilix-manager": "^6.1.0",
         "rimraf": "^6.0.1",
-        "typescript": "^5.8.3",
-        "vitest": "^3.2.4"
+        "typescript": "^5.9.2",
+        "vitest": "^3.2.4",
+        "zod": "^4.0.15"
     },
     "homepage": "https://github.com/kibertoad/message-queue-toolkit",
     "repository": {

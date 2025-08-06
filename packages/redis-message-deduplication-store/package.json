@@ -28,7 +28,7 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^14.0.1",
+        "@lokalise/node-core": "^14.2.0",
         "redis-semaphore": "^5.6.2"
     },
     "peerDependencies": {
@@ -43,7 +43,7 @@
         "@types/node": "^24.0.3",
         "@vitest/coverage-v8": "^3.2.4",
         "rimraf": "^6.0.1",
-        "typescript": "^5.8.3",
+        "typescript": "^5.9.2",
         "vitest": "^3.2.4"
     },
     "homepage": "https://github.com/kibertoad/message-queue-toolkit",
