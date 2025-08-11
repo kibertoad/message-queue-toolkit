@@ -12,8 +12,8 @@ export class FakeLogger implements CommonLogger {
   }
 
   get msgPrefix(): string | undefined {
-        return undefined
-    }
+    return undefined
+  }
 
   debug(obj: unknown) {
     this.saveLog(obj)
