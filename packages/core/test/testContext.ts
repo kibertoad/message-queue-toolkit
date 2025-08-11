@@ -1,12 +1,11 @@
 import type { CommonLogger, ErrorReporter } from '@lokalise/node-core'
+import type { TransactionObservabilityManager } from '@lokalise/node-core'
+import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/schemas'
 import { type Resolver, asClass } from 'awilix'
 import { Lifetime, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
-import { pino } from 'pino'
+import pino from 'pino'
 import { z } from 'zod/v4'
-
-import type { TransactionObservabilityManager } from '@lokalise/node-core'
-import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/schemas'
 import { DomainEventEmitter } from '../lib/events/DomainEventEmitter.ts'
 import { EventRegistry } from '../lib/events/EventRegistry.ts'
 import type { CommonEventDefinition } from '../lib/events/eventTypes.ts'
@@ -18,7 +17,7 @@ export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
 export type DependencyOverrides = Partial<DiConfig>
 
-const TestLogger: CommonLogger = pino()
+const TestLogger: CommonLogger = pino.pino()
 
 export const TestEvents = {
   created: {
