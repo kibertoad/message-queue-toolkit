@@ -83,7 +83,7 @@ export const TestEvents = {
 export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
 export type TestEventPublishPayloadsType = z.output<TestEventsType[number]['publisherSchema']>
 
-const TestLogger: CommonLogger = pino.pino()
+const TestLogger: CommonLogger = pino()
 
 export async function registerDependencies(
   config: AmqpConfig,

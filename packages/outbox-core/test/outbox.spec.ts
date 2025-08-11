@@ -51,7 +51,7 @@ const createdEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestE
   },
 }
 
-const TestLogger: Logger = pino.pino()
+const TestLogger: Logger = pino()
 
 const MAX_RETRY_COUNT = 2
 

@@ -17,7 +17,7 @@ export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
 export type DependencyOverrides = Partial<DiConfig>
 
-const TestLogger: CommonLogger = pino.pino()
+const TestLogger: CommonLogger = pino()
 
 export const TestEvents = {
   created: {
