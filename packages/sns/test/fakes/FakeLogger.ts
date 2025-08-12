@@ -13,6 +13,10 @@ export class FakeLogger implements CommonLogger {
     this.level = level
   }
 
+  get msgPrefix(): string | undefined {
+    return undefined
+  }
+
   debug(obj: unknown) {
     this.loggedMessages.push(obj)
   }

@@ -11,7 +11,7 @@ import {
 import type { NameAndRegistrationPair } from 'awilix'
 import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
-import { pino } from 'pino'
+import pino from 'pino'
 import { z } from 'zod/v4'
 import { AmqpConnectionManager } from '../../lib/AmqpConnectionManager.ts'
 import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager.ts'

@@ -2,7 +2,7 @@ import { SNSClient, type SNSClientConfig } from '@aws-sdk/client-sns'
 import { SQSClient } from '@aws-sdk/client-sqs'
 import { STSClient } from '@aws-sdk/client-sts'
 import { SnsConsumerErrorResolver } from '@message-queue-toolkit/sns'
-import { pino } from 'pino'
+import pino from 'pino'
 import { UserConsumer } from './UserConsumer.ts'
 
 export const TEST_AWS_CONFIG: SNSClientConfig = {
