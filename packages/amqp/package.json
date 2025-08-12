@@ -50,7 +50,7 @@
         "rimraf": "^6.0.1",
         "typescript": "^5.9.2",
         "vitest": "^3.2.4",
-        "zod": "^3.25.76"
+        "zod": "^4.0.17"
     },
     "homepage": "https://github.com/kibertoad/message-queue-toolkit",
     "repository": {
