@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/kafka",
-    "version": "0.5.1",
+    "version": "0.6.0",
     "engines": {
         "node": ">= 22.14.0"
     },
@@ -49,7 +49,7 @@
     "dependencies": {
         "@lokalise/node-core": "^14.2.0",
         "@lokalise/universal-ts-utils": "^4.5.1",
-        "@platformatic/kafka": "^1.9.0"
+        "@platformatic/kafka": "^1.10.5"
     },
     "peerDependencies": {
         "@message-queue-toolkit/core": ">=23.0.0",

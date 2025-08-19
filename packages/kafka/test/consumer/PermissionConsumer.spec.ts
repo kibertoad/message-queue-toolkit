@@ -114,6 +114,52 @@ describe('PermissionConsumer', () => {
     })
   })
 
+  describe('isConnected', () => {
+    it('should return false if consumer is not initiated', () => {
+      // Given
+      consumer = new PermissionConsumer(testContext.cradle)
+
+      // When - Then
+      expect(consumer.isConnected).toBe(false)
+    })
+
+    it('should return true if consumer is initiated', async () => {
+      // Given
+      consumer = new PermissionConsumer(testContext.cradle)
+
+      // When
+      await consumer.init()
+
+      // Then
+      expect(consumer.isConnected).toBe(true)
+      await consumer.close()
+      expect(consumer.isConnected).toBe(false)
+    })
+  })
+
+  describe('isActive', () => {
+    it('should return false if consumer is not initiated', () => {
+      // Given
+      consumer = new PermissionConsumer(testContext.cradle)
+
+      // When - Then
+      expect(consumer.isActive).toBe(false)
+    })
+
+    it('should return true if consumer is initiated', async () => {
+      // Given
+      consumer = new PermissionConsumer(testContext.cradle)
+
+      // When
+      await consumer.init()
+
+      // Then
+      expect(consumer.isActive).toBe(true)
+      await consumer.close()
+      expect(consumer.isActive).toBe(false)
+    })
+  })
+
   describe('consume', () => {
     let publisher: PermissionPublisher
 
