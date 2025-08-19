@@ -36,8 +36,8 @@
         "ioredis": "^5.3.2"
     },
     "devDependencies": {
-        "@biomejs/biome": "^1.9.4",
-        "@lokalise/biome-config": "^2.0.0",
+        "@biomejs/biome": "^2.2.0",
+        "@lokalise/biome-config": "^3.1.0",
         "@lokalise/tsconfig": "^2.0.0",
         "@message-queue-toolkit/core": "*",
         "@types/node": "^24.0.3",
@@ -61,5 +61,9 @@
         "deduplication",
         "store"
     ],
-    "files": ["README.md", "LICENSE", "dist/*"]
+    "files": [
+        "README.md",
+        "LICENSE",
+        "dist/*"
+    ]
 }
