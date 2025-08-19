@@ -111,6 +111,21 @@ export abstract class AbstractKafkaConsumer<
     /* v8 ignore stop */
   }
 
+  /**
+   * Returns true if all client's connections are currently connected and the client is connected to at least one broker.
+   */
+  get isConnected(): boolean {
+    return this.consumer.isConnected()
+  }
+
+  /**
+   * Returns `true` if the consumer is not closed, and it is currently an active member of a consumer group.
+   * This method will return `false` during consumer group rebalancing.
+   */
+  get isActive(): boolean {
+    return this.consumer.isActive()
+  }
+
   async init(): Promise<void> {
     if (this.consumerStream) return Promise.resolve()
     const topics = this.handlerContainer.topics
