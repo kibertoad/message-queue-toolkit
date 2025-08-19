@@ -22,7 +22,11 @@
         "notification",
         "kafka"
     ],
-    "files": ["README.md", "LICENSE", "dist"],
+    "files": [
+        "README.md",
+        "LICENSE",
+        "dist"
+    ],
     "maintainers": [
         {
             "name": "Igor Savin",
@@ -57,8 +61,8 @@
         "zod": ">=3.25.76 <5.0.0"
     },
     "devDependencies": {
-        "@biomejs/biome": "^1.9.4",
-        "@lokalise/biome-config": "^2.0.0",
+        "@biomejs/biome": "^2.2.0",
+        "@lokalise/biome-config": "^3.1.0",
         "@lokalise/tsconfig": "^2.0.0",
         "@message-queue-toolkit/core": ">=23.0.0",
         "@message-queue-toolkit/schemas": ">=7.0.0",

@@ -78,7 +78,6 @@ describe('outbox', () => {
     outboxProcessor = new OutboxProcessor<TestEventsType>(
       {
         outboxStorage,
-        //@ts-ignore
         outboxAccumulator: inMemoryOutboxAccumulator,
         eventEmitter,
       } satisfies OutboxDependencies<TestEventsType>,

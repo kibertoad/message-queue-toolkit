@@ -5,20 +5,20 @@ import {
   type DeadLetterQueueOptions,
   DeduplicationRequesterEnum,
   HandlerContainer,
+  isMessageError,
   type MessageSchemaContainer,
+  noopReleasableLock,
   type ParseMessageResult,
   type PreHandlingOutputs,
   type Prehandler,
+  parseMessage,
   type QueueConsumer,
   type QueueConsumerDependencies,
   type QueueConsumerOptions,
   type TransactionObservabilityManager,
-  isMessageError,
-  noopReleasableLock,
-  parseMessage,
 } from '@message-queue-toolkit/core'
-import { Consumer } from 'sqs-consumer'
 import type { ConsumerOptions } from 'sqs-consumer'
+import { Consumer } from 'sqs-consumer'
 
 import type { SQSMessage } from '../types/MessageTypes.ts'
 import { hasOffloadedPayload } from '../utils/messageUtils.ts'
@@ -221,7 +221,7 @@ export abstract class AbstractSqsConsumer<
       visibilityTimeout: options.visibilityTimeout,
       messageAttributeNames: [`${PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX}*`],
       ...this.consumerOptionsOverride,
-      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixme
       handleMessage: async (message: SQSMessage) => {
         if (message === null) return
 
@@ -291,12 +291,12 @@ export abstract class AbstractSqsConsumer<
           return
         }
 
-        // @ts-ignore
+        // @ts-expect-error
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         const messageType = parsedMessage[this.messageTypeField]
         const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
-        // @ts-ignore
+        // @ts-expect-error
         const uniqueTransactionKey = parsedMessage[this.messageIdField]
         this.transactionObservabilityManager?.start(transactionSpanId, uniqueTransactionKey)
         if (this.logMessages) {
@@ -412,7 +412,7 @@ export abstract class AbstractSqsConsumer<
   protected override processMessage(
     message: MessagePayloadType,
     messageType: string,
-    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+    // biome-ignore lint/suspicious/noExplicitAny: Expected
     preHandlingOutputs: PreHandlingOutputs<PrehandlerOutput, any>,
   ): Promise<Either<'retryLater', 'success'>> {
     const handler = this.handlerContainer.resolveHandler<PrehandlerOutput>(messageType)
@@ -517,10 +517,10 @@ export abstract class AbstractSqsConsumer<
     // Empty content for whatever reason
     if (!resolvedMessage || !resolvedMessage.body) return ABORT_EARLY_EITHER
 
-    // @ts-ignore
+    // @ts-expect-error
     if (this.messageIdField in resolvedMessage.body) {
       return {
-        // @ts-ignore
+        // @ts-expect-error
         result: resolvedMessage.body[this.messageIdField],
       }
     }

@@ -56,11 +56,11 @@ export abstract class AbstractSqsService<
 > {
   protected readonly sqsClient: SQSClient
 
-  // @ts-ignore
+  // @ts-expect-error
   protected queueName: string
-  // @ts-ignore
+  // @ts-expect-error
   protected queueUrl: string
-  // @ts-ignore
+  // @ts-expect-error
   protected queueArn: string
 
   constructor(dependencies: DependenciesType, options: SQSOptionsType) {

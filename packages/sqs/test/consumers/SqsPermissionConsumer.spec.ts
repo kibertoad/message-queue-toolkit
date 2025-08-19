@@ -1,11 +1,11 @@
 import { setTimeout } from 'node:timers/promises'
-
 import {
   ListQueueTagsCommand,
-  type SQSClient,
+  ReceiveMessageCommand,
+  SendMessageCommand,
   type SendMessageCommandInput,
+  type SQSClient,
 } from '@aws-sdk/client-sqs'
-import { ReceiveMessageCommand, SendMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { BarrierResult, ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
@@ -17,8 +17,8 @@ import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorReso
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
 import { FakeLogger } from '../fakes/FakeLogger.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
-import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext.ts'
 import type { Dependencies } from '../utils/testContext.ts'
+import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext.ts'
 
 import { SqsPermissionConsumer, type SupportedMessages } from './SqsPermissionConsumer.ts'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas.ts'

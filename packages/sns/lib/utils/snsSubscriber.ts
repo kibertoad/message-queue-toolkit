@@ -1,17 +1,15 @@
 import type { SNSClient, SubscribeCommandInput } from '@aws-sdk/client-sns'
 import { SetSubscriptionAttributesCommand, SubscribeCommand } from '@aws-sdk/client-sns'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
+import type { STSClient } from '@aws-sdk/client-sts'
 import type { ExtraParams } from '@message-queue-toolkit/core'
 import type { ExtraSQSCreationParams } from '@message-queue-toolkit/sqs'
 import { assertQueue } from '@message-queue-toolkit/sqs'
-
 import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService.ts'
-
-import type { STSClient } from '@aws-sdk/client-sts'
 import {
-  type TopicResolutionOptions,
   isCreateTopicCommand,
   isSNSTopicLocatorType,
+  type TopicResolutionOptions,
 } from '../types/TopicTypes.ts'
 import { assertTopic, findSubscriptionByTopicAndQueue, getTopicArnByName } from './snsUtils.ts'
 
@@ -84,7 +82,6 @@ export async function subscribeToTopic(
     }
   } catch (err) {
     const logger = extraParams?.logger ?? console
-    // @ts-ignore
     logger.error(
       `Error while creating subscription for queue "${queueConfiguration.QueueName}", topic "${
         isCreateTopicCommand(topicConfiguration)

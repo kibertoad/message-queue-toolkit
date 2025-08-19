@@ -64,7 +64,7 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[], Execution
     const handlers = this.handlers[topic]
     if (!handlers) return undefined
 
-    let messageValueType: string | undefined = undefined
+    let messageValueType: string | undefined
     // @ts-expect-error
     if (this.messageTypeField) messageValueType = messageValue[this.messageTypeField]
 

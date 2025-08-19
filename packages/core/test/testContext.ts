@@ -1,8 +1,10 @@
-import type { CommonLogger, ErrorReporter } from '@lokalise/node-core'
-import type { TransactionObservabilityManager } from '@lokalise/node-core'
+import type {
+  CommonLogger,
+  ErrorReporter,
+  TransactionObservabilityManager,
+} from '@lokalise/node-core'
 import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/schemas'
-import { type Resolver, asClass } from 'awilix'
-import { Lifetime, asFunction, createContainer } from 'awilix'
+import { asClass, asFunction, createContainer, Lifetime, type Resolver } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import pino from 'pino'
 import { z } from 'zod/v4'

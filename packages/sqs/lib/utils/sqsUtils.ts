@@ -1,3 +1,9 @@
+import type {
+  CreateQueueCommandInput,
+  QueueAttributeName,
+  SendMessageCommandInput,
+  SQSClient,
+} from '@aws-sdk/client-sqs'
 import {
   CreateQueueCommand,
   DeleteQueueCommand,
@@ -5,12 +11,6 @@ import {
   GetQueueUrlCommand,
   ListQueuesCommand,
   SetQueueAttributesCommand,
-} from '@aws-sdk/client-sqs'
-import type {
-  CreateQueueCommandInput,
-  QueueAttributeName,
-  SQSClient,
-  SendMessageCommandInput,
 } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
 import { globalLogger } from '@lokalise/node-core'
@@ -48,7 +48,7 @@ export async function getQueueUrl(
       error: 'not_found',
     }
   } catch (err) {
-    // @ts-ignore
+    // @ts-expect-error
     if (err.Code === 'AWS.SimpleQueueService.NonExistentQueue') {
       return {
         error: 'not_found',
@@ -76,10 +76,9 @@ export async function getQueueAttributes(
       },
     }
   } catch (err) {
-    // @ts-ignore
+    // @ts-expect-error
     if (err.Code === 'AWS.SimpleQueueService.NonExistentQueue') {
       return {
-        // @ts-ignore
         error: 'not_found',
       }
     }
@@ -159,7 +158,7 @@ export async function assertQueue(
   queueConfig: CreateQueueCommandInput,
   extraParams?: ExtraSQSCreationParams,
 ) {
-  // biome-ignore lint/style/noNonNullAssertion: <explanation>
+  // biome-ignore lint/style/noNonNullAssertion: It's ok
   const queueUrlResult = await getQueueUrl(sqsClient, queueConfig.QueueName!)
   const queueExists = !!queueUrlResult.result
 
@@ -171,7 +170,7 @@ export async function assertQueue(
   const command = new CreateQueueCommand(queueConfig)
   await sqsClient.send(command)
 
-  // biome-ignore lint/style/noNonNullAssertion: <explanation>
+  // biome-ignore lint/style/noNonNullAssertion: It's ok
   const newQueueUrlResult = await getQueueUrl(sqsClient, queueConfig.QueueName!)
   const newQueueExists = !!newQueueUrlResult.result
 
@@ -239,12 +238,12 @@ export async function deleteQueue(
     }
   } catch (err) {
     // This is fine
-    // @ts-ignore
+    // @ts-expect-error
     if (err.name === AWS_QUEUE_DOES_NOT_EXIST_ERROR_NAME) {
       return
     }
 
-    // @ts-ignore
+    // @ts-expect-error
     globalLogger.error(`Failed to delete: ${err.message}`)
   }
 }

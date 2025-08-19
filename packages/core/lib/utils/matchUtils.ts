@@ -12,7 +12,7 @@ export function isShallowSubset(
   }
 
   const keysSubset = Object.keys(maybeSubset)
-  // biome-ignore lint/style/noNonNullAssertion: <explanation>
+  // biome-ignore lint/style/noNonNullAssertion: It's ok
   const keysSuperset = Object.keys(maybeSuperset!)
 
   if (keysSubset.length === 0) {
@@ -23,7 +23,7 @@ export function isShallowSubset(
   }
 
   for (const key of keysSubset) {
-    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    // biome-ignore lint/style/noNonNullAssertion: It's ok
     if (maybeSubset[key] !== maybeSuperset![key]) {
       return false
     }
@@ -35,7 +35,7 @@ export function isShallowSubset(
 /**
  * Returns true if `validatedObject` contains all of the fields included on `matcher`, and their values are deeply equal
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixme
 export function objectMatches(
   // biome-ignore lint/suspicious/noExplicitAny: This is expected
   matcher: Record<string, any>,
@@ -43,9 +43,9 @@ export function objectMatches(
   validatedObject: Record<string, any>,
 ): boolean {
   for (const key in matcher) {
-    if (!Object.prototype.hasOwnProperty.call(matcher, key)) continue
+    if (!Object.hasOwn(matcher, key)) continue
 
-    if (!Object.prototype.hasOwnProperty.call(validatedObject, key)) {
+    if (!Object.hasOwn(validatedObject, key)) {
       return false
     }
 

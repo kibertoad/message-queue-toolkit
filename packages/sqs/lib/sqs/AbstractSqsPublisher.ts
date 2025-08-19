@@ -72,7 +72,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       const parsedMessage = messageSchemaResult.result.parse(message)
 
       if (this.logMessages) {
-        // @ts-ignore
+        // @ts-expect-error
         const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
         this.logMessage(resolvedLogMessage)
       }
@@ -114,7 +114,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
           publisher: this.constructor.name,
           queueArn: this.queueArn,
           queueName: this.queueName,
-          // @ts-ignore
+          // @ts-expect-error
           messageType: message[this.messageTypeField] ?? 'unknown',
         },
         cause: err,

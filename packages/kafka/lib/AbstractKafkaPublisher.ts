@@ -1,10 +1,10 @@
 import { InternalError, stringValueSerializer } from '@lokalise/node-core'
 import { MessageSchemaContainer } from '@message-queue-toolkit/core'
 import {
+  jsonSerializer,
   type MessageToProduce,
   type ProduceOptions,
   Producer,
-  jsonSerializer,
   stringSerializer,
 } from '@platformatic/kafka'
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'

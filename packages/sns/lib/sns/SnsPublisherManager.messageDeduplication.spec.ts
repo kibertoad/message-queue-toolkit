@@ -8,7 +8,7 @@ import type {
   TestEventPublishPayloadsType,
   TestEventsType,
 } from '../../test/utils/testContext.ts'
-import { TestEvents, registerDependencies } from '../../test/utils/testContext.ts'
+import { registerDependencies, TestEvents } from '../../test/utils/testContext.ts'
 import { type CommonSnsPublisher, CommonSnsPublisherFactory } from './CommonSnsPublisherFactory.ts'
 import { SnsPublisherManager } from './SnsPublisherManager.ts'
 

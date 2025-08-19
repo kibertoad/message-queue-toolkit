@@ -1,6 +1,6 @@
 import { type CommonLogger, deepClone } from '@lokalise/node-core'
-import type { Bindings, ChildLoggerOptions } from 'pino'
 import type pino from 'pino'
+import type { Bindings, ChildLoggerOptions } from 'pino'
 
 export class FakeLogger implements CommonLogger {
   public readonly loggedMessages: unknown[] = []

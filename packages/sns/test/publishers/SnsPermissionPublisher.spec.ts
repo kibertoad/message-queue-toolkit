@@ -1,13 +1,13 @@
 import { ListTagsForResourceCommand, type SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
+import type { STSClient } from '@aws-sdk/client-sts'
 import type { InternalError } from '@lokalise/node-core'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
-import { FakeConsumerErrorResolver, assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
+import { assertQueue, deleteQueue, FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-
 import { deserializeSNSMessage } from '../../lib/utils/snsMessageDeserializer.ts'
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber.ts'
 import { assertTopic, deleteTopic, getTopicAttributes } from '../../lib/utils/snsUtils.ts'
@@ -16,10 +16,8 @@ import type {
   PERMISSIONS_MESSAGE_TYPE,
 } from '../consumers/userConsumerSchemas.ts'
 import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas.ts'
-import { registerDependencies } from '../utils/testContext.ts'
 import type { Dependencies } from '../utils/testContext.ts'
-
-import type { STSClient } from '@aws-sdk/client-sts'
+import { registerDependencies } from '../utils/testContext.ts'
 import { SnsPermissionPublisher } from './SnsPermissionPublisher.ts'
 
 describe('SnsPermissionPublisher', () => {

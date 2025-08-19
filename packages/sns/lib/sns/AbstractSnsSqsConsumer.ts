@@ -1,4 +1,5 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
+import type { STSClient } from '@aws-sdk/client-sts'
 import type {
   SQSConsumerDependencies,
   SQSConsumerOptions,
@@ -7,12 +8,9 @@ import type {
   SQSQueueLocatorType,
 } from '@message-queue-toolkit/sqs'
 import { AbstractSqsConsumer, deleteSqs } from '@message-queue-toolkit/sqs'
-
 import { deleteSnsSqs, initSnsSqs } from '../utils/snsInitter.ts'
 import { readSnsMessage } from '../utils/snsMessageReader.ts'
 import type { SNSSubscriptionOptions } from '../utils/snsSubscriber.ts'
-
-import type { STSClient } from '@aws-sdk/client-sts'
 import type { SNSCreationConfig, SNSOptions, SNSTopicLocatorType } from './AbstractSnsService.ts'
 
 export type SNSSQSConsumerDependencies = SQSConsumerDependencies & {
@@ -57,9 +55,9 @@ export abstract class AbstractSnsSqsConsumer<
   private readonly snsClient: SNSClient
   private readonly stsClient: STSClient
 
-  // @ts-ignore
+  // @ts-expect-error
   protected topicArn: string
-  // @ts-ignore
+  // @ts-expect-error
   protected subscriptionArn: string
 
   protected constructor(
