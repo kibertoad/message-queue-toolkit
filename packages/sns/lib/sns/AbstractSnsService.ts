@@ -1,8 +1,7 @@
 import type { CreateTopicCommandInput, SNSClient, Tag } from '@aws-sdk/client-sns'
+import type { STSClient } from '@aws-sdk/client-sts'
 import type { QueueDependencies, QueueOptions } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
-
-import type { STSClient } from '@aws-sdk/client-sts'
 import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes.ts'
 import { deleteSns, initSns } from '../utils/snsInitter.ts'
 
@@ -63,7 +62,7 @@ export abstract class AbstractSnsService<
 > {
   protected readonly snsClient: SNSClient
   protected readonly stsClient: STSClient
-  // @ts-ignore
+  // @ts-expect-error
   protected topicArn: string
 
   constructor(dependencies: DependenciesType, options: SNSOptionsType) {

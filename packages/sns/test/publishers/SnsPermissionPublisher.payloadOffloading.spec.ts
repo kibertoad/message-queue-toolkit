@@ -1,6 +1,7 @@
 import type { S3 } from '@aws-sdk/client-s3'
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { Message, SQSClient } from '@aws-sdk/client-sqs'
+import type { STSClient } from '@aws-sdk/client-sts'
 import { waitAndRetry } from '@lokalise/node-core'
 import type {
   OffloadedPayloadPointerPayload,
@@ -8,24 +9,21 @@ import type {
 } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import {
-  OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE,
   assertQueue,
   deleteQueue,
+  OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE,
 } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-
 import { SNS_MESSAGE_BODY_SCHEMA } from '../../lib/types/MessageTypes.ts'
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber.ts'
 import { deleteTopic } from '../../lib/utils/snsUtils.ts'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas.ts'
 import { assertBucket, getObjectContent } from '../utils/s3Utils.ts'
-import { registerDependencies } from '../utils/testContext.ts'
 import type { Dependencies } from '../utils/testContext.ts'
-
-import type { STSClient } from '@aws-sdk/client-sts'
+import { registerDependencies } from '../utils/testContext.ts'
 import { SnsPermissionPublisher } from './SnsPermissionPublisher.ts'
 
 const queueName = 'payloadOffloadingTestQueue'

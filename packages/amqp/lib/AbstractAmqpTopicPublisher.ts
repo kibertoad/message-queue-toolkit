@@ -48,17 +48,17 @@ export abstract class AbstractAmqpTopicPublisher<
     message: Buffer,
     options: Omit<AmqpTopicMessageOptions, 'routingKey'> & { routingKey: string },
   ): void {
-    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    // biome-ignore lint/style/noNonNullAssertion: Should be fine
     this.channel.publish(this.exchange!, options.routingKey, message, options.publishOptions)
   }
 
   protected override resolveTopicOrQueue(): string {
-    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    // biome-ignore lint/style/noNonNullAssertion: Should be fine
     return this.exchange!
   }
 
   protected override async createMissingEntities(): Promise<void> {
-    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    // biome-ignore lint/style/noNonNullAssertion: Should be fine
     await ensureExchange(this.connection!, this.channel, this.creationConfig, this.locatorConfig)
   }
 }

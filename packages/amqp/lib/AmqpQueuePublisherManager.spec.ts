@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { FakeQueueConsumer } from '../test/fakes/FakeQueueConsumer.ts'
 import { TEST_AMQP_CONFIG } from '../test/utils/testAmqpConfig.ts'
-import { TestEvents, registerDependencies } from '../test/utils/testContext.ts'
 import type { Dependencies } from '../test/utils/testContext.ts'
+import { registerDependencies, TestEvents } from '../test/utils/testContext.ts'
 
 describe('AmqpQueuePublisherManager', () => {
   describe('publish', () => {

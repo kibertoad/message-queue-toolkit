@@ -94,7 +94,7 @@ describe('HandlerSpy', () => {
 
       spy.clear()
 
-      // @ts-ignore
+      // @ts-expect-error
       expect(spy.spyPromises).toHaveLength(0)
     })
   })

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
 import { Producer, stringSerializers } from '@platformatic/kafka'
-import { type MockInstance, afterAll, expect } from 'vitest'
+import { afterAll, expect, type MockInstance } from 'vitest'
 import z from 'zod/v4'
 import { KafkaHandlerConfig, type RequestContext } from '../../lib/index.ts'
 import { PermissionPublisher } from '../publisher/PermissionPublisher.ts'
@@ -11,7 +11,7 @@ import {
   PERMISSION_SCHEMA,
   TOPICS,
 } from '../utils/permissionSchemas.ts'
-import { type TestContext, createTestContext } from '../utils/testContext.ts'
+import { createTestContext, type TestContext } from '../utils/testContext.ts'
 import { PermissionConsumer } from './PermissionConsumer.ts'
 
 describe('PermissionConsumer', () => {

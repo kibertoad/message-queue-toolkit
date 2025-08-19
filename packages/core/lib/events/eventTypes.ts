@@ -1,9 +1,9 @@
 export type {
-  EventTypeNames,
+  AnyEventHandler,
   CommonEventDefinition,
   CommonEventDefinitionConsumerSchemaType,
   CommonEventDefinitionPublisherSchemaType,
   EventHandler,
-  AnyEventHandler,
+  EventTypeNames,
   SingleEventHandler,
 } from '@message-queue-toolkit/schemas'

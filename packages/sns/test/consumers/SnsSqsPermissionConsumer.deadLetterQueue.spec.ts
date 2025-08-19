@@ -1,22 +1,20 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
+import type { STSClient } from '@aws-sdk/client-sts'
 import { waitAndRetry } from '@lokalise/node-core'
 import {
-  type SQSMessage,
   assertQueue,
   deleteQueue,
   getQueueAttributes,
+  type SQSMessage,
 } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-
 import { deleteTopic } from '../../lib/utils/snsUtils.ts'
 import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
-import { registerDependencies } from '../utils/testContext.ts'
 import type { Dependencies } from '../utils/testContext.ts'
-
-import type { STSClient } from '@aws-sdk/client-sts'
+import { registerDependencies } from '../utils/testContext.ts'
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer.ts'
 import type { PERMISSIONS_REMOVE_MESSAGE_TYPE } from './userConsumerSchemas.ts'
 
@@ -236,7 +234,7 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
       const message: PERMISSIONS_REMOVE_MESSAGE_TYPE = {
         id: '1',
         messageType: 'remove',
-        timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
+        timestamp: new Date(Date.now() - 2 * 1000).toISOString(),
       }
       await publisher.publish(message)
 

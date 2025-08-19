@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout } from 'node:timers/promises'
 import {
   InternalError,
-  type TransactionObservabilityManager,
   stringValueSerializer,
+  type TransactionObservabilityManager,
 } from '@lokalise/node-core'
 import type { QueueConsumerDependencies } from '@message-queue-toolkit/core'
 import {
@@ -17,9 +17,9 @@ import {
   stringDeserializer,
 } from '@platformatic/kafka'
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
+import type { KafkaHandler } from './handler-container/index.ts'
 import { KafkaHandlerContainer } from './handler-container/KafkaHandlerContainer.ts'
 import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.ts'
-import type { KafkaHandler } from './handler-container/index.ts'
 import type {
   KafkaConfig,
   KafkaDependencies,
@@ -132,7 +132,7 @@ export abstract class AbstractKafkaConsumer<
     if (topics.length === 0) throw new Error('At least one topic must be defined')
 
     try {
-      const { handlers, ...consumeOptions } = this.options // Handlers cannot be passed to consume method
+      const { handlers: _, ...consumeOptions } = this.options // Handlers cannot be passed to consume method
 
       // https://github.com/platformatic/kafka/blob/main/docs/consumer.md#my-consumer-is-not-receiving-any-message-when-the-application-restarts
       await this.consumer.joinGroup({

@@ -1,6 +1,6 @@
 import type { Either } from '@lokalise/node-core'
-import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import type { BarrierResult, PreHandlingOutputs, Prehandler } from '@message-queue-toolkit/core'
+import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 
 import type {
   SQSConsumerDependencies,

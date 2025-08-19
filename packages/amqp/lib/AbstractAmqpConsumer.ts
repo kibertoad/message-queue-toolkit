@@ -94,7 +94,7 @@ export abstract class AbstractAmqpConsumer<
 
     this.queueName = options.locatorConfig
       ? options.locatorConfig.queueName
-      : // biome-ignore lint/style/noNonNullAssertion: <explanation>
+      : // biome-ignore lint/style/noNonNullAssertion: Checked by type
         options.creationConfig!.queueName
 
     this._messageSchemaContainer = this.resolveConsumerMessageSchemaContainer(options)
@@ -151,14 +151,14 @@ export abstract class AbstractAmqpConsumer<
       }
       const { originalMessage, parsedMessage } = deserializedMessage.result
 
-      // @ts-ignore
+      // @ts-expect-error
       const messageType = parsedMessage[this.messageTypeField]
       const transactionSpanId = `queue_${this.queueName}:${
-        // @ts-ignore
+        // @ts-expect-error
         parsedMessage[this.messageTypeField]
       }`
 
-      // @ts-ignore
+      // @ts-expect-error
       const uniqueTransactionKey = parsedMessage[this.messageIdField]
       this.transactionObservabilityManager?.start(transactionSpanId, uniqueTransactionKey)
       if (this.logMessages) {
@@ -349,10 +349,10 @@ export abstract class AbstractAmqpConsumer<
     // Empty content for whatever reason
     if (!resolvedMessage || !resolvedMessage.body) return ABORT_EARLY_EITHER
 
-    // @ts-ignore
+    // @ts-expect-error
     if (this.messageIdField in resolvedMessage.body) {
       return {
-        // @ts-ignore
+        // @ts-expect-error
         result: resolvedMessage.body[this.messageIdField],
       }
     }

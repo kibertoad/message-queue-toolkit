@@ -1,4 +1,4 @@
-export const waitAndRetry = async <T>(
+export const waitAndRetry = <T>(
   predicateFn: () => T,
   sleepTime = 20,
   maxRetryCount = 15,

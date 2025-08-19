@@ -20,7 +20,7 @@ export class EventRegistry<SupportedEvents extends CommonEventDefinition[]> {
   >(
     eventTypeName: EventTypeName,
   ): CommonEventDefinition => {
-    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    // biome-ignore lint/style/noNonNullAssertion: It's ok
     return this.supportedEventMap[eventTypeName]!
   }
 

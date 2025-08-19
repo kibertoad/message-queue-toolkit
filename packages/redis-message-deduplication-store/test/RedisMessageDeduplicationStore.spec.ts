@@ -1,8 +1,7 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-
 import { type AcquireLockOptions, AcquireLockTimeoutError } from '@message-queue-toolkit/core'
 import { Redis } from 'ioredis'
 import { Mutex } from 'redis-semaphore'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { RedisMessageDeduplicationStore } from '../lib/RedisMessageDeduplicationStore.ts'
 import { cleanRedis } from './utils/cleanRedis.ts'
 import { TEST_REDIS_CONFIG } from './utils/testRedisConfig.ts'

@@ -1,25 +1,21 @@
 import {
-  type CreateTopicCommandInput,
-  ListTagsForResourceCommand,
-  type SNSClient,
-  TagResourceCommand,
-  paginateListTopics,
-} from '@aws-sdk/client-sns'
-import {
   CreateTopicCommand,
+  type CreateTopicCommandInput,
   DeleteTopicCommand,
   GetSubscriptionAttributesCommand,
   GetTopicAttributesCommand,
   ListSubscriptionsByTopicCommand,
+  ListTagsForResourceCommand,
+  paginateListTopics,
   SetTopicAttributesCommand,
+  type SNSClient,
+  TagResourceCommand,
   UnsubscribeCommand,
 } from '@aws-sdk/client-sns'
+import type { STSClient } from '@aws-sdk/client-sts'
 import { type Either, InternalError, isError } from '@lokalise/node-core'
 import { calculateOutgoingMessageSize as sqsCalculateOutgoingMessageSize } from '@message-queue-toolkit/sqs'
-
 import type { ExtraSNSCreationParams } from '../sns/AbstractSnsService.ts'
-
-import type { STSClient } from '@aws-sdk/client-sts'
 import { generateTopicSubscriptionPolicy } from './snsAttributeUtils.ts'
 import { buildTopicArn } from './stsUtils.ts'
 
@@ -43,10 +39,9 @@ export async function getTopicAttributes(
       },
     }
   } catch (err) {
-    // @ts-ignore
+    // @ts-expect-error
     if (err.Code === 'AWS.SimpleQueueService.NonExistentQueue') {
       return {
-        // @ts-ignore
         error: 'not_found',
       }
     }
@@ -70,10 +65,9 @@ export async function getSubscriptionAttributes(
       },
     }
   } catch (err) {
-    // @ts-ignore
+    // @ts-expect-error
     if (err.Code === 'AWS.SimpleQueueService.NonExistentQueue') {
       return {
-        // @ts-ignore
         error: 'not_found',
       }
     }

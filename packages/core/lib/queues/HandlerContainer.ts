@@ -146,7 +146,6 @@ export class MessageHandlerConfigBuilder<
     const definition = isCommonEventDefinition(schema) ? schema : undefined
 
     this.configs.push(
-      // @ts-ignore
       new MessageHandlerConfig<
         MessagePayloadSchemas,
         ExecutionContext,
@@ -154,7 +153,7 @@ export class MessageHandlerConfigBuilder<
         BarrierOutput
       >(
         resolvedSchema,
-        // @ts-ignore
+        // @ts-expect-error
         handler,
         options,
         definition,
@@ -219,7 +218,7 @@ export class HandlerContainer<
     if (!handler) {
       throw new Error(`Unsupported message type: ${messageType}`)
     }
-    // @ts-ignore
+    // @ts-expect-error
     return handler
   }
 
@@ -235,9 +234,8 @@ export class HandlerContainer<
   > {
     return supportedHandlers.reduce(
       (acc, entry) => {
-        // @ts-ignore
+        // @ts-expect-error
         const messageType = entry.schema.shape[this.messageTypeField].value
-        // @ts-ignore
         acc[messageType] = entry
         return acc
       },

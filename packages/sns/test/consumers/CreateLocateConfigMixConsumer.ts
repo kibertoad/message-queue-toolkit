@@ -1,9 +1,7 @@
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
-
+import type { ConsumerMessageSchema } from '@message-queue-toolkit/schemas'
 import type { SNSSQSConsumerDependencies } from '../../lib/sns/AbstractSnsSqsConsumer.ts'
 import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer.ts'
-
-import type { ConsumerMessageSchema } from '@message-queue-toolkit/schemas'
 import { TestEvents } from '../utils/testContext.ts'
 import { entityCreatedHandler } from './handlers/EntityCreatedHandler.ts'
 import { entityUpdatedHandler } from './handlers/EntityUpdatedHandler.ts'
@@ -11,10 +9,10 @@ import { entityUpdatedHandler } from './handlers/EntityUpdatedHandler.ts'
 export type SupportedMessages = ConsumerMessageSchema<
   typeof TestEvents.created | typeof TestEvents.updated
 >
-// biome-ignore lint/complexity/noBannedTypes: <explanation>
+// biome-ignore lint/complexity/noBannedTypes: Expected
 type ExecutionContext = {}
 
-// biome-ignore lint/complexity/noBannedTypes: <explanation>
+// biome-ignore lint/complexity/noBannedTypes: Expected
 type PreHandlerOutput = {}
 
 export class CreateLocateConfigMixConsumer extends AbstractSnsSqsConsumer<

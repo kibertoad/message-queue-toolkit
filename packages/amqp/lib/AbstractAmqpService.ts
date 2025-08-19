@@ -5,8 +5,7 @@ import type {
   QueueOptions,
 } from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
-import type { Channel, ChannelModel, Message } from 'amqplib'
-import type { Options } from 'amqplib'
+import type { Channel, ChannelModel, Message, Options } from 'amqplib'
 import type { AmqpConnectionManager, ConnectionReceiver } from './AmqpConnectionManager.ts'
 
 export type AMQPDependencies = QueueDependencies & {
@@ -61,7 +60,7 @@ export abstract class AbstractAmqpService<
 {
   protected connection?: ChannelModel
   private connectionManager: AmqpConnectionManager
-  // @ts-ignore
+  // @ts-expect-error
   protected channel: Channel
   private isShuttingDown: boolean
 
@@ -87,7 +86,7 @@ export abstract class AbstractAmqpService<
     try {
       this.channel = await this.connection.createChannel()
     } catch (err) {
-      // @ts-ignore
+      // @ts-expect-error
       this.logger.error(`Error creating channel: ${err.message}`)
       await this.connectionManager.reconnect()
       return
@@ -128,7 +127,7 @@ export abstract class AbstractAmqpService<
       } catch (_err) {
         // We don't care about connection closing errors
       } finally {
-        // @ts-ignore
+        // @ts-expect-error
         this.channel = undefined
       }
     }

@@ -9,7 +9,7 @@ import {
   enrichMessageSchemaWithBase,
 } from '@message-queue-toolkit/core'
 import type { NameAndRegistrationPair } from 'awilix'
-import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
+import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import pino from 'pino'
 import { z } from 'zod/v4'
@@ -17,6 +17,7 @@ import { AmqpConnectionManager } from '../../lib/AmqpConnectionManager.ts'
 import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager.ts'
 import { AmqpQueuePublisherManager } from '../../lib/AmqpQueuePublisherManager.ts'
 import { AmqpTopicPublisherManager } from '../../lib/AmqpTopicPublisherManager.ts'
+import type { AmqpConfig } from '../../lib/amqpConnectionResolver.ts'
 import type {
   CommonAmqpQueuePublisher,
   CommonAmqpTopicPublisher,
@@ -25,7 +26,6 @@ import {
   CommonAmqpQueuePublisherFactory,
   CommonAmqpTopicPublisherFactory,
 } from '../../lib/CommonAmqpPublisherFactory.ts'
-import type { AmqpConfig } from '../../lib/amqpConnectionResolver.ts'
 import { AmqpConsumerErrorResolver } from '../../lib/errors/AmqpConsumerErrorResolver.ts'
 import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer.ts'
 import { FakeQueueConsumer } from '../fakes/FakeQueueConsumer.ts'
@@ -217,7 +217,7 @@ export async function registerDependencies(
   diContainer.register(diConfig)
 
   for (const [dependencyKey, dependencyValue] of Object.entries(dependencyOverrides)) {
-    // @ts-ignore
+    // @ts-expect-error
     diContainer.register(dependencyKey, dependencyValue)
   }
 

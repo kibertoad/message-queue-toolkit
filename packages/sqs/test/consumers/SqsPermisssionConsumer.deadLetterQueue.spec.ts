@@ -1,5 +1,4 @@
-import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
-import { SendMessageCommand } from '@aws-sdk/client-sqs'
+import { ListQueueTagsCommand, SendMessageCommand, type SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
@@ -295,7 +294,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
             throw new Error('not expected message')
           }
           counter++
-          messageArrivalTime.push(new Date().getTime())
+          messageArrivalTime.push(Date.now())
           return counter < 2
             ? Promise.resolve({ error: 'retryLater' })
             : Promise.resolve({ result: 'success' })
@@ -382,7 +381,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
         id: '1',
         messageType: 'add',
-        timestamp: new Date(new Date().getTime() - 1000).toISOString(),
+        timestamp: new Date(Date.now() - 1000).toISOString(),
       }
       await permissionPublisher.publish(message)
 
@@ -433,7 +432,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       const message: PERMISSIONS_REMOVE_MESSAGE_TYPE = {
         id: '2',
         messageType: 'remove',
-        timestamp: new Date(new Date().getTime() - 1000).toISOString(),
+        timestamp: new Date(Date.now() - 1000).toISOString(),
       }
       await permissionPublisher.publish(message)
 

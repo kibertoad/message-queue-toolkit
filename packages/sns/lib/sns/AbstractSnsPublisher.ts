@@ -74,7 +74,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         this.locatorConfig?.topicName ?? this.creationConfig?.topic?.Name ?? 'unknown'
 
       if (this.logMessages) {
-        // @ts-ignore
+        // @ts-expect-error
         const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
         this.logMessage(resolvedLogMessage)
       }
@@ -116,7 +116,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         details: {
           publisher: this.constructor.name,
           topic: this.topicArn,
-          // @ts-ignore
+          // @ts-expect-error
           messageType: message[this.messageTypeField] ?? 'unknown',
         },
         cause: err,

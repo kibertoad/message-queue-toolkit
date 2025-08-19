@@ -28,13 +28,13 @@ export function generateTopicSubscriptionPolicy(params: TopicSubscriptionPolicyP
   }
 
   if (params.allowedSourceOwner) {
-    // @ts-ignore
+    // @ts-expect-error
     policyObject.Statement[0].Condition.StringEquals = {
       'AWS:SourceOwner': params.allowedSourceOwner,
     }
   }
   if (params.allowedSqsQueueUrlPrefix?.length && params.allowedSqsQueueUrlPrefix.length > 0) {
-    // @ts-ignore
+    // @ts-expect-error
     policyObject.Statement[0].Condition.StringLike = {
       'sns:Endpoint': params.allowedSqsQueueUrlPrefix,
     }
@@ -44,12 +44,12 @@ export function generateTopicSubscriptionPolicy(params: TopicSubscriptionPolicyP
 }
 
 export function generateFilterAttributes(
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  // biome-ignore lint/suspicious/noExplicitAny: Expected
   messageSchemas: ZodSchema<any>[],
   messageTypeField: string,
 ) {
   const messageTypes = messageSchemas.map((schema) => {
-    // @ts-ignore
+    // @ts-expect-error
     return schema.shape[messageTypeField].value as string
   })
 
