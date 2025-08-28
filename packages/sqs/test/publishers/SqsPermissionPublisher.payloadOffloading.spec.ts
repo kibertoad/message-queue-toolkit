@@ -7,9 +7,9 @@ import type {
 } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import {
-  OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE,
   assertQueue,
   deleteQueue,
+  OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE,
 } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
@@ -18,8 +18,8 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas.ts'
 import { assertBucket, getObjectContent } from '../utils/s3Utils.ts'
-import { registerDependencies } from '../utils/testContext.ts'
 import type { Dependencies } from '../utils/testContext.ts'
+import { registerDependencies } from '../utils/testContext.ts'
 
 import { SqsPermissionPublisher } from './SqsPermissionPublisher.ts'
 

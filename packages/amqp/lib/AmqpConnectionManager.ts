@@ -1,6 +1,5 @@
-import type { ChannelModel } from 'amqplib'
-
 import type { CommonLogger } from '@lokalise/node-core'
+import type { ChannelModel } from 'amqplib'
 import type { AmqpConfig } from './amqpConnectionResolver.ts'
 import { resolveAmqpConnection } from './amqpConnectionResolver.ts'
 

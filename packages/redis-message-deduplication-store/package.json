@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/redis-message-deduplication-store",
-    "version": "2.0.2",
+    "version": "2.1.0",
     "private": false,
     "license": "MIT",
     "description": "Redis-based message deduplication store for message-queue-toolkit",
@@ -28,7 +28,7 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^14.0.1",
+        "@lokalise/node-core": "^14.2.0",
         "redis-semaphore": "^5.6.2"
     },
     "peerDependencies": {
@@ -36,14 +36,14 @@
         "ioredis": "^5.3.2"
     },
     "devDependencies": {
-        "@biomejs/biome": "^1.9.4",
-        "@lokalise/biome-config": "^2.0.0",
+        "@biomejs/biome": "^2.2.0",
+        "@lokalise/biome-config": "^3.1.0",
         "@lokalise/tsconfig": "^2.0.0",
         "@message-queue-toolkit/core": "*",
         "@types/node": "^24.0.3",
         "@vitest/coverage-v8": "^3.2.4",
         "rimraf": "^6.0.1",
-        "typescript": "^5.8.3",
+        "typescript": "^5.9.2",
         "vitest": "^3.2.4"
     },
     "homepage": "https://github.com/kibertoad/message-queue-toolkit",
@@ -61,5 +61,9 @@
         "deduplication",
         "store"
     ],
-    "files": ["README.md", "LICENSE", "dist/*"]
+    "files": [
+        "README.md",
+        "LICENSE",
+        "dist/*"
+    ]
 }

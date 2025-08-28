@@ -1,7 +1,6 @@
 import type { z } from 'zod/v4'
-
-import type { EventRegistry } from '../events/EventRegistry.ts'
 import type { PublisherBaseEventType } from '../events/baseEventSchemas.ts'
+import type { EventRegistry } from '../events/EventRegistry.ts'
 import type { CommonEventDefinition } from '../events/eventTypes.ts'
 import type { MetadataFiller } from '../messages/MetadataFiller.ts'
 import type { AsyncPublisher, SyncPublisher } from '../types/MessageQueueTypes.ts'
@@ -236,22 +235,22 @@ export abstract class AbstractPublisherManager<
   ): MessageSchemaType<SupportedEventDefinitions[number]> {
     const producedMetadata = this.metadataFiller.produceMetadata(
       message,
-      // @ts-ignore
+      // @ts-expect-error
       messageDefinition,
       precedingEventMetadata,
     )
 
-    // @ts-ignore
+    // @ts-expect-error
     const resolvedMetadata = message[this.metadataField]
       ? {
           ...producedMetadata,
-          // @ts-ignore
+          // @ts-expect-error
           ...message[this.metadataField],
         }
       : // @ts-ignore
         producedMetadata
 
-    // @ts-ignore
+    // @ts-expect-error
     return {
       id: this.metadataFiller.produceId(),
       timestamp: this.metadataFiller.produceTimestamp(),

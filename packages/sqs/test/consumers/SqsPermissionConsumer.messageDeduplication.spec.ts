@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto'
 import { setTimeout } from 'node:timers/promises'
+import { waitAndRetry } from '@lokalise/node-core'
 import type { MessageDeduplicationConfig } from '@message-queue-toolkit/core'
 import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
 import type { AwilixContainer } from 'awilix'
@@ -9,9 +11,6 @@ import { cleanRedis } from '../utils/cleanRedis.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SqsPermissionConsumer } from './SqsPermissionConsumer.ts'
-
-import { randomUUID } from 'node:crypto'
-import { waitAndRetry } from '@lokalise/node-core'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_REMOVE_MESSAGE_TYPE,

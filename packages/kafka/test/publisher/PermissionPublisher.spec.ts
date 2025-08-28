@@ -11,7 +11,7 @@ import {
   type PermissionRemoved,
   TOPICS,
 } from '../utils/permissionSchemas.ts'
-import { type TestContext, createTestContext } from '../utils/testContext.ts'
+import { createTestContext, type TestContext } from '../utils/testContext.ts'
 import { PermissionPublisher } from './PermissionPublisher.ts'
 
 describe('PermissionPublisher', () => {

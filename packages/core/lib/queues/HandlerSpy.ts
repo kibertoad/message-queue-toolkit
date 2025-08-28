@@ -48,7 +48,7 @@ export type PublicHandlerSpy<MessagePayloadSchemas extends object> = Omit<
   'addProcessedMessage'
 >
 
-// biome-ignore lint/complexity/noBannedTypes: <explanation>
+// biome-ignore lint/complexity/noBannedTypes: Expected
 type DeepPartial<T> = T extends Function
   ? T
   : T extends object
@@ -71,9 +71,9 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
 
   constructor(params: HandlerSpyParams = {}) {
     this.messageBuffer = new Fifo(params.bufferSize ?? 100)
-    // @ts-ignore
+    // @ts-expect-error
     this.messageIdField = params.messageIdField ?? 'id'
-    // @ts-ignore
+    // @ts-expect-error
     this.messageTypeField = params.messageTypeField ?? 'type'
     this.spyPromises = []
   }
@@ -127,11 +127,10 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
       promise: spyPromise,
       status,
       fields: expectedFields,
-      // @ts-ignore
+      // @ts-expect-error
       resolve,
     })
 
-    // @ts-ignore
     return spyPromise
   }
 
@@ -157,7 +156,6 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
           },
         } as SpyResultOutput<MessagePayloadSchemas>)
 
-    // @ts-ignore
     const cacheId = `${resolvedMessageId}-${Date.now()}-${(Math.random() + 1)
       .toString(36)
       .substring(7)}`

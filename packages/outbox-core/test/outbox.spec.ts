@@ -9,7 +9,7 @@ import {
   type CommonEventDefinitionPublisherSchemaType,
   enrichMessageSchemaWithBase,
 } from '@message-queue-toolkit/schemas'
-import { type Logger, pino } from 'pino'
+import pino, { type Logger } from 'pino'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod/v4'
 import { InMemoryOutboxAccumulator } from '../lib/accumulators.ts'
@@ -78,7 +78,6 @@ describe('outbox', () => {
     outboxProcessor = new OutboxProcessor<TestEventsType>(
       {
         outboxStorage,
-        //@ts-ignore
         outboxAccumulator: inMemoryOutboxAccumulator,
         eventEmitter,
       } satisfies OutboxDependencies<TestEventsType>,

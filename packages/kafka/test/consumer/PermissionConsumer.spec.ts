@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
 import { Producer, stringSerializers } from '@platformatic/kafka'
-import { type MockInstance, afterAll, expect } from 'vitest'
+import { afterAll, expect, type MockInstance } from 'vitest'
 import z from 'zod/v4'
 import { KafkaHandlerConfig, type RequestContext } from '../../lib/index.ts'
 import { PermissionPublisher } from '../publisher/PermissionPublisher.ts'
@@ -11,7 +11,7 @@ import {
   PERMISSION_SCHEMA,
   TOPICS,
 } from '../utils/permissionSchemas.ts'
-import { type TestContext, createTestContext } from '../utils/testContext.ts'
+import { createTestContext, type TestContext } from '../utils/testContext.ts'
 import { PermissionConsumer } from './PermissionConsumer.ts'
 
 describe('PermissionConsumer', () => {
@@ -111,6 +111,52 @@ describe('PermissionConsumer', () => {
 
       // When - Then
       await expect(consumer.init()).resolves.not.toThrowError()
+    })
+  })
+
+  describe('isConnected', () => {
+    it('should return false if consumer is not initiated', () => {
+      // Given
+      consumer = new PermissionConsumer(testContext.cradle)
+
+      // When - Then
+      expect(consumer.isConnected).toBe(false)
+    })
+
+    it('should return true if consumer is initiated', async () => {
+      // Given
+      consumer = new PermissionConsumer(testContext.cradle)
+
+      // When
+      await consumer.init()
+
+      // Then
+      expect(consumer.isConnected).toBe(true)
+      await consumer.close()
+      expect(consumer.isConnected).toBe(false)
+    })
+  })
+
+  describe('isActive', () => {
+    it('should return false if consumer is not initiated', () => {
+      // Given
+      consumer = new PermissionConsumer(testContext.cradle)
+
+      // When - Then
+      expect(consumer.isActive).toBe(false)
+    })
+
+    it('should return true if consumer is initiated', async () => {
+      // Given
+      consumer = new PermissionConsumer(testContext.cradle)
+
+      // When
+      await consumer.init()
+
+      // Then
+      expect(consumer.isActive).toBe(true)
+      await consumer.close()
+      expect(consumer.isActive).toBe(false)
     })
   })
 

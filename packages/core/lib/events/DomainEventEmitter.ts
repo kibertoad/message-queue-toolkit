@@ -1,17 +1,15 @@
+import { randomUUID } from 'node:crypto'
 import {
   type CommonLogger,
   type ErrorReporter,
   InternalError,
-  type TransactionObservabilityManager,
   resolveGlobalErrorLogObject,
+  type TransactionObservabilityManager,
 } from '@lokalise/node-core'
-
+import type { ConsumerMessageMetadataType } from '@message-queue-toolkit/schemas'
 import type { MetadataFiller } from '../messages/MetadataFiller.ts'
 import type { HandlerSpy, HandlerSpyParams, PublicHandlerSpy } from '../queues/HandlerSpy.ts'
 import { resolveHandlerSpy } from '../queues/HandlerSpy.ts'
-
-import { randomUUID } from 'node:crypto'
-import type { ConsumerMessageMetadataType } from '@message-queue-toolkit/schemas'
 import type { EventRegistry } from './EventRegistry.ts'
 import type {
   AnyEventHandler,
@@ -106,7 +104,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     if (!data.id) data.id = this.metadataFiller.produceId()
     if (!data.metadata) {
       data.metadata = this.metadataFiller.produceMetadata(
-        // @ts-ignore
+        // @ts-expect-error
         data,
         supportedEvent,
         precedingMessageMetadata ?? {},
@@ -118,10 +116,10 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       .getEventDefinitionByTypeName(eventTypeName)
       .publisherSchema.parse({ type: eventTypeName, ...data })
 
-    // @ts-ignore
+    // @ts-expect-error
     await this.handleEvent(validatedEvent)
 
-    // @ts-ignore
+    // @ts-expect-error
     return validatedEvent
   }
 
@@ -178,7 +176,6 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       if (!this._handlerSpy) return
       this._handlerSpy.addProcessedMessage(
         {
-          // @ts-ignore
           message: event,
           processingResult: { status: 'consumed' },
         },

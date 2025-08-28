@@ -1,6 +1,6 @@
 import {
-  type ProcessedMessageMetadata,
   objectToBuffer,
+  type ProcessedMessageMetadata,
   waitAndRetry,
 } from '@message-queue-toolkit/core'
 import type { Channel } from 'amqplib'
@@ -14,7 +14,7 @@ import { FakeLogger } from '../fakes/FakeLogger.ts'
 import type { AmqpPermissionPublisher } from '../publishers/AmqpPermissionPublisher.ts'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig.ts'
 import type { Dependencies } from '../utils/testContext.ts'
-import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext.ts'
+import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext.ts'
 import { AmqpPermissionConsumer } from './AmqpPermissionConsumer.ts'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
@@ -367,7 +367,7 @@ describe('AmqpPermissionConsumer', () => {
       }
 
       expect(() =>
-        // @ts-ignore
+        // @ts-expect-error
         publisher.publish(invalidMessage),
       ).toThrowErrorMatchingInlineSnapshot(
         `
@@ -492,7 +492,7 @@ describe('AmqpPermissionConsumer', () => {
       const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
         id: '1',
         messageType: 'add',
-        timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
+        timestamp: new Date(Date.now() - 2 * 1000).toISOString(),
       }
       publisher.publish(message)
 
@@ -517,7 +517,7 @@ describe('AmqpPermissionConsumer', () => {
       const message: PERMISSIONS_REMOVE_MESSAGE_TYPE = {
         id: '1',
         messageType: 'remove',
-        timestamp: new Date(new Date().getTime() - 2 * 1000).toISOString(),
+        timestamp: new Date(Date.now() - 2 * 1000).toISOString(),
       }
       publisher.publish(message)
 

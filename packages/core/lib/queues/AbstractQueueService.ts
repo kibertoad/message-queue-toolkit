@@ -1,20 +1,18 @@
 import { types } from 'node:util'
-
 import {
   type CommonLogger,
   type Either,
   type ErrorReporter,
   type ErrorResolver,
+  resolveGlobalErrorLogObject,
   stringValueSerializer,
 } from '@lokalise/node-core'
-import { resolveGlobalErrorLogObject } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
-import type { ZodSchema, ZodType } from 'zod/v4'
-
 import {
   MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA,
   type MessageDeduplicationOptions,
 } from '@message-queue-toolkit/schemas'
+import type { ZodSchema, ZodType } from 'zod/v4'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors.ts'
 import {
   type AcquireLockTimeoutError,
@@ -25,8 +23,8 @@ import {
   type DeduplicationRequester,
   DeduplicationRequesterEnum,
   type MessageDeduplicationConfig,
-  type ReleasableLock,
   noopReleasableLock,
+  type ReleasableLock,
 } from '../message-deduplication/messageDeduplicationTypes.ts'
 import { jsonStreamStringifySerializer } from '../payload-store/JsonStreamStringifySerializer.ts'
 import {
@@ -270,7 +268,7 @@ export abstract class AbstractQueueService<
     queueName: string,
     messageId?: string,
   ): ProcessedMessageMetadata<MessagePayloadSchemas> {
-    // @ts-ignore
+    // @ts-expect-error
     const resolvedMessageId: string | undefined = message?.[this.messageIdField] ?? messageId
 
     const messageTimestamp = message ? this.tryToExtractTimestamp(message)?.getTime() : undefined
@@ -333,14 +331,13 @@ export abstract class AbstractQueueService<
     preHandlerOutput: PrehandlerOutput,
   ): Promise<BarrierResult<BarrierOutput>> {
     if (!barrier) {
-      // @ts-ignore
+      // @ts-expect-error
       return {
         isPassing: true,
         output: undefined,
       }
     }
 
-    // @ts-ignore
     return await barrier(message, executionContext, preHandlerOutput)
   }
 
@@ -366,7 +363,7 @@ export abstract class AbstractQueueService<
      * will be used to prevent infinite retries on the same message
      */
     if (!this.tryToExtractTimestamp(message)) {
-      // @ts-ignore
+      // @ts-expect-error
       messageCopy[this.messageTimestampField] = new Date().toISOString()
       this.logger.warn(`${this.messageTimestampField} not defined, adding it automatically`)
     }
@@ -375,7 +372,7 @@ export abstract class AbstractQueueService<
      * add/increment the number of retries performed to exponential message delay
      */
     const numberOfRetries = this.tryToExtractNumberOfRetries(message)
-    // @ts-ignore
+    // @ts-expect-error
     messageCopy[this.messageRetryLaterCountField] =
       numberOfRetries !== undefined ? numberOfRetries + 1 : 0
 
@@ -383,9 +380,8 @@ export abstract class AbstractQueueService<
   }
 
   private tryToExtractTimestamp(message: MessagePayloadSchemas): Date | undefined {
-    // @ts-ignore
     if (this.messageTimestampField in message) {
-      // @ts-ignore
+      // @ts-expect-error
       const res = toDatePreprocessor(message[this.messageTimestampField])
       if (!(res instanceof Date)) {
         throw new Error(`${this.messageTimestampField} invalid type`)
@@ -402,7 +398,7 @@ export abstract class AbstractQueueService<
       this.messageRetryLaterCountField in message &&
       typeof message[this.messageRetryLaterCountField] === 'number'
     ) {
-      // @ts-ignore
+      // @ts-expect-error
       return message[this.messageRetryLaterCountField]
     }
 
@@ -435,11 +431,10 @@ export abstract class AbstractQueueService<
       if (preHandlers.length < index + 1) {
         resolve(preHandlerOutput)
       } else {
-        // biome-ignore lint/style/noNonNullAssertion: <explanation>
+        // biome-ignore lint/style/noNonNullAssertion: It's ok
         preHandlers[index]!(
           message,
           executionContext,
-          // @ts-ignore
           preHandlerOutput,
           this.resolveNextPreHandlerFunctionInternal(
             preHandlers,
@@ -504,15 +499,15 @@ export abstract class AbstractQueueService<
     return {
       offloadedPayloadPointer,
       offloadedPayloadSize: serializedPayload.size,
-      // @ts-ignore
+      // @ts-expect-error
       [this.messageIdField]: message[this.messageIdField],
-      // @ts-ignore
+      // @ts-expect-error
       [this.messageTypeField]: message[this.messageTypeField],
-      // @ts-ignore
+      // @ts-expect-error
       [this.messageTimestampField]: message[this.messageTimestampField],
-      // @ts-ignore
+      // @ts-expect-error
       [this.messageDeduplicationIdField]: message[this.messageDeduplicationIdField],
-      // @ts-ignore
+      // @ts-expect-error
       [this.messageDeduplicationOptionsField]: message[this.messageDeduplicationOptionsField],
     }
   }
@@ -660,7 +655,7 @@ export abstract class AbstractQueueService<
   }
 
   protected getMessageDeduplicationId(message: MessagePayloadSchemas): string | undefined {
-    // @ts-ignore
+    // @ts-expect-error
     return message[this.messageDeduplicationIdField]
   }
 

@@ -6,14 +6,12 @@ import type {
   TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
 import type { Resolver } from 'awilix'
-import { Lifetime, asClass, asFunction, createContainer } from 'awilix'
+import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
-
+import { Redis } from 'ioredis'
 import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver.ts'
 import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
-
-import { Redis } from 'ioredis'
 import { TEST_AWS_CONFIG } from './testAwsConfig.ts'
 import { TEST_REDIS_CONFIG } from './testRedisConfig.ts'
 
@@ -21,7 +19,7 @@ export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
 export type DependencyOverrides = Partial<DiConfig>
 
-// @ts-ignore
+// @ts-expect-error
 const TestLogger: CommonLogger = console
 
 export async function registerDependencies(dependencyOverrides: DependencyOverrides = {}) {

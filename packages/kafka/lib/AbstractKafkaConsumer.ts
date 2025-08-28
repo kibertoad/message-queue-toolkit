@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout } from 'node:timers/promises'
 import {
   InternalError,
-  type TransactionObservabilityManager,
   stringValueSerializer,
+  type TransactionObservabilityManager,
 } from '@lokalise/node-core'
 import type { QueueConsumerDependencies } from '@message-queue-toolkit/core'
 import {
@@ -17,9 +17,9 @@ import {
   stringDeserializer,
 } from '@platformatic/kafka'
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
+import type { KafkaHandler } from './handler-container/index.ts'
 import { KafkaHandlerContainer } from './handler-container/KafkaHandlerContainer.ts'
 import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.ts'
-import type { KafkaHandler } from './handler-container/index.ts'
 import type {
   KafkaConfig,
   KafkaDependencies,
@@ -111,13 +111,28 @@ export abstract class AbstractKafkaConsumer<
     /* v8 ignore stop */
   }
 
+  /**
+   * Returns true if all client's connections are currently connected and the client is connected to at least one broker.
+   */
+  get isConnected(): boolean {
+    return this.consumer.isConnected()
+  }
+
+  /**
+   * Returns `true` if the consumer is not closed, and it is currently an active member of a consumer group.
+   * This method will return `false` during consumer group rebalancing.
+   */
+  get isActive(): boolean {
+    return this.consumer.isActive()
+  }
+
   async init(): Promise<void> {
     if (this.consumerStream) return Promise.resolve()
     const topics = this.handlerContainer.topics
     if (topics.length === 0) throw new Error('At least one topic must be defined')
 
     try {
-      const { handlers, ...consumeOptions } = this.options // Handlers cannot be passed to consume method
+      const { handlers: _, ...consumeOptions } = this.options // Handlers cannot be passed to consume method
 
       // https://github.com/platformatic/kafka/blob/main/docs/consumer.md#my-consumer-is-not-receiving-any-message-when-the-application-restarts
       await this.consumer.joinGroup({

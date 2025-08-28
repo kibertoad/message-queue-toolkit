@@ -42,6 +42,6 @@ export type ExtraParams = {
 
 export type SchemaMap<SupportedMessageTypes extends string> = Record<
   SupportedMessageTypes,
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  // biome-ignore lint/suspicious/noExplicitAny: Expected
   ZodSchema<any>
 >

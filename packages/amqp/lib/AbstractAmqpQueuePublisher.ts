@@ -55,7 +55,7 @@ export abstract class AbstractAmqpQueuePublisher<
   }
 
   protected override createMissingEntities(): Promise<void> {
-    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    // biome-ignore lint/style/noNonNullAssertion: Should be fine
     return ensureAmqpQueue(this.connection!, this.channel, this.creationConfig, this.locatorConfig)
   }
 }

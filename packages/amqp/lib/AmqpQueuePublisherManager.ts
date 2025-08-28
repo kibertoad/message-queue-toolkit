@@ -11,7 +11,7 @@ import { AbstractPublisherManager } from '@message-queue-toolkit/core'
 import type { AmqpAwareEventDefinition } from '@message-queue-toolkit/schemas'
 import type z from 'zod/v4'
 
-import type { AMQPPublisherOptions, AbstractAmqpPublisher } from './AbstractAmqpPublisher.ts'
+import type { AbstractAmqpPublisher, AMQPPublisherOptions } from './AbstractAmqpPublisher.ts'
 import type {
   AbstractAmqpQueuePublisher,
   AmqpQueueMessageOptions,

@@ -2,10 +2,10 @@ import type { InternalError } from '@lokalise/node-core'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
-import { Lifetime, asClass, asFunction } from 'awilix'
+import { asClass, asFunction, Lifetime } from 'awilix'
+import { asMockFunction } from 'awilix-manager'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { ZodError } from 'zod/v4'
-
 import { deserializeAmqpMessage } from '../../lib/amqpMessageDeserializer.ts'
 import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer.ts'
 import type {
@@ -21,9 +21,7 @@ import { FakeConsumerErrorResolver } from '../fakes/FakeConsumerErrorResolver.ts
 import { FakeLogger } from '../fakes/FakeLogger.ts'
 import { TEST_AMQP_CONFIG } from '../utils/testAmqpConfig.ts'
 import type { Dependencies } from '../utils/testContext.ts'
-import { SINGLETON_CONFIG, registerDependencies } from '../utils/testContext.ts'
-
-import { asMockFunction } from 'awilix-manager'
+import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext.ts'
 import { AmqpPermissionPublisher } from './AmqpPermissionPublisher.ts'
 
 describe('PermissionPublisher', () => {
@@ -163,7 +161,7 @@ describe('PermissionPublisher', () => {
     it('return details if publish failed', async () => {
       expect.assertions(3)
       try {
-        // @ts-ignore
+        // @ts-expect-error
         permissionPublisher.channel = undefined
         permissionPublisher.publish({
           id: '11',

@@ -2,17 +2,15 @@ import { randomUUID } from 'node:crypto'
 
 import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import z from 'zod/v4'
-
 import { SnsSqsEntityConsumer } from '../../test/consumers/SnsSqsEntityConsumer.ts'
 import type {
   Dependencies,
   TestEventPublishPayloadsType,
   TestEventsType,
 } from '../../test/utils/testContext.ts'
-import { TestEvents, registerDependencies } from '../../test/utils/testContext.ts'
-
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { registerDependencies, TestEvents } from '../../test/utils/testContext.ts'
 import { CommonSnsPublisher } from './CommonSnsPublisherFactory.ts'
 import type { SnsPublisherManager } from './SnsPublisherManager.ts'
 
@@ -144,7 +142,7 @@ describe('SnsPublisherManager', () => {
 
       // When
       const messageId = randomUUID()
-      // @ts-ignore
+      // @ts-expect-error
       publisherManager.injectPublisher(topic, newPublisher)
       publisherManager.injectEventDefinition({
         ...enrichMessageSchemaWithBase('entity.created', z.object({}).catchall(z.any())),

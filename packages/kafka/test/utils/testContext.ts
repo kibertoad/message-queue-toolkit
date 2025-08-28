@@ -2,17 +2,17 @@ import { randomUUID } from 'node:crypto'
 import {
   type CommonLogger,
   type ErrorReporter,
-  type TransactionObservabilityManager,
   globalLogger,
+  type TransactionObservabilityManager,
 } from '@lokalise/node-core'
 import type { MessageMetricsManager } from '@message-queue-toolkit/core'
 import { Admin } from '@platformatic/kafka'
 import {
   type AwilixContainer,
-  Lifetime,
-  type NameAndRegistrationPair,
   asFunction,
   createContainer,
+  Lifetime,
+  type NameAndRegistrationPair,
 } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
 import type { KafkaConfig } from '../../lib/index.ts'

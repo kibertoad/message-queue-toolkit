@@ -19,7 +19,7 @@ export class AbstractAmqpTopicConsumer<
     }
 
     await ensureAmqpTopicSubscription(
-      // biome-ignore lint/style/noNonNullAssertion: <explanation>
+      // biome-ignore lint/style/noNonNullAssertion: Should be fine
       this.connection!,
       this.channel,
       this.creationConfig,

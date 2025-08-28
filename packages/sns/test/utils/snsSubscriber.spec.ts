@@ -1,9 +1,9 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
+import type { STSClient } from '@aws-sdk/client-sts'
 import { deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber.ts'
 import {
   deleteTopic,
@@ -11,8 +11,6 @@ import {
   getSubscriptionAttributes,
 } from '../../lib/utils/snsUtils.ts'
 import { FakeLogger } from '../fakes/FakeLogger.ts'
-
-import type { STSClient } from '@aws-sdk/client-sts'
 import type { Dependencies } from './testContext.ts'
 import { registerDependencies } from './testContext.ts'
 

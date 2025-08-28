@@ -1,5 +1,5 @@
 import type { Either } from '@lokalise/node-core'
-import { InternalError, copyWithoutUndefined } from '@lokalise/node-core'
+import { copyWithoutUndefined, InternalError } from '@lokalise/node-core'
 import type {
   BarrierResult,
   CommonCreationConfigType,
@@ -88,7 +88,7 @@ export abstract class AbstractAmqpPublisher<
     }
 
     if (this.logMessages) {
-      // @ts-ignore
+      // @ts-expect-error
       const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
       this.logMessage(resolvedLogMessage)
     }
@@ -110,7 +110,7 @@ export abstract class AbstractAmqpPublisher<
       // Unfortunately, reliable retry mechanism can't be implemented with try-catch block,
       // as not all failures end up here. If connection is closed programmatically, it works fine,
       // but if server closes connection unexpectedly (e. g. RabbitMQ is shut down), then we don't land here
-      // @ts-ignore
+      // @ts-expect-error
       if (err.message === 'Channel closed') {
         this.logger.error('AMQP channel closed')
         void this.reconnect()
@@ -120,10 +120,10 @@ export abstract class AbstractAmqpPublisher<
           errorCode: 'AMQP_PUBLISH_ERROR',
           details: copyWithoutUndefined({
             publisher: this.constructor.name,
-            // @ts-ignore
+            // @ts-expect-error
             queueName: this.queueName,
             exchange: this.exchange,
-            // @ts-ignore
+            // @ts-expect-error
             messageType: message[this.messageTypeField] ?? 'unknown',
           }),
           cause: err as Error,

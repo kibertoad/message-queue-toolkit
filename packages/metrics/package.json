@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/metrics",
-    "version": "4.1.1",
+    "version": "4.2.0",
     "private": false,
     "license": "MIT",
     "description": "Utilities for collecting metrics in message-queue-toolkit",
@@ -26,22 +26,22 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^14.0.1",
-        "@lokalise/universal-ts-utils": "^4.4.1"
+        "@lokalise/node-core": "^14.2.0",
+        "@lokalise/universal-ts-utils": "^4.5.1"
     },
     "peerDependencies": {
         "@message-queue-toolkit/core": ">=21.0.0",
         "prom-client": ">=15.0.0"
     },
     "devDependencies": {
-        "@biomejs/biome": "^1.9.4",
-        "@lokalise/biome-config": "^2.0.0",
+        "@biomejs/biome": "^2.2.0",
+        "@lokalise/biome-config": "^3.1.0",
         "@lokalise/tsconfig": "^2.0.0",
         "@message-queue-toolkit/core": "*",
-        "@vitest/coverage-v8": "^3.0.7",
+        "@vitest/coverage-v8": "^3.2.4",
         "rimraf": "^6.0.1",
-        "typescript": "^5.7.2",
-        "vitest": "^3.0.7"
+        "typescript": "^5.9.2",
+        "vitest": "^3.2.4"
     },
     "homepage": "https://github.com/kibertoad/message-queue-toolkit",
     "repository": {

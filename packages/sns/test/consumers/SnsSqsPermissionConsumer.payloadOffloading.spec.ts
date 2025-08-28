@@ -1,18 +1,16 @@
 import type { S3 } from '@aws-sdk/client-s3'
 import type { PayloadStoreConfig } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
+import { deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-
 import { SNS_MESSAGE_MAX_SIZE } from '../../lib/sns/AbstractSnsService.ts'
+import { deleteTopic } from '../../lib/utils/snsUtils.ts'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
 import { assertBucket, emptyBucket } from '../utils/s3Utils.ts'
-import { registerDependencies } from '../utils/testContext.ts'
 import type { Dependencies } from '../utils/testContext.ts'
-
-import { deleteQueue } from '@message-queue-toolkit/sqs'
-import { deleteTopic } from '../../lib/utils/snsUtils.ts'
+import { registerDependencies } from '../utils/testContext.ts'
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer.ts'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas.ts'
 

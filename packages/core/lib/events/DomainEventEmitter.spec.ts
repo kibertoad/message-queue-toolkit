@@ -3,11 +3,9 @@ import { randomUUID } from 'node:crypto'
 import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-toolkit/schemas'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-import type { Dependencies, TestEventsType } from '../../test/testContext.ts'
-import { TestEvents, registerDependencies } from '../../test/testContext.ts'
-
 import { ErroredFakeListener } from '../../test/fakes/ErroredFakeListener.ts'
+import type { Dependencies, TestEventsType } from '../../test/testContext.ts'
+import { registerDependencies, TestEvents } from '../../test/testContext.ts'
 import type { DomainEventEmitter } from './DomainEventEmitter.ts'
 import { FakeListener } from './fakes/FakeListener.ts'
 

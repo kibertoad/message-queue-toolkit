@@ -11,7 +11,7 @@ export class AbstractAmqpQueueConsumer<
       await deleteAmqpQueue(this.channel, this.deletionConfig, this.creationConfig)
     }
 
-    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    // biome-ignore lint/style/noNonNullAssertion: Should be fine
     await ensureAmqpQueue(this.connection!, this.channel, this.creationConfig, this.locatorConfig)
   }
 }

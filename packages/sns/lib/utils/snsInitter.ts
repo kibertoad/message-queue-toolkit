@@ -1,19 +1,18 @@
 import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
+import type { STSClient } from '@aws-sdk/client-sts'
+import type { Either } from '@lokalise/node-core'
 import type { DeletionConfig, ExtraParams } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 import {
-  type SQSCreationConfig,
+  deleteQueue,
+  getQueueAttributes,
   resolveQueueUrlFromLocatorConfig,
+  type SQSCreationConfig,
 } from '@message-queue-toolkit/sqs'
-import { deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
-
 import type { SNSCreationConfig, SNSTopicLocatorType } from '../sns/AbstractSnsService.ts'
 import type { SNSSQSQueueLocatorType } from '../sns/AbstractSnsSqsConsumer.ts'
-
-import type { STSClient } from '@aws-sdk/client-sts'
-import type { Either } from '@lokalise/node-core'
-import { type TopicResolutionOptions, isCreateTopicCommand } from '../types/TopicTypes.ts'
+import { isCreateTopicCommand, type TopicResolutionOptions } from '../types/TopicTypes.ts'
 import type { SNSSubscriptionOptions } from './snsSubscriber.ts'
 import { subscribeToTopic } from './snsSubscriber.ts'
 import {
@@ -24,7 +23,7 @@ import {
   getTopicAttributes,
 } from './snsUtils.ts'
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixme
 export async function initSnsSqs(
   sqsClient: SQSClient,
   snsClient: SNSClient,
@@ -113,10 +112,10 @@ export async function initSnsSqs(
   let queueName: string
   if (queueUrl) {
     const splitUrl = queueUrl.split('/')
-    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    // biome-ignore lint/style/noNonNullAssertion: It's ok
     queueName = splitUrl[splitUrl.length - 1]!
   } else {
-    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    // biome-ignore lint/style/noNonNullAssertion: It's ok
     queueName = creationConfig!.queue.QueueName!
   }
 
@@ -154,7 +153,7 @@ export async function deleteSnsSqs(
     snsClient,
     stsClient,
     queueConfiguration,
-    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    // biome-ignore lint/style/noNonNullAssertion: Checked by type
     topicConfiguration ?? topicLocator!,
     subscriptionConfiguration,
     extraParams,
@@ -166,7 +165,7 @@ export async function deleteSnsSqs(
 
   await deleteQueue(
     sqsClient,
-    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    // biome-ignore lint/style/noNonNullAssertion: It's ok
     queueConfiguration.QueueName!,
     deletionConfig.waitForConfirmation !== false,
   )
@@ -231,7 +230,7 @@ export async function initSns(
       'When locatorConfig for the topic is not specified, creationConfig of the topic is mandatory',
     )
   }
-  // biome-ignore lint/style/noNonNullAssertion: <explanation>
+  // biome-ignore lint/style/noNonNullAssertion: it's ok
   const topicArn = await assertTopic(snsClient, stsClient, creationConfig.topic!, {
     queueUrlsWithSubscribePermissionsPrefix: creationConfig.queueUrlsWithSubscribePermissionsPrefix,
     allowedSourceOwner: creationConfig.allowedSourceOwner,

@@ -3,8 +3,8 @@ import * as fs from 'node:fs/promises'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
-  JsonStreamStringifySerializer,
   defaultTemporaryFilePathResolver,
+  JsonStreamStringifySerializer,
 } from '../../lib/payload-store/JsonStreamStringifySerializer.ts'
 import { streamToString } from '../utils/streamUtils.ts'
 

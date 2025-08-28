@@ -1,11 +1,11 @@
-import { AbstractPublisherManager, type MessageSchemaType } from '@message-queue-toolkit/core'
 import type { MessagePublishType, PublisherMessageMetadataType } from '@message-queue-toolkit/core'
+import { AbstractPublisherManager, type MessageSchemaType } from '@message-queue-toolkit/core'
 import type z from 'zod/v4'
 
 import type { AMQPDependencies, AMQPTopicPublisherConfig } from './AbstractAmqpService.ts'
 import type {
-  AMQPTopicPublisherOptions,
   AbstractAmqpTopicPublisher,
+  AMQPTopicPublisherOptions,
   AmqpTopicMessageOptions,
 } from './AbstractAmqpTopicPublisher.ts'
 import type {

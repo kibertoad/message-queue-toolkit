@@ -1,5 +1,5 @@
-import { SetQueueAttributesCommand, TagQueueCommand } from '@aws-sdk/client-sqs'
 import type { QueueAttributeName, SQSClient } from '@aws-sdk/client-sqs'
+import { SetQueueAttributesCommand, TagQueueCommand } from '@aws-sdk/client-sqs'
 import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction } from '@message-queue-toolkit/core'
 
@@ -83,7 +83,7 @@ export async function initSqs(
     }
 
     const splitUrl = queueUrl.split('/')
-    // biome-ignore lint/style/noNonNullAssertion: <explanation>
+    // biome-ignore lint/style/noNonNullAssertion: It's ok
     const queueName = splitUrl[splitUrl.length - 1]!
     return { queueArn, queueUrl, queueName }
   }

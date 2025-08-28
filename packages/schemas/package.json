@@ -29,14 +29,15 @@
         "zod": ">=3.25.67"
     },
     "devDependencies": {
-        "@biomejs/biome": "^1.9.4",
-        "@lokalise/biome-config": "^2.0.0",
+        "@biomejs/biome": "^2.2.0",
+        "@lokalise/biome-config": "^3.1.0",
         "@lokalise/tsconfig": "^2.0.0",
         "@types/node": "^24.0.3",
         "@vitest/coverage-v8": "^3.2.4",
         "rimraf": "^6.0.1",
-        "typescript": "^5.8.3",
-        "vitest": "^3.2.4"
+        "typescript": "^5.9.2",
+        "vitest": "^3.2.4",
+        "zod": "^4.0.17"
     },
     "homepage": "https://github.com/kibertoad/message-queue-toolkit",
     "repository": {
@@ -55,5 +56,9 @@
         "rabbitmq",
         "rabbit"
     ],
-    "files": ["README.md", "LICENSE", "dist/*"]
+    "files": [
+        "README.md",
+        "LICENSE",
+        "dist/*"
+    ]
 }
