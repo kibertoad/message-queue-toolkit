@@ -49,10 +49,6 @@ describe('PermissionBatchConsumer', () => {
       await expect(
         new PermissionBatchConsumer(testContext.cradle, { handlers: {} }).init(),
       ).rejects.toThrowErrorMatchingInlineSnapshot('[Error: At least one topic must be defined]')
-
-      await expect(
-        new PermissionBatchConsumer(testContext.cradle, { handlers: { test: [] } }).init(),
-      ).rejects.toThrowErrorMatchingInlineSnapshot('[Error: At least one topic must be defined]')
     })
 
     it('should thrown an error if trying to use spy when it is not enabled', () => {
@@ -249,12 +245,10 @@ describe('PermissionBatchConsumer', () => {
       let counter = 0
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
-          'permission-added': [
-            new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
-              counter++
-              throw new Error('Test error')
-            }),
-          ],
+          'permission-added': new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
+            counter++
+            throw new Error('Test error')
+          }),
         },
         batchProcessingOptions: {
           batchSize: 1, // Single message batch to trigger handler
@@ -277,12 +271,10 @@ describe('PermissionBatchConsumer', () => {
       let counter = 0
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
-          'permission-added': [
-            new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
-              counter++
-              if (counter === 1) throw new Error('Test error')
-            }),
-          ],
+          'permission-added': new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
+            counter++
+            if (counter === 1) throw new Error('Test error')
+          }),
         },
         batchProcessingOptions: {
           batchSize: 1, // Single message batch to trigger handler

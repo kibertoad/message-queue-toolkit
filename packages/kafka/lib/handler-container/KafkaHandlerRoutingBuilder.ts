@@ -12,11 +12,7 @@ export type KafkaHandlerRouting<
   BatchProcessingEnabled extends boolean,
 > = Record<
   string,
-  KafkaHandlerConfig<
-    SupportedMessageValues<TopicsConfig>,
-    ExecutionContext,
-    BatchProcessingEnabled
-  >[]
+  KafkaHandlerConfig<SupportedMessageValues<TopicsConfig>, ExecutionContext, BatchProcessingEnabled>
 >
 
 export class KafkaHandlerRoutingBuilder<
@@ -37,14 +33,11 @@ export class KafkaHandlerRoutingBuilder<
     topic: Topic,
     config: KafkaHandlerConfig<MessageValue, ExecutionContext, BatchProcessingEnabled>,
   ): this {
-    this.configs[topic] ??= []
-    this.configs[topic].push(
-      config as KafkaHandlerConfig<
-        SupportedMessageValues<TopicsConfig>,
-        ExecutionContext,
-        BatchProcessingEnabled
-      >,
-    )
+    this.configs[topic] = config as KafkaHandlerConfig<
+      SupportedMessageValues<TopicsConfig>,
+      ExecutionContext,
+      BatchProcessingEnabled
+    >
 
     return this
   }

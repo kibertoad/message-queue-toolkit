@@ -49,7 +49,7 @@ describe('PermissionConsumer', () => {
       ).rejects.toThrowErrorMatchingInlineSnapshot('[Error: At least one topic must be defined]')
 
       await expect(
-        new PermissionConsumer(testContext.cradle, { handlers: { test: [] } }).init(),
+        new PermissionConsumer(testContext.cradle, { handlers: {} }).init(),
       ).rejects.toThrowErrorMatchingInlineSnapshot('[Error: At least one topic must be defined]')
     })
 
@@ -215,12 +215,10 @@ describe('PermissionConsumer', () => {
       let counter = 0
       consumer = new PermissionConsumer(testContext.cradle, {
         handlers: {
-          'permission-added': [
-            new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
-              counter++
-              throw new Error('Test error')
-            }),
-          ],
+          'permission-added': new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
+            counter++
+            throw new Error('Test error')
+          }),
         },
       })
       await consumer.init()
@@ -239,12 +237,10 @@ describe('PermissionConsumer', () => {
       let counter = 0
       consumer = new PermissionConsumer(testContext.cradle, {
         handlers: {
-          'permission-added': [
-            new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
-              counter++
-              if (counter === 1) throw new Error('Test error')
-            }),
-          ],
+          'permission-added': new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
+            counter++
+            if (counter === 1) throw new Error('Test error')
+          }),
         },
       })
       await consumer.init()
@@ -383,7 +379,6 @@ describe('PermissionConsumer', () => {
         'permission-general',
         {
           id: '1',
-          type: 'added',
           permissions: [],
         },
         { reqId: requestId, logger: testContext.cradle.logger },
@@ -419,7 +414,6 @@ describe('PermissionConsumer', () => {
       // When
       await publisher.publish('permission-general', {
         id: '1',
-        type: 'added',
         permissions: [],
       })
       await publisher.publish('permission-general', {

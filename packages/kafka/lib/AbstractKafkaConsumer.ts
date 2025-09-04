@@ -20,8 +20,12 @@ import {
   stringDeserializer,
 } from '@platformatic/kafka'
 import { AbstractKafkaService, type BaseKafkaOptions } from './AbstractKafkaService.ts'
-import type { KafkaBatchHandler, KafkaHandler } from './handler-container/index.ts'
-import { KafkaHandlerContainer } from './handler-container/KafkaHandlerContainer.ts'
+import type {
+  KafkaBatchHandler,
+  KafkaBatchHandlerConfig,
+  KafkaHandler,
+  KafkaHandlerConfig,
+} from './handler-container/index.ts'
 import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.ts'
 import type {
   KafkaConfig,
@@ -88,11 +92,6 @@ export abstract class AbstractKafkaConsumer<
   >
 
   private readonly transactionObservabilityManager: TransactionObservabilityManager
-  private readonly handlerContainer: KafkaHandlerContainer<
-    TopicsConfig,
-    ExecutionContext,
-    BatchProcessingEnabled
-  >
   private readonly executionContext: ExecutionContext
 
   constructor(
@@ -103,11 +102,6 @@ export abstract class AbstractKafkaConsumer<
     super(dependencies, options)
 
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
-    this.handlerContainer = new KafkaHandlerContainer<
-      TopicsConfig,
-      ExecutionContext,
-      BatchProcessingEnabled
-    >(options.handlers)
     this.executionContext = executionContext
 
     this.consumer = new Consumer({
@@ -156,7 +150,7 @@ export abstract class AbstractKafkaConsumer<
 
   async init(): Promise<void> {
     if (this.consumerStream) return Promise.resolve()
-    const topics = this.handlerContainer.topics
+    const topics = Object.keys(this.options.handlers)
     if (topics.length === 0) throw new Error('At least one topic must be defined')
 
     try {
@@ -222,6 +216,10 @@ export abstract class AbstractKafkaConsumer<
     await this.consumer.close()
   }
 
+  private resolveHandler(topic: string) {
+    return this.options.handlers[topic]
+  }
+
   // Consume single message
   private async consume(
     message: Message<string, SupportedMessageValues<TopicsConfig>, string, string>,
@@ -231,9 +229,13 @@ export abstract class AbstractKafkaConsumer<
 
     const messageProcessingStartTimestamp = Date.now()
 
-    const handler = this.handlerContainer.resolveHandler(message.topic)
+    // Casting is safe as at this point we already checked that batch processing is disabled
+    const handlerConfig = this.resolveHandler(message.topic) as
+      | KafkaHandlerConfig<SupportedMessageValues<TopicsConfig>, ExecutionContext>
+      | undefined
+
     // if there is no handler for the message, we ignore it (simulating subscription)
-    if (!handler) return this.commitMessage(message)
+    if (!handlerConfig) return this.commitMessage(message)
 
     /* v8 ignore next */
     const transactionId = this.resolveMessageId(message.value) ?? randomUUID()
@@ -242,7 +244,7 @@ export abstract class AbstractKafkaConsumer<
       transactionId,
     )
 
-    const parseResult = handler.schema.safeParse(message.value)
+    const parseResult = handlerConfig.schema.safeParse(message.value)
     if (!parseResult.success) {
       this.handlerError(parseResult.error, {
         topic: message.topic,
@@ -262,34 +264,26 @@ export abstract class AbstractKafkaConsumer<
     const requestContext = this.getRequestContext(message)
 
     let retries = 0
-    let consumed = false
+    let processingResult: MessageProcessingResult = { status: 'error', errorReason: 'handlerError' }
     do {
       // exponential backoff -> 2^(retry-1)
       if (retries > 0) await setTimeout(Math.pow(2, retries - 1))
 
-      consumed = await this.tryToConsume(
+      processingResult = await this.tryToConsume(
         validatedMessage,
-        handler.handler as KafkaHandler<SupportedMessageValues<TopicsConfig>, ExecutionContext>,
+        handlerConfig.handler,
         requestContext,
       )
-      if (consumed) break
+      if (processingResult.status === 'consumed') break
 
       retries++
     } while (retries < MAX_IN_MEMORY_RETRIES)
 
-    if (consumed) {
-      this.handleMessageProcessed({
-        message: validatedMessage,
-        processingResult: { status: 'consumed' },
-        messageProcessingStartTimestamp,
-      })
-    } else {
-      this.handleMessageProcessed({
-        message: validatedMessage,
-        processingResult: { status: 'error', errorReason: 'handlerError' },
-        messageProcessingStartTimestamp,
-      })
-    }
+    this.handleMessageProcessed({
+      message: validatedMessage,
+      processingResult: processingResult,
+      messageProcessingStartTimestamp,
+    })
 
     this.transactionObservabilityManager?.stop(transactionId)
 
@@ -317,10 +311,13 @@ export abstract class AbstractKafkaConsumer<
       {} as Record<number, Message<string, SupportedMessageValues<TopicsConfig>, string, string>[]>,
     )
 
-    const handler = this.handlerContainer.resolveHandler(topic)
+    // Casting is safe as at this point we already checked that batch processing is enabled
+    const handlerConfig = this.resolveHandler(topic) as
+      | KafkaBatchHandlerConfig<SupportedMessageValues<TopicsConfig>, ExecutionContext>
+      | undefined
 
     for (const messagesInPartition of Object.values(messagesGroupedByPartition)) {
-      if (!handler) {
+      if (!handlerConfig) {
         await this.commitLastMessage(messagesInPartition)
         continue
       }
@@ -334,7 +331,7 @@ export abstract class AbstractKafkaConsumer<
           continue
         }
 
-        const parseResult = handler.schema.safeParse(message.value)
+        const parseResult = handlerConfig.schema.safeParse(message.value)
 
         if (!parseResult.success) {
           this.handlerError(parseResult.error, {
@@ -369,28 +366,24 @@ export abstract class AbstractKafkaConsumer<
       const requestContext = this.getRequestContext(validMessages[0]!)
 
       let retries = 0
-      let consumed = false
+      let processingResult: MessageProcessingResult = {
+        status: 'error',
+        errorReason: 'handlerError',
+      }
       do {
         // exponential backoff -> 2^(retry-1)
         if (retries > 0) await setTimeout(Math.pow(2, retries - 1))
 
-        consumed = await this.tryToConsumeBatch(
+        processingResult = await this.tryToConsumeBatch(
           topic,
           validMessages,
-          handler.handler as KafkaBatchHandler<
-            SupportedMessageValues<TopicsConfig>,
-            ExecutionContext
-          >,
+          handlerConfig.handler,
           requestContext,
         )
-        if (consumed) break
+        if (processingResult.status === 'consumed') break
 
         retries++
       } while (retries < MAX_IN_MEMORY_RETRIES)
-
-      const processingResult: MessageProcessingResult = consumed
-        ? { status: 'consumed' }
-        : { status: 'error', errorReason: 'handlerError' }
 
       for (const message of validMessages) {
         this.handleMessageProcessed({
@@ -406,22 +399,14 @@ export abstract class AbstractKafkaConsumer<
     }
   }
 
-  private commitLastMessage(messages: Message<string, object, string, string>[]) {
-    if (messages.length === 0) {
-      return Promise.resolve()
-    }
-    // biome-ignore lint/style/noNonNullAssertion: we check the length above
-    return this.commitMessage(messages[messages.length - 1]!)
-  }
-
   private async tryToConsume<MessageValue extends object>(
     message: Message<string, MessageValue, string, string>,
     handler: KafkaHandler<MessageValue, ExecutionContext, false>,
     requestContext: RequestContext,
-  ): Promise<boolean> {
+  ): Promise<MessageProcessingResult> {
     try {
       await handler(message, this.executionContext, requestContext)
-      return true
+      return { status: 'consumed' }
     } catch (error) {
       this.handlerError(error, {
         topic: message.topic,
@@ -429,7 +414,7 @@ export abstract class AbstractKafkaConsumer<
       })
     }
 
-    return false
+    return { status: 'error', errorReason: 'handlerError' }
   }
 
   private async tryToConsumeBatch<MessageValue extends object>(
@@ -437,15 +422,23 @@ export abstract class AbstractKafkaConsumer<
     messages: Message<string, MessageValue, string, string>[],
     handler: KafkaBatchHandler<MessageValue, ExecutionContext>,
     requestContext: RequestContext,
-  ): Promise<boolean> {
+  ): Promise<MessageProcessingResult> {
     try {
       await handler(messages, this.executionContext, requestContext)
-      return true
+      return { status: 'consumed' }
     } catch (error) {
       this.handlerError(error, { topic, batchSize: messages.length })
     }
 
-    return false
+    return { status: 'error', errorReason: 'handlerError' }
+  }
+
+  private commitLastMessage(messages: Message<string, object, string, string>[]) {
+    if (messages.length === 0) {
+      return Promise.resolve()
+    }
+    // biome-ignore lint/style/noNonNullAssertion: we check the length above
+    return this.commitMessage(messages[messages.length - 1]!)
   }
 
   private async commitMessage(message: Message<string, object, string, string>) {

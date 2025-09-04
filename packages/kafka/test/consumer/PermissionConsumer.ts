@@ -67,19 +67,6 @@ export class PermissionConsumer extends AbstractKafkaConsumer<
                 this._removedMessages.push(message)
               }),
             )
-            // .addConfig(
-            //   'permission-general',
-            //   new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message, executionContext) => {
-            //     executionContext.incrementAmount++
-            //     this._addedMessages.push(message)
-            //   }),
-            // )
-            // .addConfig(
-            //   'permission-general',
-            //   new KafkaHandlerConfig(PERMISSION_REMOVED_SCHEMA, (message) => {
-            //     this._removedMessages.push(message)
-            //   }),
-            // )
             .addConfig(
               'permission-general',
               new KafkaHandlerConfig(PERMISSION_SCHEMA, (message) => {
