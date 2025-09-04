@@ -296,17 +296,16 @@ describe('PermissionBatchConsumer', () => {
       // Given
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
-          'permission-general': [
-            new KafkaHandlerConfig(PERMISSION_SCHEMA.extend({ id: z.number() }), () =>
-              Promise.resolve(),
-            ),
-          ],
+          'permission-general': new KafkaHandlerConfig(
+            PERMISSION_SCHEMA.extend({ id: z.number() as any }),
+            () => Promise.resolve(),
+          ),
         },
         batchProcessingOptions: {
           batchSize: 1, // Single message batch to trigger handler
           timeoutMilliseconds: 10000,
         },
-      } as any)
+      })
       await consumer.init()
 
       // When
@@ -371,17 +370,18 @@ describe('PermissionBatchConsumer', () => {
       const handlerCalls: { messages: any[]; requestContext: RequestContext }[] = []
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
-          'permission-added': [
-            new KafkaBatchHandlerConfig(PERMISSION_ADDED_SCHEMA, (messages, _, requestContext) => {
+          'permission-added': new KafkaBatchHandlerConfig(
+            PERMISSION_ADDED_SCHEMA,
+            (messages, _, requestContext) => {
               handlerCalls.push({ messages: messages.map((m) => m.value), requestContext })
-            }),
-          ],
-        },
+            },
+          ),
+        } as any, // TODO fix typing
         batchProcessingOptions: {
           batchSize: 1,
           timeoutMilliseconds: 100,
         },
-      } as any)
+      })
       await consumer.init()
 
       // When
@@ -482,13 +482,12 @@ describe('PermissionBatchConsumer', () => {
 
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
-          'permission-general': [
-            new KafkaHandlerConfig(PERMISSION_SCHEMA.extend({ id: z.number() }), () =>
-              Promise.resolve(),
-            ),
-          ],
+          'permission-general': new KafkaHandlerConfig(
+            PERMISSION_SCHEMA.extend({ id: z.number() as any }),
+            () => Promise.resolve(),
+          ),
         },
-      } as any)
+      })
       await consumer.init()
 
       // When
@@ -517,13 +516,11 @@ describe('PermissionBatchConsumer', () => {
 
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
-          'permission-general': [
-            new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
-              throw new Error('Test error')
-            }),
-          ],
+          'permission-general': new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
+            throw new Error('Test error')
+          }),
         },
-      } as any)
+      })
       await consumer.init()
 
       // When

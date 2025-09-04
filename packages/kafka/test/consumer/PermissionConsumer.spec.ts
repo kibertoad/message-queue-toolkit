@@ -6,9 +6,9 @@ import z from 'zod/v4'
 import { KafkaHandlerConfig, type RequestContext } from '../../lib/index.ts'
 import { PermissionPublisher } from '../publisher/PermissionPublisher.ts'
 import {
-  PERMISSION_ADDED_SCHEMA,
   PERMISSION_REMOVED_SCHEMA,
   PERMISSION_SCHEMA,
+  type Permission,
   TOPICS,
 } from '../utils/permissionSchemas.ts'
 import { createTestContext, type TestContext } from '../utils/testContext.ts'
@@ -282,13 +282,12 @@ describe('PermissionConsumer', () => {
       // Given
       consumer = new PermissionConsumer(testContext.cradle, {
         handlers: {
-          'permission-general': [
-            new KafkaHandlerConfig(PERMISSION_SCHEMA.extend({ id: z.number() }), () =>
-              Promise.resolve(),
-            ),
-          ],
+          'permission-general': new KafkaHandlerConfig(
+            PERMISSION_SCHEMA.extend({ id: z.number() as any }),
+            () => Promise.resolve(),
+          ),
         },
-      } as any)
+      })
       await consumer.init()
 
       // When
@@ -361,16 +360,14 @@ describe('PermissionConsumer', () => {
       const handlerCalls: { messageValue: any; requestContext: RequestContext }[] = []
       consumer = new PermissionConsumer(testContext.cradle, {
         handlers: {
-          'permission-general': [
-            new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message, _, requestContext) => {
+          'permission-general': new KafkaHandlerConfig<Permission, any, false>(
+            PERMISSION_SCHEMA,
+            (message, _, requestContext) => {
               handlerCalls.push({ messageValue: message.value, requestContext })
-            }),
-            new KafkaHandlerConfig(PERMISSION_SCHEMA, (message, _, requestContext) => {
-              handlerCalls.push({ messageValue: message.value, requestContext })
-            }),
-          ],
+            },
+          ),
         },
-      } as any)
+      })
       await consumer.init()
 
       // When
@@ -470,13 +467,12 @@ describe('PermissionConsumer', () => {
 
       consumer = new PermissionConsumer(testContext.cradle, {
         handlers: {
-          'permission-general': [
-            new KafkaHandlerConfig(PERMISSION_SCHEMA.extend({ id: z.number() }), () =>
-              Promise.resolve(),
-            ),
-          ],
+          'permission-general': new KafkaHandlerConfig(
+            PERMISSION_SCHEMA.extend({ id: z.number() as any }),
+            () => Promise.resolve(),
+          ),
         },
-      } as any)
+      })
       await consumer.init()
 
       // When
@@ -505,13 +501,11 @@ describe('PermissionConsumer', () => {
 
       consumer = new PermissionConsumer(testContext.cradle, {
         handlers: {
-          'permission-general': [
-            new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
-              throw new Error('Test error')
-            }),
-          ],
+          'permission-general': new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
+            throw new Error('Test error')
+          }),
         },
-      } as any)
+      })
       await consumer.init()
 
       // When
