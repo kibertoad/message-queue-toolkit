@@ -138,7 +138,9 @@ describe('PermissionPublisher', () => {
               },
             ] as any,
           }),
-      ).toThrowErrorMatchingInlineSnapshot('[Error: Duplicate schema for type: added]')
+      ).toThrowErrorMatchingInlineSnapshot(
+        '[Error: Duplicate schema for type: Symbol(NO_MESSAGE_TYPE)]',
+      )
 
       expect(
         () =>
@@ -188,7 +190,20 @@ describe('PermissionPublisher', () => {
       // When
       await expect(
         publisher.publish('permission-added', message),
-      ).rejects.toThrowErrorMatchingInlineSnapshot('[Error: Unsupported message type: bad]')
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
+        [InternalError: Error while publishing to Kafka: [
+          {
+            "code": "invalid_value",
+            "values": [
+              "added"
+            ],
+            "path": [
+              "type"
+            ],
+            "message": "Invalid input: expected \\"added\\""
+          }
+        ]]
+      `)
     })
 
     it('should fail if message does not match schema', async () => {
@@ -249,7 +264,7 @@ describe('PermissionPublisher', () => {
         queueName: 'permission-added',
         messageId: '1',
         message: message1,
-        messageType: 'added',
+        messageType: 'unknown',
         messageTimestamp: undefined,
         processingResult: { status: 'published' },
         messageProcessingStartTimestamp: expect.any(Number),
@@ -259,7 +274,7 @@ describe('PermissionPublisher', () => {
         queueName: 'permission-removed',
         messageId: '2',
         message: message2,
-        messageType: 'removed',
+        messageType: 'unknown',
         messageTimestamp: undefined,
         processingResult: { status: 'published' },
         messageProcessingStartTimestamp: expect.any(Number),
