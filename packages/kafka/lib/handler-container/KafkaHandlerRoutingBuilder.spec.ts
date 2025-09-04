@@ -20,46 +20,100 @@ type ExecutionContext = {
 }
 
 describe('KafkaHandlerRoutingBuilder', () => {
-  it('should build routing config', () => {
-    type ExpectedMessage<MessageValue> = Message<string, MessageValue, string, string>
+  describe('batch processing disabled', () => {
+    it('should build routing config', () => {
+      type ExpectedMessage<MessageValue> = Message<string, MessageValue, string, string>
 
-    // Given
-    const builder = new KafkaHandlerRoutingBuilder<TopicsConfig, ExecutionContext>()
-      .addConfig(
-        'all',
-        new KafkaHandlerConfig(CREATE_SCHEMA, (message, executionContext, requestContext) => {
-          expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.output<typeof CREATE_SCHEMA>>>()
-          expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
-          expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
-        }),
-      )
-      .addConfig(
-        'all',
-        new KafkaHandlerConfig(UPDATE_SCHEMA, (message, executionContext, requestContext) => {
-          expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.output<typeof UPDATE_SCHEMA>>>()
-          expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
-          expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
-        }),
-      )
-      .addConfig(
-        'empty',
-        new KafkaHandlerConfig(EMPTY_SCHEMA, (message, executionContext, requestContext) => {
-          expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.output<typeof EMPTY_SCHEMA>>>()
-          expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
-          expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
-        }),
-      )
+      // Given
+      const builder = new KafkaHandlerRoutingBuilder<TopicsConfig, ExecutionContext, false>()
+        .addConfig(
+          'all',
+          new KafkaHandlerConfig(CREATE_SCHEMA, (message, executionContext, requestContext) => {
+            expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.output<typeof CREATE_SCHEMA>>>()
+            expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
+            expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
+          }),
+        )
+        .addConfig(
+          'all',
+          new KafkaHandlerConfig(UPDATE_SCHEMA, (message, executionContext, requestContext) => {
+            expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.output<typeof UPDATE_SCHEMA>>>()
+            expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
+            expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
+          }),
+        )
+        .addConfig(
+          'empty',
+          new KafkaHandlerConfig(EMPTY_SCHEMA, (message, executionContext, requestContext) => {
+            expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.output<typeof EMPTY_SCHEMA>>>()
+            expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
+            expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
+          }),
+        )
 
-    // When
-    const routing = builder.build()
+      // When
+      const routing = builder.build()
 
-    // Then
-    expect(routing).toEqual({
-      all: [
-        new KafkaHandlerConfig(CREATE_SCHEMA, expect.any(Function) as any),
-        new KafkaHandlerConfig(UPDATE_SCHEMA, expect.any(Function) as any),
-      ],
-      empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, expect.any(Function) as any)],
+      // Then
+      expect(routing).toEqual({
+        all: [
+          new KafkaHandlerConfig(CREATE_SCHEMA, expect.any(Function) as any),
+          new KafkaHandlerConfig(UPDATE_SCHEMA, expect.any(Function) as any),
+        ],
+        empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, expect.any(Function) as any)],
+      })
+    })
+  })
+
+  describe('batch processing enabled', () => {
+    it('should build routing config', () => {
+      type ExpectedMessageBatch<MessageValue> = Message<string, MessageValue, string, string>[]
+
+      // Given
+      const builder = new KafkaHandlerRoutingBuilder<TopicsConfig, ExecutionContext, true>()
+        .addConfig(
+          'all',
+          new KafkaHandlerConfig(CREATE_SCHEMA, (message, executionContext, requestContext) => {
+            expectTypeOf(message).toEqualTypeOf<
+              ExpectedMessageBatch<z.output<typeof CREATE_SCHEMA>>
+            >()
+            expectTypeOf(message)
+            expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
+            expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
+          }),
+        )
+        .addConfig(
+          'all',
+          new KafkaHandlerConfig(UPDATE_SCHEMA, (message, executionContext, requestContext) => {
+            expectTypeOf(message).toEqualTypeOf<
+              ExpectedMessageBatch<z.output<typeof UPDATE_SCHEMA>>
+            >()
+            expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
+            expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
+          }),
+        )
+        .addConfig(
+          'empty',
+          new KafkaHandlerConfig(EMPTY_SCHEMA, (message, executionContext, requestContext) => {
+            expectTypeOf(message).toEqualTypeOf<
+              ExpectedMessageBatch<z.output<typeof EMPTY_SCHEMA>>
+            >()
+            expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
+            expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
+          }),
+        )
+
+      // When
+      const routing = builder.build()
+
+      // Then
+      expect(routing).toEqual({
+        all: [
+          new KafkaHandlerConfig(CREATE_SCHEMA, expect.any(Function) as any),
+          new KafkaHandlerConfig(UPDATE_SCHEMA, expect.any(Function) as any),
+        ],
+        empty: [new KafkaHandlerConfig(EMPTY_SCHEMA, expect.any(Function) as any)],
+      })
     })
   })
 })

@@ -4,7 +4,6 @@ import type promClient from 'prom-client'
 import type { Histogram } from 'prom-client'
 import { PrometheusMessageMetric } from '../../PrometheusMessageMetric.ts'
 import type { PrometheusMetricParams } from '../../types.ts'
-import type {MakeRequired} from '@lokalise/universal-ts-utils/node';
 
 export abstract class PrometheusMessageTimeMetric<
   MessagePayload extends object,

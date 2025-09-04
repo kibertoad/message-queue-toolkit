@@ -6,30 +6,50 @@ import type {
 } from '../types.ts'
 import type { KafkaHandlerConfig } from './KafkaHandlerConfig.ts'
 
-export type KafkaHandlerRouting<TopicsConfig extends TopicConfig[], ExecutionContext> = Record<
+export type KafkaHandlerRouting<
+  TopicsConfig extends TopicConfig[],
+  ExecutionContext,
+  BatchProcessingEnabled extends boolean,
+> = Record<
   string,
-  KafkaHandlerConfig<SupportedMessageValues<TopicsConfig>, ExecutionContext>[]
+  KafkaHandlerConfig<
+    SupportedMessageValues<TopicsConfig>,
+    ExecutionContext,
+    BatchProcessingEnabled
+  >[]
 >
 
 export class KafkaHandlerRoutingBuilder<
   const TopicsConfig extends TopicConfig[],
   ExecutionContext,
+  BatchProcessingEnabled extends boolean,
 > {
-  private readonly configs: KafkaHandlerRouting<TopicsConfig, ExecutionContext> = {}
+  private readonly configs: KafkaHandlerRouting<
+    TopicsConfig,
+    ExecutionContext,
+    BatchProcessingEnabled
+  > = {}
 
   addConfig<
     Topic extends SupportedTopics<TopicsConfig>,
     MessageValue extends SupportedMessageValuesForTopic<TopicsConfig, Topic>,
-  >(topic: Topic, config: KafkaHandlerConfig<MessageValue, ExecutionContext>): this {
+  >(
+    topic: Topic,
+    config: KafkaHandlerConfig<MessageValue, ExecutionContext, BatchProcessingEnabled>,
+  ): this {
     this.configs[topic] ??= []
     this.configs[topic].push(
-      config as KafkaHandlerConfig<SupportedMessageValues<TopicsConfig>, ExecutionContext>,
+      config as KafkaHandlerConfig<
+        SupportedMessageValues<TopicsConfig>,
+        ExecutionContext,
+        BatchProcessingEnabled
+      >,
     )
 
     return this
   }
 
-  build(): KafkaHandlerRouting<TopicsConfig, ExecutionContext> {
+  build(): KafkaHandlerRouting<TopicsConfig, ExecutionContext, BatchProcessingEnabled> {
     return this.configs
   }
 }

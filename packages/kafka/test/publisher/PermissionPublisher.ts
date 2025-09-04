@@ -26,7 +26,6 @@ export class PermissionPublisher extends AbstractKafkaPublisher<
       handlerSpy: options?.handlerSpy ?? true,
       logMessages: true,
       messageIdField: options.disableMessageTypeField === true ? undefined : 'id',
-      messageTypeField: options.disableMessageTypeField === true ? undefined : 'type',
       headerRequestIdField: options.headerRequestIdField,
     })
   }

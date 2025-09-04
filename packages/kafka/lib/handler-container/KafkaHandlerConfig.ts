@@ -2,23 +2,44 @@ import type { Message } from '@platformatic/kafka'
 import type { ZodSchema } from 'zod/v4'
 import type { RequestContext } from '../types.js'
 
-export type KafkaHandler<MessageValue extends object, ExecutionContext> = (
-  message: Message<string, MessageValue, string, string>,
+export type KafkaHandler<
+  MessageValue extends object,
+  ExecutionContext,
+  BatchProcessingEnabled extends boolean = false,
+> = (
+  message: BatchProcessingEnabled extends false
+    ? Message<string, MessageValue, string, string>
+    : Message<string, MessageValue, string, string>[],
   context: ExecutionContext,
   requestContext: RequestContext,
 ) => Promise<void> | void
 
-export class KafkaHandlerConfig<MessageValue extends object, ExecutionContext> {
+export type KafkaBatchHandler<MessageValue extends object, ExecutionContext> = KafkaHandler<
+  MessageValue,
+  ExecutionContext,
+  true
+>
+
+export class KafkaHandlerConfig<
+  MessageValue extends object,
+  ExecutionContext,
+  BatchProcessingEnabled extends boolean = false,
+> {
   // biome-ignore lint/suspicious/noExplicitAny: Input for schema is flexible
   public readonly schema: ZodSchema<MessageValue, any>
-  public readonly handler: KafkaHandler<MessageValue, ExecutionContext>
+  public readonly handler: KafkaHandler<MessageValue, ExecutionContext, BatchProcessingEnabled>
 
   constructor(
     // biome-ignore lint/suspicious/noExplicitAny: Input for schema is flexible
     schema: ZodSchema<MessageValue, any>,
-    handler: KafkaHandler<MessageValue, ExecutionContext>,
+    handler: KafkaHandler<MessageValue, ExecutionContext, BatchProcessingEnabled>,
   ) {
     this.schema = schema
     this.handler = handler
   }
 }
+
+export class KafkaBatchHandlerConfig<
+  MessageValue extends object,
+  ExecutionContext,
+> extends KafkaHandlerConfig<MessageValue, ExecutionContext, true> {}

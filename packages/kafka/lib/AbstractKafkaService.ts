@@ -24,7 +24,6 @@ import type {
 
 export type BaseKafkaOptions = {
   kafka: KafkaConfig
-  messageTypeField?: string
   messageIdField?: string
   /**
    * The field in the message headers that contains the request ID.
@@ -77,12 +76,6 @@ export abstract class AbstractKafkaService<
     )
   }
 
-  protected resolveMessageType(message: SupportedMessageValues<TopicsConfig>): string | undefined {
-    if (!this.options.messageTypeField) return undefined
-    // @ts-expect-error
-    return message[this.options.messageTypeField] as string | undefined
-  }
-
   protected resolveMessageId(message: SupportedMessageValues<TopicsConfig>): string | undefined {
     // @ts-expect-error
     return message[this.options.messageIdField] as string | undefined
@@ -99,7 +92,6 @@ export abstract class AbstractKafkaService<
   }) {
     const { message, processingResult } = params
     const messageId = this.resolveMessageId(message.value)
-    const messageType = this.resolveMessageType(message.value)
 
     this._handlerSpy?.addProcessedMessage({ message: message.value, processingResult }, messageId)
 
@@ -110,7 +102,6 @@ export abstract class AbstractKafkaService<
           topic: message.topic,
           processingResult,
           messageId,
-          messageType,
         },
         `Finished processing message ${messageId}`,
       )
@@ -122,7 +113,7 @@ export abstract class AbstractKafkaService<
         processingResult,
         queueName: message.topic,
         messageId: messageId ?? 'unknown',
-        messageType: messageType ?? 'unknown',
+        messageType: 'unknown',
         messageTimestamp: message.timestamp ? Number(message.timestamp) : undefined,
         messageProcessingStartTimestamp: params.messageProcessingStartTimestamp,
         messageProcessingEndTimestamp: Date.now(),

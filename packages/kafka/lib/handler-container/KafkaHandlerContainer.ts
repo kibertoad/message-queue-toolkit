@@ -9,46 +9,56 @@ import type { KafkaHandlerRouting } from './KafkaHandlerRoutingBuilder.ts'
 
 const DEFAULT_HANDLER_KEY = Symbol('default-handler')
 
-type Handlers<TopicsConfig extends TopicConfig[], ExecutionContext> = Record<
+type Handlers<
+  TopicsConfig extends TopicConfig[],
+  ExecutionContext,
+  BatchProcessingEnabled extends boolean,
+> = Record<
   string,
   Record<
     string | symbol,
-    KafkaHandlerConfig<SupportedMessageValues<TopicsConfig>, ExecutionContext>
+    KafkaHandlerConfig<
+      SupportedMessageValues<TopicsConfig>,
+      ExecutionContext,
+      BatchProcessingEnabled
+    >
   >
 >
 
-export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[], ExecutionContext> {
-  private readonly handlers: Handlers<TopicsConfig, ExecutionContext>
-  private readonly messageTypeField?: string
+// TODO simplify - since we don't support messageTypeField anymore, we can use Record<topic, handler> structure
+export class KafkaHandlerContainer<
+  TopicsConfig extends TopicConfig[],
+  ExecutionContext,
+  BatchProcessingEnabled extends boolean,
+> {
+  private readonly handlers: Handlers<TopicsConfig, ExecutionContext, BatchProcessingEnabled>
 
   constructor(
-    topicHandlers: KafkaHandlerRouting<TopicsConfig, ExecutionContext>,
-    messageTypeField?: string,
+    topicHandlers: KafkaHandlerRouting<TopicsConfig, ExecutionContext, BatchProcessingEnabled>,
   ) {
-    this.messageTypeField = messageTypeField
     this.handlers = this.mapTopicHandlers(topicHandlers)
   }
 
   private mapTopicHandlers(
-    topicHandlerRouting: KafkaHandlerRouting<TopicsConfig, ExecutionContext>,
-  ): Handlers<TopicsConfig, ExecutionContext> {
-    const result: Handlers<TopicsConfig, ExecutionContext> = {}
+    topicHandlerRouting: KafkaHandlerRouting<
+      TopicsConfig,
+      ExecutionContext,
+      BatchProcessingEnabled
+    >,
+  ): Handlers<TopicsConfig, ExecutionContext, BatchProcessingEnabled> {
+    const result: Handlers<TopicsConfig, ExecutionContext, BatchProcessingEnabled> = {}
 
     for (const [topic, topicHandlers] of Object.entries(topicHandlerRouting)) {
       if (!topicHandlers.length) continue
       result[topic] = {}
 
       for (const handler of topicHandlers) {
-        let handlerKey = this.messageTypeField
-          ? // @ts-expect-error
-            handler.schema.shape[this.messageTypeField]?.value
-          : undefined
-        handlerKey ??= DEFAULT_HANDLER_KEY
-        if (result[topic][handlerKey]) {
+        if (result[topic]?.[DEFAULT_HANDLER_KEY]) {
           throw new Error(`Duplicate handler for topic ${topic}`)
         }
-
-        result[topic][handlerKey] = handler
+        result[topic] = {
+          [DEFAULT_HANDLER_KEY]: handler,
+        }
       }
     }
 
@@ -57,20 +67,17 @@ export class KafkaHandlerContainer<TopicsConfig extends TopicConfig[], Execution
 
   resolveHandler<Topic extends SupportedTopics<TopicsConfig>>(
     topic: Topic,
-    messageValue: SupportedMessageValuesForTopic<TopicsConfig, Topic>,
   ):
-    | KafkaHandlerConfig<SupportedMessageValuesForTopic<TopicsConfig, Topic>, ExecutionContext>
+    | KafkaHandlerConfig<
+        SupportedMessageValuesForTopic<TopicsConfig, Topic>,
+        ExecutionContext,
+        BatchProcessingEnabled
+      >
     | undefined {
     const handlers = this.handlers[topic]
     if (!handlers) return undefined
 
-    let messageValueType: string | undefined
-    // @ts-expect-error
-    if (this.messageTypeField) messageValueType = messageValue[this.messageTypeField]
-
-    return messageValueType
-      ? (handlers[messageValueType] ?? handlers[DEFAULT_HANDLER_KEY])
-      : handlers[DEFAULT_HANDLER_KEY]
+    return handlers[DEFAULT_HANDLER_KEY]
   }
 
   get topics(): SupportedTopics<TopicsConfig>[] {

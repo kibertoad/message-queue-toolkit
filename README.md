@@ -92,7 +92,7 @@ Multi-schema consumers support multiple message types via handler configs. They 
     * `dependencies` – a set of dependencies depending on the protocol;
     * `options`, composed by
         * `handlers` – configuration for handling each of the supported message types. See "Multi-schema handler definition" for more details;
-        * `messageTypeField` - which field in the message describes the type of a message. This field needs to be defined as `z.literal` in the schema and is used for routing the message to the correct handler;
+        * `messageTypeField` - which field in the message describes the type of a message. This field needs to be defined as `z.literal` in the schema and is used for routing the message to the correct handler; **Note:** It is not supported for Kafka consumer
         * `messageTimestampField` - which field in the message contains the message creation date (by default it is `timestamp`). This field needs to be a `Date` object or an ISO-8601 date string;
         * `maxRetryDuration` - how long (in seconds) the message should be retried due to the `retryLater` result before marking it as consumed (and sending to DLQ, if one is configured). This is used to avoid infinite loops. Default is 4 days;
         * `queueName`; (for SNS publishers this is a misnomer which actually refers to a topic name)
