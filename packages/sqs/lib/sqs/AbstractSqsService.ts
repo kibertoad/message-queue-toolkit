@@ -6,6 +6,8 @@ import { deleteSqs, initSqs } from '../utils/sqsInitter.ts'
 
 // https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html
 export const SQS_MESSAGE_MAX_SIZE = 256 * 1024 // 256KB
+export const SQS_RESOURCE_ANY = Symbol('any')
+export const SQS_RESOURCE_CURRENT_QUEUE = Symbol('current_queue')
 
 export type SQSDependencies = QueueDependencies & {
   sqsClient: SQSClient
@@ -15,12 +17,25 @@ export type ExtraSQSCreationParams = {
   topicArnsWithPublishPermissionsPrefix?: string
   updateAttributesIfExists?: boolean
   forceTagUpdate?: boolean
+  policyConfig?: SQSPolicyConfig
+}
+
+type SQSPolicyStatement = {
+  Effect?: string
+  Principal?: string
+  Action?: string[]
+}
+
+export type SQSPolicyConfig = {
+  resource: string | typeof SQS_RESOURCE_ANY | typeof SQS_RESOURCE_CURRENT_QUEUE
+  statements?: SQSPolicyStatement | SQSPolicyStatement[]
 }
 
 export type SQSCreationConfig = {
   queue: CreateQueueRequest
   updateAttributesIfExists?: boolean
   forceTagUpdate?: boolean
+  policyConfig?: SQSPolicyConfig
 } & ExtraSQSCreationParams
 
 export type SQSQueueLocatorType =
