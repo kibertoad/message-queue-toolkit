@@ -9,9 +9,7 @@ import { KafkaHandlerConfig, KafkaHandlerRoutingBuilder } from '../../lib/index.
 import {
   PERMISSION_ADDED_SCHEMA,
   PERMISSION_REMOVED_SCHEMA,
-  PERMISSION_SCHEMA,
   type PERMISSION_TOPIC_MESSAGES_CONFIG,
-  type Permission,
   type PermissionAdded,
   type PermissionRemoved,
 } from '../utils/permissionSchemas.ts'
@@ -41,7 +39,6 @@ export class PermissionBatchConsumer extends AbstractKafkaConsumer<
 > {
   private _addedMessages: Message<string, PermissionAdded, string, string>[][] = []
   private _removedMessages: Message<string, PermissionRemoved, string, string>[][] = []
-  private _noTypeMessages: Message<string, Permission, string, string>[][] = []
 
   constructor(deps: KafkaConsumerDependencies, options: PermissionBatchConsumerOptions = {}) {
     super(
@@ -73,12 +70,6 @@ export class PermissionBatchConsumer extends AbstractKafkaConsumer<
                 this._removedMessages.push(messages)
               }),
             )
-            .addConfig(
-              'permission-general',
-              new KafkaHandlerConfig(PERMISSION_SCHEMA, (messages) => {
-                this._noTypeMessages.push(messages)
-              }),
-            )
             .build(),
         autocreateTopics: options.autocreateTopics ?? true,
         groupId: randomUUID(),
@@ -102,13 +93,8 @@ export class PermissionBatchConsumer extends AbstractKafkaConsumer<
     return this._removedMessages
   }
 
-  get noTypeMessages() {
-    return this._noTypeMessages
-  }
-
   clear(): void {
     this._addedMessages = []
     this._removedMessages = []
-    this._noTypeMessages = []
   }
 }

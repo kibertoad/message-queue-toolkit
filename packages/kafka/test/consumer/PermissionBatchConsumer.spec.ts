@@ -296,7 +296,7 @@ describe('PermissionBatchConsumer', () => {
       // Given
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
-          'permission-general': new KafkaHandlerConfig(
+          'permission-added': new KafkaHandlerConfig(
             PERMISSION_SCHEMA.extend({ id: z.number() as any }),
             () => Promise.resolve(),
           ),
@@ -309,7 +309,7 @@ describe('PermissionBatchConsumer', () => {
       await consumer.init()
 
       // When
-      await publisher.publish('permission-general', { id: '1', permissions: [] })
+      await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
 
       // Then
       const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
@@ -336,7 +336,7 @@ describe('PermissionBatchConsumer', () => {
 
       // When
       await producer.send({
-        messages: [{ topic: 'permission-general', value: 'not valid json' }],
+        messages: [{ topic: 'permission-added', value: 'not valid json' }],
       })
 
       // Then
@@ -457,7 +457,7 @@ describe('PermissionBatchConsumer', () => {
       await consumer.init()
 
       // When
-      await publisher.publish('permission-general', { id: '1', permissions: [] })
+      await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
 
       // Then
       const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
@@ -465,7 +465,7 @@ describe('PermissionBatchConsumer', () => {
 
       expect(metricSpy).toHaveBeenCalledTimes(2) // publish + consume
       expect(metricSpy).toHaveBeenCalledWith({
-        queueName: 'permission-general',
+        queueName: 'permission-added',
         messageId: '1',
         message: expect.objectContaining({ id: '1' }),
         messageType: 'unknown',
@@ -482,7 +482,7 @@ describe('PermissionBatchConsumer', () => {
 
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
-          'permission-general': new KafkaHandlerConfig(
+          'permission-added': new KafkaHandlerConfig(
             PERMISSION_SCHEMA.extend({ id: z.number() as any }),
             () => Promise.resolve(),
           ),
@@ -491,7 +491,7 @@ describe('PermissionBatchConsumer', () => {
       await consumer.init()
 
       // When
-      await publisher.publish('permission-general', { id: '1', permissions: [] })
+      await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
 
       // Then
       const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
@@ -499,7 +499,7 @@ describe('PermissionBatchConsumer', () => {
 
       expect(metricSpy).toHaveBeenCalledTimes(2) // publish + consume
       expect(metricSpy).toHaveBeenCalledWith({
-        queueName: 'permission-general',
+        queueName: 'permission-added',
         messageId: '1',
         message: expect.objectContaining({ id: '1' }),
         messageType: 'unknown',
@@ -516,7 +516,7 @@ describe('PermissionBatchConsumer', () => {
 
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
-          'permission-general': new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
+          'permission-added': new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
             throw new Error('Test error')
           }),
         },
@@ -524,7 +524,7 @@ describe('PermissionBatchConsumer', () => {
       await consumer.init()
 
       // When
-      await publisher.publish('permission-general', { id: '1', permissions: [] })
+      await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
 
       // Then
       const spy = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
@@ -532,7 +532,7 @@ describe('PermissionBatchConsumer', () => {
 
       expect(metricSpy).toHaveBeenCalledTimes(2) // publish + consume
       expect(metricSpy).toHaveBeenCalledWith({
-        queueName: 'permission-general',
+        queueName: 'permission-added',
         messageId: '1',
         message: expect.objectContaining({ id: '1' }),
         messageType: 'unknown',
