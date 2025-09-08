@@ -11,7 +11,6 @@ import {
 import { PermissionPublisher } from '../publisher/PermissionPublisher.ts'
 import {
   PERMISSION_ADDED_SCHEMA,
-  PERMISSION_SCHEMA,
   type PermissionAdded,
   TOPICS,
 } from '../utils/permissionSchemas.ts'
@@ -245,7 +244,7 @@ describe('PermissionBatchConsumer', () => {
       let counter = 0
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
-          'permission-added': new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
+          'permission-added': new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, () => {
             counter++
             throw new Error('Test error')
           }),
@@ -271,7 +270,7 @@ describe('PermissionBatchConsumer', () => {
       let counter = 0
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
-          'permission-added': new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
+          'permission-added': new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, () => {
             counter++
             if (counter === 1) throw new Error('Test error')
           }),
@@ -297,7 +296,7 @@ describe('PermissionBatchConsumer', () => {
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
           'permission-added': new KafkaHandlerConfig(
-            PERMISSION_SCHEMA.extend({ id: z.number() as any }),
+            PERMISSION_ADDED_SCHEMA.extend({ id: z.number() as any }),
             () => Promise.resolve(),
           ),
         },
@@ -483,7 +482,7 @@ describe('PermissionBatchConsumer', () => {
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
           'permission-added': new KafkaHandlerConfig(
-            PERMISSION_SCHEMA.extend({ id: z.number() as any }),
+            PERMISSION_ADDED_SCHEMA.extend({ id: z.number() as any }),
             () => Promise.resolve(),
           ),
         },
@@ -516,7 +515,7 @@ describe('PermissionBatchConsumer', () => {
 
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
-          'permission-added': new KafkaHandlerConfig(PERMISSION_SCHEMA, () => {
+          'permission-added': new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, () => {
             throw new Error('Test error')
           }),
         },

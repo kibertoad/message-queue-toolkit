@@ -10,10 +10,13 @@ export type KafkaHandlerRouting<
   TopicsConfig extends TopicConfig[],
   ExecutionContext,
   BatchProcessingEnabled extends boolean,
-> = Record<
-  string,
-  KafkaHandlerConfig<SupportedMessageValues<TopicsConfig>, ExecutionContext, BatchProcessingEnabled>
->
+> = Partial<{
+  [Topic in SupportedTopics<TopicsConfig>]: KafkaHandlerConfig<
+    SupportedMessageValuesForTopic<TopicsConfig, Topic>,
+    ExecutionContext,
+    BatchProcessingEnabled
+  >
+}>
 
 export class KafkaHandlerRoutingBuilder<
   const TopicsConfig extends TopicConfig[],

@@ -17,7 +17,7 @@ export type KafkaConfig = {
 
 export type TopicConfig<Topic extends string = string> = {
   topic: Topic
-  schemas: ZodSchema<object>[]
+  schema: ZodSchema<object>
 }
 
 export type SupportedTopics<TopicsConfig extends TopicConfig[]> = TopicsConfig[number]['topic']
@@ -25,7 +25,7 @@ export type SupportedTopics<TopicsConfig extends TopicConfig[]> = TopicsConfig[n
 type MessageSchemasForTopic<
   TopicsConfig extends TopicConfig[],
   Topic extends SupportedTopics<TopicsConfig>,
-> = Extract<TopicsConfig[number], { topic: Topic }>['schemas'][number]
+> = Extract<TopicsConfig[number], { topic: Topic }>['schema']
 export type SupportedMessageValuesInputForTopic<
   TopicsConfig extends TopicConfig[],
   Topic extends SupportedTopics<TopicsConfig>,
@@ -35,7 +35,7 @@ export type SupportedMessageValuesForTopic<
   Topic extends SupportedTopics<TopicsConfig>,
 > = z.output<MessageSchemasForTopic<TopicsConfig, Topic>>
 
-type MessageSchemas<TopicsConfig extends TopicConfig[]> = TopicsConfig[number]['schemas'][number]
+type MessageSchemas<TopicsConfig extends TopicConfig[]> = TopicsConfig[number]['schema']
 export type SupportedMessageValuesInput<TopicsConfig extends TopicConfig[]> = z.input<
   MessageSchemas<TopicsConfig>
 >

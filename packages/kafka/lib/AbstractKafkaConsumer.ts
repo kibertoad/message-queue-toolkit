@@ -32,6 +32,7 @@ import type {
   KafkaDependencies,
   RequestContext,
   SupportedMessageValues,
+  SupportedTopics,
   TopicConfig,
 } from './types.ts'
 import { ILLEGAL_GENERATION, REBALANCE_IN_PROGRESS, UNKNOWN_MEMBER_ID } from './utils/errorCodes.ts'
@@ -213,10 +214,14 @@ export abstract class AbstractKafkaConsumer<
       this.messageBatchStream = undefined
     }
 
-    await this.consumer.close()
+    try {
+      await this.consumer.close()
+    } catch (err) {
+      console.log('ERROR ON CLOSING', err)
+    }
   }
 
-  private resolveHandler(topic: string) {
+  private resolveHandler(topic: SupportedTopics<TopicsConfig>) {
     return this.options.handlers[topic]
   }
 
