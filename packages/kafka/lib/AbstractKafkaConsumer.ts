@@ -177,7 +177,6 @@ export abstract class AbstractKafkaConsumer<
         this.consumerStream.pipe(this.messageBatchStream)
       }
     } catch (error) {
-      this.consumer.leaveGroup()
       throw new InternalError({
         message: 'Consumer init failed',
         errorCode: 'KAFKA_CONSUMER_INIT_ERROR',
@@ -202,7 +201,11 @@ export abstract class AbstractKafkaConsumer<
   }
 
   async close(): Promise<void> {
-    if (!this.consumerStream && !this.messageBatchStream) return Promise.resolve()
+    if (!this.consumerStream && !this.messageBatchStream) {
+      // Leaving the group in case consumer joined but streams were not created
+      this.consumer.leaveGroup()
+      return
+    }
 
     if (this.consumerStream) {
       await this.consumerStream.close()
