@@ -8,13 +8,16 @@ export {
   AbstractSqsPublisher,
   OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE,
 } from './sqs/AbstractSqsPublisher.ts'
-export type {
-  ExtraSQSCreationParams,
-  SQSCreationConfig,
-  SQSDependencies,
-  SQSQueueLocatorType,
+export {
+  type ExtraSQSCreationParams,
+  SQS_MESSAGE_MAX_SIZE,
+  SQS_RESOURCE_ANY,
+  SQS_RESOURCE_CURRENT_QUEUE,
+  type SQSCreationConfig,
+  type SQSDependencies,
+  type SQSPolicyConfig,
+  type SQSQueueLocatorType,
 } from './sqs/AbstractSqsService.ts'
-export { SQS_MESSAGE_MAX_SIZE } from './sqs/AbstractSqsService.ts'
 export type { CommonMessage, SQSMessage } from './types/MessageTypes.ts'
 export { resolveOutgoingMessageAttributes } from './utils/messageUtils.ts'
 export {
