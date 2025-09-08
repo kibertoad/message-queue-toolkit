@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { InternalError } from '@lokalise/node-core'
 import type { MockInstance } from 'vitest'
-import z from 'zod/v4'
 import {
   PERMISSION_ADDED_SCHEMA,
   PERMISSION_ADDED_TOPIC,
@@ -126,36 +125,6 @@ describe('PermissionPublisher', () => {
         expect(emittedEvent.message).toMatchObject({ id: '1', type: 'added' })
       },
     )
-
-    it('should fail if a message has more than one schema', () => {
-      expect(
-        () =>
-          new PermissionPublisher(testContext.cradle, {
-            topicsConfig: [
-              {
-                topic: 'permission-added',
-                schemas: [PERMISSION_ADDED_SCHEMA, PERMISSION_ADDED_SCHEMA],
-              },
-            ] as any,
-          }),
-      ).toThrowErrorMatchingInlineSnapshot(
-        '[Error: Duplicate schema for type: Symbol(NO_MESSAGE_TYPE)]',
-      )
-
-      expect(
-        () =>
-          new PermissionPublisher(testContext.cradle, {
-            topicsConfig: [
-              {
-                topic: 'permission-added',
-                schemas: [z.object({}), z.object({})],
-              },
-            ] as any,
-          }),
-      ).toThrowErrorMatchingInlineSnapshot(
-        '[Error: Duplicate schema for type: Symbol(NO_MESSAGE_TYPE)]',
-      )
-    })
   })
 
   describe('publish', () => {
@@ -288,7 +257,7 @@ describe('PermissionPublisher', () => {
         topicsConfig: [
           {
             topic: PERMISSION_ADDED_TOPIC,
-            schemas: [PERMISSION_ADDED_SCHEMA],
+            schema: PERMISSION_ADDED_SCHEMA,
           },
         ] as any, // we are not adding the other topics intentionally
       })
