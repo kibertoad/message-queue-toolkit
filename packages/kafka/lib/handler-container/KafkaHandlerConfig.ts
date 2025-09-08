@@ -1,6 +1,5 @@
-import type { Message } from '@platformatic/kafka'
 import type { ZodSchema } from 'zod/v4'
-import type { RequestContext } from '../types.js'
+import type { DeserializedMessage, RequestContext } from '../types.js'
 
 export type KafkaHandler<
   MessageValue extends object,
@@ -8,17 +7,11 @@ export type KafkaHandler<
   BatchProcessingEnabled extends boolean = false,
 > = (
   message: BatchProcessingEnabled extends false
-    ? Message<string, MessageValue, string, string>
-    : Message<string, MessageValue, string, string>[],
+    ? DeserializedMessage<MessageValue>
+    : DeserializedMessage<MessageValue>[],
   context: ExecutionContext,
   requestContext: RequestContext,
 ) => Promise<void> | void
-
-export type KafkaBatchHandler<MessageValue extends object, ExecutionContext> = KafkaHandler<
-  MessageValue,
-  ExecutionContext,
-  true
->
 
 export class KafkaHandlerConfig<
   MessageValue extends object,

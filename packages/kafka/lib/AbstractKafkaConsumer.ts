@@ -5,6 +5,7 @@ import {
   stringValueSerializer,
   type TransactionObservabilityManager,
 } from '@lokalise/node-core'
+import { groupBy } from '@lokalise/universal-ts-utils/node'
 import type {
   MessageProcessingResult,
   QueueConsumerDependencies,
@@ -13,7 +14,6 @@ import {
   type ConsumeOptions,
   Consumer,
   type ConsumerOptions,
-  type Message,
   type MessagesStream,
   ProtocolError,
   ResponseError,
@@ -53,8 +53,8 @@ export type KafkaBatchProcessingOptions<BatchProcessingEnabled> = {
 }
 
 type MessageOrBatch<MessageValue extends object> =
-  | Message<string, MessageValue, string, string>
-  | Message<string, MessageValue, string, string>[]
+  | DeserializedMessage<MessageValue>
+  | DeserializedMessage<MessageValue>[]
 
 export type KafkaConsumerOptions<
   TopicsConfig extends TopicConfig[],
@@ -92,7 +92,9 @@ export abstract class AbstractKafkaConsumer<
 > {
   private readonly consumer: Consumer<string, object, string, string>
   private consumerStream?: MessagesStream<string, object, string, string>
-  private messageBatchStream?: KafkaMessageBatchStream<DeserializedMessage<TopicsConfig>>
+  private messageBatchStream?: KafkaMessageBatchStream<
+    DeserializedMessage<SupportedMessageValues<TopicsConfig>>
+  >
 
   private readonly transactionObservabilityManager: TransactionObservabilityManager
   private readonly executionContext: ExecutionContext
@@ -169,7 +171,7 @@ export abstract class AbstractKafkaConsumer<
       this.consumerStream = await this.consumer.consume({ ...consumeOptions, topics })
       if (this.options.batchProcessingEnabled) {
         this.messageBatchStream = new KafkaMessageBatchStream<
-          Message<string, SupportedMessageValues<TopicsConfig>, string, string>
+          DeserializedMessage<SupportedMessageValues<TopicsConfig>>
         >({
           batchSize: this.options.batchProcessingOptions?.batchSize ?? KAFKA_DEFAULT_BATCH_SIZE,
           timeoutMilliseconds:
@@ -195,7 +197,7 @@ export abstract class AbstractKafkaConsumer<
       this.consumerStream.on('data', (message) =>
         this.consume(
           message.topic,
-          message as Message<string, SupportedMessageValues<TopicsConfig>, string, string>,
+          message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
         ),
       )
     }
@@ -231,20 +233,10 @@ export abstract class AbstractKafkaConsumer<
 
   private async consumeBatch(
     topic: string,
-    messages: Message<string, SupportedMessageValues<TopicsConfig>, string, string>[],
+    messages: DeserializedMessage<SupportedMessageValues<TopicsConfig>>[],
   ): Promise<void> {
     // Grouping message by partition since each partition should be processed and committed separately
-    const messagesGroupedByPartition = messages.reduce(
-      (acc, message) => {
-        if (!acc[message.partition]) {
-          acc[message.partition] = [message]
-        } else {
-          acc[message.partition]?.push(message)
-        }
-        return acc
-      },
-      {} as Record<number, Message<string, SupportedMessageValues<TopicsConfig>, string, string>[]>,
-    )
+    const messagesGroupedByPartition = groupBy(messages, 'partition')
 
     for (const messagesInPartition of Object.values(messagesGroupedByPartition)) {
       await this.consume(topic, messagesInPartition)
@@ -308,8 +300,7 @@ export abstract class AbstractKafkaConsumer<
   ) {
     const messagesToCheck = Array.isArray(messageOrBatch) ? messageOrBatch : [messageOrBatch]
 
-    const validMessages: Message<string, SupportedMessageValues<TopicsConfig>, string, string>[] =
-      []
+    const validMessages: DeserializedMessage<SupportedMessageValues<TopicsConfig>>[] = []
 
     for (const message of messagesToCheck) {
       // message.value can be undefined if the message is not JSON-serializable
@@ -384,8 +375,8 @@ export abstract class AbstractKafkaConsumer<
       await handler(
         // We need casting to match message type with handler type - it is safe as we verify the type above
         messageOrBatch as BatchProcessingEnabled extends false
-          ? Message<string, MessageValue, string, string>
-          : Message<string, MessageValue, string, string>[],
+          ? DeserializedMessage<MessageValue>
+          : DeserializedMessage<MessageValue>[],
         this.executionContext,
         requestContext,
       )
@@ -429,7 +420,7 @@ export abstract class AbstractKafkaConsumer<
     }
   }
 
-  private async commitMessage(message: Message<string, object, string, string>) {
+  private async commitMessage(message: DeserializedMessage<SupportedMessageValues<TopicsConfig>>) {
     try {
       this.logger.debug(
         { topic: message.topic, offset: message.offset, timestamp: message.timestamp },
@@ -474,7 +465,9 @@ export abstract class AbstractKafkaConsumer<
       : baseTransactionName
   }
 
-  private getRequestContext(message: Message<string, object, string, string>): RequestContext {
+  private getRequestContext(
+    message: DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
+  ): RequestContext {
     let reqId = message.headers.get(this.resolveHeaderRequestIdField())
     if (!reqId || reqId.trim().length === 0) reqId = randomUUID()
 

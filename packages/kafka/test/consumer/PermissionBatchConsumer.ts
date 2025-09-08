@@ -1,11 +1,14 @@
 import { randomUUID } from 'node:crypto'
-import type { Message } from '@platformatic/kafka'
 import {
   AbstractKafkaConsumer,
   type KafkaConsumerDependencies,
   type KafkaConsumerOptions,
 } from '../../lib/AbstractKafkaConsumer.ts'
-import { KafkaHandlerConfig, KafkaHandlerRoutingBuilder } from '../../lib/index.ts'
+import {
+  type DeserializedMessage,
+  KafkaHandlerConfig,
+  KafkaHandlerRoutingBuilder,
+} from '../../lib/index.ts'
 import {
   PERMISSION_ADDED_SCHEMA,
   PERMISSION_REMOVED_SCHEMA,
@@ -37,8 +40,8 @@ export class PermissionBatchConsumer extends AbstractKafkaConsumer<
   ExecutionContext,
   true
 > {
-  private _addedMessages: Message<string, PermissionAdded, string, string>[][] = []
-  private _removedMessages: Message<string, PermissionRemoved, string, string>[][] = []
+  private _addedMessages: DeserializedMessage<PermissionAdded>[][] = []
+  private _removedMessages: DeserializedMessage<PermissionRemoved>[][] = []
 
   constructor(deps: KafkaConsumerDependencies, options: PermissionBatchConsumerOptions = {}) {
     super(

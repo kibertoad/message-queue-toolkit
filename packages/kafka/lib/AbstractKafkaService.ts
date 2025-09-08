@@ -14,8 +14,9 @@ import {
   type PublicHandlerSpy,
   resolveHandlerSpy,
 } from '@message-queue-toolkit/core'
-import type { BaseOptions, Message } from '@platformatic/kafka'
+import type { BaseOptions } from '@platformatic/kafka'
 import type {
+  DeserializedMessage,
   KafkaConfig,
   KafkaDependencies,
   SupportedMessageValues,
@@ -36,10 +37,7 @@ export type BaseKafkaOptions = {
 } & Omit<BaseOptions, keyof KafkaConfig> // Exclude properties that are already in KafkaConfig
 
 export type ProcessedMessage<TopicsConfig extends TopicConfig[]> = MayOmit<
-  Pick<
-    Message<string, SupportedMessageValues<TopicsConfig>, string, string>,
-    'topic' | 'value' | 'timestamp'
-  >,
+  Pick<DeserializedMessage<SupportedMessageValues<TopicsConfig>>, 'topic' | 'value' | 'timestamp'>,
   'timestamp'
 >
 

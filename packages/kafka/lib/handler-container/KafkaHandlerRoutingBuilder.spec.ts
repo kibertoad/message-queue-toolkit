@@ -1,7 +1,6 @@
-import type { Message } from '@platformatic/kafka'
 import { expectTypeOf } from 'vitest'
 import z from 'zod/v4'
-import type { RequestContext, TopicConfig } from '../types.ts'
+import type { DeserializedMessage, RequestContext, TopicConfig } from '../types.ts'
 import { KafkaHandlerConfig } from './KafkaHandlerConfig.ts'
 import { KafkaHandlerRoutingBuilder } from './KafkaHandlerRoutingBuilder.ts'
 
@@ -21,14 +20,14 @@ type ExecutionContext = {
 describe('KafkaHandlerRoutingBuilder', () => {
   describe('batch processing disabled', () => {
     it('should build routing config', () => {
-      type ExpectedMessage<MessageValue> = Message<string, MessageValue, string, string>
-
       // Given
       const builder = new KafkaHandlerRoutingBuilder<TopicsConfig, ExecutionContext, false>()
         .addConfig(
           'all',
           new KafkaHandlerConfig(CREATE_SCHEMA, (message, executionContext, requestContext) => {
-            expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.output<typeof CREATE_SCHEMA>>>()
+            expectTypeOf(message).toEqualTypeOf<
+              DeserializedMessage<z.output<typeof CREATE_SCHEMA>>
+            >()
             expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
             expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
           }),
@@ -36,7 +35,9 @@ describe('KafkaHandlerRoutingBuilder', () => {
         .addConfig(
           'empty',
           new KafkaHandlerConfig(EMPTY_SCHEMA, (message, executionContext, requestContext) => {
-            expectTypeOf(message).toEqualTypeOf<ExpectedMessage<z.output<typeof EMPTY_SCHEMA>>>()
+            expectTypeOf(message).toEqualTypeOf<
+              DeserializedMessage<z.output<typeof EMPTY_SCHEMA>>
+            >()
             expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
             expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
           }),
@@ -55,15 +56,13 @@ describe('KafkaHandlerRoutingBuilder', () => {
 
   describe('batch processing enabled', () => {
     it('should build routing config', () => {
-      type ExpectedMessageBatch<MessageValue> = Message<string, MessageValue, string, string>[]
-
       // Given
       const builder = new KafkaHandlerRoutingBuilder<TopicsConfig, ExecutionContext, true>()
         .addConfig(
           'all',
           new KafkaHandlerConfig(CREATE_SCHEMA, (message, executionContext, requestContext) => {
             expectTypeOf(message).toEqualTypeOf<
-              ExpectedMessageBatch<z.output<typeof CREATE_SCHEMA>>
+              DeserializedMessage<z.output<typeof CREATE_SCHEMA>>[]
             >()
             expectTypeOf(message)
             expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
@@ -74,7 +73,7 @@ describe('KafkaHandlerRoutingBuilder', () => {
           'empty',
           new KafkaHandlerConfig(EMPTY_SCHEMA, (message, executionContext, requestContext) => {
             expectTypeOf(message).toEqualTypeOf<
-              ExpectedMessageBatch<z.output<typeof EMPTY_SCHEMA>>
+              DeserializedMessage<z.output<typeof EMPTY_SCHEMA>>[]
             >()
             expectTypeOf(executionContext).toEqualTypeOf<ExecutionContext>()
             expectTypeOf(requestContext).toEqualTypeOf<RequestContext>()
