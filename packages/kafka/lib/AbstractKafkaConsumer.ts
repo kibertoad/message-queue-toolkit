@@ -201,7 +201,7 @@ export abstract class AbstractKafkaConsumer<
   }
 
   async close(): Promise<void> {
-    if (!this.consumerStream && this.messageBatchStream) return Promise.resolve()
+    if (!this.consumerStream && !this.messageBatchStream) return Promise.resolve()
 
     if (this.consumerStream) {
       await this.consumerStream.close()
