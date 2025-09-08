@@ -214,11 +214,7 @@ export abstract class AbstractKafkaConsumer<
       this.messageBatchStream = undefined
     }
 
-    try {
-      await this.consumer.close()
-    } catch (err) {
-      console.log('ERROR ON CLOSING', err)
-    }
+    await this.consumer.close()
   }
 
   private resolveHandler(topic: SupportedTopics<TopicsConfig>) {
