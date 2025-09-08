@@ -35,7 +35,7 @@ export type BaseKafkaOptions = {
   logMessages?: boolean
 } & Omit<BaseOptions, keyof KafkaConfig> // Exclude properties that are already in KafkaConfig
 
-type ProcessedMessage<TopicsConfig extends TopicConfig[]> = MayOmit<
+export type ProcessedMessage<TopicsConfig extends TopicConfig[]> = MayOmit<
   Pick<
     Message<string, SupportedMessageValues<TopicsConfig>, string, string>,
     'topic' | 'value' | 'timestamp'

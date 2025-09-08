@@ -1,6 +1,6 @@
 import type { CommonLogger } from '@lokalise/node-core'
 import type { QueueDependencies } from '@message-queue-toolkit/core'
-import type { ConnectionOptions } from '@platformatic/kafka'
+import type {ConnectionOptions, Message} from '@platformatic/kafka'
 import type { ZodSchema, z } from 'zod/v4'
 
 export interface RequestContext {
@@ -42,3 +42,5 @@ export type SupportedMessageValuesInput<TopicsConfig extends TopicConfig[]> = z.
 export type SupportedMessageValues<TopicsConfig extends TopicConfig[]> = z.output<
   MessageSchemas<TopicsConfig>
 >
+
+export type DeserializedMessage<TopicsConfig extends TopicConfig[]> = Message<string, SupportedMessageValues<TopicsConfig>, string, string>

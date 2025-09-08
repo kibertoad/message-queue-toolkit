@@ -375,7 +375,7 @@ describe('PermissionBatchConsumer', () => {
               handlerCalls.push({ messages: messages.map((m) => m.value), requestContext })
             },
           ),
-        } as any, // TODO fix typing
+        } as any,
         batchProcessingOptions: {
           batchSize: 1,
           timeoutMilliseconds: 100,
@@ -412,7 +412,7 @@ describe('PermissionBatchConsumer', () => {
 
       consumer = new PermissionBatchConsumer(testContext.cradle, {
         batchProcessingOptions: {
-          batchSize: 1,
+          batchSize: 100,
           timeoutMilliseconds: 100,
         },
       })
@@ -432,20 +432,14 @@ describe('PermissionBatchConsumer', () => {
 
       // Then
       await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
-      expect(startTransactionSpy).toHaveBeenCalledWith(
-        'kafka:PermissionBatchConsumer:permission-added:batch',
-        expect.any(String),
-      )
-      const firstTransactionId = startTransactionSpy.mock.calls[0]![1].toString()
-      expect(stopTransactionSpy).toHaveBeenCalledWith(firstTransactionId)
-
       await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+
+      expect(startTransactionSpy).toHaveBeenCalledTimes(1)
       expect(startTransactionSpy).toHaveBeenCalledWith(
         'kafka:PermissionBatchConsumer:permission-added:batch',
         expect.any(String),
       )
-      const secondTransactionId = startTransactionSpy.mock.calls[0]![1]
-      expect(stopTransactionSpy).toHaveBeenCalledWith(secondTransactionId)
+      expect(stopTransactionSpy).toHaveBeenCalledWith(startTransactionSpy.mock.calls[0]![1])
     })
 
     it('should use metrics manager to measure successful messages', async () => {

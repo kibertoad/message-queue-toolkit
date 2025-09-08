@@ -21,7 +21,7 @@ type ExecutionContext = {
 
 type PermissionConsumerOptions = Partial<
   Pick<
-    KafkaConsumerOptions<typeof PERMISSION_TOPIC_MESSAGES_CONFIG, ExecutionContext, boolean>,
+    KafkaConsumerOptions<typeof PERMISSION_TOPIC_MESSAGES_CONFIG, ExecutionContext, false>,
     | 'kafka'
     | 'handlerSpy'
     | 'autocreateTopics'
