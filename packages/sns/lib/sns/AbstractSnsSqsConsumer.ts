@@ -17,7 +17,7 @@ export type SNSSQSConsumerDependencies = SQSConsumerDependencies & {
   snsClient: SNSClient
   stsClient: STSClient
 }
-export type SNSSQSCreationConfig = SQSCreationConfig & SNSCreationConfig
+export type SNSSQSCreationConfig = Omit<SQSCreationConfig, 'policyConfig'> & SNSCreationConfig
 
 export type SNSSQSQueueLocatorType = Partial<SQSQueueLocatorType> &
   SNSTopicLocatorType & {

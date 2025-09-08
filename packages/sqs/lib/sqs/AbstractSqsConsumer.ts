@@ -590,6 +590,6 @@ export abstract class AbstractSqsConsumer<
     }
 
     // parseInt is safe because if the value is not a number process should have failed on init
-    return visibilityTimeoutString ? Number.parseInt(visibilityTimeoutString) : undefined
+    return visibilityTimeoutString ? Number.parseInt(visibilityTimeoutString, 10) : undefined
   }
 }

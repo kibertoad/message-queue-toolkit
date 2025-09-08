@@ -14,12 +14,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ZodError } from 'zod/v4'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver.ts'
+import {
+  SQS_RESOURCE_CURRENT_QUEUE,
+  type SQSPolicyConfig,
+} from '../../lib/sqs/AbstractSqsService.js'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
 import { FakeLogger } from '../fakes/FakeLogger.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext.ts'
-
 import { SqsPermissionConsumer, type SupportedMessages } from './SqsPermissionConsumer.ts'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas.ts'
 
@@ -268,6 +271,136 @@ describe('SqsPermissionConsumer', () => {
           project: 'some-project',
           service: 'some-service',
           leftover: 'some-leftover',
+        })
+      })
+
+      describe('policy config', () => {
+        it('creates queue without policy when policyConfig is undefined', async () => {
+          const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+            creationConfig: {
+              queue: {
+                QueueName: queueName,
+                Attributes: {
+                  VisibilityTimeout: '30',
+                },
+              },
+            },
+          })
+
+          await newConsumer.init()
+
+          // Verify queue was created
+          expect(newConsumer.queueProps.url).toBe(queueUrl)
+          expect(newConsumer.queueProps.name).toBe(queueName)
+
+          // Verify no policy was applied
+          const attributes = await getQueueAttributes(sqsClient, newConsumer.queueProps.url)
+          const policy = attributes.result?.attributes?.Policy
+
+          expect(policy).toBeUndefined()
+
+          await newConsumer.close()
+        })
+
+        it('creates queue with policy config', async () => {
+          const policyConfig: SQSPolicyConfig = {
+            resource: SQS_RESOURCE_CURRENT_QUEUE,
+            statements: {
+              Effect: 'Allow',
+              Principal: 'arn:aws:iam::123456789012:user/test-user',
+              Action: ['sqs:SendMessage', 'sqs:ReceiveMessage'],
+            },
+          }
+
+          const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+            creationConfig: {
+              queue: {
+                QueueName: queueName,
+                Attributes: {
+                  VisibilityTimeout: '30',
+                },
+              },
+              policyConfig,
+            },
+          })
+
+          await newConsumer.init()
+
+          // Verify queue was created
+          expect(newConsumer.queueProps.url).toBe(queueUrl)
+
+          // Verify policy was applied with current queue ARN as resource
+          const attributes = await getQueueAttributes(sqsClient, newConsumer.queueProps.url)
+          const policy = JSON.parse(attributes.result?.attributes?.Policy || '{}')
+          expect(policy).toMatchInlineSnapshot(`
+            {
+              "Resource": "arn:aws:sqs:eu-west-1:000000000000:myTestQueue",
+              "Statement": [
+                {
+                  "Action": [
+                    "sqs:SendMessage",
+                    "sqs:ReceiveMessage",
+                  ],
+                  "Effect": "Allow",
+                  "Principal": {
+                    "AWS": "arn:aws:iam::123456789012:user/test-user",
+                  },
+                },
+              ],
+              "Version": "2012-10-17",
+            }
+          `)
+
+          await newConsumer.close()
+        })
+
+        it('updates existing queue policy when consumer is reinitialized', async () => {
+          const initialConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+            creationConfig: {
+              queue: {
+                QueueName: queueName,
+                Attributes: {
+                  VisibilityTimeout: '30',
+                },
+              },
+              policyConfig: {
+                resource: 'arn:aws:sqs:*:*:*',
+                statements: {
+                  Effect: 'Allow',
+                  Principal: 'arn:aws:iam::123456789012:user/initial-user',
+                  Action: ['sqs:SendMessage'],
+                },
+              },
+            },
+          })
+          await initialConsumer.init()
+          await initialConsumer.close()
+
+          // Create a new consumer with updated policy
+          const updatedConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+            creationConfig: {
+              queue: {
+                QueueName: queueName,
+                Attributes: {
+                  VisibilityTimeout: '30',
+                },
+              },
+              policyConfig: {
+                resource: '*',
+              },
+              updateAttributesIfExists: true,
+            },
+          })
+
+          await updatedConsumer.init()
+          expect(updatedConsumer.queueProps.url).toBe(queueUrl)
+
+          // Verify updated policy was applied
+          const attributes = await getQueueAttributes(sqsClient, updatedConsumer.queueProps.url)
+          const policy = JSON.parse(attributes.result?.attributes?.Policy || '{}')
+          expect(policy.Resource).toBe('*')
+
+          await updatedConsumer.close()
         })
       })
     })

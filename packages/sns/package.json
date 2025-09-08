@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/sns",
-    "version": "23.1.0",
+    "version": "23.1.2",
     "private": false,
     "license": "MIT",
     "description": "SNS adapter for message-queue-toolkit",

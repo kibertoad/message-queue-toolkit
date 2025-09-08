@@ -32,6 +32,7 @@ They implement the following public methods:
         * `messageTypeField` - which field in the message describes the type of a message. This field needs to be defined as `z.literal` in the schema and is used for resolving the correct schema for validation
         * `locatorConfig` - configuration for resolving existing queue and/or topic. Should not be specified together with the `creationConfig`.
         * `creationConfig` - configuration for queue and/or topic to create, if one does not exist. Should not be specified together with the `locatorConfig`;
+        * `policyConfig` - SQS only - configuration for queue access policies (see [SQS Policy Configuration](#sqs-policy-configuration) for more information);
         * `deletionConfig` - automatic cleanup of resources;
         * `handlerSpy` - allow awaiting certain messages to be published (see [Handler Spies](#handler-spies) for more information);
         * `logMessages` - add logs for processed messages.
@@ -99,6 +100,7 @@ Multi-schema consumers support multiple message types via handler configs. They 
         * `locatorConfig` - configuration for resolving existing queue and/or topic. Should not be specified together with the `creationConfig`.
         * `creationConfig` - configuration for queue and/or topic to create, if one does not exist. Should not be specified together with the `locatorConfig`.
         * `subscriptionConfig` - SNS SQS consumer only - configuration for SNS -> SQS subscription to create, if one doesn't exist.
+        * `policyConfig` - SQS only - configuration for queue access policies (see [SQS Policy Configuration](#sqs-policy-configuration) for more information);
         * `deletionConfig` - automatic cleanup of resources;
         * `consumerOverrides` – available only for SQS consumers;
         * `deadLetterQueue` - available only for SQS and SNS consumers (see [Dead Letter Queue](#dead-letter-queue) for more information);
@@ -236,6 +238,143 @@ SQS queues are built in a way that every message is only consumed once, and then
 Both publishers and consumers accept a queue name and configuration as parameters. If the referenced queue (or SNS topic) does not exist at the moment the publisher or the consumer is instantiated, it is automatically created. Similarly, if the referenced topic does not exist during instantiation, it is also automatically created.
 
 If you do not want to create a new queue/topic, you can set `queueLocator` field for `queueConfiguration`. In that case `message-queue-toolkit` will not attempt to create a new queue or topic, and instead throw an error if they don't already exist.
+
+## SQS Policy Configuration
+
+SQS queues can be configured with access policies to control who can send messages to and receive messages from the queue. The `policyConfig` parameter allows you to define these policies when creating or updating SQS queues.
+
+### Policy Configuration Options
+
+The `policyConfig` parameter accepts the following structure:
+
+```typescript
+type SQSPolicyConfig = {
+  resource: string | typeof SQS_RESOURCE_ANY | typeof SQS_RESOURCE_CURRENT_QUEUE
+  statements?: SQSPolicyStatement | SQSPolicyStatement[]
+}
+
+type SQSPolicyStatement = {
+  Effect?: string        // "Allow" or "Deny" (default: "Allow")
+  Principal?: string    // AWS principal ARN (default: "*")
+  Action?: string[]     // SQS actions (default: ["sqs:SendMessage", "sqs:GetQueueAttributes", "sqs:GetQueueUrl"])
+}
+```
+
+### Resource Types
+
+The `resource` field supports three types of values:
+
+- **`SQS_RESOURCE_CURRENT_QUEUE`**: Uses the ARN of the current queue being created
+- **`SQS_RESOURCE_ANY`**: Uses the wildcard ARN `arn:aws:sqs:*:*:*`
+- **Custom ARN**: Any specific SQS queue ARN (e.g., `arn:aws:sqs:us-east-1:123456789012:my-queue`)
+
+### Usage Examples
+
+#### Basic Policy Configuration
+
+```typescript
+import { SQS_RESOURCE_ANY } from "@message-queue-toolkit/sqs"
+
+const publisher = new SqsPermissionPublisher(dependencies, {
+  creationConfig: {
+    queue: {
+      QueueName: "my-queue",
+      Attributes: {
+        VisibilityTimeout: "30",
+      },
+    },
+    policyConfig: {
+      resource: SQS_RESOURCE_ANY,
+      statements: {
+        Effect: "Allow",
+        Principal: "arn:aws:iam::123456789012:user/my-user",
+        Action: ["sqs:SendMessage", "sqs:ReceiveMessage"],
+      },
+    },
+  },
+})
+```
+
+#### Multiple Policy Statements
+
+```typescript
+const consumer = new SqsPermissionConsumer(dependencies, {
+  creationConfig: {
+    queue: {
+      QueueName: "my-queue",
+    },
+    policyConfig: {
+      resource: SQS_RESOURCE_CURRENT_QUEUE,
+      statements: [
+        {
+          Effect: "Allow",
+          Principal: "arn:aws:iam::123456789012:role/my-role",
+          Action: ["sqs:SendMessage", "sqs:ReceiveMessage"],
+        },
+        {
+          Effect: "Deny",
+          Principal: "arn:aws:iam::123456789012:user/blocked-user",
+          Action: ["sqs:SendMessage"],
+        },
+      ],
+    },
+  },
+})
+```
+
+#### Policy Updates
+
+To update an existing queue's policy, use `updateAttributesIfExists: true`:
+
+```typescript
+const updatedPublisher = new SqsPermissionPublisher(dependencies, {
+  creationConfig: {
+    queue: {
+      QueueName: "existing-queue",
+    },
+    policyConfig: {
+      resource: SQS_RESOURCE_ANY,
+      statements: {
+        Effect: "Allow",
+        Principal: "arn:aws:iam::123456789012:user/new-user",
+        Action: ["sqs:SendMessage"],
+      },
+    },
+    updateAttributesIfExists: true,
+  },
+  deletionConfig: {
+    deleteIfExists: false,
+  },
+})
+```
+
+### Default Behavior
+
+- If `policyConfig` is not provided or set to `undefined`, no policy is applied to the queue
+- If `statements` is not provided, default values are used:
+  - `Effect`: "Allow"
+  - `Principal`: "*" (allows all AWS principals)
+  - `Action`: ["sqs:SendMessage", "sqs:GetQueueAttributes", "sqs:GetQueueUrl"]
+
+### Policy Structure
+
+The generated policy follows the AWS IAM policy format:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Resource": "arn:aws:sqs:*:*:*",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {"AWS": "arn:aws:iam::123456789012:user/my-user"},
+      "Action": ["sqs:SendMessage", "sqs:ReceiveMessage"]
+    }
+  ]
+}
+```
+
+> **_NOTE:_**  See [SqsPermissionConsumer.spec.ts](./packages/sqs/test/consumers/SqsPermissionConsumer.spec.ts) and [SqsPermissionPublisher.spec.ts](./packages/sqs/test/publishers/SqsPermissionPublisher.spec.ts) for practical examples of policy configuration tests.
 
 ## Handler Spies
 

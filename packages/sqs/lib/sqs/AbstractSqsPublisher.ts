@@ -77,7 +77,6 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         this.logMessage(resolvedLogMessage)
       }
 
-      // biome-ignore lint/style/noParameterAssign: This is expected
       message = this.updateInternalProperties(message)
       const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(message, () =>
         calculateOutgoingMessageSize(message),
