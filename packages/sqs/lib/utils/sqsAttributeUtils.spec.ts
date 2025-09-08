@@ -20,6 +20,10 @@ describe('sqsAttributeUtils', () => {
     })
   })
 
+  describe('generateQueuePolicyFromPolicyConfig', () => {
+    // TODO
+  })
+
   describe('generateWildcardSqsArn', () => {
     it('Generates wildcard ARN', () => {
       const arn = generateWildcardSqsArn('test-service*')
