@@ -24,8 +24,8 @@ import {
   type BaseKafkaOptions,
   type ProcessedMessage,
 } from './AbstractKafkaService.ts'
-import type { KafkaHandler, KafkaHandlerConfig } from './handler-container/index.ts'
-import type { KafkaHandlerRouting } from './handler-container/KafkaHandlerRoutingBuilder.ts'
+import type { KafkaHandler, KafkaHandlerConfig } from './handler-routing/index.ts'
+import type { KafkaHandlerRouting } from './handler-routing/KafkaHandlerRoutingBuilder.ts'
 import type {
   DeserializedMessage,
   KafkaConfig,
