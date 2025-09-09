@@ -37,8 +37,6 @@ import type {
 } from './types.ts'
 import { ILLEGAL_GENERATION, REBALANCE_IN_PROGRESS, UNKNOWN_MEMBER_ID } from './utils/errorCodes.ts'
 import {
-  KAFKA_DEFAULT_BATCH_SIZE,
-  KAFKA_DEFAULT_BATCH_TIMEOUT_MS,
   type KafkaMessageBatchOptions,
   KafkaMessageBatchStream,
 } from './utils/KafkaMessageBatchStream.js'
@@ -47,10 +45,16 @@ import { safeJsonDeserializer } from './utils/safeJsonDeserializer.ts'
 export type KafkaConsumerDependencies = KafkaDependencies &
   Pick<QueueConsumerDependencies, 'transactionObservabilityManager'>
 
-export type KafkaBatchProcessingOptions<BatchProcessingEnabled> = {
-  batchProcessingEnabled: BatchProcessingEnabled
-  batchProcessingOptions?: BatchProcessingEnabled extends true ? KafkaMessageBatchOptions : never
-}
+export type KafkaBatchProcessingOptions<BatchProcessingEnabled> =
+  BatchProcessingEnabled extends true
+    ? {
+        batchProcessingEnabled: true
+        batchProcessingOptions: KafkaMessageBatchOptions
+      }
+    : {
+        batchProcessingEnabled: false
+        batchProcessingOptions?: never
+      }
 
 type MessageOrBatch<MessageValue extends object> =
   | DeserializedMessage<MessageValue>
@@ -169,14 +173,12 @@ export abstract class AbstractKafkaConsumer<
       })
 
       this.consumerStream = await this.consumer.consume({ ...consumeOptions, topics })
-      if (this.options.batchProcessingEnabled) {
+      if (this.options.batchProcessingEnabled && this.options.batchProcessingOptions) {
         this.messageBatchStream = new KafkaMessageBatchStream<
           DeserializedMessage<SupportedMessageValues<TopicsConfig>>
         >({
-          batchSize: this.options.batchProcessingOptions?.batchSize ?? KAFKA_DEFAULT_BATCH_SIZE,
-          timeoutMilliseconds:
-            this.options.batchProcessingOptions?.timeoutMilliseconds ??
-            KAFKA_DEFAULT_BATCH_TIMEOUT_MS,
+          batchSize: this.options.batchProcessingOptions.batchSize,
+          timeoutMilliseconds: this.options.batchProcessingOptions.timeoutMilliseconds,
         })
         this.consumerStream.pipe(this.messageBatchStream)
       }

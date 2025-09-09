@@ -6,12 +6,9 @@ type CallbackFunction = (error?: Error | null) => void
 type MessageWithTopic = { topic: string }
 
 export type KafkaMessageBatchOptions = {
-  batchSize?: number
-  timeoutMilliseconds?: number
+  batchSize: number
+  timeoutMilliseconds: number
 }
-
-export const KAFKA_DEFAULT_BATCH_SIZE = 1000
-export const KAFKA_DEFAULT_BATCH_TIMEOUT_MS = 1000
 
 export type MessageBatch<TMessage> = { topic: string; messages: TMessage[] }
 
@@ -32,7 +29,7 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopic> extends 
   private readonly timeout: number
 
   private readonly currentBatchPerTopic: Record<string, TMessage[]>
-  private readonly batchTimeoutPerTopic: Record<string, NodeJS.Timeout>
+  private readonly batchTimeoutPerTopic: Record<string, NodeJS.Timeout | undefined>
 
   constructor(options: { batchSize: number; timeoutMilliseconds: number }) {
     super({ objectMode: true })
@@ -85,7 +82,7 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopic> extends 
   private flushCurrentBatchMessages(topic: string) {
     if (this.batchTimeoutPerTopic[topic]) {
       clearTimeout(this.batchTimeoutPerTopic[topic])
-      delete this.batchTimeoutPerTopic[topic]
+      this.batchTimeoutPerTopic[topic] = undefined
     }
 
     if (!this.currentBatchPerTopic[topic]?.length) {
