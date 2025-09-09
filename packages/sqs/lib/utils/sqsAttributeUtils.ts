@@ -18,24 +18,23 @@ export function generateQueuePolicyFromPolicyConfig(
   queueArn: string,
   policyConfig: SQSPolicyConfig,
 ): string {
-  const statements = (
-    Array.isArray(policyConfig.statements) ? policyConfig.statements : [policyConfig.statements]
-  ).map((statement) => ({
-    Effect: statement?.Effect ?? 'Allow',
-    Principal: { AWS: statement?.Principal ?? '*' },
-    Action: statement?.Action ?? ['sqs:SendMessage', 'sqs:GetQueueAttributes', 'sqs:GetQueueUrl'],
-  }))
-
   const resource =
     policyConfig.resource === SQS_RESOURCE_CURRENT_QUEUE
       ? queueArn
       : policyConfig.resource === SQS_RESOURCE_ANY
         ? `arn:aws:sqs:*:*:*`
         : policyConfig.resource
+  const statements = (
+    Array.isArray(policyConfig.statements) ? policyConfig.statements : [policyConfig.statements]
+  ).map((statement) => ({
+    Effect: statement?.Effect ?? 'Allow',
+    Principal: { AWS: statement?.Principal ?? '*' },
+    Action: statement?.Action ?? ['sqs:SendMessage', 'sqs:GetQueueAttributes', 'sqs:GetQueueUrl'],
+    Resource: resource,
+  }))
 
   return JSON.stringify({
     Version: POLICY_VERSION,
-    Resource: resource,
     Statement: statements,
   })
 }

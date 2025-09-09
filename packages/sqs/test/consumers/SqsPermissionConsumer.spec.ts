@@ -334,7 +334,6 @@ describe('SqsPermissionConsumer', () => {
           const policy = JSON.parse(attributes.result?.attributes?.Policy || '{}')
           expect(policy).toMatchInlineSnapshot(`
             {
-              "Resource": "arn:aws:sqs:eu-west-1:000000000000:myTestQueue",
               "Statement": [
                 {
                   "Action": [
@@ -345,6 +344,7 @@ describe('SqsPermissionConsumer', () => {
                   "Principal": {
                     "AWS": "arn:aws:iam::123456789012:user/test-user",
                   },
+                  "Resource": "arn:aws:sqs:eu-west-1:000000000000:myTestQueue",
                 },
               ],
               "Version": "2012-10-17",
@@ -398,7 +398,7 @@ describe('SqsPermissionConsumer', () => {
           // Verify updated policy was applied
           const attributes = await getQueueAttributes(sqsClient, updatedConsumer.queueProps.url)
           const policy = JSON.parse(attributes.result?.attributes?.Policy || '{}')
-          expect(policy.Resource).toBe('*')
+          expect(policy.Statement[0].Resource).toBe('*')
 
           await updatedConsumer.close()
         })

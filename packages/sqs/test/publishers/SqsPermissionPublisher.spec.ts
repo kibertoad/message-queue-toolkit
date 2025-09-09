@@ -316,10 +316,9 @@ describe('SqsPermissionPublisher', () => {
           const policy = JSON.parse(attributes.result?.attributes?.Policy || '{}')
 
           expect(policy.Version).toBe('2012-10-17')
-          expect(policy.Resource).toBe(newPublisher.queueProps.arn)
+          expect(policy.Statement[0].Resource).toBe(newPublisher.queueProps.arn)
           expect(policy).toMatchInlineSnapshot(`
             {
-              "Resource": "arn:aws:sqs:eu-west-1:000000000000:someQueue",
               "Statement": [
                 {
                   "Action": [
@@ -330,6 +329,7 @@ describe('SqsPermissionPublisher', () => {
                   "Principal": {
                     "AWS": "arn:aws:iam::123456789012:user/test-user",
                   },
+                  "Resource": "arn:aws:sqs:eu-west-1:000000000000:someQueue",
                 },
               ],
               "Version": "2012-10-17",
@@ -380,7 +380,7 @@ describe('SqsPermissionPublisher', () => {
           // Verify updated policy was applied
           const attributes = await getQueueAttributes(sqsClient, updatedPublisher.queueProps.url)
           const policy = JSON.parse(attributes.result?.attributes?.Policy || '{}')
-          expect(policy.Resource).toBe('*')
+          expect(policy.Statement[0].Resource).toBe('*')
         })
       })
     })
