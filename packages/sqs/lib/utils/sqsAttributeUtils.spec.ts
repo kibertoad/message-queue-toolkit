@@ -36,7 +36,7 @@ describe('sqsAttributeUtils', () => {
       const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
 
       expect(result).toMatchInlineSnapshot(
-        `"{"Version":"2012-10-17","Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"]}]}"`,
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"}]}"`,
       )
     })
 
@@ -53,7 +53,7 @@ describe('sqsAttributeUtils', () => {
       const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
 
       expect(result).toMatchInlineSnapshot(
-        `"{"Version":"2012-10-17","Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue","Statement":[{"Effect":"Deny","Principal":{"AWS":"arn:aws:iam::123456789012:user/test-user"},"Action":["sqs:SendMessage"]}]}"`,
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Deny","Principal":{"AWS":"arn:aws:iam::123456789012:user/test-user"},"Action":["sqs:SendMessage"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"}]}"`,
       )
     })
 
@@ -77,7 +77,7 @@ describe('sqsAttributeUtils', () => {
       const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
 
       expect(result).toMatchInlineSnapshot(
-        `"{"Version":"2012-10-17","Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:user/user1"},"Action":["sqs:SendMessage"]},{"Effect":"Deny","Principal":{"AWS":"arn:aws:iam::123456789012:user/user2"},"Action":["sqs:ReceiveMessage"]}]}"`,
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:user/user1"},"Action":["sqs:SendMessage"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"},{"Effect":"Deny","Principal":{"AWS":"arn:aws:iam::123456789012:user/user2"},"Action":["sqs:ReceiveMessage"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"}]}"`,
       )
     })
 
@@ -89,7 +89,7 @@ describe('sqsAttributeUtils', () => {
       const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
 
       expect(result).toMatchInlineSnapshot(
-        `"{"Version":"2012-10-17","Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"]}]}"`,
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"}]}"`,
       )
     })
 
@@ -101,7 +101,7 @@ describe('sqsAttributeUtils', () => {
       const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
 
       expect(result).toMatchInlineSnapshot(
-        `"{"Version":"2012-10-17","Resource":"arn:aws:sqs:*:*:*","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"]}]}"`,
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"],"Resource":"arn:aws:sqs:*:*:*"}]}"`,
       )
     })
 
@@ -114,7 +114,7 @@ describe('sqsAttributeUtils', () => {
       const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
 
       expect(result).toMatchInlineSnapshot(
-        `"{"Version":"2012-10-17","Resource":"arn:aws:sqs:us-east-1:123456789012:custom-queue","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"]}]}"`,
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"],"Resource":"arn:aws:sqs:us-east-1:123456789012:custom-queue"}]}"`,
       )
     })
 
@@ -142,7 +142,7 @@ describe('sqsAttributeUtils', () => {
       const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
 
       expect(result).toMatchInlineSnapshot(
-        `"{"Version":"2012-10-17","Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:user/user1"},"Action":["sqs:SendMessage"]},{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:ReceiveMessage"]},{"Effect":"Deny","Principal":{"AWS":"*"},"Action":["sqs:DeleteMessage"]}]}"`,
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:user/user1"},"Action":["sqs:SendMessage"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"},{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:ReceiveMessage"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"},{"Effect":"Deny","Principal":{"AWS":"*"},"Action":["sqs:DeleteMessage"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"}]}"`,
       )
     })
 
@@ -155,7 +155,7 @@ describe('sqsAttributeUtils', () => {
       const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
 
       expect(result).toMatchInlineSnapshot(
-        `"{"Version":"2012-10-17","Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"]}]}"`,
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"}]}"`,
       )
     })
   })
