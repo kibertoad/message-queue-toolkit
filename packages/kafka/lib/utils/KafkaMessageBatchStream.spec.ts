@@ -1,6 +1,6 @@
 import { KafkaMessageBatchStream, type MessageBatch } from './KafkaMessageBatchStream.ts'
 
-describe('MessageBatchStream', () => {
+describe('KafkaMessageBatchStream', () => {
   it('should batch messages based on batch size', async () => {
     // Given
     const topic = 'test-topic'
