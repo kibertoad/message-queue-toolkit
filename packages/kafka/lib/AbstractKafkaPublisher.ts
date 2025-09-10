@@ -44,10 +44,9 @@ export abstract class AbstractKafkaPublisher<
     if (this.topicsConfig.length === 0) throw new Error('At least one topic must be defined')
 
     this.schemaContainers = {}
-    for (const { topic, schemas } of this.topicsConfig) {
+    for (const { topic, schema } of this.topicsConfig) {
       this.schemaContainers[topic] = new MessageSchemaContainer({
-        messageSchemas: schemas,
-        messageTypeField: this.options.messageTypeField,
+        messageSchemas: [schema],
         messageDefinitions: [],
       })
     }
