@@ -53,7 +53,7 @@
     "dependencies": {
         "@lokalise/node-core": "^14.2.0",
         "@lokalise/universal-ts-utils": "^4.5.1",
-        "@platformatic/kafka": "^1.10.5"
+        "@platformatic/kafka": "^1.11.0"
     },
     "peerDependencies": {
         "@message-queue-toolkit/core": ">=23.0.0",
