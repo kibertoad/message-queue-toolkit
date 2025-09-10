@@ -2,17 +2,18 @@ import { Duplex } from 'node:stream'
 
 type CallbackFunction = (error?: Error | null) => void
 
-// Only topic is required for the stream to work properly
-type MessageWithTopic = { topic: string }
+// Topic and partition are required for the stream to work properly
+type MessageWithTopicAndPartition = { topic: string; partition: number }
 
 export type KafkaMessageBatchOptions = {
   batchSize: number
   timeoutMilliseconds: number
 }
 
-export type MessageBatch<TMessage> = { topic: string; messages: TMessage[] }
+export type MessageBatch<TMessage> = { topic: string; partition: number; messages: TMessage[] }
 
-export interface KafkaMessageBatchStream<TMessage extends MessageWithTopic> extends Duplex {
+export interface KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartition>
+  extends Duplex {
   // biome-ignore  lint/suspicious/noExplicitAny: compatible with Duplex definition
   on(event: string | symbol, listener: (...args: any[]) => void): this
   on(event: 'data', listener: (chunk: MessageBatch<TMessage>) => void): this
@@ -24,19 +25,19 @@ export interface KafkaMessageBatchStream<TMessage extends MessageWithTopic> exte
  * Collects messages in batches based on provided batchSize and flushes them when messages amount or timeout is reached.
  */
 // biome-ignore lint/suspicious/noUnsafeDeclarationMerging: merging interface with class to add strong typing for 'data' event
-export class KafkaMessageBatchStream<TMessage extends MessageWithTopic> extends Duplex {
+export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartition> extends Duplex {
   private readonly batchSize: number
   private readonly timeout: number
 
-  private readonly currentBatchPerTopic: Record<string, TMessage[]>
-  private readonly batchTimeoutPerTopic: Record<string, NodeJS.Timeout | undefined>
+  private readonly currentBatchPerTopicPartition: Record<string, TMessage[]>
+  private readonly batchTimeoutPerTopicPartition: Record<string, NodeJS.Timeout | undefined>
 
   constructor(options: { batchSize: number; timeoutMilliseconds: number }) {
     super({ objectMode: true })
     this.batchSize = options.batchSize
     this.timeout = options.timeoutMilliseconds
-    this.currentBatchPerTopic = {}
-    this.batchTimeoutPerTopic = {}
+    this.currentBatchPerTopicPartition = {}
+    this.batchTimeoutPerTopicPartition = {}
   }
 
   override _read() {
@@ -44,22 +45,24 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopic> extends 
   }
 
   override _write(message: TMessage, _encoding: BufferEncoding, callback: CallbackFunction) {
-    if (!this.currentBatchPerTopic[message.topic]) {
-      this.currentBatchPerTopic[message.topic] = [message]
+    const key = this.getTopicPartitionKey(message.topic, message.partition)
+
+    if (!this.currentBatchPerTopicPartition[key]) {
+      this.currentBatchPerTopicPartition[key] = [message]
     } else {
       // biome-ignore lint/style/noNonNullAssertion: non-existing entry is handled above
-      this.currentBatchPerTopic[message.topic]!.push(message)
+      this.currentBatchPerTopicPartition[key]!.push(message)
     }
 
     // biome-ignore lint/style/noNonNullAssertion: we ensure above that the array is defined
-    if (this.currentBatchPerTopic[message.topic]!.length >= this.batchSize) {
-      this.flushCurrentBatchMessages(message.topic)
+    if (this.currentBatchPerTopicPartition[key]!.length >= this.batchSize) {
+      this.flushCurrentBatchMessages(message.topic, message.partition)
       return callback(null)
     }
 
-    if (!this.batchTimeoutPerTopic[message.topic]) {
-      this.batchTimeoutPerTopic[message.topic] = setTimeout(() => {
-        this.flushCurrentBatchMessages(message.topic)
+    if (!this.batchTimeoutPerTopicPartition[key]) {
+      this.batchTimeoutPerTopicPartition[key] = setTimeout(() => {
+        this.flushCurrentBatchMessages(message.topic, message.partition)
       }, this.timeout)
     }
 
@@ -74,22 +77,37 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopic> extends 
   }
 
   private flushAllBatches() {
-    for (const topic of Object.keys(this.currentBatchPerTopic)) {
-      this.flushCurrentBatchMessages(topic)
+    for (const key of Object.keys(this.currentBatchPerTopicPartition)) {
+      const { topic, partition } = this.splitTopicPartitionKey(key)
+      this.flushCurrentBatchMessages(topic, partition)
     }
   }
 
-  private flushCurrentBatchMessages(topic: string) {
-    if (this.batchTimeoutPerTopic[topic]) {
-      clearTimeout(this.batchTimeoutPerTopic[topic])
-      this.batchTimeoutPerTopic[topic] = undefined
+  private flushCurrentBatchMessages(topic: string, partition: number) {
+    const key = this.getTopicPartitionKey(topic, partition)
+
+    if (this.batchTimeoutPerTopicPartition[key]) {
+      clearTimeout(this.batchTimeoutPerTopicPartition[key])
+      this.batchTimeoutPerTopicPartition[key] = undefined
     }
 
-    if (!this.currentBatchPerTopic[topic]?.length) {
+    if (!this.currentBatchPerTopicPartition[key]?.length) {
       return
     }
 
-    this.push({ topic, messages: this.currentBatchPerTopic[topic] })
-    this.currentBatchPerTopic[topic] = []
+    this.push({ topic, partition, messages: this.currentBatchPerTopicPartition[key] })
+    this.currentBatchPerTopicPartition[key] = []
+  }
+
+  private getTopicPartitionKey(topic: string, partition: number): string {
+    return `${topic}:${partition}`
+  }
+
+  private splitTopicPartitionKey(key: string): { topic: string; partition: number } {
+    const [topic, partition] = key.split(':')
+    if (!topic || !partition) {
+      throw new Error('Invalid topic-partition key format')
+    }
+    return { topic, partition: Number.parseInt(partition, 10) }
   }
 }

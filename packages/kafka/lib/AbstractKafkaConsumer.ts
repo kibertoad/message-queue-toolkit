@@ -5,7 +5,6 @@ import {
   stringValueSerializer,
   type TransactionObservabilityManager,
 } from '@lokalise/node-core'
-import { groupBy } from '@lokalise/universal-ts-utils/node'
 import type {
   MessageProcessingResult,
   QueueConsumerDependencies,
@@ -191,9 +190,9 @@ export abstract class AbstractKafkaConsumer<
     }
 
     if (this.options.batchProcessingEnabled && this.messageBatchStream) {
-      this.messageBatchStream.on('data', async (messageBatch) => {
-        await this.consumeBatch(messageBatch.topic, messageBatch.messages)
-      })
+      this.messageBatchStream.on('data', async (messageBatch) =>
+        this.consume(messageBatch.topic, messageBatch.messages),
+      )
       this.messageBatchStream.on('error', (error) => this.handlerError(error))
     } else {
       this.consumerStream.on('data', (message) =>
@@ -231,18 +230,6 @@ export abstract class AbstractKafkaConsumer<
 
   private resolveHandler(topic: SupportedTopics<TopicsConfig>) {
     return this.options.handlers[topic]
-  }
-
-  private async consumeBatch(
-    topic: string,
-    messages: DeserializedMessage<SupportedMessageValues<TopicsConfig>>[],
-  ): Promise<void> {
-    // Grouping message by partition since each partition should be processed and committed separately
-    const messagesGroupedByPartition = groupBy(messages, 'partition')
-
-    for (const messagesInPartition of Object.values(messagesGroupedByPartition)) {
-      await this.consume(topic, messagesInPartition)
-    }
   }
 
   private async consume(
