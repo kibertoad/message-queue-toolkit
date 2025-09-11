@@ -151,6 +151,7 @@ export abstract class AbstractKafkaConsumer<
       return this.consumer.isConnected()
     } catch (_) {
       // this should not happen, but if so it means the consumer is not healthy
+      /* v8 ignore next */
       return false
     }
   }
@@ -166,6 +167,7 @@ export abstract class AbstractKafkaConsumer<
       return this.consumer.isActive()
     } catch (_) {
       // this should not happen, but if so it means the consumer is not healthy
+      /* v8 ignore next */
       return false
     }
   }
