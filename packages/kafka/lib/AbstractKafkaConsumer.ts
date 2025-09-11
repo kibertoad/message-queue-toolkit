@@ -145,7 +145,14 @@ export abstract class AbstractKafkaConsumer<
    * Returns true if all client's connections are currently connected and the client is connected to at least one broker.
    */
   get isConnected(): boolean {
-    return this.consumer.isConnected()
+    // Streams are created only when init method was called
+    if (!this.consumerStream || !this.messageBatchStream) return false
+    try {
+      return this.consumer.isConnected()
+    } catch (_) {
+      // this should not happen, but if so it means the consumer is not healthy
+      return false
+    }
   }
 
   /**
@@ -153,7 +160,14 @@ export abstract class AbstractKafkaConsumer<
    * This method will return `false` during consumer group rebalancing.
    */
   get isActive(): boolean {
-    return this.consumer.isActive()
+    // Streams are created only when init method was called
+    if (!this.consumerStream || !this.messageBatchStream) return false
+    try {
+      return this.consumer.isActive()
+    } catch (_) {
+      // this should not happen, but if so it means the consumer is not healthy
+      return false
+    }
   }
 
   async init(): Promise<void> {
@@ -209,9 +223,7 @@ export abstract class AbstractKafkaConsumer<
   async close(): Promise<void> {
     if (!this.consumerStream && !this.messageBatchStream) {
       // Leaving the group in case consumer joined but streams were not created
-      if (this.isActive) {
-        this.consumer.leaveGroup()
-      }
+      if (this.isActive) this.consumer.leaveGroup()
       return
     }
 
