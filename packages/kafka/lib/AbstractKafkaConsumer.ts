@@ -146,7 +146,7 @@ export abstract class AbstractKafkaConsumer<
    */
   get isConnected(): boolean {
     // Streams are created only when init method was called
-    if (!this.consumerStream || !this.messageBatchStream) return false
+    if (!this.consumerStream && !this.messageBatchStream) return false
     try {
       return this.consumer.isConnected()
     } catch (_) {
@@ -161,7 +161,7 @@ export abstract class AbstractKafkaConsumer<
    */
   get isActive(): boolean {
     // Streams are created only when init method was called
-    if (!this.consumerStream || !this.messageBatchStream) return false
+    if (!this.consumerStream && !this.messageBatchStream) return false
     try {
       return this.consumer.isActive()
     } catch (_) {
