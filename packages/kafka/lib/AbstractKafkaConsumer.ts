@@ -478,8 +478,8 @@ export abstract class AbstractKafkaConsumer<
       reqId,
       logger: this.logger.child({
         'x-request-id': reqId,
+        origin: this.constructor.name,
         topic: message.topic,
-        messageKey: message.key,
       }),
     }
   }
