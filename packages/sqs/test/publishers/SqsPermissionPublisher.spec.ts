@@ -455,7 +455,7 @@ describe('SqsPermissionPublisher', () => {
         queueUrl: queueUrl,
         handleMessage: (message: SQSMessage) => {
           if (message === null) {
-            return Promise.resolve()
+            return Promise.resolve(message)
           }
           const decodedMessage = deserializeSQSMessage(
             message as any,
@@ -463,7 +463,7 @@ describe('SqsPermissionPublisher', () => {
             new FakeConsumerErrorResolver(),
           )
           receivedMessage = decodedMessage.result!
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
         sqs: diContainer.cradle.sqsClient,
       })

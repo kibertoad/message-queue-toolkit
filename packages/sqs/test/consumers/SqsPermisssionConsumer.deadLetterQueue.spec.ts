@@ -260,7 +260,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         queueUrl: consumer.dlqUrl,
         handleMessage: (message: SQSMessage) => {
           dlqMessage = message
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
       })
       dlqConsumer.start()
@@ -331,7 +331,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         queueUrl: consumer.dlqUrl,
         handleMessage: (message: SQSMessage) => {
           dlqMessage = message
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
       })
       dlqConsumer.start()
@@ -373,7 +373,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         queueUrl: consumer.dlqUrl,
         handleMessage: (message: SQSMessage) => {
           dlqMessage = message
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
       })
       dlqConsumer.start()
@@ -424,7 +424,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         queueUrl: consumer.dlqUrl,
         handleMessage: (message: SQSMessage) => {
           dlqMessage = message
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
       })
       dlqConsumer.start()
