@@ -347,7 +347,7 @@ describe('SqsPermissionConsumer', () => {
         messageDeduplicationConfig,
         enableConsumerDeduplication: true,
         addHandlerOverride: async () => {
-          await setTimeout(2500)
+          await setTimeout(3000)
           return Promise.resolve({ result: 'success' })
         },
       })
