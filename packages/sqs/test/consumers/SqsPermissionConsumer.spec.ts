@@ -773,6 +773,16 @@ describe('SqsPermissionConsumer', () => {
 
       expect(consumer.addCounter).toBe(0)
       expect(consumer.removeCounter).toBe(0)
+
+      // Verify that message was acknowledged (removed from queue)
+      const receiveCommandResult = await sqsClient.send(
+        new ReceiveMessageCommand({
+          QueueUrl: consumer.queueProps.url,
+          MaxNumberOfMessages: 1,
+          WaitTimeSeconds: 1,
+        }),
+      )
+      expect(receiveCommandResult.Messages).toBeUndefined()
     })
 
     it('Processes messages', async () => {
@@ -795,6 +805,16 @@ describe('SqsPermissionConsumer', () => {
 
       expect(consumer.addCounter).toBe(1)
       expect(consumer.removeCounter).toBe(2)
+
+      // Verify that all messages were acknowledged (removed from queue)
+      const receiveCommandResult = await sqsClient.send(
+        new ReceiveMessageCommand({
+          QueueUrl: consumer.queueProps.url,
+          MaxNumberOfMessages: 1,
+          WaitTimeSeconds: 1,
+        }),
+      )
+      expect(receiveCommandResult.Messages).toBeUndefined()
     })
   })
 
@@ -855,6 +875,16 @@ describe('SqsPermissionConsumer', () => {
       expect(consumer.addCounter).toBe(messagesAmount)
       // Verifies that no message is lost
       expect(consumer.processedMessagesIds).toHaveLength(messagesAmount)
+
+      // Verify that all messages were acknowledged (removed from queue)
+      const receiveCommandResult = await sqsClient.send(
+        new ReceiveMessageCommand({
+          QueueUrl: consumer.queueProps.url,
+          MaxNumberOfMessages: 1,
+          WaitTimeSeconds: 1,
+        }),
+      )
+      expect(receiveCommandResult.Messages).toBeUndefined()
     })
   })
 

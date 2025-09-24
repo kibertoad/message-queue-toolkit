@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { setTimeout } from 'node:timers/promises'
+import { ReceiveMessageCommand, type SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { MessageDeduplicationConfig } from '@message-queue-toolkit/core'
 import { RedisMessageDeduplicationStore } from '@message-queue-toolkit/redis-message-deduplication-store'
@@ -18,6 +19,7 @@ import type {
 
 describe('SqsPermissionConsumer', () => {
   let diContainer: AwilixContainer<Dependencies>
+  let sqsClient: SQSClient
   let messageDeduplicationStore: RedisMessageDeduplicationStore
   let messageDeduplicationConfig: MessageDeduplicationConfig
   let publisher: SqsPermissionPublisher
@@ -26,6 +28,7 @@ describe('SqsPermissionConsumer', () => {
     diContainer = await registerDependencies({
       permissionConsumer: asValue(() => undefined),
     })
+    sqsClient = diContainer.cradle.sqsClient
     publisher = diContainer.cradle.permissionPublisher
     messageDeduplicationStore = new RedisMessageDeduplicationStore({
       redis: diContainer.cradle.redis,
@@ -84,6 +87,16 @@ describe('SqsPermissionConsumer', () => {
       })
 
       await consumer.close()
+
+      // Verify that both messages were acknowledged (removed from queue)
+      const receiveCommandResult = await sqsClient.send(
+        new ReceiveMessageCommand({
+          QueueUrl: consumer.queueProps.url,
+          MaxNumberOfMessages: 1,
+          WaitTimeSeconds: 1,
+        }),
+      )
+      expect(receiveCommandResult.Messages).toBeUndefined()
     })
 
     it('consumes second message immediately when the first one failed to be processed', async () => {
@@ -334,7 +347,7 @@ describe('SqsPermissionConsumer', () => {
         messageDeduplicationConfig,
         enableConsumerDeduplication: true,
         addHandlerOverride: async () => {
-          await setTimeout(2500)
+          await setTimeout(3000)
           return Promise.resolve({ result: 'success' })
         },
       })
