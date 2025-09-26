@@ -15,13 +15,8 @@ import type { SNSSQSQueueLocatorType } from '../sns/AbstractSnsSqsConsumer.ts'
 import { isCreateTopicCommand, type TopicResolutionOptions } from '../types/TopicTypes.ts'
 import type { SNSSubscriptionOptions } from './snsSubscriber.ts'
 import { subscribeToTopic } from './snsSubscriber.ts'
-import {
-  assertTopic,
-  deleteSubscription,
-  deleteTopic,
-  getTopicArnByName,
-  getTopicAttributes,
-} from './snsUtils.ts'
+import { assertTopic, deleteSubscription, deleteTopic, getTopicAttributes } from './snsUtils.ts'
+import { buildTopicArn } from './stsUtils.js'
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixme
 export async function initSnsSqs(
@@ -93,7 +88,7 @@ export async function initSnsSqs(
   const checkPromises: Promise<Either<'not_found', unknown>>[] = []
   // Check for existing resources, using the locators
   const subscriptionTopicArn =
-    locatorConfig.topicArn ?? (await getTopicArnByName(snsClient, locatorConfig.topicName))
+    locatorConfig.topicArn ?? (await buildTopicArn(stsClient, locatorConfig.topicName ?? ''))
   const topicPromise = getTopicAttributes(snsClient, subscriptionTopicArn)
   checkPromises.push(topicPromise)
 
@@ -213,7 +208,7 @@ export async function initSns(
 ) {
   if (locatorConfig) {
     const topicArn =
-      locatorConfig.topicArn ?? (await getTopicArnByName(snsClient, locatorConfig.topicName))
+      locatorConfig.topicArn ?? (await buildTopicArn(stsClient, locatorConfig.topicName ?? ''))
     const checkResult = await getTopicAttributes(snsClient, topicArn)
     if (checkResult.error === 'not_found') {
       throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
