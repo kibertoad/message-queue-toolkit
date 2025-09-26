@@ -26,7 +26,7 @@ async function resolveTopicArnToSubscribeTo(
   topicConfiguration: TopicResolutionOptions,
   extraParams: (ExtraSNSCreationParams & ExtraSQSCreationParams & ExtraParams) | undefined,
 ) {
-  if (isSNSTopicLocatorType(topicConfiguration) && topicConfiguration.topicArn) {
+  if (isSNSTopicLocatorType(topicConfiguration)) {
     if (topicConfiguration.topicArn) return topicConfiguration.topicArn
     if (topicConfiguration.topicName) return buildTopicArn(stsClient, topicConfiguration.topicName)
   }
