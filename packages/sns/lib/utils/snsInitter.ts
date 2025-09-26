@@ -15,13 +15,8 @@ import type { SNSSQSQueueLocatorType } from '../sns/AbstractSnsSqsConsumer.ts'
 import { isCreateTopicCommand, type TopicResolutionOptions } from '../types/TopicTypes.ts'
 import type { SNSSubscriptionOptions } from './snsSubscriber.ts'
 import { subscribeToTopic } from './snsSubscriber.ts'
-import {
-  assertTopic,
-  deleteSubscription,
-  deleteTopic,
-  getTopicArnByName,
-  getTopicAttributes,
-} from './snsUtils.ts'
+import { assertTopic, deleteSubscription, deleteTopic, getTopicAttributes } from './snsUtils.ts'
+import { buildTopicArn } from './stsUtils.js'
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixme
 export async function initSnsSqs(
@@ -93,7 +88,7 @@ export async function initSnsSqs(
   const checkPromises: Promise<Either<'not_found', unknown>>[] = []
   // Check for existing resources, using the locators
   const subscriptionTopicArn =
-    locatorConfig.topicArn ?? (await getTopicArnByName(snsClient, locatorConfig.topicName))
+    locatorConfig.topicArn ?? (await buildTopicArn(stsClient, locatorConfig.topicName ?? ''))
   const topicPromise = getTopicAttributes(snsClient, subscriptionTopicArn)
   checkPromises.push(topicPromise)
 
@@ -212,16 +207,21 @@ export async function initSns(
   creationConfig?: SNSCreationConfig,
 ) {
   if (locatorConfig) {
+    if (!locatorConfig.topicArn && !locatorConfig.topicName) {
+      throw new Error(
+        'When locatorConfig for the topic is specified, either topicArn or topicName must be specified',
+      )
+    }
+
     const topicArn =
-      locatorConfig.topicArn ?? (await getTopicArnByName(snsClient, locatorConfig.topicName))
+      locatorConfig.topicArn ?? (await buildTopicArn(stsClient, locatorConfig.topicName ?? ''))
+
     const checkResult = await getTopicAttributes(snsClient, topicArn)
     if (checkResult.error === 'not_found') {
       throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
     }
 
-    return {
-      topicArn,
-    }
+    return { topicArn }
   }
 
   // create new topic if it does not exist
@@ -236,7 +236,6 @@ export async function initSns(
     allowedSourceOwner: creationConfig.allowedSourceOwner,
     forceTagUpdate: creationConfig.forceTagUpdate,
   })
-  return {
-    topicArn,
-  }
+
+  return { topicArn }
 }
