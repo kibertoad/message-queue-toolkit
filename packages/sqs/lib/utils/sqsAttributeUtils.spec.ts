@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
-
 import {
+  SQS_RESOURCE_ANY,
+  SQS_RESOURCE_CURRENT_QUEUE,
+  type SQSPolicyConfig,
+} from '../sqs/AbstractSqsService.ts'
+import {
+  generateQueuePolicyFromPolicyConfig,
   generateQueuePublishForTopicPolicy,
   generateWildcardSnsArn,
   generateWildcardSqsArn,
@@ -14,8 +19,143 @@ describe('sqsAttributeUtils', () => {
         'arn:aws:sns:eu-central-1:632374391739:test-sns-*',
       )
 
-      expect(resolvedPolicy).toBe(
-        `{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-central-1:632374391739:test-sqs-some-service","Condition":{"ArnLike":{"aws:SourceArn":"arn:aws:sns:eu-central-1:632374391739:test-sns-*"}}}]}`,
+      expect(resolvedPolicy).toMatchInlineSnapshot(
+        `"{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-central-1:632374391739:test-sqs-some-service","Condition":{"ArnLike":{"aws:SourceArn":"arn:aws:sns:eu-central-1:632374391739:test-sns-*"}}}]}"`,
+      )
+    })
+  })
+
+  describe('generateQueuePolicyFromPolicyConfig', () => {
+    const testQueueArn = 'arn:aws:sqs:eu-central-1:632374391739:test-queue'
+
+    it('generates policy with default values', () => {
+      const policyConfig = {
+        resource: SQS_RESOURCE_CURRENT_QUEUE,
+      } satisfies SQSPolicyConfig
+
+      const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
+
+      expect(result).toMatchInlineSnapshot(
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"}]}"`,
+      )
+    })
+
+    it('generates policy with custom statement values', () => {
+      const policyConfig = {
+        resource: SQS_RESOURCE_CURRENT_QUEUE,
+        statements: {
+          Effect: 'Deny',
+          Principal: 'arn:aws:iam::123456789012:user/test-user',
+          Action: ['sqs:SendMessage'],
+        },
+      } satisfies SQSPolicyConfig
+
+      const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
+
+      expect(result).toMatchInlineSnapshot(
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Deny","Principal":{"AWS":"arn:aws:iam::123456789012:user/test-user"},"Action":["sqs:SendMessage"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"}]}"`,
+      )
+    })
+
+    it('generates policy with array of statements', () => {
+      const policyConfig = {
+        resource: SQS_RESOURCE_CURRENT_QUEUE,
+        statements: [
+          {
+            Effect: 'Allow',
+            Principal: 'arn:aws:iam::123456789012:user/user1',
+            Action: ['sqs:SendMessage'],
+          },
+          {
+            Effect: 'Deny',
+            Principal: 'arn:aws:iam::123456789012:user/user2',
+            Action: ['sqs:ReceiveMessage'],
+          },
+        ],
+      } satisfies SQSPolicyConfig
+
+      const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
+
+      expect(result).toMatchInlineSnapshot(
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:user/user1"},"Action":["sqs:SendMessage"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"},{"Effect":"Deny","Principal":{"AWS":"arn:aws:iam::123456789012:user/user2"},"Action":["sqs:ReceiveMessage"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"}]}"`,
+      )
+    })
+
+    it('uses current queue resource', () => {
+      const policyConfig = {
+        resource: SQS_RESOURCE_CURRENT_QUEUE,
+      } satisfies SQSPolicyConfig
+
+      const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
+
+      expect(result).toMatchInlineSnapshot(
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"}]}"`,
+      )
+    })
+
+    it('uses any resource wildcard', () => {
+      const policyConfig = {
+        resource: SQS_RESOURCE_ANY,
+      } satisfies SQSPolicyConfig
+
+      const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
+
+      expect(result).toMatchInlineSnapshot(
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"],"Resource":"arn:aws:sqs:*:*:*"}]}"`,
+      )
+    })
+
+    it('uses custom resource', () => {
+      const customResource = 'arn:aws:sqs:us-east-1:123456789012:custom-queue'
+      const policyConfig = {
+        resource: customResource,
+      } satisfies SQSPolicyConfig
+
+      const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
+
+      expect(result).toMatchInlineSnapshot(
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"],"Resource":"arn:aws:sqs:us-east-1:123456789012:custom-queue"}]}"`,
+      )
+    })
+
+    it('handles mixed statement configurations in array', () => {
+      const policyConfig = {
+        resource: SQS_RESOURCE_CURRENT_QUEUE,
+        statements: [
+          {
+            Effect: 'Allow',
+            Principal: 'arn:aws:iam::123456789012:user/user1',
+            Action: ['sqs:SendMessage'],
+          },
+          {
+            // Missing Effect and Principal - should use defaults
+            Action: ['sqs:ReceiveMessage'],
+          },
+          {
+            Effect: 'Deny',
+            // Missing Principal - should use default
+            Action: ['sqs:DeleteMessage'],
+          },
+        ],
+      } satisfies SQSPolicyConfig
+
+      const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
+
+      expect(result).toMatchInlineSnapshot(
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:user/user1"},"Action":["sqs:SendMessage"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"},{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:ReceiveMessage"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"},{"Effect":"Deny","Principal":{"AWS":"*"},"Action":["sqs:DeleteMessage"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"}]}"`,
+      )
+    })
+
+    it('handles undefined statements', () => {
+      const policyConfig = {
+        resource: SQS_RESOURCE_CURRENT_QUEUE,
+        statements: undefined,
+      } satisfies SQSPolicyConfig
+
+      const result = generateQueuePolicyFromPolicyConfig(testQueueArn, policyConfig)
+
+      expect(result).toMatchInlineSnapshot(
+        `"{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":["sqs:SendMessage","sqs:GetQueueAttributes","sqs:GetQueueUrl"],"Resource":"arn:aws:sqs:eu-central-1:632374391739:test-queue"}]}"`,
       )
     })
   })

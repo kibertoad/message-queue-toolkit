@@ -62,10 +62,10 @@ describe('SqsPermissionPublisher - payload offloading', () => {
         queueUrl,
         handleMessage: (message: Message) => {
           if (message === null) {
-            return Promise.resolve()
+            return Promise.resolve(message)
           }
           receivedSqsMessages.push(message)
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
         sqs: sqsClient,
         messageAttributeNames: [OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE],

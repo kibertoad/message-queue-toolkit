@@ -15,10 +15,11 @@ import {
 import type { Either } from '@lokalise/node-core'
 import { globalLogger } from '@lokalise/node-core'
 import { isShallowSubset, waitAndRetry } from '@message-queue-toolkit/core'
-
 import type { ExtraSQSCreationParams, SQSQueueLocatorType } from '../sqs/AbstractSqsService.ts'
-
-import { generateQueuePublishForTopicPolicy } from './sqsAttributeUtils.ts'
+import {
+  generateQueuePolicyFromPolicyConfig,
+  generateQueuePublishForTopicPolicy,
+} from './sqsAttributeUtils.ts'
 import { updateQueueAttributes, updateQueueTags } from './sqsInitter.ts'
 
 const AWS_QUEUE_DOES_NOT_EXIST_ERROR_NAME = 'QueueDoesNotExist'
@@ -129,7 +130,13 @@ async function updateExistingQueue(
     const updatedAttributes: Partial<Record<QueueAttributeName, string>> = {
       ...queueConfig.Attributes,
     }
-    if (extraParams?.topicArnsWithPublishPermissionsPrefix) {
+
+    if (extraParams.policyConfig) {
+      updatedAttributes.Policy = generateQueuePolicyFromPolicyConfig(
+        queueArn,
+        extraParams.policyConfig,
+      )
+    } else if (extraParams?.topicArnsWithPublishPermissionsPrefix) {
       updatedAttributes.Policy = generateQueuePublishForTopicPolicy(
         queueArn,
         extraParams.topicArnsWithPublishPermissionsPrefix,
@@ -189,17 +196,27 @@ export async function assertQueue(
     throw new Error('Queue ARN was not set')
   }
 
-  if (extraParams?.topicArnsWithPublishPermissionsPrefix) {
-    const setTopicAttributesCommand = new SetQueueAttributesCommand({
-      QueueUrl: newQueueUrlResult.result,
-      Attributes: {
-        Policy: generateQueuePublishForTopicPolicy(
-          queueArn,
-          extraParams.topicArnsWithPublishPermissionsPrefix,
-        ),
-      },
-    })
-    await sqsClient.send(setTopicAttributesCommand)
+  if (extraParams?.policyConfig) {
+    await sqsClient.send(
+      new SetQueueAttributesCommand({
+        QueueUrl: newQueueUrlResult.result,
+        Attributes: {
+          Policy: generateQueuePolicyFromPolicyConfig(queueArn, extraParams.policyConfig),
+        },
+      }),
+    )
+  } else if (extraParams?.topicArnsWithPublishPermissionsPrefix) {
+    await sqsClient.send(
+      new SetQueueAttributesCommand({
+        QueueUrl: newQueueUrlResult.result,
+        Attributes: {
+          Policy: generateQueuePublishForTopicPolicy(
+            queueArn,
+            extraParams.topicArnsWithPublishPermissionsPrefix,
+          ),
+        },
+      }),
+    )
   }
 
   return {

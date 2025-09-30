@@ -1,4 +1,9 @@
-import { ListQueueTagsCommand, SendMessageCommand, type SQSClient } from '@aws-sdk/client-sqs'
+import {
+  ListQueueTagsCommand,
+  ReceiveMessageCommand,
+  SendMessageCommand,
+  type SQSClient,
+} from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
@@ -260,7 +265,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         queueUrl: consumer.dlqUrl,
         handleMessage: (message: SQSMessage) => {
           dlqMessage = message
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
       })
       dlqConsumer.start()
@@ -276,6 +281,16 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         timestamp: expect.any(String),
         _internalRetryLaterCount: 0,
       })
+
+      // Verify that all messages were acknowledged (removed from queue)
+      const receiveCommandResult = await sqsClient.send(
+        new ReceiveMessageCommand({
+          QueueUrl: consumer.queueProps.url,
+          MaxNumberOfMessages: 1,
+          WaitTimeSeconds: 1,
+        }),
+      )
+      expect(receiveCommandResult.Messages).toBeUndefined()
     })
 
     it('messages with retryLater should be retried with exponential delay and not go to DLQ', async () => {
@@ -308,6 +323,16 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       expect(handlerSpyResult.processingResult).toEqual({ status: 'consumed' })
       expect(handlerSpyResult.message).toMatchObject({ id: '1', messageType: 'remove' })
 
+      // Verify that message was acknowledged after successful processing
+      const receiveCommandResult = await sqsClient.send(
+        new ReceiveMessageCommand({
+          QueueUrl: consumer.queueProps.url,
+          MaxNumberOfMessages: 1,
+          WaitTimeSeconds: 1,
+        }),
+      )
+      expect(receiveCommandResult.Messages).toBeUndefined()
+
       expect(counter).toBe(2)
 
       // delay is 1s, but consumer can take the message
@@ -331,7 +356,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         queueUrl: consumer.dlqUrl,
         handleMessage: (message: SQSMessage) => {
           dlqMessage = message
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
       })
       dlqConsumer.start()
@@ -373,7 +398,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         queueUrl: consumer.dlqUrl,
         handleMessage: (message: SQSMessage) => {
           dlqMessage = message
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
       })
       dlqConsumer.start()
@@ -424,7 +449,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         queueUrl: consumer.dlqUrl,
         handleMessage: (message: SQSMessage) => {
           dlqMessage = message
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
       })
       dlqConsumer.start()

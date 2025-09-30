@@ -3,7 +3,11 @@ import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
 import { Producer, stringSerializers } from '@platformatic/kafka'
 import { afterAll, expect, type MockInstance } from 'vitest'
 import z from 'zod/v4'
-import { KafkaHandlerConfig, type RequestContext } from '../../lib/index.ts'
+import {
+  KafkaBatchHandlerConfig,
+  KafkaHandlerConfig,
+  type RequestContext,
+} from '../../lib/index.ts'
 import { PermissionPublisher } from '../publisher/PermissionPublisher.ts'
 import {
   PERMISSION_ADDED_SCHEMA,
@@ -11,11 +15,11 @@ import {
   TOPICS,
 } from '../utils/permissionSchemas.ts'
 import { createTestContext, type TestContext } from '../utils/testContext.ts'
-import { PermissionConsumer } from './PermissionConsumer.ts'
+import { PermissionBatchConsumer } from './PermissionBatchConsumer.ts'
 
-describe('PermissionConsumer', () => {
+describe('PermissionBatchConsumer', () => {
   let testContext: TestContext
-  let consumer: PermissionConsumer | undefined
+  let consumer: PermissionBatchConsumer | undefined
 
   beforeAll(async () => {
     testContext = await createTestContext()
@@ -42,17 +46,13 @@ describe('PermissionConsumer', () => {
 
     it('should thrown an error if topics is empty', async () => {
       await expect(
-        new PermissionConsumer(testContext.cradle, { handlers: {} }).init(),
-      ).rejects.toThrowErrorMatchingInlineSnapshot('[Error: At least one topic must be defined]')
-
-      await expect(
-        new PermissionConsumer(testContext.cradle, { handlers: {} }).init(),
+        new PermissionBatchConsumer(testContext.cradle, { handlers: {} }).init(),
       ).rejects.toThrowErrorMatchingInlineSnapshot('[Error: At least one topic must be defined]')
     })
 
     it('should thrown an error if trying to use spy when it is not enabled', () => {
       // Given
-      consumer = new PermissionConsumer(testContext.cradle, { handlerSpy: false })
+      consumer = new PermissionBatchConsumer(testContext.cradle, { handlerSpy: false })
 
       // When - Then
       expect(() => consumer?.handlerSpy).toThrowErrorMatchingInlineSnapshot(
@@ -62,14 +62,14 @@ describe('PermissionConsumer', () => {
 
     it('should not fail on close if consumer is not initiated', async () => {
       // Given
-      consumer = new PermissionConsumer(testContext.cradle, { handlers: {} })
+      consumer = new PermissionBatchConsumer(testContext.cradle, { handlers: {} })
       // When - Then
       await expect(consumer.close()).resolves.not.toThrowError()
     })
 
     it('should not fail on init if it is already initiated', async () => {
       // Given
-      consumer = new PermissionConsumer(testContext.cradle)
+      consumer = new PermissionBatchConsumer(testContext.cradle)
       // When
       await consumer.init()
 
@@ -79,7 +79,7 @@ describe('PermissionConsumer', () => {
 
     it('should fail if kafka is not available', async () => {
       // Given
-      consumer = new PermissionConsumer(testContext.cradle, {
+      consumer = new PermissionBatchConsumer(testContext.cradle, {
         // port 9090 is not valid
         kafka: {
           bootstrapBrokers: ['localhost:9090'],
@@ -96,7 +96,7 @@ describe('PermissionConsumer', () => {
 
     it('should fail if topic does not exists and autocreate is disabled', async () => {
       // Given
-      consumer = new PermissionConsumer(testContext.cradle, { autocreateTopics: false })
+      consumer = new PermissionBatchConsumer(testContext.cradle, { autocreateTopics: false })
 
       // When - Then
       await expect(consumer.init()).rejects.toThrowErrorMatchingInlineSnapshot(
@@ -106,7 +106,7 @@ describe('PermissionConsumer', () => {
 
     it('should work if topic does not exists and autocreate is enabled', async () => {
       // Given
-      consumer = new PermissionConsumer(testContext.cradle)
+      consumer = new PermissionBatchConsumer(testContext.cradle)
 
       // When - Then
       await expect(consumer.init()).resolves.not.toThrowError()
@@ -116,7 +116,7 @@ describe('PermissionConsumer', () => {
   describe('isConnected', () => {
     it('should return false if consumer is not initiated', () => {
       // Given
-      consumer = new PermissionConsumer(testContext.cradle)
+      consumer = new PermissionBatchConsumer(testContext.cradle)
 
       // When - Then
       expect(consumer.isConnected).toBe(false)
@@ -124,7 +124,7 @@ describe('PermissionConsumer', () => {
 
     it('should return true if consumer is initiated', async () => {
       // Given
-      consumer = new PermissionConsumer(testContext.cradle)
+      consumer = new PermissionBatchConsumer(testContext.cradle)
 
       // When
       await consumer.init()
@@ -139,7 +139,7 @@ describe('PermissionConsumer', () => {
   describe('isActive', () => {
     it('should return false if consumer is not initiated', () => {
       // Given
-      consumer = new PermissionConsumer(testContext.cradle)
+      consumer = new PermissionBatchConsumer(testContext.cradle)
 
       // When - Then
       expect(consumer.isActive).toBe(false)
@@ -147,7 +147,7 @@ describe('PermissionConsumer', () => {
 
     it('should return true if consumer is initiated', async () => {
       // Given
-      consumer = new PermissionConsumer(testContext.cradle)
+      consumer = new PermissionBatchConsumer(testContext.cradle)
 
       // When
       await consumer.init()
@@ -170,36 +170,88 @@ describe('PermissionConsumer', () => {
       await publisher.close()
     })
 
-    it('should consume valid messages', async () => {
+    it('should consume valid messages when batch size is reached', async () => {
       // Given
-      consumer = new PermissionConsumer(testContext.cradle)
+      consumer = new PermissionBatchConsumer(testContext.cradle, {
+        batchProcessingOptions: {
+          batchSize: 2,
+          timeoutMilliseconds: 5000,
+        },
+      })
       await consumer.init()
 
+      const messages: PermissionAdded[] = [
+        { id: '1', type: 'added', permissions: [] },
+        { id: '2', type: 'added', permissions: [] },
+        { id: '3', type: 'added', permissions: [] },
+      ]
+
       // When
-      await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
-      await publisher.publish('permission-removed', { id: '2', type: 'removed', permissions: [] })
+      for (const message of messages) {
+        await publisher.publish('permission-added', message)
+      }
 
       // Then
-      const permissionAddedSpy = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
-      expect(permissionAddedSpy.message).toMatchObject({ id: '1' })
+      await Promise.all([
+        consumer.handlerSpy.waitForMessageWithId('1', 'consumed'),
+        consumer.handlerSpy.waitForMessageWithId('2', 'consumed'),
+      ])
+      // Only 1 batch was delivered
       expect(consumer.addedMessages).toHaveLength(1)
-      expect(consumer.addedMessages[0]!.value).toEqual(permissionAddedSpy.message)
+      // Batch contains 2 messages
+      expect(consumer.addedMessages[0]).toHaveLength(2)
+      // Messages are in order
+      expect(consumer.addedMessages[0]!.map((m) => m.value)).toEqual([messages[0], messages[1]])
+    })
 
-      const permissionRemovedSpy = await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
-      expect(permissionRemovedSpy.message).toMatchObject({ id: '2' })
-      expect(consumer.removedMessages).toHaveLength(1)
-      expect(consumer.removedMessages[0]!.value).toEqual(permissionRemovedSpy.message)
+    it('should consume valid messages when batch timeout is reached', async () => {
+      // Given
+      consumer = new PermissionBatchConsumer(testContext.cradle, {
+        batchProcessingOptions: {
+          batchSize: 200,
+          timeoutMilliseconds: 1000, // 1s timeout to trigger batch processing
+        },
+      })
+      await consumer.init()
+
+      const messages: PermissionAdded[] = [
+        { id: '1', type: 'added', permissions: [] },
+        { id: '2', type: 'added', permissions: [] },
+        { id: '3', type: 'added', permissions: [] },
+      ]
+
+      // When
+      for (const message of messages) {
+        await publisher.publish('permission-added', message)
+      }
+
+      // Then
+      await Promise.all([
+        consumer.handlerSpy.waitForMessageWithId('1', 'consumed'),
+        consumer.handlerSpy.waitForMessageWithId('2', 'consumed'),
+        consumer.handlerSpy.waitForMessageWithId('3', 'consumed'),
+      ])
+      // Only 1 batch was delivered
+      expect(consumer.addedMessages).toHaveLength(1)
+      // Batch contains 2 messages
+      expect(consumer.addedMessages[0]).toHaveLength(3)
+      // Messages are in order
+      expect(consumer.addedMessages[0]!.map((m) => m.value)).toEqual(messages)
     })
 
     it('should react correctly if handler throws an error', async () => {
       // Given
       let counter = 0
-      consumer = new PermissionConsumer(testContext.cradle, {
+      consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
           'permission-added': new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, () => {
             counter++
             throw new Error('Test error')
           }),
+        },
+        batchProcessingOptions: {
+          batchSize: 1, // Single message batch to trigger handler
+          timeoutMilliseconds: 10000,
         },
       })
       await consumer.init()
@@ -216,12 +268,16 @@ describe('PermissionConsumer', () => {
     it('should consume message after initial error', async () => {
       // Given
       let counter = 0
-      consumer = new PermissionConsumer(testContext.cradle, {
+      consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
           'permission-added': new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, () => {
             counter++
             if (counter === 1) throw new Error('Test error')
           }),
+        },
+        batchProcessingOptions: {
+          batchSize: 1, // Single message batch to trigger handler
+          timeoutMilliseconds: 10000,
         },
       })
       await consumer.init()
@@ -237,12 +293,16 @@ describe('PermissionConsumer', () => {
 
     it('should react correct to validation issues', async () => {
       // Given
-      consumer = new PermissionConsumer(testContext.cradle, {
+      consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
           'permission-added': new KafkaHandlerConfig(
             PERMISSION_ADDED_SCHEMA.extend({ id: z.number() as any }),
             () => Promise.resolve(),
           ),
+        },
+        batchProcessingOptions: {
+          batchSize: 1, // Single message batch to trigger handler
+          timeoutMilliseconds: 10000,
         },
       })
       await consumer.init()
@@ -265,7 +325,12 @@ describe('PermissionConsumer', () => {
         autocreateTopics: true,
         serializers: stringSerializers,
       })
-      consumer = new PermissionConsumer(testContext.cradle)
+      consumer = new PermissionBatchConsumer(testContext.cradle, {
+        batchProcessingOptions: {
+          batchSize: 1, // Single message batch to trigger handler
+          timeoutMilliseconds: 10000,
+        },
+      })
       await consumer.init()
 
       // When
@@ -278,19 +343,6 @@ describe('PermissionConsumer', () => {
       expect(errorSpy).not.toHaveBeenCalled()
 
       await producer.close()
-    })
-
-    it('should work for messages without id field', async () => {
-      // Given
-      consumer = new PermissionConsumer(testContext.cradle, { messageIdField: 'invalid' })
-      await consumer.init()
-
-      // When
-      await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
-
-      // Then
-      const spyResult = await consumer.handlerSpy.waitForMessage({ permissions: [] }, 'consumed')
-      expect(spyResult).toBeDefined()
     })
   })
 
@@ -314,15 +366,19 @@ describe('PermissionConsumer', () => {
       // Given
       buildPublisher()
 
-      const handlerCalls: { messageValue: any; requestContext: RequestContext }[] = []
-      consumer = new PermissionConsumer(testContext.cradle, {
+      const handlerCalls: { messages: any[]; requestContext: RequestContext }[] = []
+      consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
-          'permission-added': new KafkaHandlerConfig<PermissionAdded, any, false>(
+          'permission-added': new KafkaBatchHandlerConfig(
             PERMISSION_ADDED_SCHEMA,
-            (message, _, requestContext) => {
-              handlerCalls.push({ messageValue: message.value, requestContext })
+            (messages, _, requestContext) => {
+              handlerCalls.push({ messages: messages.map((m) => m.value), requestContext })
             },
           ),
+        } as any,
+        batchProcessingOptions: {
+          batchSize: 1,
+          timeoutMilliseconds: 100,
         },
       })
       await consumer.init()
@@ -338,22 +394,12 @@ describe('PermissionConsumer', () => {
         },
         { reqId: requestId, logger: testContext.cradle.logger },
       )
-      await publisher.publish('permission-added', {
-        id: '2',
-        type: 'added',
-        permissions: [],
-      })
 
       // Then
       const spy1 = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
       expect(spy1.message).toMatchObject({ id: '1' })
-      expect(spy1.message).toEqual(handlerCalls[0]!.messageValue)
+      expect(handlerCalls[0]!.messages[0]).toEqual(spy1.message)
       expect(handlerCalls[0]!.requestContext).toMatchObject({ reqId: requestId })
-
-      const spy2 = await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
-      expect(spy2.message).toMatchObject({ id: '2' })
-      expect(spy2.message).toEqual(handlerCalls[1]!.messageValue)
-      expect(handlerCalls[1]!.requestContext).not.toMatchObject({ reqId: requestId })
     })
 
     it('should use transaction observability manager', async () => {
@@ -364,7 +410,12 @@ describe('PermissionConsumer', () => {
       const startTransactionSpy = vi.spyOn(transactionObservabilityManager, 'start')
       const stopTransactionSpy = vi.spyOn(transactionObservabilityManager, 'stop')
 
-      consumer = new PermissionConsumer(testContext.cradle)
+      consumer = new PermissionBatchConsumer(testContext.cradle, {
+        batchProcessingOptions: {
+          batchSize: 100,
+          timeoutMilliseconds: 100,
+        },
+      })
       await consumer.init()
 
       // When
@@ -381,25 +432,21 @@ describe('PermissionConsumer', () => {
 
       // Then
       await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+
+      expect(startTransactionSpy).toHaveBeenCalledTimes(1)
       expect(startTransactionSpy).toHaveBeenCalledWith(
-        'kafka:PermissionConsumer:permission-added',
+        'kafka:PermissionBatchConsumer:permission-added:batch',
         expect.any(String),
       )
       expect(stopTransactionSpy).toHaveBeenCalledWith(startTransactionSpy.mock.calls[0]![1])
-
-      await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
-      expect(startTransactionSpy).toHaveBeenCalledWith(
-        'kafka:PermissionConsumer:permission-added',
-        expect.any(String),
-      )
-      expect(stopTransactionSpy).toHaveBeenCalledWith(startTransactionSpy.mock.calls[1]![1])
     })
 
     it('should use metrics manager to measure successful messages', async () => {
       // Given
       buildPublisher()
 
-      consumer = new PermissionConsumer(testContext.cradle)
+      consumer = new PermissionBatchConsumer(testContext.cradle)
       await consumer.init()
 
       // When
@@ -426,7 +473,7 @@ describe('PermissionConsumer', () => {
       // Given
       buildPublisher()
 
-      consumer = new PermissionConsumer(testContext.cradle, {
+      consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
           'permission-added': new KafkaHandlerConfig(
             PERMISSION_ADDED_SCHEMA.extend({ id: z.number() as any }),
@@ -460,7 +507,7 @@ describe('PermissionConsumer', () => {
       // Given
       buildPublisher()
 
-      consumer = new PermissionConsumer(testContext.cradle, {
+      consumer = new PermissionBatchConsumer(testContext.cradle, {
         handlers: {
           'permission-added': new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, () => {
             throw new Error('Test error')

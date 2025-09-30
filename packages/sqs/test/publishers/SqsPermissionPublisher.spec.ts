@@ -5,6 +5,10 @@ import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver.ts'
+import {
+  SQS_RESOURCE_CURRENT_QUEUE,
+  type SQSPolicyConfig,
+} from '../../lib/sqs/AbstractSqsService.js'
 import type { SQSMessage } from '../../lib/types/MessageTypes.ts'
 import { deserializeSQSMessage } from '../../lib/utils/sqsMessageDeserializer.ts'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
@@ -12,7 +16,6 @@ import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSche
 import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
-
 import { SqsPermissionPublisher } from './SqsPermissionPublisher.ts'
 
 describe('SqsPermissionPublisher', () => {
@@ -251,6 +254,135 @@ describe('SqsPermissionPublisher', () => {
         const postTags = await getTags(assertResult.queueUrl)
         expect(postTags.Tags).toEqual(initialTags)
       })
+
+      describe('policy config', () => {
+        it('creates queue without policy when policyConfig is undefined', async () => {
+          const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
+            creationConfig: {
+              queue: {
+                QueueName: queueName,
+                Attributes: {
+                  VisibilityTimeout: '30',
+                },
+              },
+              policyConfig: undefined,
+            },
+          })
+
+          await newPublisher.init()
+
+          // Verify queue was created
+          expect(newPublisher.queueProps.url).toBe(queueUrl)
+          expect(newPublisher.queueProps.name).toBe(queueName)
+
+          // Verify no policy was applied
+          const attributes = await getQueueAttributes(sqsClient, newPublisher.queueProps.url)
+          const policy = attributes.result?.attributes?.Policy
+
+          expect(policy).toBeUndefined()
+
+          await newPublisher.close()
+        })
+
+        it('creates queue with policy config', async () => {
+          const policyConfig: SQSPolicyConfig = {
+            resource: SQS_RESOURCE_CURRENT_QUEUE,
+            statements: {
+              Effect: 'Allow',
+              Principal: 'arn:aws:iam::123456789012:user/test-user',
+              Action: ['sqs:SendMessage', 'sqs:ReceiveMessage'],
+            },
+          }
+
+          const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
+            creationConfig: {
+              queue: {
+                QueueName: queueName,
+                Attributes: {
+                  VisibilityTimeout: '30',
+                },
+              },
+              policyConfig,
+            },
+          })
+
+          await newPublisher.init()
+
+          // Verify queue was created
+          expect(newPublisher.queueProps.url).toBe(queueUrl)
+
+          // Verify policy was applied with current queue ARN as resource
+          const attributes = await getQueueAttributes(sqsClient, newPublisher.queueProps.url)
+          const policy = JSON.parse(attributes.result?.attributes?.Policy || '{}')
+
+          expect(policy.Version).toBe('2012-10-17')
+          expect(policy.Statement[0].Resource).toBe(newPublisher.queueProps.arn)
+          expect(policy).toMatchInlineSnapshot(`
+            {
+              "Statement": [
+                {
+                  "Action": [
+                    "sqs:SendMessage",
+                    "sqs:ReceiveMessage",
+                  ],
+                  "Effect": "Allow",
+                  "Principal": {
+                    "AWS": "arn:aws:iam::123456789012:user/test-user",
+                  },
+                  "Resource": "arn:aws:sqs:eu-west-1:000000000000:someQueue",
+                },
+              ],
+              "Version": "2012-10-17",
+            }
+          `)
+
+          await newPublisher.close()
+        })
+
+        it('updates existing queue policy when publisher is reinitialized with updateAttributesIfExists', async () => {
+          const initialPublisher = new SqsPermissionPublisher(diContainer.cradle, {
+            creationConfig: {
+              queue: {
+                QueueName: queueName,
+                Attributes: {
+                  VisibilityTimeout: '30',
+                },
+              },
+              policyConfig: {
+                resource: 'arn:aws:sqs:*:*:*',
+                statements: {
+                  Effect: 'Allow',
+                  Principal: 'arn:aws:iam::123456789012:user/initial-user',
+                  Action: ['sqs:SendMessage'],
+                },
+              },
+            },
+          })
+
+          await initialPublisher.init()
+          await initialPublisher.close()
+
+          const updatedPublisher = new SqsPermissionPublisher(diContainer.cradle, {
+            creationConfig: {
+              queue: {
+                QueueName: queueName,
+                Attributes: {
+                  VisibilityTimeout: '30',
+                },
+              },
+              policyConfig: { resource: '*' },
+              updateAttributesIfExists: true,
+            },
+          })
+
+          await updatedPublisher.init()
+
+          // Verify updated policy was applied
+          const attributes = await getQueueAttributes(sqsClient, updatedPublisher.queueProps.url)
+          const policy = JSON.parse(attributes.result?.attributes?.Policy || '{}')
+          expect(policy.Statement[0].Resource).toBe('*')
+        })
+      })
     })
   })
 
@@ -323,7 +455,7 @@ describe('SqsPermissionPublisher', () => {
         queueUrl: queueUrl,
         handleMessage: (message: SQSMessage) => {
           if (message === null) {
-            return Promise.resolve()
+            return Promise.resolve(message)
           }
           const decodedMessage = deserializeSQSMessage(
             message as any,
@@ -331,7 +463,7 @@ describe('SqsPermissionPublisher', () => {
             new FakeConsumerErrorResolver(),
           )
           receivedMessage = decodedMessage.result!
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
         sqs: diContainer.cradle.sqsClient,
       })

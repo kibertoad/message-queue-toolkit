@@ -223,7 +223,7 @@ export abstract class AbstractSqsConsumer<
       ...this.consumerOptionsOverride,
       // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixme
       handleMessage: async (message: SQSMessage) => {
-        if (message === null) return
+        if (message === null) return message
 
         const messageProcessingStartTimestamp = Date.now()
 
@@ -239,7 +239,8 @@ export abstract class AbstractSqsConsumer<
             queueName: this.queueName,
             messageId: messageId.result,
           })
-          return
+
+          return message
         }
         const { parsedMessage, originalMessage } = deserializedMessage.result
 
@@ -254,7 +255,8 @@ export abstract class AbstractSqsConsumer<
             queueName: this.queueName,
             messageId: this.tryToExtractId(message).result,
           })
-          return
+
+          return message
         }
 
         const acquireLockResult = this.isDeduplicationEnabledForMessage(parsedMessage)
@@ -271,6 +273,7 @@ export abstract class AbstractSqsConsumer<
             parsedMessage,
             messageProcessingStartTimestamp,
           )
+
           return message
         }
 
@@ -288,7 +291,8 @@ export abstract class AbstractSqsConsumer<
             queueName: this.queueName,
             messageId: this.tryToExtractId(message).result,
           })
-          return
+
+          return message
         }
 
         // @ts-expect-error
@@ -326,6 +330,7 @@ export abstract class AbstractSqsConsumer<
             messageProcessingStartTimestamp,
             queueName: this.queueName,
           })
+
           return message
         }
 
@@ -348,6 +353,7 @@ export abstract class AbstractSqsConsumer<
           messageProcessingStartTimestamp,
           queueName: this.queueName,
         })
+
         return Promise.reject(result.error)
       },
     })
@@ -590,6 +596,6 @@ export abstract class AbstractSqsConsumer<
     }
 
     // parseInt is safe because if the value is not a number process should have failed on init
-    return visibilityTimeoutString ? Number.parseInt(visibilityTimeoutString) : undefined
+    return visibilityTimeoutString ? Number.parseInt(visibilityTimeoutString, 10) : undefined
   }
 }

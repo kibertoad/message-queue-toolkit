@@ -98,6 +98,7 @@ export async function initSqs(
     topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
     updateAttributesIfExists: creationConfig.updateAttributesIfExists,
     forceTagUpdate: creationConfig.forceTagUpdate,
+    policyConfig: creationConfig.policyConfig,
   })
   const queueName = creationConfig.queue.QueueName
 

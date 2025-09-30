@@ -1,7 +1,7 @@
-import { types } from 'node:util'
 import {
   type CommonLogger,
   type ErrorReporter,
+  isError,
   resolveGlobalErrorLogObject,
   stringValueSerializer,
 } from '@lokalise/node-core'
@@ -14,8 +14,9 @@ import {
   type PublicHandlerSpy,
   resolveHandlerSpy,
 } from '@message-queue-toolkit/core'
-import type { BaseOptions, Message } from '@platformatic/kafka'
+import type { BaseOptions } from '@platformatic/kafka'
 import type {
+  DeserializedMessage,
   KafkaConfig,
   KafkaDependencies,
   SupportedMessageValues,
@@ -24,7 +25,6 @@ import type {
 
 export type BaseKafkaOptions = {
   kafka: KafkaConfig
-  messageTypeField?: string
   messageIdField?: string
   /**
    * The field in the message headers that contains the request ID.
@@ -36,11 +36,8 @@ export type BaseKafkaOptions = {
   logMessages?: boolean
 } & Omit<BaseOptions, keyof KafkaConfig> // Exclude properties that are already in KafkaConfig
 
-type ProcessedMessage<TopicsConfig extends TopicConfig[]> = MayOmit<
-  Pick<
-    Message<string, SupportedMessageValues<TopicsConfig>, string, string>,
-    'topic' | 'value' | 'timestamp'
-  >,
+export type ProcessedMessage<TopicsConfig extends TopicConfig[]> = MayOmit<
+  Pick<DeserializedMessage<SupportedMessageValues<TopicsConfig>>, 'topic' | 'value' | 'timestamp'>,
   'timestamp'
 >
 
@@ -77,12 +74,6 @@ export abstract class AbstractKafkaService<
     )
   }
 
-  protected resolveMessageType(message: SupportedMessageValues<TopicsConfig>): string | undefined {
-    if (!this.options.messageTypeField) return undefined
-    // @ts-expect-error
-    return message[this.options.messageTypeField] as string | undefined
-  }
-
   protected resolveMessageId(message: SupportedMessageValues<TopicsConfig>): string | undefined {
     // @ts-expect-error
     return message[this.options.messageIdField] as string | undefined
@@ -99,7 +90,6 @@ export abstract class AbstractKafkaService<
   }) {
     const { message, processingResult } = params
     const messageId = this.resolveMessageId(message.value)
-    const messageType = this.resolveMessageType(message.value)
 
     this._handlerSpy?.addProcessedMessage({ message: message.value, processingResult }, messageId)
 
@@ -110,7 +100,6 @@ export abstract class AbstractKafkaService<
           topic: message.topic,
           processingResult,
           messageId,
-          messageType,
         },
         `Finished processing message ${messageId}`,
       )
@@ -122,7 +111,7 @@ export abstract class AbstractKafkaService<
         processingResult,
         queueName: message.topic,
         messageId: messageId ?? 'unknown',
-        messageType: messageType ?? 'unknown',
+        messageType: 'unknown',
         messageTimestamp: message.timestamp ? Number(message.timestamp) : undefined,
         messageProcessingStartTimestamp: params.messageProcessingStartTimestamp,
         messageProcessingEndTimestamp: Date.now(),
@@ -132,6 +121,6 @@ export abstract class AbstractKafkaService<
 
   protected handlerError(error: unknown, context: Record<string, unknown> = {}): void {
     this.logger.error({ ...resolveGlobalErrorLogObject(error), ...context })
-    if (types.isNativeError(error)) this.errorReporter.report({ error, context })
+    if (isError(error)) this.errorReporter.report({ error, context })
   }
 }

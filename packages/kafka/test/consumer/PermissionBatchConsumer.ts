@@ -22,49 +22,55 @@ type ExecutionContext = {
   incrementAmount: number
 }
 
-type PermissionConsumerOptions = Partial<
+type PermissionBatchConsumerOptions = Partial<
   Pick<
-    KafkaConsumerOptions<typeof PERMISSION_TOPIC_MESSAGES_CONFIG, ExecutionContext, false>,
+    KafkaConsumerOptions<typeof PERMISSION_TOPIC_MESSAGES_CONFIG, ExecutionContext, true>,
     | 'kafka'
     | 'handlerSpy'
     | 'autocreateTopics'
     | 'handlers'
     | 'headerRequestIdField'
     | 'messageIdField'
+    | 'batchProcessingOptions'
   >
 >
 
-export class PermissionConsumer extends AbstractKafkaConsumer<
+export class PermissionBatchConsumer extends AbstractKafkaConsumer<
   typeof PERMISSION_TOPIC_MESSAGES_CONFIG,
-  ExecutionContext
+  ExecutionContext,
+  true
 > {
-  private _addedMessages: DeserializedMessage<PermissionAdded>[] = []
-  private _removedMessages: DeserializedMessage<PermissionRemoved>[] = []
+  private _addedMessages: DeserializedMessage<PermissionAdded>[][] = []
+  private _removedMessages: DeserializedMessage<PermissionRemoved>[][] = []
 
-  constructor(deps: KafkaConsumerDependencies, options: PermissionConsumerOptions = {}) {
+  constructor(deps: KafkaConsumerDependencies, options: PermissionBatchConsumerOptions = {}) {
     super(
       deps,
       {
-        batchProcessingEnabled: false,
+        batchProcessingEnabled: true,
+        batchProcessingOptions: options.batchProcessingOptions ?? {
+          batchSize: 3,
+          timeoutMilliseconds: 100,
+        },
         handlers:
           options.handlers ??
           new KafkaHandlerRoutingBuilder<
             typeof PERMISSION_TOPIC_MESSAGES_CONFIG,
             ExecutionContext,
-            false
+            true
           >()
             .addConfig(
               'permission-added',
-              new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message, executionContext) => {
+              new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (messages, executionContext) => {
                 executionContext.incrementAmount++
-                this._addedMessages.push(message)
+                this._addedMessages.push(messages)
               }),
             )
             .addConfig(
               'permission-removed',
-              new KafkaHandlerConfig(PERMISSION_REMOVED_SCHEMA, (message, executionContext) => {
+              new KafkaHandlerConfig(PERMISSION_REMOVED_SCHEMA, (messages, executionContext) => {
                 executionContext.incrementAmount++
-                this._removedMessages.push(message)
+                this._removedMessages.push(messages)
               }),
             )
             .build(),
