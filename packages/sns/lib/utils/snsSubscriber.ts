@@ -2,6 +2,7 @@ import type { SNSClient, SubscribeCommandInput } from '@aws-sdk/client-sns'
 import { SetSubscriptionAttributesCommand, SubscribeCommand } from '@aws-sdk/client-sns'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
+import { InternalError, stringValueSerializer } from '@lokalise/node-core'
 import type { ExtraParams } from '@message-queue-toolkit/core'
 import type { ExtraSQSCreationParams } from '@message-queue-toolkit/sqs'
 import { assertQueue } from '@message-queue-toolkit/sqs'
@@ -11,7 +12,8 @@ import {
   isSNSTopicLocatorType,
   type TopicResolutionOptions,
 } from '../types/TopicTypes.ts'
-import { assertTopic, findSubscriptionByTopicAndQueue, getTopicArnByName } from './snsUtils.ts'
+import { assertTopic, findSubscriptionByTopicAndQueue } from './snsUtils.ts'
+import { buildTopicArn } from './stsUtils.js'
 
 export type SNSSubscriptionOptions = Omit<
   SubscribeCommandInput,
@@ -24,12 +26,11 @@ async function resolveTopicArnToSubscribeTo(
   topicConfiguration: TopicResolutionOptions,
   extraParams: (ExtraSNSCreationParams & ExtraSQSCreationParams & ExtraParams) | undefined,
 ) {
-  //If topicArn is present, let's use it and return early.
-  if (isSNSTopicLocatorType(topicConfiguration) && topicConfiguration.topicArn) {
-    return topicConfiguration.topicArn
+  if (isSNSTopicLocatorType(topicConfiguration)) {
+    if (topicConfiguration.topicArn) return topicConfiguration.topicArn
+    if (topicConfiguration.topicName) return buildTopicArn(stsClient, topicConfiguration.topicName)
   }
 
-  //If input configuration is capable of creating a topic, let's create it and return its ARN.
   if (isCreateTopicCommand(topicConfiguration)) {
     return await assertTopic(snsClient, stsClient, topicConfiguration, {
       queueUrlsWithSubscribePermissionsPrefix: extraParams?.queueUrlsWithSubscribePermissionsPrefix,
@@ -38,8 +39,11 @@ async function resolveTopicArnToSubscribeTo(
     })
   }
 
-  //Last option: let's not create a topic but resolve a ARN based on the desired topic name.
-  return await getTopicArnByName(snsClient, topicConfiguration.topicName)
+  throw new InternalError({
+    errorCode: 'invalid_topic_configuration',
+    message: 'Invalid topic configuration provided, cannot resolve topic ARN',
+    details: { topicConfiguration: stringValueSerializer(topicConfiguration) },
+  })
 }
 
 export async function subscribeToTopic(
