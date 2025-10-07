@@ -17,7 +17,7 @@ import type { MessageInvalidFormatError, MessageValidationError } from '../error
 import {
   type AcquireLockTimeoutError,
   isAcquireLockTimeoutError,
-} from '../message-deduplication/AcquireLockTimeoutError.js'
+} from '../message-deduplication/AcquireLockTimeoutError.ts'
 import {
   DEFAULT_MESSAGE_DEDUPLICATION_OPTIONS,
   type DeduplicationRequester,

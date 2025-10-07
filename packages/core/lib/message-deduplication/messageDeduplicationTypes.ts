@@ -1,6 +1,6 @@
 import type { Either } from '@lokalise/node-core'
 import type { MessageDeduplicationOptions } from '@message-queue-toolkit/schemas'
-import type { AcquireLockTimeoutError } from './AcquireLockTimeoutError.js'
+import type { AcquireLockTimeoutError } from './AcquireLockTimeoutError.ts'
 
 export interface ReleasableLock {
   release(): Promise<void>
