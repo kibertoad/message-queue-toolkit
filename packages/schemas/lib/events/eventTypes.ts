@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 
-import { MetadataObjectSchema } from '../messages/baseMessageSchemas.js'
+import { MetadataObjectSchema } from '../messages/baseMessageSchemas.ts'
 import { CONSUMER_BASE_EVENT_SCHEMA, PUBLISHER_BASE_EVENT_SCHEMA } from './baseEventSchemas.ts'
 
 export type EventTypeNames<EventDefinition extends CommonEventDefinition> =

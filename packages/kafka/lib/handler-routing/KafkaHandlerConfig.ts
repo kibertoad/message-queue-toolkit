@@ -1,5 +1,5 @@
 import type { ZodSchema } from 'zod/v4'
-import type { DeserializedMessage, RequestContext } from '../types.js'
+import type { DeserializedMessage, RequestContext } from '../types.ts'
 
 export type KafkaHandler<
   MessageValue extends object,

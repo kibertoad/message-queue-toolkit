@@ -412,7 +412,7 @@ describe('AutopilotEventEmitter', () => {
       })
       expect(logSpy).toHaveBeenCalledWith({
         error: expect.anything(),
-        message: 'ErroredFakeListener error',
+        msg: 'ErroredFakeListener error',
         ...expectedContext,
       })
 
