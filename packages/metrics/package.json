@@ -26,7 +26,7 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^14.2.0",
+        "@lokalise/node-core": "^14.4.2",
         "@lokalise/universal-ts-utils": "^4.5.1"
     },
     "peerDependencies": {
