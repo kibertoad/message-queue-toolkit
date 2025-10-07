@@ -28,9 +28,9 @@
     "dependencies": {
         "@lokalise/node-core": "^14.4.2",
         "@message-queue-toolkit/schemas": "^7.0.0",
-        "fast-equals": "^5.2.2",
+        "fast-equals": "^5.3.2",
         "json-stream-stringify": "^3.1.6",
-        "tmp": "^0.2.3",
+        "tmp": "^0.2.5",
         "toad-cache": "^3.7.0"
     },
     "peerDependencies": {
