@@ -145,10 +145,26 @@ describe('PubSubPermissionConsumer', () => {
       expect(spyResult.processingResult.status).toBe('consumed')
     })
 
-    it('waitForMessageWithId waits for non-existent messages', () => {
-      // Note: Without timeout, this would hang indefinitely, so we skip this test
-      // or implement proper timeout handling in the test framework
-      expect(consumer.handlerSpy).toBeDefined()
+    it('waitForMessageWithId waits for messages published after the spy starts waiting', async () => {
+      const message = {
+        id: 'wait-test-1',
+        messageType: 'add' as const,
+        timestamp: new Date().toISOString(),
+        userIds: ['user1'],
+      }
+
+      // Start waiting BEFORE publishing
+      const spyPromise = consumer.handlerSpy.waitForMessageWithId('wait-test-1', 'consumed')
+
+      // Now publish the message
+      await publisher.publish(message)
+
+      // The spy should resolve once the message is processed
+      const spyResult = await spyPromise
+
+      expect(spyResult).toBeDefined()
+      expect(spyResult.message.id).toBe('wait-test-1')
+      expect(spyResult.processingResult.status).toBe('consumed')
     })
   })
 
@@ -165,6 +181,38 @@ describe('PubSubPermissionConsumer', () => {
       await new Promise((resolve) => setTimeout(resolve, 1000))
 
       // Consumer should still be running
+      expect(consumer.addCounter).toBe(0)
+      expect(consumer.removeCounter).toBe(0)
+    })
+
+    it('tracks schema validation errors with handlerSpy', async () => {
+      const topic = pubSubClient.topic(PubSubPermissionConsumer.TOPIC_NAME)
+
+      // Create a message with valid JSON but invalid schema (missing required fields)
+      const invalidMessage = {
+        id: 'error-test-1',
+        messageType: 'add',
+        timestamp: new Date().toISOString(),
+        // Missing userIds field - should fail validation
+      }
+
+      // Start waiting for the error
+      const spyPromise = consumer.handlerSpy.waitForMessage({ id: 'error-test-1' }, 'error')
+
+      // Publish the invalid message
+      await topic.publishMessage({
+        data: Buffer.from(JSON.stringify(invalidMessage)),
+      })
+
+      // Wait for the error to be tracked
+      const spyResult = await spyPromise
+
+      expect(spyResult).toBeDefined()
+      expect(spyResult.processingResult.status).toBe('error')
+      // @ts-expect-error field is there
+      expect(spyResult.processingResult.errorReason).toBe('invalidMessage')
+
+      // Consumer should still be running and not have processed the message
       expect(consumer.addCounter).toBe(0)
       expect(consumer.removeCounter).toBe(0)
     })

@@ -260,8 +260,7 @@ export abstract class AbstractPubSubConsumer<
 
       if ('error' in parseResult) {
         this.handleMessageProcessed({
-          message: (parseResult.error?.message ??
-            parseResult.error) as unknown as MessagePayloadType,
+          message: resolvedMessage.result.body as MessagePayloadType,
           processingResult: {
             status: 'error',
             errorReason: 'invalidMessage',
