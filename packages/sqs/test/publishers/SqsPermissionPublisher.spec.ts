@@ -8,7 +8,7 @@ import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorReso
 import {
   SQS_RESOURCE_CURRENT_QUEUE,
   type SQSPolicyConfig,
-} from '../../lib/sqs/AbstractSqsService.js'
+} from '../../lib/sqs/AbstractSqsService.ts'
 import type { SQSMessage } from '../../lib/types/MessageTypes.ts'
 import { deserializeSQSMessage } from '../../lib/utils/sqsMessageDeserializer.ts'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'

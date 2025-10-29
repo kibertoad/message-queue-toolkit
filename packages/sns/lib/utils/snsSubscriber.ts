@@ -13,7 +13,7 @@ import {
   type TopicResolutionOptions,
 } from '../types/TopicTypes.ts'
 import { assertTopic, findSubscriptionByTopicAndQueue } from './snsUtils.ts'
-import { buildTopicArn } from './stsUtils.js'
+import { buildTopicArn } from './stsUtils.ts'
 
 export type SNSSubscriptionOptions = Omit<
   SubscribeCommandInput,
