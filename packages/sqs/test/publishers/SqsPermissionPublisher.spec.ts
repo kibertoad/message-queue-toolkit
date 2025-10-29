@@ -113,7 +113,7 @@ describe('SqsPermissionPublisher', () => {
 
         const attributes = await getQueueAttributes(sqsClient, newPublisher.queueProps.url)
 
-        expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
+        expect(attributes.result?.attributes?.KmsMasterKeyId).toBe('othervalue')
       })
 
       it('does not update existing queue when attributes did not change', async () => {
@@ -152,7 +152,7 @@ describe('SqsPermissionPublisher', () => {
 
         const attributes = await getQueueAttributes(sqsClient, newPublisher.queueProps.url)
 
-        expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('somevalue')
+        expect(attributes.result?.attributes?.KmsMasterKeyId).toBe('somevalue')
       })
     })
 

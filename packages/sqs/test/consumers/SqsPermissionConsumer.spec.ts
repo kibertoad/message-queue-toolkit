@@ -165,7 +165,7 @@ describe('SqsPermissionConsumer', () => {
 
         const attributes = await getQueueAttributes(sqsClient, newConsumer.queueProps.url)
 
-        expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('somevalue')
+        expect(attributes.result?.attributes?.KmsMasterKeyId).toBe('somevalue')
       })
     })
 
