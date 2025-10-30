@@ -3,7 +3,7 @@ import {
   SQS_RESOURCE_ANY,
   SQS_RESOURCE_CURRENT_QUEUE,
   type SQSPolicyConfig,
-} from '../sqs/AbstractSqsService.js'
+} from '../sqs/AbstractSqsService.ts'
 
 const POLICY_VERSION = '2012-10-17'
 

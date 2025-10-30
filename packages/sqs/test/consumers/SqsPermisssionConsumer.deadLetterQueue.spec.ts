@@ -182,7 +182,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
 
         const attributes = await getQueueAttributes(sqsClient, consumer.dlqUrl)
 
-        expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('new value')
+        expect(attributes.result?.attributes?.KmsMasterKeyId).toBe('new value')
       })
 
       it('updates existing dlq tags', async () => {
