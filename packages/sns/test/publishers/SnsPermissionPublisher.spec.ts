@@ -242,7 +242,7 @@ describe('SnsPermissionPublisher', () => {
             )
             receivedMessage = decodedMessage.result!
           }
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
         sqs: diContainer.cradle.sqsClient,
       })
@@ -305,7 +305,7 @@ describe('SnsPermissionPublisher', () => {
             )
             receivedMessage = decodedMessage.result!
           }
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
         sqs: diContainer.cradle.sqsClient,
       })
