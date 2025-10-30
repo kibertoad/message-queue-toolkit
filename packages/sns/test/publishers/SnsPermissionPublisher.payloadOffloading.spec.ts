@@ -87,7 +87,7 @@ describe('SnsPermissionPublisher', () => {
         queueUrl,
         handleMessage: (message: Message) => {
           if (message !== null) receivedSnsMessages.push(message)
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
         sqs: sqsClient,
         messageAttributeNames: [OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE],
