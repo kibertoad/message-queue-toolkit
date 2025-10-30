@@ -47,7 +47,7 @@ const expectedUpdatedPayload = {
   type: 'entity.updated',
 }
 
-describe('AutopilotEventEmitter', () => {
+describe('DomainEventEmitter', () => {
   let diContainer: AwilixContainer<Dependencies>
   let eventEmitter: DomainEventEmitter<TestEventsType>
 
@@ -412,7 +412,7 @@ describe('AutopilotEventEmitter', () => {
       })
       expect(logSpy).toHaveBeenCalledWith({
         error: expect.anything(),
-        message: 'ErroredFakeListener error',
+        msg: 'ErroredFakeListener error',
         ...expectedContext,
       })
 
