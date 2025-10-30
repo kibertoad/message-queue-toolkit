@@ -226,7 +226,7 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
         queueUrl: consumer.subscriptionProps.deadLetterQueueUrl ?? '',
         handleMessage: (message: SQSMessage) => {
           dlqMessage = message
-          return Promise.resolve()
+          return Promise.resolve(message)
         },
       })
       dlqConsumer.start()
