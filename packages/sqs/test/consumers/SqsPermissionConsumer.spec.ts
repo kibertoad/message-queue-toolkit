@@ -17,7 +17,7 @@ import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorReso
 import {
   SQS_RESOURCE_CURRENT_QUEUE,
   type SQSPolicyConfig,
-} from '../../lib/sqs/AbstractSqsService.js'
+} from '../../lib/sqs/AbstractSqsService.ts'
 import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
 import { FakeLogger } from '../fakes/FakeLogger.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
@@ -165,7 +165,7 @@ describe('SqsPermissionConsumer', () => {
 
         const attributes = await getQueueAttributes(sqsClient, newConsumer.queueProps.url)
 
-        expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('somevalue')
+        expect(attributes.result?.attributes?.KmsMasterKeyId).toBe('somevalue')
       })
     })
 

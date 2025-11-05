@@ -451,7 +451,7 @@ describe('SnsSqsPermissionConsumer', () => {
         )
         expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
 
-        expect(attributes.result?.attributes!.Policy).toMatchInlineSnapshot(
+        expect(attributes.result?.attributes?.Policy).toMatchInlineSnapshot(
           `"{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-west-1:000000000000:some-queue","Condition":{"ArnLike":{"aws:SourceArn":"someservice-"}}}]}"`,
         )
       })
@@ -484,7 +484,7 @@ describe('SnsSqsPermissionConsumer', () => {
           newConsumer.subscriptionProps.queueUrl,
         )
 
-        expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
+        expect(attributes.result?.attributes?.KmsMasterKeyId).toBe('othervalue')
       })
     })
 

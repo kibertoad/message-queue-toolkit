@@ -38,7 +38,7 @@ import { ILLEGAL_GENERATION, REBALANCE_IN_PROGRESS, UNKNOWN_MEMBER_ID } from './
 import {
   type KafkaMessageBatchOptions,
   KafkaMessageBatchStream,
-} from './utils/KafkaMessageBatchStream.js'
+} from './utils/KafkaMessageBatchStream.ts'
 import { safeJsonDeserializer } from './utils/safeJsonDeserializer.ts'
 
 export type KafkaConsumerDependencies = KafkaDependencies &
