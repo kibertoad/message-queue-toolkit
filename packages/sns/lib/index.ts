@@ -36,5 +36,7 @@ export {
   findSubscriptionByTopicAndQueue,
   getSubscriptionAttributes,
   getTopicAttributes,
+  isFifoTopicName,
+  validateFifoTopicName,
 } from './utils/snsUtils.ts'
 export { clearCachedCallerIdentity } from './utils/stsUtils.ts'

@@ -195,6 +195,30 @@ export async function findSubscriptionByTopicAndQueue(
 export const calculateOutgoingMessageSize = (message: unknown) =>
   sqsCalculateOutgoingMessageSize(message)
 
+/**
+ * Checks if a topic name indicates a FIFO topic (ends with .fifo)
+ */
+export function isFifoTopicName(topicName: string): boolean {
+  return topicName.endsWith('.fifo')
+}
+
+/**
+ * Validates that topic name matches the FIFO configuration flag
+ */
+export function validateFifoTopicName(topicName: string, isFifoTopic: boolean): void {
+  const hasFifoName = isFifoTopicName(topicName)
+
+  if (isFifoTopic && !hasFifoName) {
+    throw new Error(`FIFO topic names must end with .fifo suffix. Topic name: ${topicName}`)
+  }
+
+  if (!isFifoTopic && hasFifoName) {
+    throw new Error(
+      `Topic name ends with .fifo but fifoTopic option is not set to true. Topic name: ${topicName}`,
+    )
+  }
+}
+
 const isTopicAlreadyExistWithDifferentTagsError = (error: unknown) =>
   !!error &&
   isError(error) &&
