@@ -80,7 +80,7 @@ describe('SqsPermissionConsumerFifo', () => {
       await consumer.close()
     })
 
-    it('retries failed messages without DelaySeconds for FIFO queue', async () => {
+    it('retries with ContentBasedDeduplication enabled - no MessageDeduplicationId', async () => {
       const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
         creationConfig: {
           queue: {
@@ -135,11 +135,12 @@ describe('SqsPermissionConsumerFifo', () => {
       await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
 
       // Check that retry was sent without DelaySeconds
+      // Filter for actual retries (_internalRetryLaterCount > 0)
       const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
         if (!(call[0] instanceof SendMessageCommand)) return false
         const command = call[0] as SendMessageCommand
         const body = command.input.MessageBody
-        return body?.includes('"id":"2"') && body?.includes('_internalRetryLaterCount')
+        return body?.includes('"id":"2"') && /"_internalRetryLaterCount":[1-9]/.test(body)
       })
 
       expect(retrySendCalls.length).toBeGreaterThan(0)
@@ -149,6 +150,95 @@ describe('SqsPermissionConsumerFifo', () => {
       expect(retryCommand.input.DelaySeconds).toBeUndefined()
       // FIFO queues should preserve MessageGroupId
       expect(retryCommand.input.MessageGroupId).toBe('test-group')
+      // When ContentBasedDeduplication is enabled, MessageDeduplicationId should NOT be set
+      // (SQS generates it based on message body)
+      expect(retryCommand.input.MessageDeduplicationId).toBeUndefined()
+
+      expect(attemptCount).toBe(2)
+
+      await consumer.close()
+    })
+
+    it('retries with ContentBasedDeduplication disabled - preserves MessageDeduplicationId', async () => {
+      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'false',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        defaultMessageGroupId: 'test-group',
+      })
+
+      let attemptCount = 0
+      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'false',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        addHandlerOverride: () => {
+          attemptCount++
+          if (attemptCount < 2) {
+            return Promise.resolve({ error: 'retryLater' })
+          }
+          return Promise.resolve({ result: 'success' })
+        },
+      })
+
+      await publisher.init()
+
+      const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+      await consumer.start()
+
+      // Publish with explicit MessageDeduplicationId
+      await publisher.publish(
+        {
+          id: '2',
+          messageType: 'add',
+          userIds: 'user-2',
+        },
+        {
+          MessageDeduplicationId: 'unique-dedup-id-123',
+        },
+      )
+
+      await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+
+      // Check that retry modified MessageDeduplicationId
+      // Filter for actual retries (_internalRetryLaterCount > 0, not just present)
+      const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
+        if (!(call[0] instanceof SendMessageCommand)) return false
+        const command = call[0] as SendMessageCommand
+        const body = command.input.MessageBody
+        // Match retry attempts: _internalRetryLaterCount":1 or higher (not :0 which is initial)
+        return body?.includes('"id":"2"') && /"_internalRetryLaterCount":[1-9]/.test(body)
+      })
+
+      expect(retrySendCalls.length).toBeGreaterThan(0)
+
+      const retryCommand = retrySendCalls[0]?.[0] as SendMessageCommand
+      // When ContentBasedDeduplication is disabled, MessageDeduplicationId should be modified with retry count
+      // to prevent SQS from treating it as duplicate within 5-minute deduplication window
+      expect(retryCommand.input.MessageDeduplicationId).toBe('unique-dedup-id-123-retry-1')
+      // FIFO queues should preserve MessageGroupId
+      expect(retryCommand.input.MessageGroupId).toBe('test-group')
+      // FIFO queues should not have DelaySeconds
+      expect(retryCommand.input.DelaySeconds).toBeUndefined()
 
       expect(attemptCount).toBe(2)
 

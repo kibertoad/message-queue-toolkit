@@ -375,7 +375,22 @@ export abstract class AbstractSqsConsumer<
     messageProcessingStartTimestamp: number,
   ): Promise<void> {
     if (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
-      const sendMessageParams = this.buildRetryMessageParams(message, originalMessage)
+      let sendMessageParams: SendMessageCommandInput
+
+      // For FIFO queues, check if ContentBasedDeduplication is explicitly set in creationConfig
+      // If not explicitly set (undefined), we must fetch from SQS (async path)
+      const contentBasedDedup = this.creationConfig?.queue.Attributes?.ContentBasedDeduplication
+      const isContentBasedDedupExplicit =
+        contentBasedDedup === 'true' || contentBasedDedup === 'false'
+
+      if (this.isFifoQueue && !isContentBasedDedupExplicit) {
+        // Need to fetch ContentBasedDeduplication attribute from SQS (locatorConfig or not explicitly set)
+        sendMessageParams = await this.buildFifoRetryMessageParamsAsync(message, originalMessage)
+      } else {
+        // Standard queue or FIFO with explicit ContentBasedDeduplication value - synchronous path
+        sendMessageParams = this.buildRetryMessageParams(message, originalMessage)
+      }
+
       await this.sqsClient.send(new SendMessageCommand(sendMessageParams))
 
       this.handleMessageProcessed({
@@ -396,7 +411,7 @@ export abstract class AbstractSqsConsumer<
   }
 
   /**
-   * Builds SendMessageCommand parameters for retry, handling FIFO vs standard queues
+   * Builds SendMessageCommand parameters for retry, handling FIFO vs standard queues (synchronous)
    */
   private buildRetryMessageParams(
     message: SQSMessage,
@@ -414,8 +429,23 @@ export abstract class AbstractSqsConsumer<
         params.MessageGroupId = messageGroupId
       }
 
-      // For FIFO retry, we don't set MessageDeduplicationId - let ContentBasedDeduplication
-      // handle it automatically (the body changes with _internalRetryLaterCount increment)
+      // Check if ContentBasedDeduplication is enabled via creationConfig (synchronous)
+      // If enabled: body changes (retry count increment) generate new deduplication ID automatically
+      // If disabled: generate new MessageDeduplicationId for retry (append retry count to avoid duplication)
+      const isContentBasedDedup =
+        this.creationConfig?.queue.Attributes?.ContentBasedDeduplication === 'true'
+
+      if (!isContentBasedDedup) {
+        const deduplicationId = message.Attributes?.MessageDeduplicationId
+        if (deduplicationId) {
+          // Append retry count to create unique deduplication ID for each retry attempt
+          // This prevents SQS from treating retry as duplicate within 5-minute deduplication window
+          const retryCountValue = (originalMessage as Record<string, unknown>)
+            ._internalRetryLaterCount
+          const retryCount = typeof retryCountValue === 'number' ? retryCountValue : 0
+          params.MessageDeduplicationId = `${deduplicationId}-retry-${retryCount + 1}`
+        }
+      }
 
       // Note: FIFO queues do not support DelaySeconds at the message level.
       // Messages will be retried immediately. Consider using visibility timeout
@@ -423,6 +453,46 @@ export abstract class AbstractSqsConsumer<
     } else {
       // Standard queues: use DelaySeconds for exponential backoff
       params.DelaySeconds = this.getMessageRetryDelayInSeconds(originalMessage)
+    }
+
+    return params
+  }
+
+  /**
+   * Builds FIFO retry message params when ContentBasedDeduplication attribute needs to be fetched from SQS.
+   * This is only needed when using locatorConfig (queue not created by this service).
+   */
+  private async buildFifoRetryMessageParamsAsync(
+    message: SQSMessage,
+    originalMessage: MessagePayloadType,
+  ): Promise<SendMessageCommandInput> {
+    const params: SendMessageCommandInput = {
+      QueueUrl: this.queueUrl,
+      MessageBody: JSON.stringify(this.updateInternalProperties(originalMessage)),
+    }
+
+    const messageGroupId = message.Attributes?.MessageGroupId
+    if (messageGroupId) {
+      params.MessageGroupId = messageGroupId
+    }
+
+    // Fetch ContentBasedDeduplication attribute from SQS
+    const queueAttributes = await getQueueAttributes(this.sqsClient, this.queueUrl, [
+      'ContentBasedDeduplication',
+    ])
+
+    const isContentBasedDedup =
+      queueAttributes.result?.attributes?.ContentBasedDeduplication === 'true'
+
+    if (!isContentBasedDedup) {
+      const deduplicationId = message.Attributes?.MessageDeduplicationId
+      if (deduplicationId) {
+        // Append retry count to create unique deduplication ID for each retry attempt
+        const retryCountValue = (originalMessage as Record<string, unknown>)
+          ._internalRetryLaterCount
+        const retryCount = typeof retryCountValue === 'number' ? retryCountValue : 0
+        params.MessageDeduplicationId = `${deduplicationId}-retry-${retryCount + 1}`
+      }
     }
 
     return params
