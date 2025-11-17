@@ -358,8 +358,16 @@ When using `locatorConfig`, you connect to existing resources without creating t
 
   // Optional - Dead Letter Queue
   deadLetterQueue: {
-    topicName: 'my-dlq-topic',
-    maxDeliveryAttempts: 5,            // Move to DLQ after 5 failed attempts
+    deadLetterPolicy: {
+      maxDeliveryAttempts: 5,          // Move to DLQ after 5 failed attempts (5-100)
+    },
+    creationConfig: {
+      topic: { name: 'my-dlq-topic' }, // Create DLQ topic
+    },
+    // OR
+    locatorConfig: {
+      topicName: 'existing-dlq-topic', // Use existing DLQ topic
+    },
   },
 
   // Optional - Consumer Behavior
@@ -583,20 +591,41 @@ Prevents processing the same message multiple times:
 
 ### Dead Letter Queue
 
-Dead Letter Queues capture messages that cannot be processed after multiple attempts:
+Dead Letter Queues capture messages that cannot be processed after multiple attempts. The library supports configuring DLQ in two ways:
+
+#### Method 1: Create DLQ Topic Automatically
 
 ```typescript
 {
   creationConfig: {
     topic: { name: 'my-topic' },
-    subscription: {
-      name: 'my-subscription',
-      options: {
-        deadLetterPolicy: {
-          deadLetterTopic: 'projects/my-project/topics/my-dlq',
-          maxDeliveryAttempts: 5,  // Send to DLQ after 5 failed attempts
-        },
-      },
+    subscription: { name: 'my-subscription' },
+  },
+  deadLetterQueue: {
+    deadLetterPolicy: {
+      maxDeliveryAttempts: 5,  // Send to DLQ after 5 failed attempts (5-100)
+    },
+    creationConfig: {
+      topic: { name: 'my-dlq-topic' },  // Creates topic if it doesn't exist
+    },
+  },
+}
+```
+
+#### Method 2: Use Existing DLQ Topic
+
+```typescript
+{
+  creationConfig: {
+    topic: { name: 'my-topic' },
+    subscription: { name: 'my-subscription' },
+  },
+  deadLetterQueue: {
+    deadLetterPolicy: {
+      maxDeliveryAttempts: 5,
+    },
+    locatorConfig: {
+      topicName: 'existing-dlq-topic',  // Must exist, or init() will throw
     },
   },
 }
@@ -606,8 +635,20 @@ Dead Letter Queues capture messages that cannot be processed after multiple atte
 1. Message fails processing (handler returns error or throws)
 2. Message becomes available again (after ack deadline)
 3. Consumer receives message again (delivery attempt increments)
-4. After `maxDeliveryAttempts` attempts, Pub/Sub automatically sends message to DLQ topic
-5. DLQ messages can be inspected, reprocessed, or deleted
+4. Pub/Sub tracks delivery attempts = 1 + (NACKs + ack deadline exceeded)
+5. After `maxDeliveryAttempts` attempts, Pub/Sub automatically forwards message to DLQ topic
+6. DLQ messages can be inspected, reprocessed, or deleted
+
+**Important Notes:**
+- `maxDeliveryAttempts` must be between 5 and 100
+- DLQ is handled natively by Google Pub/Sub (no manual forwarding needed)
+- When message is forwarded to DLQ, it's wrapped with metadata attributes:
+  - `CloudPubSubDeadLetterSourceDeliveryCount`: Number of delivery attempts
+  - `CloudPubSubDeadLetterSourceSubscription`: Source subscription name
+  - `CloudPubSubDeadLetterSourceSubscriptionProject`: Source project
+  - `CloudPubSubDeadLetterSourceTopicPublishTime`: Original publish timestamp
+- Create a subscription on the DLQ topic to process dead-lettered messages
+- Ensure Pub/Sub service account has permissions on the DLQ topic
 
 ### Message Retry Logic
 

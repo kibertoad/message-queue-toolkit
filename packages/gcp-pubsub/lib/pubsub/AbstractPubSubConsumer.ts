@@ -29,10 +29,17 @@ const _ABORT_EARLY_EITHER: Either<'abort', never> = {
 }
 const DEFAULT_MAX_RETRY_DURATION = 4 * 24 * 60 * 60 // 4 days in seconds
 
-type PubSubDeadLetterQueueOptions = {
+export type PubSubDeadLetterQueueOptions = {
   deadLetterPolicy: {
-    deadLetterTopic: string
     maxDeliveryAttempts: number
+  }
+  creationConfig?: {
+    topic: {
+      name: string
+    }
+  }
+  locatorConfig?: {
+    topicName: string
   }
 }
 
@@ -104,7 +111,6 @@ export abstract class AbstractPubSubConsumer<
     ExecutionContext,
     PrehandlerOutput
   >
-  // Reserved for future DLQ implementation
   private readonly deadLetterQueueOptions?: PubSubDeadLetterQueueOptions
   private readonly isDeduplicationEnabled: boolean
   private maxRetryDuration: number
@@ -113,6 +119,7 @@ export abstract class AbstractPubSubConsumer<
   protected readonly errorResolver: ErrorResolver
   protected readonly executionContext: ExecutionContext
 
+  public dlqTopicName?: string
   public readonly _messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
 
   protected constructor(
@@ -134,6 +141,31 @@ export abstract class AbstractPubSubConsumer<
       messageHandlers: options.handlers,
       messageTypeField: options.messageTypeField,
     })
+  }
+
+  public override async init(): Promise<void> {
+    // Import at method level to avoid circular dependency
+    const { initPubSub } = await import('../utils/pubSubInitter.ts')
+
+    if (this.deletionConfig && this.creationConfig) {
+      const { deletePubSub } = await import('../utils/pubSubInitter.ts')
+      await deletePubSub(this.pubSubClient, this.deletionConfig, this.creationConfig)
+    }
+
+    const initResult = await initPubSub(
+      this.pubSubClient,
+      this.locatorConfig,
+      this.creationConfig,
+      this.deadLetterQueueOptions,
+    )
+
+    this.topicName = initResult.topicName
+    this.topic = initResult.topic
+    this.subscriptionName = initResult.subscriptionName
+    this.subscription = initResult.subscription
+    this.dlqTopicName = initResult.dlqTopicName
+
+    this.isInitted = true
   }
 
   public async start(): Promise<void> {

@@ -10,6 +10,22 @@ export type PubSubInitResult = {
   topic: Topic
   subscriptionName?: string
   subscription?: Subscription
+  dlqTopicName?: string
+  dlqTopic?: Topic
+}
+
+export type PubSubDeadLetterQueueConfig = {
+  deadLetterPolicy: {
+    maxDeliveryAttempts: number
+  }
+  creationConfig?: {
+    topic: {
+      name: string
+    }
+  }
+  locatorConfig?: {
+    topicName: string
+  }
 }
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: topic/subscription initialization requires complex logic
@@ -17,6 +33,7 @@ export async function initPubSub(
   pubSubClient: PubSub,
   locatorConfig?: PubSubQueueLocatorType,
   creationConfig?: PubSubCreationConfig,
+  deadLetterQueueConfig?: PubSubDeadLetterQueueConfig,
 ): Promise<PubSubInitResult> {
   if (!locatorConfig && !creationConfig) {
     throw new Error('Either locatorConfig or creationConfig must be provided')
@@ -26,6 +43,8 @@ export async function initPubSub(
   let topicName: string
   let subscription: Subscription | undefined
   let subscriptionName: string | undefined
+  let dlqTopicName: string | undefined
+  let dlqTopic: Topic | undefined
 
   if (locatorConfig) {
     // Locate existing resources
@@ -60,6 +79,31 @@ export async function initPubSub(
       topic = createdTopic
     }
 
+    // Handle DLQ configuration if provided (before subscription creation)
+    if (deadLetterQueueConfig) {
+      // Resolve DLQ topic name from config
+      if (deadLetterQueueConfig.locatorConfig) {
+        dlqTopicName = deadLetterQueueConfig.locatorConfig.topicName
+        dlqTopic = pubSubClient.topic(dlqTopicName)
+
+        const [dlqTopicExists] = await dlqTopic.exists()
+        if (!dlqTopicExists) {
+          throw new Error(`Dead letter topic ${dlqTopicName} does not exist`)
+        }
+      } else if (deadLetterQueueConfig.creationConfig) {
+        dlqTopicName = deadLetterQueueConfig.creationConfig.topic.name
+        dlqTopic = pubSubClient.topic(dlqTopicName)
+
+        const [dlqTopicExists] = await dlqTopic.exists()
+        if (!dlqTopicExists) {
+          const [createdDlqTopic] = await dlqTopic.create()
+          dlqTopic = createdDlqTopic
+        }
+      } else {
+        throw new Error('Either locatorConfig or creationConfig must be provided for DLQ')
+      }
+    }
+
     // Create subscription if config provided (for consumers)
     if (creationConfig.subscription) {
       subscriptionName = creationConfig.subscription.name
@@ -67,11 +111,28 @@ export async function initPubSub(
 
       const [subscriptionExists] = await subscription.exists()
       if (!subscriptionExists) {
+        // Merge deadLetterPolicy with subscription options if DLQ is configured
+        const subscriptionOptions = { ...creationConfig.subscription.options }
+        if (dlqTopic && deadLetterQueueConfig) {
+          subscriptionOptions.deadLetterPolicy = {
+            deadLetterTopic: dlqTopic.name,
+            maxDeliveryAttempts: deadLetterQueueConfig.deadLetterPolicy.maxDeliveryAttempts,
+          }
+        }
+
         const [createdSubscription] = await topic.createSubscription(
           subscriptionName,
-          creationConfig.subscription.options,
+          subscriptionOptions,
         )
         subscription = createdSubscription
+      } else if (dlqTopic && deadLetterQueueConfig) {
+        // Update existing subscription with deadLetterPolicy
+        await subscription.setMetadata({
+          deadLetterPolicy: {
+            deadLetterTopic: dlqTopic.name,
+            maxDeliveryAttempts: deadLetterQueueConfig.deadLetterPolicy.maxDeliveryAttempts,
+          },
+        })
       }
     }
   } else {
@@ -83,6 +144,8 @@ export async function initPubSub(
     topic,
     subscriptionName,
     subscription,
+    dlqTopicName,
+    dlqTopic,
   }
 }
 
