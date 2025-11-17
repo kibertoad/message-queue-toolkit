@@ -1,8 +1,11 @@
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
+import type { PayloadStoreConfig } from '@message-queue-toolkit/core'
+import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { deleteQueue, isFifoQueueName, validateFifoQueueName } from '../../lib/utils/sqsUtils.ts'
+import { assertBucket } from '../utils/s3Utils.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SqsPermissionPublisherFifo } from './SqsPermissionPublisherFifo.ts'
@@ -265,6 +268,65 @@ describe('SqsPermissionPublisherFifo', () => {
       const lastSendCall = sendCalls[sendCalls.length - 1]
       const command = lastSendCall?.[0] as SendMessageCommand
       expect(command.input.MessageDeduplicationId).toBe('unique-dedup-id')
+    })
+
+    it('resolves MessageGroupId from messageGroupIdField even when payload is offloaded', async () => {
+      const s3BucketName = 'fifo-payload-offloading-test-bucket'
+      const s3 = diContainer.cradle.s3
+      await assertBucket(s3, s3BucketName)
+
+      const payloadStoreConfig: PayloadStoreConfig = {
+        messageSizeThreshold: 100, // Very small threshold to force offloading
+        store: new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketName }),
+      }
+
+      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'true',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        messageGroupIdField: 'userIds', // MessageGroupId should come from this field
+        payloadStoreConfig,
+      })
+
+      await publisher.init()
+
+      const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+      // Publish a large message that will trigger offloading
+      // MessageGroupId must be <= 128 chars, but we can make the payload large with metadata
+      const messageGroupId = 'user-group-123'
+      const largePayload = 'x'.repeat(500) // Make payload large to exceed 100 byte threshold
+      await publisher.publish({
+        id: '1',
+        messageType: 'add',
+        userIds: messageGroupId,
+        metadata: {
+          largeField: largePayload, // This will trigger offloading
+        },
+      })
+
+      const sendCalls = sqsSpy.mock.calls.filter((call) => call[0] instanceof SendMessageCommand)
+      expect(sendCalls.length).toBeGreaterThan(0)
+
+      const lastSendCall = sendCalls[sendCalls.length - 1]
+      const command = lastSendCall?.[0] as SendMessageCommand
+
+      // MessageGroupId should be resolved from original message before offloading
+      expect(command.input.MessageGroupId).toBe(messageGroupId)
+
+      // Verify payload was actually offloaded
+      const messageBody = JSON.parse(command.input.MessageBody || '{}')
+      expect(messageBody.offloadedPayloadPointer).toBeDefined()
+      expect(messageBody.offloadedPayloadSize).toBeGreaterThan(0)
     })
   })
 })

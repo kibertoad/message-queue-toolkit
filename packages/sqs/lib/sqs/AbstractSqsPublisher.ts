@@ -124,6 +124,11 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       }
 
       message = this.updateInternalProperties(message)
+
+      // Resolve FIFO options from original message BEFORE offloading
+      // (offloaded payload won't have user fields needed for messageGroupIdField)
+      const resolvedOptions = this.resolveFifoOptions(message, options)
+
       const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(message, () =>
         calculateOutgoingMessageSize(message),
       )
@@ -142,7 +147,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         return
       }
 
-      await this.sendMessage(maybeOffloadedPayloadMessage, options)
+      await this.sendMessage(maybeOffloadedPayloadMessage, resolvedOptions)
       this.handleMessageProcessed({
         message: parsedMessage,
         processingResult: { status: 'published' },
@@ -207,14 +212,12 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
   ): Promise<void> {
     const attributes = resolveOutgoingMessageAttributes<MessageAttributeValue>(payload)
 
-    // Resolve MessageGroupId for FIFO queues
-    const resolvedOptions = this.resolveFifoOptions(payload, options)
-
+    // Options are already resolved in publish() before offloading
     const command = new SendMessageCommand({
       QueueUrl: this.queueUrl,
       MessageBody: JSON.stringify(payload),
       MessageAttributes: attributes,
-      ...resolvedOptions,
+      ...options,
     })
     await this.sqsClient.send(command)
   }

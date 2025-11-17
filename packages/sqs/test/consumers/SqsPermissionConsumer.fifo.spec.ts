@@ -489,7 +489,7 @@ describe('SqsPermissionConsumerFifo', () => {
       // Consumer uses locatorConfig, not creationConfig - forces async fetch of ContentBasedDeduplication
       const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
         locatorConfig: {
-          queueUrl: publisher.queueUrl,
+          queueUrl: publisher.queueProps.url,
         },
         addHandlerOverride: () => {
           attemptCount++

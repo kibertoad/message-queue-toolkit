@@ -17,7 +17,7 @@ import type {
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
 } from './userConsumerSchemas.ts'
 
-describe('SqsPermissionConsumer', () => {
+describe('SqsPermissionConsumer message deduplication', () => {
   let diContainer: AwilixContainer<Dependencies>
   let sqsClient: SQSClient
   let messageDeduplicationStore: RedisMessageDeduplicationStore
