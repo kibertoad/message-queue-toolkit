@@ -59,7 +59,7 @@ describe('SqsPermissionPublisherFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -98,7 +98,7 @@ describe('SqsPermissionPublisherFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -133,7 +133,7 @@ describe('SqsPermissionPublisherFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -168,7 +168,7 @@ describe('SqsPermissionPublisherFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -207,7 +207,7 @@ describe('SqsPermissionPublisherFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -234,7 +234,7 @@ describe('SqsPermissionPublisherFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },

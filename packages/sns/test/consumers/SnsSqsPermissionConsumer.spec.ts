@@ -843,8 +843,12 @@ describe('SnsSqsPermissionConsumer', () => {
       await waitAndRetry(() => consumer1IsProcessing, 5, 5)
       await consumer2.start()
 
-      // wait for both consumers to process message
-      await waitAndRetry(() => consumer1Counter > 0 && consumer2Counter > 0, 100, 40)
+      // wait for consumer1 to process, and consumer2 only when heartbeat is disabled
+      await waitAndRetry(
+        () => consumer1Counter > 0 && (heartbeatEnabled || consumer2Counter > 0),
+        100,
+        40,
+      )
 
       expect(consumer1Counter).toBe(1)
       expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)

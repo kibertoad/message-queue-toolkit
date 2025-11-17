@@ -223,7 +223,13 @@ export abstract class AbstractSqsConsumer<
       queueUrl: this.queueUrl,
       visibilityTimeout: options.visibilityTimeout,
       messageAttributeNames: [`${PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX}*`],
+      // For FIFO queues, request system attributes needed for retry (MessageGroupId and MessageDeduplicationId)
+      messageSystemAttributeNames: this.isFifoQueue
+        ? ['MessageGroupId', 'MessageDeduplicationId']
+        : undefined,
       ...this.consumerOptionsOverride,
+      // Suppress FIFO warning (set after overrides to ensure it's not overridden)
+      suppressFifoWarning: this.isFifoQueue ? true : undefined,
       // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixme
       handleMessage: async (message: SQSMessage) => {
         if (message === null) return message
@@ -402,16 +408,14 @@ export abstract class AbstractSqsConsumer<
     }
 
     if (this.isFifoQueue) {
-      // FIFO queues: preserve MessageGroupId and MessageDeduplicationId, no DelaySeconds
+      // FIFO queues: preserve MessageGroupId, no DelaySeconds
       const messageGroupId = message.Attributes?.MessageGroupId
       if (messageGroupId) {
         params.MessageGroupId = messageGroupId
       }
 
-      const deduplicationId = message.Attributes?.MessageDeduplicationId
-      if (deduplicationId) {
-        params.MessageDeduplicationId = deduplicationId
-      }
+      // For FIFO retry, we don't set MessageDeduplicationId - let ContentBasedDeduplication
+      // handle it automatically (the body changes with _internalRetryLaterCount increment)
 
       // Note: FIFO queues do not support DelaySeconds at the message level.
       // Messages will be retried immediately. Consider using visibility timeout

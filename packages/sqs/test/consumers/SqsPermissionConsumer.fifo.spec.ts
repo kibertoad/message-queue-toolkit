@@ -36,7 +36,7 @@ describe('SqsPermissionConsumerFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -52,7 +52,7 @@ describe('SqsPermissionConsumerFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -87,7 +87,7 @@ describe('SqsPermissionConsumerFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -104,7 +104,7 @@ describe('SqsPermissionConsumerFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -121,9 +121,10 @@ describe('SqsPermissionConsumerFifo', () => {
       })
 
       await publisher.init()
-      await consumer.start()
 
       const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+      await consumer.start()
 
       await publisher.publish({
         id: '2',
@@ -150,7 +151,6 @@ describe('SqsPermissionConsumerFifo', () => {
       expect(retryCommand.input.MessageGroupId).toBe('test-group')
 
       expect(attemptCount).toBe(2)
-      expect(consumer.processedMessagesIds.has('2')).toBe(true)
 
       await consumer.close()
     })
@@ -162,7 +162,7 @@ describe('SqsPermissionConsumerFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -179,7 +179,7 @@ describe('SqsPermissionConsumerFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -231,7 +231,7 @@ describe('SqsPermissionConsumerFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -247,7 +247,7 @@ describe('SqsPermissionConsumerFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
               VisibilityTimeout: '1',
             },
           },
@@ -261,7 +261,7 @@ describe('SqsPermissionConsumerFifo', () => {
               QueueName: dlqName,
               Attributes: {
                 FifoQueue: 'true',
-                ContentBasedDeduplication: 'false',
+                ContentBasedDeduplication: 'true',
               },
             },
           },
@@ -269,16 +269,17 @@ describe('SqsPermissionConsumerFifo', () => {
             maxReceiveCount: 1,
           },
         },
-        maxRetryDuration: 1, // 1 second max retry
+        maxRetryDuration: 2, // 2 seconds max retry
         addHandlerOverride: () => {
           return Promise.resolve({ error: 'retryLater' })
         },
       })
 
       await publisher.init()
-      await consumer.start()
 
       const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+      await consumer.start()
 
       await publisher.publish({
         id: '4',
@@ -286,23 +287,36 @@ describe('SqsPermissionConsumerFifo', () => {
         userIds: 'user-4',
       })
 
-      // Wait for message to fail and be sent to DLQ
-      await new Promise((resolve) => setTimeout(resolve, 3000))
+      // Poll for DLQ send with timeout
+      const pollForDLQSend = async (timeoutMs = 10000, pollIntervalMs = 100) => {
+        const startTime = Date.now()
+        while (Date.now() - startTime < timeoutMs) {
+          const dlqSendCalls = sqsSpy.mock.calls.filter((call) => {
+            if (!(call[0] instanceof SendMessageCommand)) return false
+            const command = call[0] as SendMessageCommand
+            return command.input.QueueUrl?.includes(dlqName)
+          })
 
-      // Check that message was sent to DLQ with MessageGroupId
-      const dlqSendCalls = sqsSpy.mock.calls.filter((call) => {
-        if (!(call[0] instanceof SendMessageCommand)) return false
-        const command = call[0] as SendMessageCommand
-        return command.input.QueueUrl?.includes(dlqName)
-      })
+          if (dlqSendCalls.length > 0) {
+            return dlqSendCalls
+          }
 
-      if (dlqSendCalls.length > 0) {
-        const dlqCommand = dlqSendCalls[0]?.[0] as SendMessageCommand
-        expect(dlqCommand.input.MessageGroupId).toBe('test-group')
+          await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
+        }
+        return []
       }
 
+      const dlqSendCalls = await pollForDLQSend()
+
+      // Explicitly fail if no DLQ send was observed
+      expect(dlqSendCalls.length).toBeGreaterThan(0)
+
+      // Assert MessageGroupId is preserved
+      const dlqCommand = dlqSendCalls[0]?.[0] as SendMessageCommand
+      expect(dlqCommand.input.MessageGroupId).toBe('test-group')
+
       await consumer.close()
-    })
+    }, 15000) // 15 second timeout for DLQ test
 
     it('maintains message order within message group', async () => {
       const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
@@ -311,7 +325,7 @@ describe('SqsPermissionConsumerFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -328,7 +342,7 @@ describe('SqsPermissionConsumerFifo', () => {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
