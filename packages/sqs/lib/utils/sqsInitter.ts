@@ -10,6 +10,7 @@ import {
   deleteQueue,
   getQueueAttributes,
   resolveQueueUrlFromLocatorConfig,
+  validateFifoQueueName,
 } from './sqsUtils.ts'
 
 export async function deleteSqs(
@@ -89,7 +90,6 @@ export async function initSqs(
 
     // Validate FIFO queue name consistency
     if (isFifoQueue !== undefined) {
-      const { validateFifoQueueName } = await import('./sqsUtils.ts')
       validateFifoQueueName(queueName, isFifoQueue)
     }
 
