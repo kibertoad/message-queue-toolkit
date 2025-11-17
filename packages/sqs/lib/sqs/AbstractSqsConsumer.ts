@@ -129,6 +129,7 @@ export abstract class AbstractSqsConsumer<
   >
   private readonly isDeduplicationEnabled: boolean
   private maxRetryDuration: number
+  private cachedContentBasedDeduplication?: boolean
 
   protected deadLetterQueueUrl?: string
   protected readonly errorResolver: ErrorResolver
@@ -461,6 +462,7 @@ export abstract class AbstractSqsConsumer<
   /**
    * Builds FIFO retry message params when ContentBasedDeduplication attribute needs to be fetched from SQS.
    * This is only needed when using locatorConfig (queue not created by this service).
+   * Caches the ContentBasedDeduplication value after first fetch to avoid repeated API calls.
    */
   private async buildFifoRetryMessageParamsAsync(
     message: SQSMessage,
@@ -476,13 +478,15 @@ export abstract class AbstractSqsConsumer<
       params.MessageGroupId = messageGroupId
     }
 
-    // Fetch ContentBasedDeduplication attribute from SQS
-    const queueAttributes = await getQueueAttributes(this.sqsClient, this.queueUrl, [
-      'ContentBasedDeduplication',
-    ])
-
-    const isContentBasedDedup =
-      queueAttributes.result?.attributes?.ContentBasedDeduplication === 'true'
+    // Fetch ContentBasedDeduplication attribute from SQS (cached after first fetch)
+    let isContentBasedDedup = this.cachedContentBasedDeduplication
+    if (isContentBasedDedup === undefined) {
+      const queueAttributes = await getQueueAttributes(this.sqsClient, this.queueUrl, [
+        'ContentBasedDeduplication',
+      ])
+      isContentBasedDedup = queueAttributes.result?.attributes?.ContentBasedDeduplication === 'true'
+      this.cachedContentBasedDeduplication = isContentBasedDedup
+    }
 
     if (!isContentBasedDedup) {
       const deduplicationId = message.Attributes?.MessageDeduplicationId

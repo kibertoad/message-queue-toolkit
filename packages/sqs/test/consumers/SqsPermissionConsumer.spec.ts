@@ -524,6 +524,8 @@ describe('SqsPermissionConsumer', () => {
   describe('preHandlerBarrier', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisher
+    const consumers: SqsPermissionConsumer[] = []
+
     beforeEach(async () => {
       diContainer = await registerDependencies()
       await diContainer.cradle.permissionConsumer.close()
@@ -531,6 +533,8 @@ describe('SqsPermissionConsumer', () => {
     })
 
     afterEach(async () => {
+      await Promise.all(consumers.map((consumer) => consumer.close()))
+      consumers.length = 0
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
@@ -554,6 +558,7 @@ describe('SqsPermissionConsumer', () => {
           return Promise.resolve({ isPassing: true, output: barrierCounter })
         },
       })
+      consumers.push(newConsumer)
       await newConsumer.start()
 
       await publisher.publish({
@@ -565,7 +570,6 @@ describe('SqsPermissionConsumer', () => {
 
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
-      await newConsumer.close()
     })
 
     it('can access preHandler output', async () => {
@@ -586,6 +590,7 @@ describe('SqsPermissionConsumer', () => {
           return Promise.resolve({ isPassing: true, output: 1 })
         },
       })
+      consumers.push(newConsumer)
       await newConsumer.start()
 
       await publisher.publish({
@@ -594,7 +599,6 @@ describe('SqsPermissionConsumer', () => {
       })
 
       await newConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
-      await newConsumer.close()
     })
 
     it('throws an error on first try', async () => {
@@ -613,6 +617,7 @@ describe('SqsPermissionConsumer', () => {
           return Promise.resolve({ isPassing: true, output: barrierCounter })
         },
       })
+      consumers.push(newConsumer)
       await newConsumer.start()
 
       await publisher.publish({
@@ -624,13 +629,14 @@ describe('SqsPermissionConsumer', () => {
 
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
-      await newConsumer.close()
     })
   })
 
   describe('preHandlers', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisher
+    const consumers: SqsPermissionConsumer[] = []
+
     beforeEach(async () => {
       diContainer = await registerDependencies()
       await diContainer.cradle.permissionConsumer.close()
@@ -638,6 +644,8 @@ describe('SqsPermissionConsumer', () => {
     })
 
     afterEach(async () => {
+      await Promise.all(consumers.map((consumer) => consumer.close()))
+      consumers.length = 0
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
@@ -666,6 +674,7 @@ describe('SqsPermissionConsumer', () => {
           },
         ],
       })
+      consumers.push(newConsumer)
       await newConsumer.start()
 
       await publisher.publish({
@@ -674,8 +683,6 @@ describe('SqsPermissionConsumer', () => {
       })
 
       await newConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
-
-      await newConsumer.close()
     })
 
     it('processes two preHandlers', async () => {
@@ -709,6 +716,7 @@ describe('SqsPermissionConsumer', () => {
           },
         ],
       })
+      consumers.push(newConsumer)
       await newConsumer.start()
 
       await publisher.publish({
@@ -717,8 +725,6 @@ describe('SqsPermissionConsumer', () => {
       })
 
       await newConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
-
-      await newConsumer.close()
     })
   })
 
@@ -852,6 +858,7 @@ describe('SqsPermissionConsumer', () => {
     })
 
     afterEach(async () => {
+      await consumer.close()
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
