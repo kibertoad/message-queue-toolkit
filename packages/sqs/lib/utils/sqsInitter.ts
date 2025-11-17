@@ -10,6 +10,7 @@ import {
   deleteQueue,
   getQueueAttributes,
   resolveQueueUrlFromLocatorConfig,
+  validateFifoQueueName,
 } from './sqsUtils.ts'
 
 export async function deleteSqs(
@@ -66,6 +67,7 @@ export async function initSqs(
   sqsClient: SQSClient,
   locatorConfig?: Partial<SQSQueueLocatorType>,
   creationConfig?: SQSCreationConfig,
+  isFifoQueue?: boolean,
 ) {
   // reuse existing queue only
   if (locatorConfig) {
@@ -85,6 +87,12 @@ export async function initSqs(
     const splitUrl = queueUrl.split('/')
     // biome-ignore lint/style/noNonNullAssertion: It's ok
     const queueName = splitUrl[splitUrl.length - 1]!
+
+    // Validate FIFO queue name consistency
+    if (isFifoQueue !== undefined) {
+      validateFifoQueueName(queueName, isFifoQueue)
+    }
+
     return { queueArn, queueUrl, queueName }
   }
 
@@ -94,12 +102,17 @@ export async function initSqs(
   }
 
   // create new queue
-  const { queueUrl, queueArn } = await assertQueue(sqsClient, creationConfig.queue, {
-    topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
-    updateAttributesIfExists: creationConfig.updateAttributesIfExists,
-    forceTagUpdate: creationConfig.forceTagUpdate,
-    policyConfig: creationConfig.policyConfig,
-  })
+  const { queueUrl, queueArn } = await assertQueue(
+    sqsClient,
+    creationConfig.queue,
+    {
+      topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
+      updateAttributesIfExists: creationConfig.updateAttributesIfExists,
+      forceTagUpdate: creationConfig.forceTagUpdate,
+      policyConfig: creationConfig.policyConfig,
+    },
+    isFifoQueue,
+  )
   const queueName = creationConfig.queue.QueueName
 
   return { queueUrl, queueArn, queueName }

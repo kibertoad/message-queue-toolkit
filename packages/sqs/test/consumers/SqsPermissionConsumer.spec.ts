@@ -524,6 +524,8 @@ describe('SqsPermissionConsumer', () => {
   describe('preHandlerBarrier', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisher
+    const consumers: SqsPermissionConsumer[] = []
+
     beforeEach(async () => {
       diContainer = await registerDependencies()
       await diContainer.cradle.permissionConsumer.close()
@@ -531,6 +533,8 @@ describe('SqsPermissionConsumer', () => {
     })
 
     afterEach(async () => {
+      await Promise.all(consumers.map((consumer) => consumer.close(true)))
+      consumers.length = 0
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
@@ -554,6 +558,7 @@ describe('SqsPermissionConsumer', () => {
           return Promise.resolve({ isPassing: true, output: barrierCounter })
         },
       })
+      consumers.push(newConsumer)
       await newConsumer.start()
 
       await publisher.publish({
@@ -565,7 +570,6 @@ describe('SqsPermissionConsumer', () => {
 
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
-      await newConsumer.close()
     })
 
     it('can access preHandler output', async () => {
@@ -586,6 +590,7 @@ describe('SqsPermissionConsumer', () => {
           return Promise.resolve({ isPassing: true, output: 1 })
         },
       })
+      consumers.push(newConsumer)
       await newConsumer.start()
 
       await publisher.publish({
@@ -594,7 +599,6 @@ describe('SqsPermissionConsumer', () => {
       })
 
       await newConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
-      await newConsumer.close()
     })
 
     it('throws an error on first try', async () => {
@@ -613,6 +617,7 @@ describe('SqsPermissionConsumer', () => {
           return Promise.resolve({ isPassing: true, output: barrierCounter })
         },
       })
+      consumers.push(newConsumer)
       await newConsumer.start()
 
       await publisher.publish({
@@ -624,13 +629,14 @@ describe('SqsPermissionConsumer', () => {
 
       expect(newConsumer.addCounter).toBe(1)
       expect(barrierCounter).toBe(2)
-      await newConsumer.close()
     })
   })
 
   describe('preHandlers', () => {
     let diContainer: AwilixContainer<Dependencies>
     let publisher: SqsPermissionPublisher
+    const consumers: SqsPermissionConsumer[] = []
+
     beforeEach(async () => {
       diContainer = await registerDependencies()
       await diContainer.cradle.permissionConsumer.close()
@@ -638,6 +644,8 @@ describe('SqsPermissionConsumer', () => {
     })
 
     afterEach(async () => {
+      await Promise.all(consumers.map((consumer) => consumer.close(true)))
+      consumers.length = 0
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
@@ -666,6 +674,7 @@ describe('SqsPermissionConsumer', () => {
           },
         ],
       })
+      consumers.push(newConsumer)
       await newConsumer.start()
 
       await publisher.publish({
@@ -674,8 +683,6 @@ describe('SqsPermissionConsumer', () => {
       })
 
       await newConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
-
-      await newConsumer.close()
     })
 
     it('processes two preHandlers', async () => {
@@ -709,6 +716,7 @@ describe('SqsPermissionConsumer', () => {
           },
         ],
       })
+      consumers.push(newConsumer)
       await newConsumer.start()
 
       await publisher.publish({
@@ -717,8 +725,6 @@ describe('SqsPermissionConsumer', () => {
       })
 
       await newConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
-
-      await newConsumer.close()
     })
   })
 
@@ -852,6 +858,7 @@ describe('SqsPermissionConsumer', () => {
     })
 
     afterEach(async () => {
+      await consumer.close(true)
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
@@ -914,55 +921,50 @@ describe('SqsPermissionConsumer', () => {
       )
     })
 
-    it.each([false, true])(
-      'using 2 consumers with heartbeat -> %s',
-      async (heartbeatEnabled) => {
-        let consumer1IsProcessing = false
-        let consumer1Counter = 0
-        let consumer2Counter = 0
+    it.each([false, true])('using 2 consumers with heartbeat -> %s', async (heartbeatEnabled) => {
+      let consumer1IsProcessing = false
+      let consumer1Counter = 0
+      let consumer2Counter = 0
 
-        const consumer1 = new SqsPermissionConsumer(diContainer.cradle, {
-          creationConfig: {
-            queue: { QueueName: queueName, Attributes: { VisibilityTimeout: '2' } },
-          },
-          consumerOverrides: { heartbeatInterval: heartbeatEnabled ? 1 : undefined },
-          removeHandlerOverride: async () => {
-            consumer1IsProcessing = true
-            await setTimeout(3100) // Wait to the visibility timeout to expire
-            consumer1Counter++
-            consumer1IsProcessing = false
-            return { result: 'success' }
-          },
-        })
-        await consumer1.start()
+      const consumer1 = new SqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          queue: { QueueName: queueName, Attributes: { VisibilityTimeout: '2' } },
+        },
+        consumerOverrides: { heartbeatInterval: heartbeatEnabled ? 1 : undefined },
+        removeHandlerOverride: async () => {
+          consumer1IsProcessing = true
+          await setTimeout(3100) // Wait to the visibility timeout to expire
+          consumer1Counter++
+          consumer1IsProcessing = false
+          return { result: 'success' }
+        },
+      })
+      await consumer1.start()
 
-        const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
-          locatorConfig: { queueUrl: consumer1.queueProps.url },
-          removeHandlerOverride: () => {
-            consumer2Counter++
-            return Promise.resolve({ result: 'success' })
-          },
-        })
-        const publisher = new SqsPermissionPublisher(diContainer.cradle, {
-          locatorConfig: { queueUrl: consumer1.queueProps.url },
-        })
+      const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
+        locatorConfig: { queueUrl: consumer1.queueProps.url },
+        removeHandlerOverride: () => {
+          consumer2Counter++
+          return Promise.resolve({ result: 'success' })
+        },
+      })
+      const publisher = new SqsPermissionPublisher(diContainer.cradle, {
+        locatorConfig: { queueUrl: consumer1.queueProps.url },
+      })
 
-        await publisher.publish({ id: '10', messageType: 'remove' })
-        // wait for consumer1 to start processing to start second consumer
-        await waitAndRetry(() => consumer1IsProcessing, 5, 5)
-        await consumer2.start()
+      await publisher.publish({ id: '10', messageType: 'remove' })
+      // wait for consumer1 to start processing to start second consumer
+      await waitAndRetry(() => consumer1IsProcessing, 5, 5)
+      await consumer2.start()
 
-        // wait for both consumers to process message
-        await waitAndRetry(() => consumer1Counter > 0 && consumer2Counter > 0, 100, 40)
+      // wait for both consumers to process message
+      await waitAndRetry(() => consumer1Counter > 0 && consumer2Counter > 0, 100, 40)
 
-        expect(consumer1Counter).toBe(1)
-        expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)
+      expect(consumer1Counter).toBe(1)
+      expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)
 
-        await Promise.all([consumer1.close(), consumer2.close()])
-      },
-      // This reduces flakiness in CI
-      10000,
-    )
+      await Promise.all([consumer1.close(), consumer2.close()])
+    }, 10000) // This reduces flakiness in CI
   })
 
   describe('exponential backoff retry', () => {
@@ -1057,7 +1059,7 @@ describe('SqsPermissionConsumer', () => {
       )
 
       await publisher.close()
-      await consumer.close()
+      await consumer.close(true)
     })
   })
 })

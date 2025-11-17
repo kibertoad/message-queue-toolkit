@@ -21,6 +21,7 @@ import { calculateOutgoingMessageSize } from '../utils/sqsUtils.ts'
 import type {
   SQSCreationConfig,
   SQSDependencies,
+  SQSOptions,
   SQSQueueLocatorType,
 } from './AbstractSqsService.ts'
 import { AbstractSqsService } from './AbstractSqsService.ts'
@@ -29,6 +30,50 @@ export type SQSMessageOptions = {
   MessageGroupId?: string
   MessageDeduplicationId?: string
 }
+
+type BaseSQSPublisherOptions<
+  MessagePayloadType extends object,
+  CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
+  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+> = QueuePublisherOptions<CreationConfigType, QueueLocatorType, MessagePayloadType> &
+  Omit<SQSOptions<CreationConfigType, QueueLocatorType>, 'fifoQueue'>
+
+/**
+ * SQS Publisher options with type-safe FIFO queue configuration.
+ * When fifoQueue is true, messageGroupIdField and defaultMessageGroupId are available.
+ * When fifoQueue is false or omitted, these fields are not allowed.
+ */
+export type SQSPublisherOptions<
+  MessagePayloadType extends object,
+  CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
+  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+> = BaseSQSPublisherOptions<MessagePayloadType, CreationConfigType, QueueLocatorType> &
+  (
+    | {
+        /**
+         * Set to true for FIFO queues. Enables messageGroupIdField and defaultMessageGroupId options.
+         */
+        fifoQueue: true
+        /**
+         * Field name in the message payload to use as MessageGroupId for FIFO queues.
+         * If not provided, MessageGroupId must be specified in publish options.
+         */
+        messageGroupIdField?: string
+        /**
+         * Default MessageGroupId to use when messageGroupIdField is not present in the message.
+         * If not provided and messageGroupIdField is not found, MessageGroupId must be specified in publish options.
+         */
+        defaultMessageGroupId?: string
+      }
+    | {
+        /**
+         * Set to false or omit for standard (non-FIFO) queues.
+         */
+        fifoQueue?: false
+        messageGroupIdField?: never
+        defaultMessageGroupId?: never
+      }
+  )
 
 export const PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX = 'payloadOffloading.'
 export const OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE = `${PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX}size`
@@ -39,16 +84,17 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
 {
   private readonly messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
   private readonly isDeduplicationEnabled: boolean
+  private readonly messageGroupIdField?: string
+  private readonly defaultMessageGroupId?: string
   private initPromise?: Promise<void>
 
-  constructor(
-    dependencies: SQSDependencies,
-    options: QueuePublisherOptions<SQSCreationConfig, SQSQueueLocatorType, MessagePayloadType>,
-  ) {
+  constructor(dependencies: SQSDependencies, options: SQSPublisherOptions<MessagePayloadType>) {
     super(dependencies, options)
 
     this.messageSchemaContainer = this.resolvePublisherMessageSchemaContainer(options)
     this.isDeduplicationEnabled = !!options.enablePublisherDeduplication
+    this.messageGroupIdField = options.messageGroupIdField
+    this.defaultMessageGroupId = options.defaultMessageGroupId
   }
 
   async publish(message: MessagePayloadType, options: SQSMessageOptions = {}): Promise<void> {
@@ -78,6 +124,11 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       }
 
       message = this.updateInternalProperties(message)
+
+      // Resolve FIFO options from original message BEFORE offloading
+      // (offloaded payload won't have user fields needed for messageGroupIdField)
+      const resolvedOptions = this.resolveFifoOptions(message, options)
+
       const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(message, () =>
         calculateOutgoingMessageSize(message),
       )
@@ -96,7 +147,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         return
       }
 
-      await this.sendMessage(maybeOffloadedPayloadMessage, options)
+      await this.sendMessage(maybeOffloadedPayloadMessage, resolvedOptions)
       this.handleMessageProcessed({
         message: parsedMessage,
         processingResult: { status: 'published' },
@@ -160,6 +211,8 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     options: SQSMessageOptions,
   ): Promise<void> {
     const attributes = resolveOutgoingMessageAttributes<MessageAttributeValue>(payload)
+
+    // Options are already resolved in publish() before offloading
     const command = new SendMessageCommand({
       QueueUrl: this.queueUrl,
       MessageBody: JSON.stringify(payload),
@@ -167,5 +220,50 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       ...options,
     })
     await this.sqsClient.send(command)
+  }
+
+  /**
+   * Resolves FIFO-specific options (MessageGroupId, MessageDeduplicationId)
+   */
+  private resolveFifoOptions(
+    payload: MessagePayloadType | OffloadedPayloadPointerPayload,
+    options: SQSMessageOptions,
+  ): SQSMessageOptions {
+    if (!this.isFifoQueue) {
+      return options
+    }
+
+    const resolvedOptions = { ...options }
+
+    // Resolve MessageGroupId if not provided
+    if (!resolvedOptions.MessageGroupId) {
+      if (this.messageGroupIdField) {
+        const messageGroupId = (payload as Record<string, unknown>)[this.messageGroupIdField]
+        if (typeof messageGroupId === 'string') {
+          resolvedOptions.MessageGroupId = messageGroupId
+        }
+      }
+
+      // Fallback to default if still not set
+      if (!resolvedOptions.MessageGroupId && this.defaultMessageGroupId) {
+        resolvedOptions.MessageGroupId = this.defaultMessageGroupId
+      }
+    }
+
+    // Validate that MessageGroupId is present for FIFO queues
+    if (!resolvedOptions.MessageGroupId) {
+      throw new InternalError({
+        message:
+          'MessageGroupId is required for FIFO queues. Provide it in publish options, configure messageGroupIdField, or set defaultMessageGroupId.',
+        errorCode: 'FIFO_MESSAGE_GROUP_ID_REQUIRED',
+        details: {
+          queueName: this.queueName,
+          queueUrl: this.queueUrl,
+          isFifoQueue: this.isFifoQueue,
+        },
+      })
+    }
+
+    return resolvedOptions
   }
 }
