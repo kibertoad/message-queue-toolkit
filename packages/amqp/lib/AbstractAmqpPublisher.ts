@@ -93,7 +93,6 @@ export abstract class AbstractAmqpPublisher<
       this.logMessage(resolvedLogMessage)
     }
 
-    // biome-ignore lint/style/noParameterAssign: it's ok
     message = this.updateInternalProperties(message)
 
     try {

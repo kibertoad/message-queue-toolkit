@@ -16,7 +16,7 @@ import { isCreateTopicCommand, type TopicResolutionOptions } from '../types/Topi
 import type { SNSSubscriptionOptions } from './snsSubscriber.ts'
 import { subscribeToTopic } from './snsSubscriber.ts'
 import { assertTopic, deleteSubscription, deleteTopic, getTopicAttributes } from './snsUtils.ts'
-import { buildTopicArn } from './stsUtils.js'
+import { buildTopicArn } from './stsUtils.ts'
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixme
 export async function initSnsSqs(

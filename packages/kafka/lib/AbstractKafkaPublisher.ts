@@ -30,7 +30,6 @@ export type KafkaMessageOptions = Omit<
 export abstract class AbstractKafkaPublisher<
   TopicsConfig extends TopicConfig[],
 > extends AbstractKafkaService<TopicsConfig, KafkaPublisherOptions<TopicsConfig>> {
-  private readonly topicsConfig: TopicsConfig
   private readonly schemaContainers: Record<string, MessageSchemaContainer<object>>
 
   private readonly producer: Producer<string, object, string, string>
@@ -40,11 +39,11 @@ export abstract class AbstractKafkaPublisher<
     super(dependencies, options)
     this.isInitiated = false
 
-    this.topicsConfig = options.topicsConfig
-    if (this.topicsConfig.length === 0) throw new Error('At least one topic must be defined')
+    const topicsConfig = options.topicsConfig
+    if (topicsConfig.length === 0) throw new Error('At least one topic must be defined')
 
     this.schemaContainers = {}
-    for (const { topic, schema } of this.topicsConfig) {
+    for (const { topic, schema } of topicsConfig) {
       this.schemaContainers[topic] = new MessageSchemaContainer({
         messageSchemas: [schema],
         messageDefinitions: [],

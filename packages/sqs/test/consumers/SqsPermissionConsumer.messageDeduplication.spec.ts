@@ -17,12 +17,13 @@ import type {
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
 } from './userConsumerSchemas.ts'
 
-describe('SqsPermissionConsumer', () => {
+describe('SqsPermissionConsumer message deduplication', () => {
   let diContainer: AwilixContainer<Dependencies>
   let sqsClient: SQSClient
   let messageDeduplicationStore: RedisMessageDeduplicationStore
   let messageDeduplicationConfig: MessageDeduplicationConfig
   let publisher: SqsPermissionPublisher
+  const consumers: SqsPermissionConsumer[] = []
 
   beforeAll(async () => {
     diContainer = await registerDependencies({
@@ -46,6 +47,8 @@ describe('SqsPermissionConsumer', () => {
     vi.restoreAllMocks()
     await cleanRedis(diContainer.cradle.redis)
     await publisher.close()
+    await Promise.all(consumers.map((consumer) => consumer.close(true)))
+    consumers.length = 0
   })
 
   afterAll(async () => {
@@ -60,6 +63,7 @@ describe('SqsPermissionConsumer', () => {
         messageDeduplicationConfig,
         enableConsumerDeduplication: true,
       })
+      consumers.push(consumer)
       await consumer.start()
 
       const message = {
@@ -86,8 +90,6 @@ describe('SqsPermissionConsumer', () => {
         skippedAsDuplicate: true,
       })
 
-      await consumer.close()
-
       // Verify that both messages were acknowledged (removed from queue)
       const receiveCommandResult = await sqsClient.send(
         new ReceiveMessageCommand({
@@ -113,6 +115,7 @@ describe('SqsPermissionConsumer', () => {
           return Promise.resolve({ result: 'success' })
         },
       })
+      consumers.push(consumer)
       await consumer.start()
 
       const deduplicationId = randomUUID()
@@ -144,8 +147,6 @@ describe('SqsPermissionConsumer', () => {
       // Second one is processed immediately because deduplication key is cleared after the failed attempt
       const secondConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message.id)
       expect(secondConsumptionResult.processingResult).toEqual({ status: 'consumed' })
-
-      await consumer.close(true)
     })
 
     it('message is processable again after deduplication window has expired', async () => {
@@ -153,6 +154,7 @@ describe('SqsPermissionConsumer', () => {
         messageDeduplicationConfig,
         enableConsumerDeduplication: true,
       })
+      consumers.push(consumer)
       await consumer.start()
 
       const deduplicationId = randomUUID()
@@ -191,8 +193,6 @@ describe('SqsPermissionConsumer', () => {
       // Message is successfully processed after deduplication key has expired
       const thirdConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message.id)
       expect(thirdConsumptionResult.processingResult).toEqual({ status: 'consumed' })
-
-      await consumer.close()
     })
 
     it('consumes messages with different deduplication ids', async () => {
@@ -200,6 +200,7 @@ describe('SqsPermissionConsumer', () => {
         messageDeduplicationConfig,
         enableConsumerDeduplication: true,
       })
+      consumers.push(consumer)
       await consumer.start()
 
       const message1 = {
@@ -227,8 +228,6 @@ describe('SqsPermissionConsumer', () => {
       // Message 2 is successfully processed during the second consumption
       const secondConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message2.id)
       expect(secondConsumptionResult.processingResult).toEqual({ status: 'consumed' })
-
-      await consumer.close()
     })
 
     it('in case of errors on deduplication store level, message is consumed', async () => {
@@ -236,6 +235,7 @@ describe('SqsPermissionConsumer', () => {
         messageDeduplicationConfig,
         enableConsumerDeduplication: true,
       })
+      consumers.push(consumer)
       await consumer.start()
 
       const deduplicationId = randomUUID()
@@ -252,8 +252,6 @@ describe('SqsPermissionConsumer', () => {
 
       const spy = await consumer.handlerSpy.waitForMessageWithId('1')
       expect(spy.processingResult).toEqual({ status: 'consumed' })
-
-      await consumer.close()
     })
 
     it('works only for messages that have deduplication ids provided', async () => {
@@ -261,6 +259,7 @@ describe('SqsPermissionConsumer', () => {
         messageDeduplicationConfig,
         enableConsumerDeduplication: true,
       })
+      consumers.push(consumer)
       await consumer.start()
 
       const message1 = {
@@ -308,8 +307,6 @@ describe('SqsPermissionConsumer', () => {
       // Message 2 is successfully processed during the second consumption (deduplication is not applied)
       const fourthConsumptionResult = await consumer.handlerSpy.waitForMessageWithId(message2.id)
       expect(fourthConsumptionResult.processingResult).toEqual({ status: 'consumed' })
-
-      await consumer.close()
     })
 
     it('passes custom deduplication options to the deduplication store', async () => {
@@ -317,6 +314,7 @@ describe('SqsPermissionConsumer', () => {
         messageDeduplicationConfig,
         enableConsumerDeduplication: true,
       })
+      consumers.push(consumer)
       await consumer.start()
 
       const deduplicationId = randomUUID()
@@ -338,8 +336,6 @@ describe('SqsPermissionConsumer', () => {
         `consumer:${deduplicationId}`,
       )
       expect(deduplicationKeyTtl).toBeGreaterThanOrEqual(1000 - 5)
-
-      await consumer.close()
     })
 
     it('if lock cannot be acquired within acceptable time, message is enqueued', async () => {
@@ -351,11 +347,13 @@ describe('SqsPermissionConsumer', () => {
           return Promise.resolve({ result: 'success' })
         },
       })
+      consumers.push(consumer1)
       await consumer1.start()
       const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
         messageDeduplicationConfig,
         enableConsumerDeduplication: true,
       })
+      consumers.push(consumer2)
       // Not starting consumer2 yet, so consumer1 can acquire the lock first
 
       const deduplicationId = randomUUID()
@@ -386,8 +384,6 @@ describe('SqsPermissionConsumer', () => {
       // Wait until consumer1 releases the lock, to omit errors related to the lock being lost
       const consumer1Spy = await consumer1.handlerSpy.waitForMessageWithId(message.id)
       expect(consumer1Spy.processingResult).toEqual({ status: 'consumed' })
-
-      await Promise.all([consumer1.close(), consumer2.close()])
     })
 
     it('respects deduplication key even after lock is released', async () => {
@@ -399,11 +395,13 @@ describe('SqsPermissionConsumer', () => {
           return Promise.resolve({ result: 'success' })
         },
       })
+      consumers.push(consumer1)
       await consumer1.start()
       const consumer2 = new SqsPermissionConsumer(diContainer.cradle, {
         messageDeduplicationConfig,
         enableConsumerDeduplication: true,
       })
+      consumers.push(consumer2)
       // Not starting consumer2 yet, so consumer1 can acquire the lock first
 
       const deduplicationId = randomUUID()
@@ -446,8 +444,6 @@ describe('SqsPermissionConsumer', () => {
         status: 'consumed',
         skippedAsDuplicate: true,
       })
-
-      await Promise.all([consumer1.close(), consumer2.close()])
     }, 7000)
   })
 })

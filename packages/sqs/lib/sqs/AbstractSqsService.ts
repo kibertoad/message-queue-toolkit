@@ -48,6 +48,20 @@ export type SQSQueueLocatorType =
       queueUrl?: never
     }
 
+export type SQSQueueConfig = {
+  /**
+   * Indicates whether this is a FIFO queue.
+   * FIFO queues must have names ending with .fifo suffix.
+   * When true, MessageGroupId is required for all messages.
+   */
+  fifoQueue?: boolean
+}
+
+export type SQSOptions<
+  CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
+  QueueLocatorType extends object = SQSQueueLocatorType,
+> = QueueOptions<CreationConfigType, QueueLocatorType> & SQSQueueConfig
+
 export abstract class AbstractSqsService<
   MessagePayloadType extends object,
   QueueLocatorType extends object = SQSQueueLocatorType,
@@ -77,10 +91,12 @@ export abstract class AbstractSqsService<
   protected queueUrl: string
   // @ts-expect-error
   protected queueArn: string
+  protected readonly isFifoQueue: boolean
 
   constructor(dependencies: DependenciesType, options: SQSOptionsType) {
     super(dependencies, options)
     this.sqsClient = dependencies.sqsClient
+    this.isFifoQueue = (options as SQSQueueConfig).fifoQueue ?? false
   }
 
   public async init() {
@@ -91,6 +107,7 @@ export abstract class AbstractSqsService<
       this.sqsClient,
       this.locatorConfig,
       this.creationConfig,
+      this.isFifoQueue,
     )
     this.queueName = queueName
     this.queueUrl = queueUrl

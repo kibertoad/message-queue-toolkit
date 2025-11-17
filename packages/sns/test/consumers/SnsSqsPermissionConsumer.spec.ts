@@ -451,7 +451,7 @@ describe('SnsSqsPermissionConsumer', () => {
         )
         expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
 
-        expect(attributes.result?.attributes!.Policy).toMatchInlineSnapshot(
+        expect(attributes.result?.attributes?.Policy).toMatchInlineSnapshot(
           `"{"Version":"2012-10-17","Id":"__default_policy_ID","Statement":[{"Sid":"AllowSNSPublish","Effect":"Allow","Principal":{"AWS":"*"},"Action":"sqs:SendMessage","Resource":"arn:aws:sqs:eu-west-1:000000000000:some-queue","Condition":{"ArnLike":{"aws:SourceArn":"someservice-"}}}]}"`,
         )
       })
@@ -484,7 +484,7 @@ describe('SnsSqsPermissionConsumer', () => {
           newConsumer.subscriptionProps.queueUrl,
         )
 
-        expect(attributes.result?.attributes!.KmsMasterKeyId).toBe('othervalue')
+        expect(attributes.result?.attributes?.KmsMasterKeyId).toBe('othervalue')
       })
     })
 
@@ -797,64 +797,64 @@ describe('SnsSqsPermissionConsumer', () => {
       await diContainer.dispose()
     })
 
-    it.each([false, true])(
-      'using 2 consumers with heartbeat -> %s',
-      async (heartbeatEnabled) => {
-        let consumer1IsProcessing = false
-        let consumer1Counter = 0
-        let consumer2Counter = 0
+    it.each([false, true])('using 2 consumers with heartbeat -> %s', async (heartbeatEnabled) => {
+      let consumer1IsProcessing = false
+      let consumer1Counter = 0
+      let consumer2Counter = 0
 
-        const consumer1 = new SnsSqsPermissionConsumer(diContainer.cradle, {
-          creationConfig: {
-            topic: { Name: topicName },
-            queue: {
-              QueueName: queueName,
-              Attributes: { VisibilityTimeout: '2' },
-            },
+      const consumer1 = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          topic: { Name: topicName },
+          queue: {
+            QueueName: queueName,
+            Attributes: { VisibilityTimeout: '2' },
           },
-          consumerOverrides: {
-            heartbeatInterval: heartbeatEnabled ? 1 : undefined,
-          },
-          removeHandlerOverride: async () => {
-            consumer1IsProcessing = true
-            await setTimeout(3100) // Wait to the visibility timeout to expire
-            consumer1Counter++
-            consumer1IsProcessing = false
-            return { result: 'success' }
-          },
-        })
-        await consumer1.start()
+        },
+        consumerOverrides: {
+          heartbeatInterval: heartbeatEnabled ? 1 : undefined,
+        },
+        removeHandlerOverride: async () => {
+          consumer1IsProcessing = true
+          await setTimeout(3100) // Wait to the visibility timeout to expire
+          consumer1Counter++
+          consumer1IsProcessing = false
+          return { result: 'success' }
+        },
+      })
+      await consumer1.start()
 
-        const consumer2 = new SnsSqsPermissionConsumer(diContainer.cradle, {
-          locatorConfig: {
-            queueUrl: consumer1.subscriptionProps.queueUrl,
-            topicArn: consumer1.subscriptionProps.topicArn,
-            subscriptionArn: consumer1.subscriptionProps.subscriptionArn,
-          },
-          removeHandlerOverride: () => {
-            consumer2Counter++
-            return Promise.resolve({ result: 'success' })
-          },
-        })
-        const publisher = new SnsPermissionPublisher(diContainer.cradle, {
-          locatorConfig: { topicArn: consumer1.subscriptionProps.topicArn },
-        })
+      const consumer2 = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        locatorConfig: {
+          queueUrl: consumer1.subscriptionProps.queueUrl,
+          topicArn: consumer1.subscriptionProps.topicArn,
+          subscriptionArn: consumer1.subscriptionProps.subscriptionArn,
+        },
+        removeHandlerOverride: () => {
+          consumer2Counter++
+          return Promise.resolve({ result: 'success' })
+        },
+      })
+      const publisher = new SnsPermissionPublisher(diContainer.cradle, {
+        locatorConfig: { topicArn: consumer1.subscriptionProps.topicArn },
+      })
 
-        await publisher.publish({ id: '10', messageType: 'remove' })
-        // wait for consumer1 to start processing to start second consumer
-        await waitAndRetry(() => consumer1IsProcessing, 5, 5)
-        await consumer2.start()
+      await publisher.publish({ id: '10', messageType: 'remove' })
+      // wait for consumer1 to start processing to start second consumer
+      await waitAndRetry(() => consumer1IsProcessing, 5, 5)
+      await consumer2.start()
 
-        // wait for both consumers to process message
-        await waitAndRetry(() => consumer1Counter > 0 && consumer2Counter > 0, 100, 40)
+      // wait for consumer1 to process, and consumer2 only when heartbeat is disabled
+      await waitAndRetry(
+        () => consumer1Counter > 0 && (heartbeatEnabled || consumer2Counter > 0),
+        100,
+        40,
+      )
 
-        expect(consumer1Counter).toBe(1)
-        expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)
+      expect(consumer1Counter).toBe(1)
+      expect(consumer2Counter).toBe(heartbeatEnabled ? 0 : 1)
 
-        await Promise.all([consumer1.close(), consumer2.close()])
-      },
-      10000,
-    )
+      await Promise.all([consumer1.close(), consumer2.close()])
+    }, 10000)
   })
 
   describe('exponential backoff retry', () => {
