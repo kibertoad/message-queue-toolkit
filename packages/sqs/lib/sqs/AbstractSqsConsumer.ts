@@ -214,7 +214,7 @@ export abstract class AbstractSqsConsumer<
 
   public override async close(abort?: boolean): Promise<void> {
     await super.close()
-    this.stopExistingConsumers(abort ?? false)
+    await this.stopExistingConsumers(abort ?? false)
   }
 
   private createConsumer(options: { visibilityTimeout: number | undefined }): Consumer {
@@ -498,12 +498,14 @@ export abstract class AbstractSqsConsumer<
     return params
   }
 
-  private stopExistingConsumers(abort?: boolean) {
-    for (const consumer of this.consumers) {
-      consumer.stop({
-        abort,
-      })
-    }
+  private async stopExistingConsumers(abort?: boolean): Promise<void> {
+    await Promise.all(
+      this.consumers.map((consumer) =>
+        consumer.stop({
+          abort,
+        }),
+      ),
+    )
   }
 
   private async internalProcessMessage(
