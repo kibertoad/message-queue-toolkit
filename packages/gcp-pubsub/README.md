@@ -11,6 +11,9 @@ Google Cloud Pub/Sub implementation for the message-queue-toolkit. Provides a ro
   - [Publisher](#publisher)
   - [Consumer](#consumer)
 - [Configuration](#configuration)
+  - [Resource Management](#resource-management)
+    - [Updating Existing Resources](#updating-existing-resources)
+    - [Resource Deletion](#resource-deletion)
   - [Topic Creation](#topic-creation)
   - [Subscription Configuration](#subscription-configuration)
   - [Locator Config (Production)](#locator-config-production)
@@ -230,6 +233,104 @@ await consumer.start() // Starts consuming messages
 
 ## Configuration
 
+### Resource Management
+
+#### Updating Existing Resources
+
+When using `creationConfig`, you can control whether existing resources should be updated with new configuration:
+
+```typescript
+{
+  creationConfig: {
+    topic: {
+      name: 'my-topic',
+      options: {
+        messageRetentionDuration: { seconds: 604800 },
+      },
+    },
+    updateAttributesIfExists: true,  // Update existing resources (default: false)
+  },
+}
+```
+
+**Behavior:**
+- `updateAttributesIfExists: false` (default): If topic/subscription exists, uses it as-is without updates
+- `updateAttributesIfExists: true`: If topic/subscription exists, updates its metadata with new options
+- Applies to both topics and subscriptions
+- Useful for managing configuration changes across environments
+
+#### Resource Deletion
+
+For testing and development, you can configure automatic resource deletion:
+
+```typescript
+import { deletePubSub } from '@message-queue-toolkit/gcp-pubsub'
+
+{
+  deletionConfig: {
+    deleteIfExists: true,              // Enable automatic deletion
+    forceDeleteInProduction: false,    // Safety: prevent production deletion (default: false)
+    waitForConfirmation: true,         // Poll until deletion confirmed (default: true)
+  },
+  creationConfig: {
+    topic: { name: 'test-topic' },
+    subscription: { name: 'test-subscription' },
+  },
+}
+```
+
+**Deletion Behavior:**
+- Only deletes if both `deleteIfExists: true` and `creationConfig` are provided
+- Deletes subscription first, then topic (proper order)
+- Throws error if trying to delete in production without `forceDeleteInProduction: true`
+- `waitForConfirmation: true`: Polls to confirm deletion completed (recommended)
+- `waitForConfirmation: false`: Returns immediately after deletion request
+
+**Production Safety:**
+
+The library checks `process.env.NODE_ENV` to determine if running in production:
+- `NODE_ENV === 'production'` → Production mode (deletion requires explicit override)
+- Any other value → Development/test mode (deletion allowed)
+
+**Important:** The environment check uses a cached scope from `@lokalise/node-core`. If you change `NODE_ENV` at runtime (e.g., in tests), you must call `reloadConfig()`:
+
+```typescript
+import { reloadConfig } from '@message-queue-toolkit/core'
+
+// In tests - changing NODE_ENV at runtime
+process.env.NODE_ENV = 'production'
+reloadConfig()  // Required to pick up the change
+
+// In normal usage - NODE_ENV set before process starts
+// No reloadConfig() needed, environment is read on initialization
+```
+
+**Examples:**
+
+```typescript
+// Development - automatic cleanup
+process.env.NODE_ENV = 'development'
+{
+  deletionConfig: {
+    deleteIfExists: true,  // OK in development
+  },
+}
+
+// Production - requires explicit override
+process.env.NODE_ENV = 'production'
+{
+  deletionConfig: {
+    deleteIfExists: true,
+    forceDeleteInProduction: true,  // Required in production
+  },
+}
+```
+
+**Use Cases:**
+- Integration tests: Clean up resources between test runs
+- CI/CD pipelines: Ensure fresh environment for each build
+- Development: Reset state without manual cleanup
+
 ### Topic Creation
 
 When using `creationConfig`, the topic will be created automatically if it doesn't exist:
@@ -307,8 +408,18 @@ When using `locatorConfig`, you connect to existing resources without creating t
   messageTypeField: 'messageType',     // Field containing message type discriminator
 
   // Topic Configuration (one of these required)
-  creationConfig: { /* ... */ },       // Create topic if doesn't exist
+  creationConfig: {
+    topic: { name: 'my-topic', options: { /* ... */ } },
+    updateAttributesIfExists: false,   // Update existing resources (default: false)
+  },
   locatorConfig: { /* ... */ },        // Use existing topic
+
+  // Optional - Resource Deletion (testing/development)
+  deletionConfig: {
+    deleteIfExists: true,              // Enable automatic deletion
+    forceDeleteInProduction: false,    // Safety: prevent production deletion
+    waitForConfirmation: true,         // Poll until deletion confirmed
+  },
 
   // Optional - Message Field Configuration
   messageIdField: 'id',                       // Field containing message ID (default: 'id')
@@ -344,8 +455,19 @@ When using `locatorConfig`, you connect to existing resources without creating t
   messageTypeField: 'messageType',               // Field containing message type discriminator
 
   // Topic and Subscription Configuration (one of these required)
-  creationConfig: { /* ... */ },
+  creationConfig: {
+    topic: { name: 'my-topic' },
+    subscription: { name: 'my-subscription', options: { /* ... */ } },
+    updateAttributesIfExists: false,   // Update existing resources (default: false)
+  },
   locatorConfig: { /* ... */ },
+
+  // Optional - Resource Deletion (testing/development)
+  deletionConfig: {
+    deleteIfExists: true,              // Enable automatic deletion
+    forceDeleteInProduction: false,    // Safety: prevent production deletion
+    waitForConfirmation: true,         // Poll until deletion confirmed
+  },
 
   // Optional - Message Field Configuration
   messageIdField: 'id',                       // Field containing message ID (default: 'id')
