@@ -222,11 +222,11 @@ export abstract class AbstractPubSubConsumer<
     const messageProcessingStartTimestamp = Date.now()
 
     try {
-      // Deserialize message
-      const deserializedPayload = deserializePubSubMessage(message, this.errorResolver)
-      if (deserializedPayload.error) {
+      // Parse and validate message (deserializes once via resolveMessage)
+      const resolvedMessage = this.resolveMessage(message)
+      if ('error' in resolvedMessage) {
         this.handleMessageProcessed({
-          message: deserializedPayload.error.message as unknown as MessagePayloadType,
+          message: resolvedMessage.error.message as unknown as MessagePayloadType,
           processingResult: {
             status: 'error',
             errorReason: 'invalidMessage',
@@ -239,7 +239,7 @@ export abstract class AbstractPubSubConsumer<
       }
 
       // Retrieve offloaded payload if needed
-      let messagePayload = deserializedPayload.result
+      let messagePayload = resolvedMessage.result.body
       if (hasOffloadedPayload(message.attributes)) {
         const retrievalResult = await this.retrieveOffloadedMessagePayload(messagePayload)
         if (retrievalResult.error) {
@@ -258,25 +258,7 @@ export abstract class AbstractPubSubConsumer<
         messagePayload = retrievalResult.result
       }
 
-      // Parse and validate message
-      const resolvedMessage = this.resolveMessage(message)
-      if ('error' in resolvedMessage) {
-        this.handleMessageProcessed({
-          message: resolvedMessage.error.message as unknown as MessagePayloadType,
-          processingResult: {
-            status: 'error',
-            errorReason: 'invalidMessage',
-          },
-          messageProcessingStartTimestamp,
-          queueName: this.subscriptionName ?? this.topicName,
-        })
-        message.ack()
-        return
-      }
-
-      const resolveSchemaResult = this.resolveSchema(
-        resolvedMessage.result.body as MessagePayloadType,
-      )
+      const resolveSchemaResult = this.resolveSchema(messagePayload as MessagePayloadType)
       if ('error' in resolveSchemaResult) {
         this.handleError(resolveSchemaResult.error)
         message.ack()
@@ -284,14 +266,14 @@ export abstract class AbstractPubSubConsumer<
       }
 
       const parseResult = parseMessage(
-        resolvedMessage.result.body,
+        messagePayload,
         resolveSchemaResult.result,
         this.errorResolver,
       )
 
       if ('error' in parseResult) {
         this.handleMessageProcessed({
-          message: resolvedMessage.result.body as MessagePayloadType,
+          message: messagePayload as MessagePayloadType,
           processingResult: {
             status: 'error',
             errorReason: 'invalidMessage',
