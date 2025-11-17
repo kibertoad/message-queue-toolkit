@@ -193,7 +193,7 @@ export class HandlerContainer<
   ExecutionContext,
   PrehandlerOutput = undefined,
 > {
-  // biome-ignore  lint/correctness/noUnusedPrivateClassMembers: this is actually used
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: this is actually used
   private readonly messageHandlers: Record<
     string,
     MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
@@ -223,7 +223,7 @@ export class HandlerContainer<
     return handler
   }
 
-  // biome-ignore  lint/correctness/noUnusedPrivateClassMembers: this is actually used
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: this is actually used
   private resolveHandlerMap(
     supportedHandlers: MessageHandlerConfig<
       MessagePayloadSchemas,
