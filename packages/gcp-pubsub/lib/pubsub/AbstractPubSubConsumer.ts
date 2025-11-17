@@ -105,7 +105,6 @@ export abstract class AbstractPubSubConsumer<
     PrehandlerOutput
   >
   // Reserved for future DLQ implementation
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Reserved for future dead letter queue implementation
   private readonly deadLetterQueueOptions?: PubSubDeadLetterQueueOptions
   private readonly isDeduplicationEnabled: boolean
   private maxRetryDuration: number
