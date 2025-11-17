@@ -115,6 +115,7 @@ export abstract class AbstractPublisherManager<
     return {}
   }
 
+  // biome-ignore  lint/correctness/noUnusedPrivateClassMembers: this is used in constructor
   private registerEvents(events: SupportedEventDefinitions) {
     for (const supportedEvent of events) {
       const eventTarget = this.resolveEventTarget(supportedEvent)
@@ -131,6 +132,7 @@ export abstract class AbstractPublisherManager<
     }
   }
 
+  // biome-ignore  lint/correctness/noUnusedPrivateClassMembers: this is used in constructor
   private registerPublishers() {
     for (const eventTarget in this.targetToEventMap) {
       if (this.targetToPublisherMap[eventTarget]) {
