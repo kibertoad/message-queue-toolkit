@@ -196,7 +196,7 @@ export abstract class AbstractSqsConsumer<
 
   public async start() {
     await this.init()
-    this.stopExistingConsumers()
+    await this.stopExistingConsumers()
 
     const visibilityTimeout = await this.getQueueVisibilityTimeout()
 
