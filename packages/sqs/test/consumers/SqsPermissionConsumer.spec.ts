@@ -533,7 +533,7 @@ describe('SqsPermissionConsumer', () => {
     })
 
     afterEach(async () => {
-      await Promise.all(consumers.map((consumer) => consumer.close()))
+      await Promise.all(consumers.map((consumer) => consumer.close(true)))
       consumers.length = 0
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
@@ -644,7 +644,7 @@ describe('SqsPermissionConsumer', () => {
     })
 
     afterEach(async () => {
-      await Promise.all(consumers.map((consumer) => consumer.close()))
+      await Promise.all(consumers.map((consumer) => consumer.close(true)))
       consumers.length = 0
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
@@ -858,7 +858,7 @@ describe('SqsPermissionConsumer', () => {
     })
 
     afterEach(async () => {
-      await consumer.close()
+      await consumer.close(true)
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
@@ -1059,7 +1059,7 @@ describe('SqsPermissionConsumer', () => {
       )
 
       await publisher.close()
-      await consumer.close()
+      await consumer.close(true)
     })
   })
 })

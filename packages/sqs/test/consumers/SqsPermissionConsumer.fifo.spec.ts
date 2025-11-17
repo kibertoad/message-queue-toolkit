@@ -3,7 +3,6 @@ import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { deleteQueue } from '../../lib/utils/sqsUtils.ts'
 import { SqsPermissionPublisherFifo } from '../publishers/SqsPermissionPublisherFifo.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -19,8 +18,7 @@ describe('SqsPermissionConsumerFifo', () => {
     beforeEach(async () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
-      await deleteQueue(sqsClient, queueName)
-      await deleteQueue(sqsClient, dlqName)
+      // Deletion handled by deletionConfig.deleteIfExists in each test
     })
 
     afterEach(async () => {
@@ -77,7 +75,7 @@ describe('SqsPermissionConsumerFifo', () => {
       expect(consumer.addCounter).toBe(1)
       expect(consumer.processedMessagesIds.has('1')).toBe(true)
 
-      await consumer.close()
+      await consumer.close(true)
     })
 
     it('retries with ContentBasedDeduplication enabled - no MessageDeduplicationId', async () => {
@@ -135,12 +133,21 @@ describe('SqsPermissionConsumerFifo', () => {
       await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
 
       // Check that retry was sent without DelaySeconds
-      // Filter for actual retries (_internalRetryLaterCount > 0)
+      // Filter for actual retries (_internalRetryLaterCount >= 1)
       const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
         if (!(call[0] instanceof SendMessageCommand)) return false
         const command = call[0] as SendMessageCommand
         const body = command.input.MessageBody
-        return body?.includes('"id":"2"') && /"_internalRetryLaterCount":[1-9]/.test(body)
+        if (!body?.includes('"id":"2"')) return false
+        try {
+          const parsed = JSON.parse(body)
+          return (
+            typeof parsed._internalRetryLaterCount === 'number' &&
+            parsed._internalRetryLaterCount >= 1
+          )
+        } catch {
+          return false
+        }
       })
 
       expect(retrySendCalls.length).toBeGreaterThan(0)
@@ -156,7 +163,7 @@ describe('SqsPermissionConsumerFifo', () => {
 
       expect(attemptCount).toBe(2)
 
-      await consumer.close()
+      await consumer.close(true)
     })
 
     it('retries with ContentBasedDeduplication disabled - preserves MessageDeduplicationId', async () => {
@@ -220,13 +227,21 @@ describe('SqsPermissionConsumerFifo', () => {
       await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
 
       // Check that retry modified MessageDeduplicationId
-      // Filter for actual retries (_internalRetryLaterCount > 0, not just present)
+      // Filter for actual retries (_internalRetryLaterCount >= 1)
       const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
         if (!(call[0] instanceof SendMessageCommand)) return false
         const command = call[0] as SendMessageCommand
         const body = command.input.MessageBody
-        // Match retry attempts: _internalRetryLaterCount":1 or higher (not :0 which is initial)
-        return body?.includes('"id":"2"') && /"_internalRetryLaterCount":[1-9]/.test(body)
+        if (!body?.includes('"id":"2"')) return false
+        try {
+          const parsed = JSON.parse(body)
+          return (
+            typeof parsed._internalRetryLaterCount === 'number' &&
+            parsed._internalRetryLaterCount >= 1
+          )
+        } catch {
+          return false
+        }
       })
 
       expect(retrySendCalls.length).toBeGreaterThan(0)
@@ -242,7 +257,7 @@ describe('SqsPermissionConsumerFifo', () => {
 
       expect(attemptCount).toBe(2)
 
-      await consumer.close()
+      await consumer.close(true)
     })
 
     it('preserves MessageGroupId during retry', async () => {
@@ -303,7 +318,16 @@ describe('SqsPermissionConsumerFifo', () => {
         if (!(call[0] instanceof SendMessageCommand)) return false
         const command = call[0] as SendMessageCommand
         const body = command.input.MessageBody
-        return body?.includes('"id":"3"') && body?.includes('_internalRetryLaterCount')
+        if (!body?.includes('"id":"3"')) return false
+        try {
+          const parsed = JSON.parse(body)
+          return (
+            typeof parsed._internalRetryLaterCount === 'number' &&
+            parsed._internalRetryLaterCount >= 1
+          )
+        } catch {
+          return false
+        }
       })
 
       expect(retrySendCalls.length).toBeGreaterThan(0)
@@ -311,7 +335,7 @@ describe('SqsPermissionConsumerFifo', () => {
       const retryCommand = retrySendCalls[0]?.[0] as SendMessageCommand
       expect(retryCommand.input.MessageGroupId).toBe('custom-group-id')
 
-      await consumer.close()
+      await consumer.close(true)
     })
 
     it('sends failed messages to FIFO DLQ with MessageGroupId', async () => {
@@ -405,7 +429,7 @@ describe('SqsPermissionConsumerFifo', () => {
       const dlqCommand = dlqSendCalls[0]?.[0] as SendMessageCommand
       expect(dlqCommand.input.MessageGroupId).toBe('test-group')
 
-      await consumer.close()
+      await consumer.close(true)
     }, 15000) // 15 second timeout for DLQ test
 
     it('maintains message order within message group', async () => {
@@ -462,7 +486,7 @@ describe('SqsPermissionConsumerFifo', () => {
       // Verify messages were processed in order
       expect(processedOrder).toEqual(['1', '2', '3', '4', '5'])
 
-      await consumer.close()
+      await consumer.close(true)
     })
 
     it('retries with locatorConfig - fetches ContentBasedDeduplication from SQS', async () => {
@@ -523,9 +547,16 @@ describe('SqsPermissionConsumerFifo', () => {
         if (!(call[0] instanceof SendMessageCommand)) return false
         const command = call[0] as SendMessageCommand
         const body = command.input.MessageBody
-        return (
-          body?.includes('"id":"locator-test"') && /"_internalRetryLaterCount":[1-9]/.test(body)
-        )
+        if (!body?.includes('"id":"locator-test"')) return false
+        try {
+          const parsed = JSON.parse(body)
+          return (
+            typeof parsed._internalRetryLaterCount === 'number' &&
+            parsed._internalRetryLaterCount >= 1
+          )
+        } catch {
+          return false
+        }
       })
 
       expect(retrySendCalls.length).toBeGreaterThan(0)
@@ -537,7 +568,7 @@ describe('SqsPermissionConsumerFifo', () => {
 
       expect(attemptCount).toBe(2)
 
-      await consumer.close()
+      await consumer.close(true)
     })
   })
 })

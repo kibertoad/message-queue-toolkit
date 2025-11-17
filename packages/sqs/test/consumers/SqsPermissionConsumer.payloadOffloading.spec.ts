@@ -51,7 +51,7 @@ describe('SqsPermissionConsumer', () => {
     })
     afterEach(async () => {
       await publisher.close()
-      await consumer.close()
+      await consumer.close(true)
     })
     afterAll(async () => {
       await emptyBucket(s3, s3BucketName)

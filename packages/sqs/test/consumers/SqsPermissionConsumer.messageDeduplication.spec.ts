@@ -47,7 +47,7 @@ describe('SqsPermissionConsumer message deduplication', () => {
     vi.restoreAllMocks()
     await cleanRedis(diContainer.cradle.redis)
     await publisher.close()
-    await Promise.all(consumers.map((consumer) => consumer.close()))
+    await Promise.all(consumers.map((consumer) => consumer.close(true)))
     consumers.length = 0
   })
 
