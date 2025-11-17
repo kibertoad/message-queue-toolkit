@@ -188,12 +188,12 @@ describe('PubSubPermissionConsumer', () => {
     it('tracks schema validation errors with handlerSpy', async () => {
       const topic = pubSubClient.topic(PubSubPermissionConsumer.TOPIC_NAME)
 
-      // Create a message with valid JSON but invalid schema (missing required fields)
+      // Create a message with valid JSON but invalid schema (userIds should be array, not string)
       const invalidMessage = {
         id: 'error-test-1',
         messageType: 'add',
         timestamp: new Date().toISOString(),
-        // Missing userIds field - should fail validation
+        userIds: 'invalid-should-be-array', // Invalid type - should fail validation
       }
 
       // Start waiting for the error
