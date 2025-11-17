@@ -464,5 +464,80 @@ describe('SqsPermissionConsumerFifo', () => {
 
       await consumer.close()
     })
+
+    it('retries with locatorConfig - fetches ContentBasedDeduplication from SQS', async () => {
+      // First create the queue with a publisher
+      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'false',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        defaultMessageGroupId: 'test-group',
+      })
+
+      await publisher.init()
+
+      let attemptCount = 0
+      // Consumer uses locatorConfig, not creationConfig - forces async fetch of ContentBasedDeduplication
+      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+        locatorConfig: {
+          queueUrl: publisher.queueUrl,
+        },
+        addHandlerOverride: () => {
+          attemptCount++
+          if (attemptCount < 2) {
+            return Promise.resolve({ error: 'retryLater' })
+          }
+          return Promise.resolve({ result: 'success' })
+        },
+      })
+
+      const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+      await consumer.start()
+
+      // Publish with explicit MessageDeduplicationId
+      await publisher.publish(
+        {
+          id: 'locator-test',
+          messageType: 'add',
+          userIds: 'user-locator',
+        },
+        {
+          MessageDeduplicationId: 'locator-dedup-id',
+        },
+      )
+
+      await consumer.handlerSpy.waitForMessageWithId('locator-test', 'consumed')
+
+      // Check that retry modified MessageDeduplicationId
+      const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
+        if (!(call[0] instanceof SendMessageCommand)) return false
+        const command = call[0] as SendMessageCommand
+        const body = command.input.MessageBody
+        return (
+          body?.includes('"id":"locator-test"') && /"_internalRetryLaterCount":[1-9]/.test(body)
+        )
+      })
+
+      expect(retrySendCalls.length).toBeGreaterThan(0)
+
+      const retryCommand = retrySendCalls[0]?.[0] as SendMessageCommand
+      // Should have fetched ContentBasedDeduplication=false from SQS and modified the ID
+      expect(retryCommand.input.MessageDeduplicationId).toBe('locator-dedup-id-retry-1')
+      expect(retryCommand.input.MessageGroupId).toBe('test-group')
+
+      expect(attemptCount).toBe(2)
+
+      await consumer.close()
+    })
   })
 })
