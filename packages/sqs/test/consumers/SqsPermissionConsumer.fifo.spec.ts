@@ -1,0 +1,364 @@
+import type { SQSClient } from '@aws-sdk/client-sqs'
+import { SendMessageCommand } from '@aws-sdk/client-sqs'
+import type { AwilixContainer } from 'awilix'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { deleteQueue } from '../../lib/utils/sqsUtils.ts'
+import { SqsPermissionPublisherFifo } from '../publishers/SqsPermissionPublisherFifo.ts'
+import type { Dependencies } from '../utils/testContext.ts'
+import { registerDependencies } from '../utils/testContext.ts'
+import { SqsPermissionConsumerFifo } from './SqsPermissionConsumerFifo.ts'
+
+describe('SqsPermissionConsumerFifo', () => {
+  describe('FIFO queue consumption and retry', () => {
+    const queueName = 'test-fifo-consumer.fifo'
+    const dlqName = 'test-fifo-consumer-dlq.fifo'
+
+    let diContainer: AwilixContainer<Dependencies>
+    let sqsClient: SQSClient
+    beforeEach(async () => {
+      diContainer = await registerDependencies()
+      sqsClient = diContainer.cradle.sqsClient
+      await deleteQueue(sqsClient, queueName)
+      await deleteQueue(sqsClient, dlqName)
+    })
+
+    afterEach(async () => {
+      const { awilixManager } = diContainer.cradle
+      await awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('creates FIFO queue and consumes messages', async () => {
+      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'false',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        defaultMessageGroupId: 'test-group',
+      })
+
+      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'false',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+      })
+
+      await publisher.init()
+      await consumer.start()
+
+      expect(consumer.queueProps.isFifo).toBe(true)
+
+      await publisher.publish({
+        id: '1',
+        messageType: 'add',
+        userIds: 'user-1',
+      })
+
+      await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+
+      expect(consumer.addCounter).toBe(1)
+      expect(consumer.processedMessagesIds.has('1')).toBe(true)
+
+      await consumer.close()
+    })
+
+    it('retries failed messages without DelaySeconds for FIFO queue', async () => {
+      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'false',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        defaultMessageGroupId: 'test-group',
+      })
+
+      let attemptCount = 0
+      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'false',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        addHandlerOverride: () => {
+          attemptCount++
+          if (attemptCount < 2) {
+            return Promise.resolve({ error: 'retryLater' })
+          }
+          return Promise.resolve({ result: 'success' })
+        },
+      })
+
+      await publisher.init()
+      await consumer.start()
+
+      const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+      await publisher.publish({
+        id: '2',
+        messageType: 'add',
+        userIds: 'user-2',
+      })
+
+      await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+
+      // Check that retry was sent without DelaySeconds
+      const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
+        if (!(call[0] instanceof SendMessageCommand)) return false
+        const command = call[0] as SendMessageCommand
+        const body = command.input.MessageBody
+        return body?.includes('"id":"2"') && body?.includes('_internalRetryLaterCount')
+      })
+
+      expect(retrySendCalls.length).toBeGreaterThan(0)
+
+      const retryCommand = retrySendCalls[0]?.[0] as SendMessageCommand
+      // FIFO queues should not have DelaySeconds
+      expect(retryCommand.input.DelaySeconds).toBeUndefined()
+      // FIFO queues should preserve MessageGroupId
+      expect(retryCommand.input.MessageGroupId).toBe('test-group')
+
+      expect(attemptCount).toBe(2)
+      expect(consumer.processedMessagesIds.has('2')).toBe(true)
+
+      await consumer.close()
+    })
+
+    it('preserves MessageGroupId during retry', async () => {
+      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'false',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        messageGroupIdField: 'userIds',
+      })
+
+      let attemptCount = 0
+      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'false',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        addHandlerOverride: () => {
+          attemptCount++
+          if (attemptCount < 2) {
+            return Promise.resolve({ error: 'retryLater' })
+          }
+          return Promise.resolve({ result: 'success' })
+        },
+      })
+
+      await publisher.init()
+      await consumer.start()
+
+      const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+      await publisher.publish({
+        id: '3',
+        messageType: 'add',
+        userIds: 'custom-group-id',
+      })
+
+      await consumer.handlerSpy.waitForMessageWithId('3', 'consumed')
+
+      // Check that MessageGroupId was preserved
+      const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
+        if (!(call[0] instanceof SendMessageCommand)) return false
+        const command = call[0] as SendMessageCommand
+        const body = command.input.MessageBody
+        return body?.includes('"id":"3"') && body?.includes('_internalRetryLaterCount')
+      })
+
+      expect(retrySendCalls.length).toBeGreaterThan(0)
+
+      const retryCommand = retrySendCalls[0]?.[0] as SendMessageCommand
+      expect(retryCommand.input.MessageGroupId).toBe('custom-group-id')
+
+      await consumer.close()
+    })
+
+    it('sends failed messages to FIFO DLQ with MessageGroupId', async () => {
+      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'false',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        defaultMessageGroupId: 'test-group',
+      })
+
+      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'false',
+              VisibilityTimeout: '1',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        deadLetterQueue: {
+          creationConfig: {
+            queue: {
+              QueueName: dlqName,
+              Attributes: {
+                FifoQueue: 'true',
+                ContentBasedDeduplication: 'false',
+              },
+            },
+          },
+          redrivePolicy: {
+            maxReceiveCount: 1,
+          },
+        },
+        maxRetryDuration: 1, // 1 second max retry
+        addHandlerOverride: () => {
+          return Promise.resolve({ error: 'retryLater' })
+        },
+      })
+
+      await publisher.init()
+      await consumer.start()
+
+      const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+      await publisher.publish({
+        id: '4',
+        messageType: 'add',
+        userIds: 'user-4',
+      })
+
+      // Wait for message to fail and be sent to DLQ
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+
+      // Check that message was sent to DLQ with MessageGroupId
+      const dlqSendCalls = sqsSpy.mock.calls.filter((call) => {
+        if (!(call[0] instanceof SendMessageCommand)) return false
+        const command = call[0] as SendMessageCommand
+        return command.input.QueueUrl?.includes(dlqName)
+      })
+
+      if (dlqSendCalls.length > 0) {
+        const dlqCommand = dlqSendCalls[0]?.[0] as SendMessageCommand
+        expect(dlqCommand.input.MessageGroupId).toBe('test-group')
+      }
+
+      await consumer.close()
+    })
+
+    it('maintains message order within message group', async () => {
+      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'false',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        defaultMessageGroupId: 'test-group',
+      })
+
+      const processedOrder: string[] = []
+      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'false',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        addHandlerOverride: (message) => {
+          processedOrder.push(message.id)
+          return Promise.resolve({ result: 'success' })
+        },
+      })
+
+      await publisher.init()
+      await consumer.start()
+
+      // Publish messages in order
+      for (let i = 1; i <= 5; i++) {
+        await publisher.publish({
+          id: `${i}`,
+          messageType: 'add',
+          userIds: `user-${i}`,
+        })
+      }
+
+      await consumer.handlerSpy.waitForMessageWithId('5', 'consumed')
+
+      // Verify messages were processed in order
+      expect(processedOrder).toEqual(['1', '2', '3', '4', '5'])
+
+      await consumer.close()
+    })
+  })
+})

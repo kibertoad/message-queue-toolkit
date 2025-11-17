@@ -1,3 +1,4 @@
+import type { SendMessageCommandInput } from '@aws-sdk/client-sqs'
 import { SendMessageCommand, SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import {
@@ -29,6 +30,7 @@ import { PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX } from './AbstractSqsPublisher.ts'
 import type {
   SQSCreationConfig,
   SQSDependencies,
+  SQSOptions,
   SQSQueueLocatorType,
 } from './AbstractSqsService.ts'
 import { AbstractSqsService } from './AbstractSqsService.ts'
@@ -51,7 +53,7 @@ export type SQSConsumerOptions<
   ExecutionContext,
   PrehandlerOutput,
   CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
-  QueueLocatorType extends object = SQSQueueLocatorType,
+  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
 > = QueueConsumerOptions<
   CreationConfigType,
   QueueLocatorType,
@@ -61,31 +63,32 @@ export type SQSConsumerOptions<
   PrehandlerOutput,
   SQSCreationConfig,
   SQSQueueLocatorType
-> & {
-  /**
-   * Omitting properties which will be set internally ins this class
-   * `visibilityTimeout` is also omitted to avoid conflicts with queue config
-   */
-  consumerOverrides?: Omit<
-    ConsumerOptions,
-    | 'sqs'
-    | 'queueUrl'
-    | 'handler'
-    | 'handleMessageBatch'
-    | 'visibilityTimeout'
-    | 'messageAttributeNames'
-    | 'messageSystemAttributeNames'
-    | 'attributeNames'
-  >
-  concurrentConsumersAmount?: number
-}
+> &
+  SQSOptions<CreationConfigType, QueueLocatorType> & {
+    /**
+     * Omitting properties which will be set internally ins this class
+     * `visibilityTimeout` is also omitted to avoid conflicts with queue config
+     */
+    consumerOverrides?: Omit<
+      ConsumerOptions,
+      | 'sqs'
+      | 'queueUrl'
+      | 'handler'
+      | 'handleMessageBatch'
+      | 'visibilityTimeout'
+      | 'messageAttributeNames'
+      | 'messageSystemAttributeNames'
+      | 'attributeNames'
+    >
+    concurrentConsumersAmount?: number
+  }
 
 export abstract class AbstractSqsConsumer<
     MessagePayloadType extends object,
     ExecutionContext,
     PrehandlerOutput = undefined,
     CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
-    QueueLocatorType extends object = SQSQueueLocatorType,
+    QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
     ConsumerOptionsType extends SQSConsumerOptions<
       MessagePayloadType,
       ExecutionContext,
@@ -175,7 +178,8 @@ export abstract class AbstractSqsConsumer<
       await deleteSqs(this.sqsClient, deletionConfig, creationConfig)
     }
 
-    const result = await initSqs(this.sqsClient, locatorConfig, creationConfig)
+    // DLQ should match the type of the source queue (FIFO DLQ for FIFO source queue)
+    const result = await initSqs(this.sqsClient, locatorConfig, creationConfig, this.isFifoQueue)
     await this.sqsClient.send(
       new SetQueueAttributesCommand({
         QueueUrl: this.queueUrl,
@@ -366,13 +370,9 @@ export abstract class AbstractSqsConsumer<
     messageProcessingStartTimestamp: number,
   ): Promise<void> {
     if (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
-      await this.sqsClient.send(
-        new SendMessageCommand({
-          QueueUrl: this.queueUrl,
-          DelaySeconds: this.getMessageRetryDelayInSeconds(originalMessage),
-          MessageBody: JSON.stringify(this.updateInternalProperties(originalMessage)),
-        }),
-      )
+      const sendMessageParams = this.buildRetryMessageParams(message, originalMessage)
+      await this.sqsClient.send(new SendMessageCommand(sendMessageParams))
+
       this.handleMessageProcessed({
         message: parsedMessage,
         processingResult: { status: 'retryLater' },
@@ -388,6 +388,41 @@ export abstract class AbstractSqsConsumer<
         queueName: this.queueName,
       })
     }
+  }
+
+  /**
+   * Builds SendMessageCommand parameters for retry, handling FIFO vs standard queues
+   */
+  private buildRetryMessageParams(
+    message: SQSMessage,
+    originalMessage: MessagePayloadType,
+  ): SendMessageCommandInput {
+    const params: SendMessageCommandInput = {
+      QueueUrl: this.queueUrl,
+      MessageBody: JSON.stringify(this.updateInternalProperties(originalMessage)),
+    }
+
+    if (this.isFifoQueue) {
+      // FIFO queues: preserve MessageGroupId and MessageDeduplicationId, no DelaySeconds
+      const messageGroupId = message.Attributes?.MessageGroupId
+      if (messageGroupId) {
+        params.MessageGroupId = messageGroupId
+      }
+
+      const deduplicationId = message.Attributes?.MessageDeduplicationId
+      if (deduplicationId) {
+        params.MessageDeduplicationId = deduplicationId
+      }
+
+      // Note: FIFO queues do not support DelaySeconds at the message level.
+      // Messages will be retried immediately. Consider using visibility timeout
+      // or application-level delay if needed.
+    } else {
+      // Standard queues: use DelaySeconds for exponential backoff
+      params.DelaySeconds = this.getMessageRetryDelayInSeconds(originalMessage)
+    }
+
+    return params
   }
 
   private stopExistingConsumers(abort?: boolean) {
@@ -576,10 +611,24 @@ export abstract class AbstractSqsConsumer<
   private async failProcessing(message: SQSMessage) {
     if (!this.deadLetterQueueUrl) return
 
-    const command = new SendMessageCommand({
+    const params: SendMessageCommandInput = {
       QueueUrl: this.deadLetterQueueUrl,
       MessageBody: message.Body,
-    })
+    }
+
+    // For FIFO queues, preserve MessageGroupId when sending to DLQ
+    if (this.isFifoQueue) {
+      const messageGroupId = message.Attributes?.MessageGroupId
+      if (messageGroupId) {
+        params.MessageGroupId = messageGroupId
+      }
+      const deduplicationId = message.Attributes?.MessageDeduplicationId
+      if (deduplicationId) {
+        params.MessageDeduplicationId = deduplicationId
+      }
+    }
+
+    const command = new SendMessageCommand(params)
     await this.sqsClient.send(command)
   }
 

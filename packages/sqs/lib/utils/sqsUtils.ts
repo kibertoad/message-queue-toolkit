@@ -164,9 +164,15 @@ export async function assertQueue(
   sqsClient: SQSClient,
   queueConfig: CreateQueueCommandInput,
   extraParams?: ExtraSQSCreationParams,
+  isFifoQueue?: boolean,
 ) {
   // biome-ignore lint/style/noNonNullAssertion: It's ok
-  const queueUrlResult = await getQueueUrl(sqsClient, queueConfig.QueueName!)
+  const queueName = queueConfig.QueueName!
+
+  // Validate FIFO queue configuration before creating/updating
+  validateFifoQueueConfiguration(queueName, queueConfig.Attributes, isFifoQueue)
+
+  const queueUrlResult = await getQueueUrl(sqsClient, queueName)
   const queueExists = !!queueUrlResult.result
 
   if (queueExists) {
@@ -281,4 +287,88 @@ export function calculateOutgoingMessageSize(message: unknown) {
 
 export function calculateSqsMessageBodySize(messageBody: SendMessageCommandInput['MessageBody']) {
   return messageBody ? Buffer.byteLength(messageBody, 'utf8') : 0
+}
+
+/**
+ * Checks if a queue name indicates a FIFO queue (ends with .fifo)
+ */
+export function isFifoQueueName(queueName: string): boolean {
+  return queueName.endsWith('.fifo')
+}
+
+/**
+ * Validates that queue name matches the FIFO configuration flag
+ */
+export function validateFifoQueueName(queueName: string, isFifoQueue: boolean): void {
+  const hasFifoName = isFifoQueueName(queueName)
+
+  if (isFifoQueue && !hasFifoName) {
+    throw new Error(`FIFO queue names must end with .fifo suffix. Queue name: ${queueName}`)
+  }
+
+  if (!isFifoQueue && hasFifoName) {
+    throw new Error(
+      `Queue name ends with .fifo but fifoQueue option is not set to true. Queue name: ${queueName}`,
+    )
+  }
+}
+
+/**
+ * Validates FIFO queue configuration for creation
+ * - FIFO queues must have names ending with .fifo
+ * - If FifoQueue attribute is 'true', name must end with .fifo
+ */
+export function validateFifoQueueConfiguration(
+  queueName: string,
+  attributes?: Partial<Record<QueueAttributeName, string>>,
+  isFifoQueue?: boolean,
+): void {
+  const hasFifoAttribute = attributes?.FifoQueue === 'true'
+  const hasFifoName = isFifoQueueName(queueName)
+
+  // If explicit FIFO flag is provided, validate against it
+  if (isFifoQueue !== undefined) {
+    validateFifoQueueName(queueName, isFifoQueue)
+
+    // Also validate that attributes match if provided
+    if (attributes && hasFifoAttribute !== isFifoQueue) {
+      throw new Error(
+        `FifoQueue attribute (${hasFifoAttribute}) does not match fifoQueue option (${isFifoQueue})`,
+      )
+    }
+  }
+
+  // Validate consistency between name and attributes
+  if (hasFifoAttribute && !hasFifoName) {
+    throw new Error(`FIFO queue names must end with .fifo suffix. Queue name: ${queueName}`)
+  }
+
+  if (hasFifoName && attributes && !hasFifoAttribute) {
+    throw new Error(
+      `Queue name ends with .fifo but FifoQueue attribute is not set to 'true'. Queue name: ${queueName}`,
+    )
+  }
+}
+
+/**
+ * Detects if a queue is FIFO based on its attributes
+ */
+export async function detectFifoQueue(
+  sqsClient: SQSClient,
+  queueUrl: string,
+  queueName?: string,
+): Promise<boolean> {
+  // First check the queue name if provided
+  if (queueName && isFifoQueueName(queueName)) {
+    return true
+  }
+
+  // Fallback to checking queue attributes
+  const attributesResult = await getQueueAttributes(sqsClient, queueUrl, ['FifoQueue'])
+
+  if (attributesResult.error) {
+    return false
+  }
+
+  return attributesResult.result?.attributes?.FifoQueue === 'true'
 }
