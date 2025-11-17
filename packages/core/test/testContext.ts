@@ -1,7 +1,8 @@
 import {
-    type CommonLogger,
-    type ErrorReporter, globalLogger,
-    type TransactionObservabilityManager,
+  type CommonLogger,
+  type ErrorReporter,
+  globalLogger,
+  type TransactionObservabilityManager,
 } from '@lokalise/node-core'
 import { enrichMessageSchemaWithBase } from '@message-queue-toolkit/schemas'
 import { asClass, asFunction, createContainer, Lifetime, type Resolver } from 'awilix'
