@@ -31,24 +31,49 @@ export type SQSMessageOptions = {
   MessageDeduplicationId?: string
 }
 
-export type SQSPublisherOptions<
+type BaseSQSPublisherOptions<
   MessagePayloadType extends object,
   CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
   QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
 > = QueuePublisherOptions<CreationConfigType, QueueLocatorType, MessagePayloadType> &
-  SQSOptions<CreationConfigType, QueueLocatorType> & {
-    /**
-     * Field name in the message payload to use as MessageGroupId for FIFO queues.
-     * If not provided, MessageGroupId must be specified in publish options for FIFO queues.
-     */
-    messageGroupIdField?: string
+  Omit<SQSOptions<CreationConfigType, QueueLocatorType>, 'fifoQueue'>
 
-    /**
-     * Default MessageGroupId to use for FIFO queues when messageGroupIdField is not present in the message.
-     * If not provided and messageGroupIdField is not found, MessageGroupId must be specified in publish options.
-     */
-    defaultMessageGroupId?: string
-  }
+/**
+ * SQS Publisher options with type-safe FIFO queue configuration.
+ * When fifoQueue is true, messageGroupIdField and defaultMessageGroupId are available.
+ * When fifoQueue is false or omitted, these fields are not allowed.
+ */
+export type SQSPublisherOptions<
+  MessagePayloadType extends object,
+  CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
+  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+> = BaseSQSPublisherOptions<MessagePayloadType, CreationConfigType, QueueLocatorType> &
+  (
+    | {
+        /**
+         * Set to true for FIFO queues. Enables messageGroupIdField and defaultMessageGroupId options.
+         */
+        fifoQueue: true
+        /**
+         * Field name in the message payload to use as MessageGroupId for FIFO queues.
+         * If not provided, MessageGroupId must be specified in publish options.
+         */
+        messageGroupIdField?: string
+        /**
+         * Default MessageGroupId to use when messageGroupIdField is not present in the message.
+         * If not provided and messageGroupIdField is not found, MessageGroupId must be specified in publish options.
+         */
+        defaultMessageGroupId?: string
+      }
+    | {
+        /**
+         * Set to false or omit for standard (non-FIFO) queues.
+         */
+        fifoQueue?: false
+        messageGroupIdField?: never
+        defaultMessageGroupId?: never
+      }
+  )
 
 export const PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX = 'payloadOffloading.'
 export const OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE = `${PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX}size`
