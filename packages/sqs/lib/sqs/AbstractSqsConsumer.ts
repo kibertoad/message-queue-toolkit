@@ -30,7 +30,6 @@ import { PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX } from './AbstractSqsPublisher.ts'
 import type {
   SQSCreationConfig,
   SQSDependencies,
-  SQSOptions,
   SQSQueueLocatorType,
 } from './AbstractSqsService.ts'
 import { AbstractSqsService } from './AbstractSqsService.ts'
@@ -53,7 +52,7 @@ export type SQSConsumerOptions<
   ExecutionContext,
   PrehandlerOutput,
   CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
-  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+  QueueLocatorType extends object = SQSQueueLocatorType,
 > = QueueConsumerOptions<
   CreationConfigType,
   QueueLocatorType,
@@ -63,32 +62,32 @@ export type SQSConsumerOptions<
   PrehandlerOutput,
   SQSCreationConfig,
   SQSQueueLocatorType
-> &
-  SQSOptions<CreationConfigType, QueueLocatorType> & {
-    /**
-     * Omitting properties which will be set internally ins this class
-     * `visibilityTimeout` is also omitted to avoid conflicts with queue config
-     */
-    consumerOverrides?: Omit<
-      ConsumerOptions,
-      | 'sqs'
-      | 'queueUrl'
-      | 'handler'
-      | 'handleMessageBatch'
-      | 'visibilityTimeout'
-      | 'messageAttributeNames'
-      | 'messageSystemAttributeNames'
-      | 'attributeNames'
-    >
-    concurrentConsumersAmount?: number
-  }
+> & {
+  /**
+   * Omitting properties which will be set internally ins this class
+   * `visibilityTimeout` is also omitted to avoid conflicts with queue config
+   */
+  consumerOverrides?: Omit<
+    ConsumerOptions,
+    | 'sqs'
+    | 'queueUrl'
+    | 'handler'
+    | 'handleMessageBatch'
+    | 'visibilityTimeout'
+    | 'messageAttributeNames'
+    | 'messageSystemAttributeNames'
+    | 'attributeNames'
+  >
+  concurrentConsumersAmount?: number
+  fifoQueue?: boolean
+}
 
 export abstract class AbstractSqsConsumer<
     MessagePayloadType extends object,
     ExecutionContext,
     PrehandlerOutput = undefined,
     CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
-    QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+    QueueLocatorType extends object = SQSQueueLocatorType,
     ConsumerOptionsType extends SQSConsumerOptions<
       MessagePayloadType,
       ExecutionContext,

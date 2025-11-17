@@ -59,14 +59,14 @@ export type SQSQueueConfig = {
 
 export type SQSOptions<
   CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
-  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+  QueueLocatorType extends object = SQSQueueLocatorType,
 > = QueueOptions<CreationConfigType, QueueLocatorType> & SQSQueueConfig
 
 export abstract class AbstractSqsService<
   MessagePayloadType extends object,
-  QueueLocatorType extends SQSQueueLocatorType = SQSQueueLocatorType,
+  QueueLocatorType extends object = SQSQueueLocatorType,
   CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
-  SQSOptionsType extends SQSOptions<CreationConfigType, QueueLocatorType> = SQSOptions<
+  SQSOptionsType extends QueueOptions<CreationConfigType, QueueLocatorType> = QueueOptions<
     CreationConfigType,
     QueueLocatorType
   >,
@@ -96,7 +96,7 @@ export abstract class AbstractSqsService<
   constructor(dependencies: DependenciesType, options: SQSOptionsType) {
     super(dependencies, options)
     this.sqsClient = dependencies.sqsClient
-    this.isFifoQueue = options.fifoQueue ?? false
+    this.isFifoQueue = (options as SQSQueueConfig).fifoQueue ?? false
   }
 
   public async init() {
