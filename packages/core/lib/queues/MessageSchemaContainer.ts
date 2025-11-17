@@ -12,7 +12,7 @@ const DEFAULT_SCHEMA_KEY = Symbol('NO_MESSAGE_TYPE')
 
 export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
   public readonly messageDefinitions: Record<string | symbol, CommonEventDefinition>
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: this is actually used
+
   private readonly messageSchemas: Record<string | symbol, ZodSchema<MessagePayloadSchemas>>
   private readonly messageTypeField?: string
 
@@ -39,7 +39,6 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
     return { result: schema }
   }
 
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: this is actually used
   private resolveMap<T extends CommonEventDefinition | ZodSchema<MessagePayloadSchemas>>(
     array: readonly T[],
   ): Record<string | symbol, T> {
