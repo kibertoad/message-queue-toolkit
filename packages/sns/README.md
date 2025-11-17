@@ -81,7 +81,7 @@ Consumers are actually `AbstractSnsSqsConsumer` which extends `AbstractSqsConsum
 
 ### Message Flow
 
-```
+```text
 Publisher → SNS Topic → [Subscriptions] → SQS Queues → Consumers
                             ↓
                     (optional filtering)

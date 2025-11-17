@@ -96,9 +96,10 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
 
     // Validate FIFO topic naming conventions
     if (this.isFifoTopic) {
-      const topicName =
-        this.locatorConfig?.topicName ?? this.creationConfig?.topic?.Name ?? 'unknown'
-      validateFifoTopicName(topicName, this.isFifoTopic)
+      const topicName = this.locatorConfig?.topicName ?? this.creationConfig?.topic?.Name
+      if (topicName) {
+        validateFifoTopicName(topicName, this.isFifoTopic)
+      }
     }
   }
 
