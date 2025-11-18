@@ -81,6 +81,35 @@ export type CommonQueueOptions = {
   messageTimestampField?: string
   messageDeduplicationIdField?: string
   messageDeduplicationOptionsField?: string
+  /**
+   * Optional field name to extract the payload from the message.
+   * If specified, the handler will receive the value of this field instead of the entire message.
+   * This is useful for non-standard message formats like EventBridge events where the actual
+   * payload is nested (e.g., in a 'detail' field).
+   * If undefined, the entire message is treated as the payload (default behavior).
+   */
+  messagePayloadField?: string
+  /**
+   * When true, look up messageTypeField in the full/root message instead of the extracted payload.
+   * Only relevant when messagePayloadField is also configured.
+   *
+   * Use case: EventBridge events where:
+   * - messagePayloadField: 'detail' (extract nested payload)
+   * - messageTypeField: 'detail-type' (type field is in root, not in detail)
+   * - messageTypeFromFullMessage: true (look for detail-type in root message)
+   *
+   * Default: false (look in extracted payload for backward compatibility)
+   */
+  messageTypeFromFullMessage?: boolean
+  /**
+   * If true, skip automatic timestamp addition and validation for messages without a timestamp field.
+   * This is useful for non-standard message formats that don't include timestamp information.
+   * When enabled:
+   * - Messages without timestamp won't have one auto-added
+   * - Retry logic will use current time for retry calculations
+   * Default: false (maintains backward compatibility)
+   */
+  skipMissingTimestampValidation?: boolean
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
   deletionConfig?: DeletionConfig

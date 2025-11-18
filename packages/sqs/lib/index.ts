@@ -21,6 +21,11 @@ export {
   type SQSQueueLocatorType,
 } from './sqs/AbstractSqsService.ts'
 export type { CommonMessage, SQSMessage } from './types/MessageTypes.ts'
+export {
+  createEventBridgeSchema,
+  createEventBridgeSchemas,
+  type EventBridgeDetail,
+} from './utils/eventBridgeSchemaBuilder.ts'
 export { resolveOutgoingMessageAttributes } from './utils/messageUtils.ts'
 export {
   generateQueuePublishForTopicPolicy,

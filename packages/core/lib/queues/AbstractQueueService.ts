@@ -102,6 +102,18 @@ export abstract class AbstractQueueService<
    * Used to know the store-based message deduplication options
    */
   protected readonly messageDeduplicationOptionsField: string
+  /**
+   * Optional field name to extract the payload from
+   */
+  protected readonly messagePayloadField?: string
+  /**
+   * Whether to look up messageTypeField in the full message instead of extracted payload
+   */
+  protected readonly messageTypeFromFullMessage: boolean
+  /**
+   * Skip timestamp validation and auto-addition for messages without timestamp
+   */
+  protected readonly skipMissingTimestampValidation: boolean
 
   protected readonly errorReporter: ErrorReporter
   public readonly logger: CommonLogger
@@ -142,6 +154,9 @@ export abstract class AbstractQueueService<
     this.messageDeduplicationIdField = options.messageDeduplicationIdField ?? 'deduplicationId'
     this.messageDeduplicationOptionsField =
       options.messageDeduplicationOptionsField ?? 'deduplicationOptions'
+    this.messagePayloadField = options.messagePayloadField
+    this.messageTypeFromFullMessage = options.messageTypeFromFullMessage ?? false
+    this.skipMissingTimestampValidation = options.skipMissingTimestampValidation ?? false
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig
@@ -162,7 +177,10 @@ export abstract class AbstractQueueService<
     handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
     messageTypeField: string
   }) {
-    const messageSchemas = options.handlers.map((entry) => entry.schema)
+    // Use envelopeSchema for routing if provided, otherwise use payloadSchema
+    const messageSchemas = options.handlers.map(
+      (entry) => (entry.envelopeSchema ?? entry.schema) as ZodSchema<MessagePayloadSchemas>,
+    )
     const messageDefinitions: CommonEventDefinition[] = options.handlers
       .map((entry) => entry.definition)
       .filter((entry) => entry !== undefined)
@@ -194,6 +212,40 @@ export abstract class AbstractQueueService<
   protected abstract resolveMessage(
     message: MessageEnvelopeType,
   ): Either<MessageInvalidFormatError | MessageValidationError, ResolvedMessage>
+
+  /**
+   * Extract payload from message if messagePayloadField is configured.
+   * Returns an object containing both the extracted payload (for validation and handler)
+   * and the full message (for metadata extraction).
+   */
+  protected extractMessagePayload(fullMessage: unknown): {
+    payload: unknown
+    fullMessage: unknown
+  } {
+    if (!this.messagePayloadField) {
+      // No payload field configured, treat entire message as payload
+      return { payload: fullMessage, fullMessage }
+    }
+
+    // Extract the payload field
+    if (
+      typeof fullMessage === 'object' &&
+      fullMessage !== null &&
+      this.messagePayloadField in fullMessage
+    ) {
+      return {
+        // @ts-expect-error - dynamic field access
+        payload: fullMessage[this.messagePayloadField],
+        fullMessage,
+      }
+    }
+
+    // Payload field not found, log warning and return full message
+    this.logger.warn(
+      `messagePayloadField "${this.messagePayloadField}" not found in message, using full message`,
+    )
+    return { payload: fullMessage, fullMessage }
+  }
 
   /**
    * Format message for logging
@@ -361,8 +413,9 @@ export abstract class AbstractQueueService<
     /**
      * If the message doesn't have a timestamp field -> add it
      * will be used to prevent infinite retries on the same message
+     * Skip this if skipMissingTimestampValidation is enabled (for non-standard message formats)
      */
-    if (!this.tryToExtractTimestamp(message)) {
+    if (!this.tryToExtractTimestamp(message) && !this.skipMissingTimestampValidation) {
       // @ts-expect-error
       messageCopy[this.messageTimestampField] = new Date().toISOString()
       this.logger.warn(`${this.messageTimestampField} not defined, adding it automatically`)

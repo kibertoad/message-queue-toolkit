@@ -72,6 +72,7 @@ export class MessageHandlerConfig<
   const BarrierOutput = unknown,
 > {
   public readonly schema: ZodSchema<MessagePayloadSchema>
+  public readonly envelopeSchema?: ZodSchema<unknown>
   public readonly definition?: CommonEventDefinition
   public readonly handler: Handler<
     MessagePayloadSchema,
@@ -102,8 +103,10 @@ export class MessageHandlerConfig<
       BarrierOutput
     >,
     eventDefinition?: CommonEventDefinition,
+    envelopeSchema?: ZodSchema<unknown>,
   ) {
     this.schema = schema
+    this.envelopeSchema = envelopeSchema
     this.definition = eventDefinition
     this.handler = handler
     this.messageLogFormatter = options?.messageLogFormatter ?? defaultLogFormatter
@@ -129,6 +132,7 @@ export class MessageHandlerConfigBuilder<
     this.configs = []
   }
 
+  // Two-param version: schema is used for both routing and validation (backward compatible)
   addConfig<MessagePayloadSchema extends MessagePayloadSchemas, const BarrierOutput>(
     schema: ZodSchema<MessagePayloadSchema> | CommonEventDefinition,
     handler: Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>,
@@ -138,12 +142,96 @@ export class MessageHandlerConfigBuilder<
       PrehandlerOutput,
       BarrierOutput
     >,
+  ): this
+
+  // Three-param version: envelopeSchema for routing, payloadSchema for validation
+  addConfig<MessagePayloadSchema extends MessagePayloadSchemas, const BarrierOutput>(
+    envelopeSchema: ZodSchema<unknown>,
+    payloadSchema: ZodSchema<MessagePayloadSchema>,
+    handler: Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>,
+    options?: HandlerConfigOptions<
+      MessagePayloadSchema,
+      ExecutionContext,
+      PrehandlerOutput,
+      BarrierOutput
+    >,
+  ): this
+
+  // Implementation
+  addConfig<MessagePayloadSchema extends MessagePayloadSchemas, const BarrierOutput>(
+    schemaOrEnvelope: ZodSchema<MessagePayloadSchema> | CommonEventDefinition | ZodSchema<unknown>,
+    handlerOrPayloadSchema:
+      | Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>
+      | ZodSchema<MessagePayloadSchema>,
+    optionsOrHandler?:
+      | HandlerConfigOptions<
+          MessagePayloadSchema,
+          ExecutionContext,
+          PrehandlerOutput,
+          BarrierOutput
+        >
+      | Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>,
+    maybeOptions?: HandlerConfigOptions<
+      MessagePayloadSchema,
+      ExecutionContext,
+      PrehandlerOutput,
+      BarrierOutput
+    >,
   ) {
-    const resolvedSchema: ZodSchema<MessagePayloadSchema> = isCommonEventDefinition(schema)
-      ? // @ts-ignore
-        (schema.consumerSchema as ZodSchema<MessagePayloadSchema>)
-      : schema
-    const definition = isCommonEventDefinition(schema) ? schema : undefined
+    // Detect which overload was called based on parameter types
+    const isThreeParamVersion =
+      typeof handlerOrPayloadSchema === 'object' && 'parse' in handlerOrPayloadSchema
+
+    let payloadSchema: ZodSchema<MessagePayloadSchema>
+    let handler: Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>
+    let options:
+      | HandlerConfigOptions<
+          MessagePayloadSchema,
+          ExecutionContext,
+          PrehandlerOutput,
+          BarrierOutput
+        >
+      | undefined
+    let definition: CommonEventDefinition | undefined
+    let envelopeSchema: ZodSchema<unknown> | undefined
+
+    if (isThreeParamVersion) {
+      // Three-param version: (envelopeSchema, payloadSchema, handler, options?)
+      envelopeSchema = schemaOrEnvelope as ZodSchema<unknown>
+      payloadSchema = handlerOrPayloadSchema as ZodSchema<MessagePayloadSchema>
+      handler = optionsOrHandler as Handler<
+        MessagePayloadSchema,
+        ExecutionContext,
+        PrehandlerOutput,
+        BarrierOutput
+      >
+      options = maybeOptions
+      definition = undefined
+    } else {
+      // Two-param version: (schema, handler, options?) - schema used for both routing and validation
+      const schema = schemaOrEnvelope as ZodSchema<MessagePayloadSchema> | CommonEventDefinition
+      payloadSchema = isCommonEventDefinition(schema)
+        ? // @ts-ignore
+          (schema.consumerSchema as ZodSchema<MessagePayloadSchema>)
+        : schema
+      definition = isCommonEventDefinition(schema) ? schema : undefined
+      handler = handlerOrPayloadSchema as Handler<
+        MessagePayloadSchema,
+        ExecutionContext,
+        PrehandlerOutput,
+        BarrierOutput
+      >
+      options = optionsOrHandler as
+        | HandlerConfigOptions<
+            MessagePayloadSchema,
+            ExecutionContext,
+            PrehandlerOutput,
+            BarrierOutput
+          >
+        | undefined
+      // If envelopeSchema not provided, routing will use payloadSchema
+      envelopeSchema = undefined
+    }
 
     this.configs.push(
       new MessageHandlerConfig<
@@ -152,11 +240,12 @@ export class MessageHandlerConfigBuilder<
         PrehandlerOutput,
         BarrierOutput
       >(
-        resolvedSchema,
+        payloadSchema,
         // @ts-expect-error
         handler,
         options,
         definition,
+        envelopeSchema,
       ),
     )
     return this
@@ -234,8 +323,10 @@ export class HandlerContainer<
   > {
     return supportedHandlers.reduce(
       (acc, entry) => {
+        // Use envelopeSchema for routing if provided, otherwise use payloadSchema
+        const schemaForRouting = entry.envelopeSchema ?? entry.schema
         // @ts-expect-error
-        const messageType = entry.schema.shape[this.messageTypeField].value
+        const messageType = schemaForRouting.shape[this.messageTypeField].value
         acc[messageType] = entry
         return acc
       },

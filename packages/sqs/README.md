@@ -26,6 +26,9 @@ AWS SQS (Simple Queue Service) implementation for the message-queue-toolkit. Pro
   - [Message Handlers](#message-handlers)
   - [Pre-handlers and Barriers](#pre-handlers-and-barriers)
   - [Handler Spies](#handler-spies)
+- [Non-Standard Message Formats](#non-standard-message-formats)
+  - [EventBridge Events](#eventbridge-events)
+  - [Custom Message Structures](#custom-message-structures)
 - [FIFO Queues](#fifo-queues)
   - [FIFO Queue Requirements](#fifo-queue-requirements)
   - [Message Ordering](#message-ordering)
@@ -1669,6 +1672,411 @@ interface HandlerSpy<Message> {
 3. **Clean up between tests** - Reset handler spies or recreate publishers/consumers
 4. **Use in integration tests** - Handler spies are most valuable for integration tests, not unit tests
 5. **Don't use in production** - Handler spies add memory overhead (circular buffer of messages)
+
+## Non-Standard Message Formats
+
+The toolkit supports consuming messages that don't follow the standard message structure (with `type`, `id`, `timestamp`, and `payload` fields at the root level). This is particularly useful for consuming events from external systems like AWS EventBridge, CloudWatch Events, or custom event sources.
+
+### Understanding Envelope vs Payload Schemas
+
+For non-standard message formats where the actual payload is nested within an envelope structure, the toolkit uses a **two-schema approach**:
+
+1. **Envelope Schema**: Validates the full message structure and provides literal type values for routing
+2. **Payload Schema**: Validates the extracted payload that handlers actually receive
+
+This separation allows proper type safety while maintaining efficient message routing.
+
+### EventBridge Events
+
+AWS EventBridge events have a different structure than standard toolkit messages. They use:
+- `detail-type` instead of `type` (routing field at root level)
+- `time` instead of `timestamp`
+- `detail` for the actual payload (nested)
+- `id` for the message ID (same as default)
+
+#### Using the EventBridge Schema Builder
+
+The toolkit provides helper functions to create properly typed EventBridge schemas:
+
+```typescript
+import {
+  AbstractSqsConsumer,
+  createEventBridgeSchema,
+  type EventBridgeDetail
+} from '@message-queue-toolkit/sqs'
+import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
+import z from 'zod'
+
+// Step 1: Define your detail (payload) schema
+const USER_PRESENCE_DETAIL = z.object({
+  userId: z.string(),
+  status: z.enum(['AVAILABLE', 'AWAY', 'BUSY', 'OFFLINE']),
+  timestamp: z.string(),
+})
+
+// Step 2: Create envelope schema with literal detail-type for routing
+const USER_PRESENCE_ENVELOPE = createEventBridgeSchema(
+  USER_PRESENCE_DETAIL,
+  'user.presence.changed'  // Literal value for routing
+)
+
+// Step 3: Create test schema (accepts any detail-type string)
+const USER_PRESENCE_EVENT = createEventBridgeSchema(USER_PRESENCE_DETAIL)
+
+// Step 4: Infer types
+type UserPresenceEvent = z.infer<typeof USER_PRESENCE_EVENT>
+// {
+//   version: string
+//   id: string
+//   'detail-type': string
+//   source: string
+//   account: string
+//   time: string
+//   region: string
+//   resources: string[]
+//   detail: {
+//     userId: string
+//     status: 'AVAILABLE' | 'AWAY' | 'BUSY' | 'OFFLINE'
+//     timestamp: string
+//   }
+// }
+
+type UserPresenceDetail = z.infer<typeof USER_PRESENCE_DETAIL>
+// {
+//   userId: string
+//   status: 'AVAILABLE' | 'AWAY' | 'BUSY' | 'OFFLINE'
+//   timestamp: string
+// }
+```
+
+#### Creating an EventBridge Consumer
+
+```typescript
+class EventBridgeConsumer extends AbstractSqsConsumer<UserPresenceDetail, ExecutionContext> {
+  constructor(dependencies: SQSConsumerDependencies) {
+    super(dependencies, {
+      creationConfig: {
+        queue: { QueueName: 'eventbridge-events' },
+      },
+
+      // Configure field mappings for EventBridge
+      messageTypeField: 'detail-type',     // EventBridge uses 'detail-type'
+      messageIdField: 'id',                // Standard, same as default
+      messageTimestampField: 'time',       // EventBridge uses 'time'
+
+      // Extract the 'detail' field as the payload
+      messagePayloadField: 'detail',       // Extract nested payload
+      messageTypeFromFullMessage: true,    // Look for 'detail-type' in root message
+
+      // Don't auto-add timestamp since EventBridge events already have 'time'
+      skipMissingTimestampValidation: true,
+
+      // Use 3-param addConfig: (envelopeSchema, payloadSchema, handler)
+      // - envelopeSchema: Used for routing (has literal 'detail-type')
+      // - payloadSchema: Used for validation of extracted 'detail'
+      // - handler: Receives validated 'detail' payload
+      handlers: new MessageHandlerConfigBuilder<UserPresenceDetail, ExecutionContext>()
+        .addConfig(
+          USER_PRESENCE_ENVELOPE,  // Envelope schema with literal detail-type
+          USER_PRESENCE_DETAIL,     // Payload schema for extracted detail
+          async (detail, context) => {
+            // detail is typed as UserPresenceDetail
+            console.log('User status changed:', detail.userId, detail.status)
+            return { result: 'success' as const }
+          },
+        )
+        .build(),
+    })
+  }
+}
+```
+
+**Key Points:**
+- Envelope schema validates the full EventBridge message and provides the literal `detail-type` for routing
+- Payload schema validates the extracted `detail` field
+- The `detail` field is validated twice (once in envelope, once as extracted payload) - this is an acceptable tradeoff for proper type safety
+- Handlers receive only the validated `detail` payload, not the full envelope
+
+#### Multiple EventBridge Event Types
+
+Handle multiple EventBridge event types with distinct detail-type values:
+
+```typescript
+import { createEventBridgeSchema, createEventBridgeSchemas } from '@message-queue-toolkit/sqs'
+
+// Step 1: Define detail (payload) schemas
+const USER_PRESENCE_DETAIL = z.object({
+  userId: z.string(),
+  status: z.string(),
+  timestamp: z.string(),
+})
+
+const USER_ROUTING_STATUS_DETAIL = z.object({
+  userId: z.string(),
+  routingStatus: z.object({
+    id: z.string(),
+    status: z.string(),
+  }),
+  timestamp: z.string(),
+})
+
+// Step 2: Create envelope schemas with literal detail-type values
+const USER_PRESENCE_ENVELOPE = createEventBridgeSchema(
+  USER_PRESENCE_DETAIL,
+  'v2.users.{id}.presence'  // Literal routing value
+)
+
+const USER_ROUTING_STATUS_ENVELOPE = createEventBridgeSchema(
+  USER_ROUTING_STATUS_DETAIL,
+  'v2.users.{id}.routing.status'  // Literal routing value
+)
+
+// Step 3: Create test schemas (optional, for `satisfies` in tests)
+const EVENT_SCHEMAS = createEventBridgeSchemas({
+  userPresence: USER_PRESENCE_DETAIL,
+  userRoutingStatus: USER_ROUTING_STATUS_DETAIL,
+})
+
+// Step 4: Union type for all detail payloads
+type SupportedDetails =
+  | z.infer<typeof USER_PRESENCE_DETAIL>
+  | z.infer<typeof USER_ROUTING_STATUS_DETAIL>
+
+// Step 5: Consumer with multiple handlers
+class MultiEventConsumer extends AbstractSqsConsumer<SupportedDetails, ExecutionContext> {
+  constructor(dependencies: SQSConsumerDependencies) {
+    super(dependencies, {
+      creationConfig: { queue: { QueueName: 'multi-event-queue' } },
+
+      messageTypeField: 'detail-type',
+      messageTimestampField: 'time',
+      messagePayloadField: 'detail',
+      messageTypeFromFullMessage: true,
+      skipMissingTimestampValidation: true,
+
+      handlers: new MessageHandlerConfigBuilder<SupportedDetails, ExecutionContext>()
+        .addConfig(
+          USER_PRESENCE_ENVELOPE,     // Envelope schema for routing
+          USER_PRESENCE_DETAIL,        // Payload schema for validation
+          async (detail, context) => {
+            // detail is typed as UserPresenceDetail
+            console.log(`User ${detail.userId} status: ${detail.status}`)
+            return { result: 'success' as const }
+          }
+        )
+        .addConfig(
+          USER_ROUTING_STATUS_ENVELOPE,  // Envelope schema for routing
+          USER_ROUTING_STATUS_DETAIL,     // Payload schema for validation
+          async (detail, context) => {
+            // detail is typed as UserRoutingStatusDetail
+            console.log(`User ${detail.userId} routing: ${detail.routingStatus.status}`)
+            return { result: 'success' as const }
+          }
+        )
+        .build(),
+    })
+  }
+}
+```
+
+#### Complete EventBridge Example
+
+```typescript
+import { SQSClient } from '@aws-sdk/client-sqs'
+import {
+  AbstractSqsConsumer,
+  createEventBridgeSchema,
+  SqsConsumerErrorResolver,
+  type SQSConsumerDependencies
+} from '@message-queue-toolkit/sqs'
+import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
+import z from 'zod'
+
+// 1. Define the detail payload schema
+const USER_CREATED_DETAIL = z.object({
+  userId: z.string(),
+  email: z.string().email(),
+  name: z.string(),
+  createdAt: z.string(),
+})
+
+// 2. Create envelope schema with literal detail-type for routing
+const USER_CREATED_ENVELOPE = createEventBridgeSchema(
+  USER_CREATED_DETAIL,
+  'user.created'  // Literal value for routing
+)
+
+// 3. Create test schema (optional, for `satisfies` in tests)
+const USER_CREATED_EVENT = createEventBridgeSchema(USER_CREATED_DETAIL)
+
+// 4. Type for the detail payload (what handlers receive)
+type UserCreatedDetail = z.infer<typeof USER_CREATED_DETAIL>
+
+// 5. Create consumer
+class UserEventConsumer extends AbstractSqsConsumer<UserCreatedDetail> {
+  constructor(dependencies: SQSConsumerDependencies) {
+    super(dependencies, {
+      creationConfig: {
+        queue: { QueueName: 'user-events' },
+      },
+
+      // EventBridge field mappings
+      messageTypeField: 'detail-type',
+      messageTimestampField: 'time',
+      messagePayloadField: 'detail',
+      messageTypeFromFullMessage: true,
+      skipMissingTimestampValidation: true,
+
+      handlers: new MessageHandlerConfigBuilder<UserCreatedDetail>()
+        .addConfig(
+          USER_CREATED_ENVELOPE,  // Envelope for routing
+          USER_CREATED_DETAIL,     // Payload for validation
+          async (detail) => {
+            // detail is typed: { userId: string; email: string; name: string; createdAt: string }
+            console.log(`New user created: ${detail.name} (${detail.email})`)
+            await saveUserToDatabase(detail)
+            return { result: 'success' as const }
+          },
+        )
+        .build(),
+    })
+  }
+}
+
+// 6. Use the consumer
+const sqsClient = new SQSClient({ region: 'us-east-1' })
+const consumer = new UserEventConsumer({
+  sqsClient,
+  consumerErrorResolver: new SqsConsumerErrorResolver(),
+  errorReporter: { report: (error) => console.error(error) },
+  logger: console,
+  transactionObservabilityManager: undefined,
+})
+
+await consumer.start()
+
+// Example EventBridge event structure (for testing):
+const exampleEvent = {
+  version: '0',
+  id: '12345678-1234-1234-1234-123456789012',
+  'detail-type': 'user.created',
+  source: 'my.application',
+  account: '123456789012',
+  time: '2025-01-15T12:00:00Z',
+  region: 'us-east-1',
+  resources: [],
+  detail: {  // Handler receives only this
+    userId: 'user-123',
+    email: 'user@example.com',
+    name: 'John Doe',
+    createdAt: '2025-01-15T12:00:00Z',
+  },
+} satisfies z.infer<typeof USER_CREATED_EVENT>
+```
+
+### Custom Message Structures
+
+For other non-standard message formats, you can configure the field mappings. For simple cases where the payload schema alone has the routing field, use the standard 2-param `addConfig`:
+
+```typescript
+class CustomConsumer extends AbstractSqsConsumer<PayloadType> {
+  constructor(dependencies: SQSConsumerDependencies) {
+    super(dependencies, {
+      creationConfig: { queue: { QueueName: 'custom-queue' } },
+
+      // Map your custom field names
+      messageTypeField: 'eventType',        // Instead of 'type'
+      messageIdField: 'correlationId',      // Instead of 'id'
+      messageTimestampField: 'occurredAt',  // Instead of 'timestamp'
+
+      // If payload is nested, extract it
+      messagePayloadField: 'data',          // Extract 'data' field
+
+      // Skip timestamp auto-addition if not needed
+      skipMissingTimestampValidation: true,
+
+      // Standard 2-param addConfig when routing field is in payload
+      handlers: new MessageHandlerConfigBuilder<PayloadType>()
+        .addConfig(PAYLOAD_SCHEMA, async (payload) => {
+          // Handler receives the extracted payload
+          return { result: 'success' as const }
+        })
+        .build(),
+    })
+  }
+}
+```
+
+For complex cases where the routing field is in the envelope but the payload is nested (like EventBridge), use the 3-param `addConfig`:
+
+```typescript
+// Create envelope schema with literal routing value
+const CUSTOM_ENVELOPE = z.object({
+  eventType: z.literal('order.created'),  // Routing field
+  correlationId: z.string(),
+  occurredAt: z.string(),
+  data: PAYLOAD_SCHEMA,  // Nested payload
+})
+
+// Use 3-param addConfig
+handlers: new MessageHandlerConfigBuilder<PayloadType>()
+  .addConfig(
+    CUSTOM_ENVELOPE,  // Envelope for routing
+    PAYLOAD_SCHEMA,   // Payload for validation
+    async (payload) => {
+      return { result: 'success' as const }
+    }
+  )
+  .build()
+```
+
+**Configuration Options:**
+
+- `messageTypeField` (required) - Field name containing the message type for routing
+- `messageIdField` (optional, default: `'id'`) - Field name containing the message ID
+- `messageTimestampField` (optional, default: `'timestamp'`) - Field name containing the timestamp
+- `messagePayloadField` (optional) - If specified, extract this nested field as the payload before validation. If not specified, the entire message is validated
+- `messageTypeFromFullMessage` (optional, default: `false`) - When `true`, look up `messageTypeField` in the full/root message instead of the extracted payload. Use this when the routing field is at the root but payload is nested. Only relevant when `messagePayloadField` is also configured
+- `skipMissingTimestampValidation` (optional, default: `false`) - If `true`, don't auto-add timestamp field for messages without one
+
+**Processing Flow:**
+
+When `messagePayloadField` is configured:
+
+1. **Routing** - Look up message type in full message (if `messageTypeFromFullMessage: true`) or extracted payload (default)
+2. **Match envelope schema** - Find handler config with matching envelope schema (via literal type value)
+3. **Extract payload** - Extract the nested field specified by `messagePayloadField`
+4. **Validate payload** - Validate extracted payload against payload schema from handler config
+5. **Invoke handler** - Pass validated payload to handler
+
+This two-schema approach maintains proper type safety while enabling flexible message routing.
+
+**When to use `messageTypeFromFullMessage`:**
+
+Use this when the type discriminator field is in the root message, not in the nested payload:
+
+```typescript
+// EventBridge event structure:
+{
+  "detail-type": "v2.users.123.presence",  // Type field is HERE (root level)
+  "id": "event-123",
+  "time": "2025-11-18T12:00:00Z",
+  "detail": {                              // Payload is HERE (nested)
+    "userId": "123",
+    "status": "online"
+    // No 'detail-type' field here!
+  }
+}
+
+// Configuration:
+{
+  messageTypeField: 'detail-type',         // Field is in root
+  messagePayloadField: 'detail',           // Extract nested payload
+  messageTypeFromFullMessage: true,        // Look for 'detail-type' in root, not in 'detail'
+}
+```
+
+Without `messageTypeFromFullMessage: true`, the consumer would look for `detail-type` in the extracted `detail` object, which would fail.
 
 ## FIFO Queues
 
