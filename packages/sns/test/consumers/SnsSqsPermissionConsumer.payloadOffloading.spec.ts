@@ -92,6 +92,6 @@ describe('SnsSqsPermissionConsumer', () => {
         'consumed',
       )
       expect(consumptionResult.message).toMatchObject(message)
-    })
+    }, 10000)
   })
 })

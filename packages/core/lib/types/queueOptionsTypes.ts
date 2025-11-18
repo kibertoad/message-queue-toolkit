@@ -82,15 +82,24 @@ export type CommonQueueOptions = {
   messageDeduplicationIdField?: string
   messageDeduplicationOptionsField?: string
   /**
-   * Optional field name to extract the payload from the message.
+   * Field name containing the business payload within the message envelope.
    *
-   * When specified: The handler will receive the value of this field instead of the entire message.
-   * This is useful for non-standard message formats like EventBridge events where the actual
-   * payload is nested (e.g., in a 'detail' field).
+   * The "payload" is the part of the message relevant for handler processing logic (e.g., user data, order details),
+   * as opposed to metadata fields used primarily for observability, routing, error handling, and flow control
+   * (e.g., id, timestamp, messageType, deduplicationId).
    *
-   * When not specified (undefined): The entire message is treated as the payload (default behavior).
+   * When specified: The handler receives only the extracted payload field, while metadata fields remain accessible
+   * from the full message for logging, deduplication, and error reporting.
    *
-   * Default: undefined (no payload extraction, entire message is payload)
+   * Common patterns:
+   * - Envelope structure: { id, type, timestamp, payload: {...} } → handler receives payload content
+   * - EventBridge events: { source, detail-type, time, detail: {...} } → use 'detail' as messagePayloadField
+   * - Flat structure: Set to undefined to treat the entire message as payload (useful for external systems,
+   *   simple use cases, or when you don't control the message format)
+   *
+   * If the specified field is not found in a message, the system logs a warning and uses the full message as fallback.
+   *
+   * Default: 'payload'
    */
   messagePayloadField?: string
   /**

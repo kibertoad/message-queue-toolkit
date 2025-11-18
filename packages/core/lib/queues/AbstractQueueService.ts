@@ -153,7 +153,7 @@ export abstract class AbstractQueueService<
     this.messageDeduplicationIdField = options.messageDeduplicationIdField ?? 'deduplicationId'
     this.messageDeduplicationOptionsField =
       options.messageDeduplicationOptionsField ?? 'deduplicationOptions'
-    this.messagePayloadField = options.messagePayloadField
+    this.messagePayloadField = options.messagePayloadField ?? 'payload'
     this.messageTypeFromFullMessage = options.messageTypeFromFullMessage ?? false
     this.messageTimestampFromFullMessage = options.messageTimestampFromFullMessage ?? false
     this.creationConfig = options.creationConfig
