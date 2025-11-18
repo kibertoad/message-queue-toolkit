@@ -558,5 +558,65 @@ describe('SqsPermissionConsumerFifo', () => {
 
       await consumer.close(true)
     })
+
+    it('uses custom visibility extension parameters', async () => {
+      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'true',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        defaultMessageGroupId: 'test-group',
+      })
+
+      let attemptCount = 0
+      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'true',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        barrierSleepCheckIntervalInMsecs: 100, // Fast recheck for tests
+        barrierVisibilityExtensionIntervalInMsecs: 5000, // Custom: 5 seconds
+        barrierVisibilityTimeoutInSeconds: 15, // Custom: 15 seconds
+        addHandlerOverride: () => {
+          attemptCount++
+          if (attemptCount < 2) {
+            return Promise.resolve({ error: 'retryLater' })
+          }
+          return Promise.resolve({ result: 'success' })
+        },
+      })
+
+      await publisher.init()
+      await consumer.start()
+
+      await publisher.publish({
+        id: 'custom-visibility-test',
+        messageType: 'add',
+        userIds: 'user-custom',
+      })
+
+      await consumer.handlerSpy.waitForMessageWithId('custom-visibility-test', 'consumed')
+
+      // Verify message was processed twice (initial attempt + recheck after sleep)
+      expect(attemptCount).toBe(2)
+
+      await consumer.close(true)
+    })
   })
 })
