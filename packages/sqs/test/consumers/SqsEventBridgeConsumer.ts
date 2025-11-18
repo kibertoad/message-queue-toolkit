@@ -30,12 +30,14 @@ export type EventBridgeTestContext = {
  * - messageTypeField: 'detail-type' (instead of default 'type')
  * - messageTimestampField: 'time' (instead of default 'timestamp')
  * - messagePayloadField: 'detail' (extracts nested payload for validation and handler)
- * - skipMissingTimestampValidation: true (EventBridge events don't need additional timestamp)
+ * - messageTypeFromFullMessage: true (look for detail-type in envelope, not payload)
+ * - messageTimestampFromFullMessage: true (extract timestamp from envelope for metadata)
  *
  * How it works:
  * - messagePayloadField extracts the 'detail' field from the EventBridge envelope
  * - Schemas validate the extracted 'detail' content
  * - Handlers receive the validated 'detail' payload
+ * - Metadata extraction uses the full envelope for type and timestamp fields
  */
 export class SqsEventBridgeConsumer extends AbstractSqsConsumer<
   SupportedEventBridgePayloads,
@@ -65,7 +67,7 @@ export class SqsEventBridgeConsumer extends AbstractSqsConsumer<
         // Payload extraction configuration
         messagePayloadField: 'detail', // Extract 'detail' field and pass to handler
         messageTypeFromFullMessage: true, // Look for 'detail-type' in root, not in extracted payload
-        skipMissingTimestampValidation: true, // Don't auto-add timestamp field
+        messageTimestampFromFullMessage: true, // Extract 'time' from root for metadata/logging
 
         // Enable handler spy for testing
         handlerSpy: true,

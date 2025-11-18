@@ -111,6 +111,10 @@ export abstract class AbstractQueueService<
    */
   protected readonly messageTypeFromFullMessage: boolean
   /**
+   * Whether to extract timestamp from full message for metadata (when messagePayloadField is set)
+   */
+  protected readonly messageTimestampFromFullMessage: boolean
+  /**
    * Skip timestamp validation and auto-addition for messages without timestamp
    */
   protected readonly skipMissingTimestampValidation: boolean
@@ -156,6 +160,7 @@ export abstract class AbstractQueueService<
       options.messageDeduplicationOptionsField ?? 'deduplicationOptions'
     this.messagePayloadField = options.messagePayloadField
     this.messageTypeFromFullMessage = options.messageTypeFromFullMessage ?? false
+    this.messageTimestampFromFullMessage = options.messageTimestampFromFullMessage ?? false
     this.skipMissingTimestampValidation = options.skipMissingTimestampValidation ?? false
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
@@ -274,12 +279,13 @@ export abstract class AbstractQueueService<
 
   protected handleMessageProcessed(params: {
     message: MessagePayloadSchemas | null
+    fullMessage?: MessagePayloadSchemas | null
     processingResult: MessageProcessingResult
     messageProcessingStartTimestamp: number
     queueName: string
     messageId?: string
   }) {
-    const { message, processingResult, messageId } = params
+    const { message, fullMessage, processingResult, messageId } = params
     const messageProcessingEndTimestamp = Date.now()
 
     this._handlerSpy?.addProcessedMessage(
@@ -295,6 +301,7 @@ export abstract class AbstractQueueService<
 
     const processedMessageMetadata = this.resolveProcessedMessageMetadata(
       message,
+      fullMessage,
       processingResult,
       params.messageProcessingStartTimestamp,
       messageProcessingEndTimestamp,
@@ -314,6 +321,7 @@ export abstract class AbstractQueueService<
 
   private resolveProcessedMessageMetadata(
     message: MessagePayloadSchemas | null,
+    fullMessage: MessagePayloadSchemas | null | undefined,
     processingResult: MessageProcessingResult,
     messageProcessingStartTimestamp: number,
     messageProcessingEndTimestamp: number,
@@ -323,7 +331,13 @@ export abstract class AbstractQueueService<
     // @ts-expect-error
     const resolvedMessageId: string | undefined = message?.[this.messageIdField] ?? messageId
 
-    const messageTimestamp = message ? this.tryToExtractTimestamp(message)?.getTime() : undefined
+    // When messageTimestampFromFullMessage is true and fullMessage is provided,
+    // extract timestamp from fullMessage for proper metadata tracking
+    const messageForTimestamp =
+      this.messageTimestampFromFullMessage && fullMessage ? fullMessage : message
+    const messageTimestamp = messageForTimestamp
+      ? this.tryToExtractTimestamp(messageForTimestamp)?.getTime()
+      : undefined
     const messageType =
       message && this.messageTypeField in message
         ? // @ts-ignore

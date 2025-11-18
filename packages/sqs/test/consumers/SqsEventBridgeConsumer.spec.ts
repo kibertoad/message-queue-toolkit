@@ -123,6 +123,52 @@ describe('SqsEventBridgeConsumer', () => {
     expect(executionContext.userRoutingStatusMessages[0]).toEqual(eventBridgeEvent.detail)
   })
 
+  it('should extract timestamp from envelope for metadata when messageTimestampFromFullMessage is true', async () => {
+    // Arrange: Create an EventBridge event with timestamp in envelope
+    const eventBridgeEvent = {
+      version: '0',
+      id: 'timestamp-test-1',
+      'detail-type': 'v2.users.{id}.presence',
+      source: 'genesys.cloud',
+      account: '111222333444',
+      time: '2025-11-18T15:30:00.000Z', // Timestamp in envelope
+      region: 'us-east-1',
+      resources: [],
+      detail: {
+        topicName: 'v2.users.{id}.presence',
+        userId: 'timestamp-test-user',
+        organizationId: 'org-timestamp',
+        presenceDefinition: {
+          id: '1',
+          systemPresence: 'AVAILABLE',
+          mobilePresence: 'OFFLINE',
+          aggregationPresence: 'AVAILABLE',
+          message: null,
+        },
+        timestamp: '2025-11-18T15:30:00.000Z', // Also in detail, but different field
+      },
+    } satisfies UserPresenceEnvelope
+
+    // Act
+    await sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: consumer.queueProps.url,
+        MessageBody: JSON.stringify(eventBridgeEvent),
+      }),
+    )
+
+    // Assert: Check that handlerSpy captured metadata with correct timestamp
+    const spy = await consumer.handlerSpy.waitForMessageWithId(eventBridgeEvent.id, 'consumed')
+
+    // The message metadata should include the timestamp from the envelope's 'time' field
+    expect(spy.message).toBeDefined()
+    expect(spy.processingResult).toEqual({ status: 'consumed' })
+
+    // Handler should have received only the detail (payload)
+    expect(executionContext.userPresenceMessages).toHaveLength(1)
+    expect(executionContext.userPresenceMessages[0]).toEqual(eventBridgeEvent.detail)
+  })
+
   it('should handle multiple EventBridge events', async () => {
     // Arrange
     const presenceEvent = {

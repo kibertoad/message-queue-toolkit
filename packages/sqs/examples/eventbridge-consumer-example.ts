@@ -126,9 +126,9 @@ class EventBridgeConsumer extends AbstractSqsConsumer<SupportedPayloads, EventBr
         // This is required when using envelope schemas for routing
         messageTypeFromFullMessage: true,
 
-        // Don't auto-add timestamp field for messages without it
-        // EventBridge events already have 'time' field
-        skipMissingTimestampValidation: true,
+        // Extract timestamp from the root message for metadata/logging
+        // The 'time' field is in the envelope, not in the extracted 'detail' payload
+        messageTimestampFromFullMessage: true,
 
         // ======================================================================
         // Handler configuration with envelope and payload schemas

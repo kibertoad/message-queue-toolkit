@@ -1767,9 +1767,7 @@ class EventBridgeConsumer extends AbstractSqsConsumer<UserPresenceDetail, Execut
       // Extract the 'detail' field as the payload
       messagePayloadField: 'detail',       // Extract nested payload
       messageTypeFromFullMessage: true,    // Look for 'detail-type' in root message
-
-      // Don't auto-add timestamp since EventBridge events already have 'time'
-      skipMissingTimestampValidation: true,
+      messageTimestampFromFullMessage: true, // Extract 'time' from root for metadata
 
       // Use 3-param addConfig: (envelopeSchema, payloadSchema, handler)
       // - envelopeSchema: Used for routing (has literal 'detail-type')
@@ -1852,7 +1850,7 @@ class MultiEventConsumer extends AbstractSqsConsumer<SupportedDetails, Execution
       messageTimestampField: 'time',
       messagePayloadField: 'detail',
       messageTypeFromFullMessage: true,
-      skipMissingTimestampValidation: true,
+      messageTimestampFromFullMessage: true,
 
       handlers: new MessageHandlerConfigBuilder<SupportedDetails, ExecutionContext>()
         .addConfig(
@@ -1925,7 +1923,7 @@ class UserEventConsumer extends AbstractSqsConsumer<UserCreatedDetail> {
       messageTimestampField: 'time',
       messagePayloadField: 'detail',
       messageTypeFromFullMessage: true,
-      skipMissingTimestampValidation: true,
+      messageTimestampFromFullMessage: true,
 
       handlers: new MessageHandlerConfigBuilder<UserCreatedDetail>()
         .addConfig(
@@ -1992,7 +1990,7 @@ class CustomConsumer extends AbstractSqsConsumer<PayloadType> {
       // If payload is nested, extract it
       messagePayloadField: 'data',          // Extract 'data' field
 
-      // Skip timestamp auto-addition if not needed
+      // Only if timestamp is truly absent from both envelope and payload
       skipMissingTimestampValidation: true,
 
       // Standard 2-param addConfig when routing field is in payload
@@ -2037,7 +2035,8 @@ handlers: new MessageHandlerConfigBuilder<PayloadType>()
 - `messageTimestampField` (optional, default: `'timestamp'`) - Field name containing the timestamp
 - `messagePayloadField` (optional) - If specified, extract this nested field as the payload before validation. If not specified, the entire message is validated
 - `messageTypeFromFullMessage` (optional, default: `false`) - When `true`, look up `messageTypeField` in the full/root message instead of the extracted payload. Use this when the routing field is at the root but payload is nested. Only relevant when `messagePayloadField` is also configured
-- `skipMissingTimestampValidation` (optional, default: `false`) - If `true`, don't auto-add timestamp field for messages without one
+- `messageTimestampFromFullMessage` (optional, default: `false`) - When `true`, extract timestamp from the full/root message for metadata and logging. Use this when the timestamp field is in the envelope but not in the extracted payload (e.g., EventBridge events). Only relevant when `messagePayloadField` is also configured
+- `skipMissingTimestampValidation` (optional, default: `false`) - If `true`, don't auto-add timestamp field for messages without one. Use this only when timestamp is truly absent from both envelope and payload. If timestamp exists in the envelope but not the payload, use `messageTimestampFromFullMessage` instead
 
 **Processing Flow:**
 
@@ -2077,6 +2076,58 @@ Use this when the type discriminator field is in the root message, not in the ne
 ```
 
 Without `messageTypeFromFullMessage: true`, the consumer would look for `detail-type` in the extracted `detail` object, which would fail.
+
+**When to use `messageTimestampFromFullMessage`:**
+
+Use this when the timestamp field is in the root message, not in the nested payload:
+
+```typescript
+// EventBridge event structure:
+{
+  "time": "2025-11-18T12:00:00Z",    // Timestamp is HERE (root level)
+  "detail-type": "user.created",
+  "id": "event-123",
+  "detail": {                        // Payload is HERE (nested)
+    "userId": "123",
+    "email": "user@example.com"
+    // No 'time' field here!
+  }
+}
+
+// Configuration:
+{
+  messageTimestampField: 'time',           // Field is in root
+  messagePayloadField: 'detail',           // Extract nested payload
+  messageTimestampFromFullMessage: true,   // Extract 'time' from root for metadata
+}
+```
+
+Without `messageTimestampFromFullMessage: true`, the consumer would try to extract timestamp from the `detail` object for metadata/logging, which would fail or use undefined.
+
+**When to use `skipMissingTimestampValidation`:**
+
+Use this **only** when timestamp is truly absent from both envelope and payload:
+
+```typescript
+// Message without any timestamp:
+{
+  "eventType": "user.action",
+  "correlationId": "abc-123",
+  "data": {
+    "action": "click"
+    // No timestamp anywhere!
+  }
+}
+
+// Configuration:
+{
+  skipMissingTimestampValidation: true,  // Don't try to add timestamp
+}
+```
+
+**DO NOT use** `skipMissingTimestampValidation` if:
+- Timestamp exists in the envelope (use `messageTimestampFromFullMessage` instead)
+- Timestamp exists in the payload (no special flag needed)
 
 ## FIFO Queues
 

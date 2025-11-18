@@ -102,11 +102,31 @@ export type CommonQueueOptions = {
    */
   messageTypeFromFullMessage?: boolean
   /**
+   * When messagePayloadField is set, determines where to look for the timestamp field for metadata extraction.
+   *
+   * Use case: EventBridge events where:
+   * - messagePayloadField: 'detail' (extract nested payload)
+   * - messageTimestampField: 'time' (timestamp field is in root, not in detail)
+   * - messageTimestampFromFullMessage: true (extract timestamp from root message for metadata/logging)
+   *
+   * Note: Retry logic always uses the full message for timestamp extraction.
+   * This flag only affects metadata extraction in handleMessageProcessed.
+   *
+   * Default: false (look in extracted payload for backward compatibility)
+   */
+  messageTimestampFromFullMessage?: boolean
+  /**
    * If true, skip automatic timestamp addition and validation for messages without a timestamp field.
-   * This is useful for non-standard message formats that don't include timestamp information.
+   * This is useful for non-standard message formats that don't include timestamp information in
+   * either the envelope or the payload.
+   *
    * When enabled:
    * - Messages without timestamp won't have one auto-added
    * - Retry logic will use current time for retry calculations
+   *
+   * Note: If your message has a timestamp in the envelope but not in the payload (like EventBridge),
+   * use messageTimestampFromFullMessage instead of this flag.
+   *
    * Default: false (maintains backward compatibility)
    */
   skipMissingTimestampValidation?: boolean
