@@ -229,11 +229,15 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
 
   /**
    * Resolves FIFO-specific options (MessageGroupId) from the message payload.
-   * This must be called before payload offloading, as the offloaded payload
+   * This must be called BEFORE payload offloading, as the offloaded payload
    * won't contain the user fields needed for messageGroupIdField resolution.
+   *
+   * @param payload - The original (non-offloaded) message payload
+   * @param options - The SNS message options to augment with FIFO settings
+   * @returns The options with resolved MessageGroupId for FIFO topics
    */
   private resolveFifoOptions(
-    payload: MessagePayloadType | OffloadedPayloadPointerPayload,
+    payload: MessagePayloadType,
     options: SNSMessageOptions,
   ): SNSMessageOptions {
     if (!this.isFifoTopic) {

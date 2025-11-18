@@ -265,8 +265,8 @@ await consumer.close()
 ```
 
 **What happens during `start()`:**
-1. Creates SQS queue (if using `creationConfig`)
-2. Creates SNS topic (if using `creationConfig`)
+1. Creates SNS topic (if using `creationConfig`)
+2. Creates SQS queue (if using `creationConfig`)
 3. Subscribes queue to topic
 4. Configures queue permissions to allow SNS to publish
 5. Starts consuming messages from the queue

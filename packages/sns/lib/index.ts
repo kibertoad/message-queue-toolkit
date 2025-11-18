@@ -31,6 +31,7 @@ export { readSnsMessage } from './utils/snsMessageReader.ts'
 export { subscribeToTopic } from './utils/snsSubscriber.ts'
 export {
   assertTopic,
+  calculateOutgoingMessageSize,
   deleteSubscription,
   deleteTopic,
   findSubscriptionByTopicAndQueue,
