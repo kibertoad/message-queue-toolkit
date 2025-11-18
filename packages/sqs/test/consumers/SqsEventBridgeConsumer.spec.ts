@@ -124,14 +124,15 @@ describe('SqsEventBridgeConsumer', () => {
   })
 
   it('should extract timestamp from envelope for metadata when messageTimestampFromFullMessage is true', async () => {
-    // Arrange: Create an EventBridge event with timestamp in envelope
+    // Arrange: Create an EventBridge event with timestamp ONLY in envelope
+    const envelopeTimestamp = '2025-11-18T15:30:45.123Z'
     const eventBridgeEvent = {
       version: '0',
       id: 'timestamp-test-1',
       'detail-type': 'v2.users.{id}.presence',
       source: 'genesys.cloud',
       account: '111222333444',
-      time: '2025-11-18T15:30:00.000Z', // Timestamp in envelope
+      time: envelopeTimestamp, // Timestamp in envelope (ISO 8601 string)
       region: 'us-east-1',
       resources: [],
       detail: {
@@ -145,7 +146,7 @@ describe('SqsEventBridgeConsumer', () => {
           aggregationPresence: 'AVAILABLE',
           message: null,
         },
-        timestamp: '2025-11-18T15:30:00.000Z', // Also in detail, but different field
+        timestamp: '2025-11-18T15:30:00.000Z', // Different timestamp in detail (not used for metadata)
       },
     } satisfies UserPresenceEnvelope
 
@@ -157,16 +158,29 @@ describe('SqsEventBridgeConsumer', () => {
       }),
     )
 
-    // Assert: Check that handlerSpy captured metadata with correct timestamp
-    const spy = await consumer.handlerSpy.waitForMessageWithId(eventBridgeEvent.id, 'consumed')
+    // Assert: Verify metadata extraction used envelope timestamp, not payload timestamp
+    const processedMessages = await consumer.handlerSpy.waitForMessageWithId(
+      eventBridgeEvent.id,
+      'consumed',
+    )
 
-    // The message metadata should include the timestamp from the envelope's 'time' field
-    expect(spy.message).toBeDefined()
-    expect(spy.processingResult).toEqual({ status: 'consumed' })
+    // Verify processing succeeded
+    expect(processedMessages.processingResult).toEqual({ status: 'consumed' })
 
-    // Handler should have received only the detail (payload)
+    // Verify handler received only the detail (payload), not the envelope
     expect(executionContext.userPresenceMessages).toHaveLength(1)
     expect(executionContext.userPresenceMessages[0]).toEqual(eventBridgeEvent.detail)
+
+    // Key assertion: Verify the originalMessage stored in handlerSpy contains the envelope
+    // with the 'time' field (not the detail's 'timestamp' field)
+    expect(processedMessages.message).toBeDefined()
+    // The message should be the full envelope (originalMessage), which has 'time' field
+    expect(processedMessages.message).toHaveProperty('time', envelopeTimestamp)
+    expect(processedMessages.message).toHaveProperty('detail-type', 'v2.users.{id}.presence')
+
+    // Verify it's the envelope, not just the detail
+    expect(processedMessages.message).toHaveProperty('version', '0')
+    expect(processedMessages.message).toHaveProperty('source', 'genesys.cloud')
   })
 
   it('should handle multiple EventBridge events', async () => {
