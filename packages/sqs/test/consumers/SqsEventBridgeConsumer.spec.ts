@@ -123,65 +123,157 @@ describe('SqsEventBridgeConsumer', () => {
     expect(executionContext.userRoutingStatusMessages[0]).toEqual(eventBridgeEvent.detail)
   })
 
-  it('should extract timestamp from envelope for metadata when messageTimestampFromFullMessage is true', async () => {
-    // Arrange: Create an EventBridge event with timestamp ONLY in envelope
-    const envelopeTimestamp = '2025-11-18T15:30:45.123Z'
-    const eventBridgeEvent = {
-      version: '0',
-      id: 'timestamp-test-1',
-      'detail-type': 'v2.users.{id}.presence',
-      source: 'genesys.cloud',
-      account: '111222333444',
-      time: envelopeTimestamp, // Timestamp in envelope (ISO 8601 string)
-      region: 'us-east-1',
-      resources: [],
-      detail: {
-        topicName: 'v2.users.{id}.presence',
-        userId: 'timestamp-test-user',
-        organizationId: 'org-timestamp',
-        presenceDefinition: {
-          id: '1',
-          systemPresence: 'AVAILABLE',
-          mobilePresence: 'OFFLINE',
-          aggregationPresence: 'AVAILABLE',
-          message: null,
+  it(
+    'should extract timestamp from envelope even when handler throws error',
+    async () => {
+      // This test verifies the critical bug fix: when handler throws an error,
+      // the code path uses message: parsedMessage (detail payload without 'time' field).
+      // The fix ensures fullMessage: originalMessage is also passed, so timestamp
+      // can be extracted from the envelope for metadata/logging.
+
+      const capturedMetadata: any[] = []
+      const spyMetricsManager = {
+        registerProcessedMessage: (metadata: any) => {
+          capturedMetadata.push(metadata)
         },
-        timestamp: '2025-11-18T15:30:00.000Z', // Different timestamp in detail (not used for metadata)
-      },
-    } satisfies UserPresenceEnvelope
+      }
 
-    // Act
-    await sqsClient.send(
-      new SendMessageCommand({
-        QueueUrl: consumer.queueProps.url,
-        MessageBody: JSON.stringify(eventBridgeEvent),
-      }),
-    )
+      // Create a handler that throws an error
+      const errorThrowingContext: EventBridgeTestContext = {
+        userPresenceMessages: [],
+        userRoutingStatusMessages: [],
+      }
 
-    // Assert: Verify metadata extraction used envelope timestamp, not payload timestamp
-    const processedMessages = await consumer.handlerSpy.waitForMessageWithId(
-      eventBridgeEvent.id,
-      'consumed',
-    )
+      // We need to create a custom consumer with a failing handler
+      const { default: Consumer } = await import('sqs-consumer')
+      const { AbstractSqsConsumer } = await import('../../lib/sqs/AbstractSqsConsumer.ts')
+      const { MessageHandlerConfigBuilder } = await import('@message-queue-toolkit/core')
+      const {
+        USER_PRESENCE_ENVELOPE_SCHEMA,
+        USER_PRESENCE_DETAIL_SCHEMA,
+      } = await import('./eventBridgeSchemas.ts')
 
-    // Verify processing succeeded
-    expect(processedMessages.processingResult).toEqual({ status: 'consumed' })
+      class FailingEventBridgeConsumer extends AbstractSqsConsumer<any, any> {
+        public static readonly QUEUE_NAME = 'failing_eventbridge_events'
 
-    // Verify handler received only the detail (payload), not the envelope
-    expect(executionContext.userPresenceMessages).toHaveLength(1)
-    expect(executionContext.userPresenceMessages[0]).toEqual(eventBridgeEvent.detail)
+        constructor(dependencies: any, executionContext: any) {
+          super(
+            dependencies,
+            {
+              creationConfig: {
+                queue: {
+                  QueueName: FailingEventBridgeConsumer.QUEUE_NAME,
+                  Attributes: {
+                    VisibilityTimeout: '1', // Short visibility timeout to fail fast
+                  },
+                },
+              },
+              deletionConfig: {
+                deleteIfExists: true,
+              },
+              messageTypeField: 'detail-type',
+              messageIdField: 'id',
+              messageTimestampField: 'time',
+              messagePayloadField: 'detail',
+              messageTypeFromFullMessage: true,
+              messageTimestampFromFullMessage: true,
+              handlerSpy: true,
+              maxRetryDuration: 0, // Don't retry - fail immediately
+              handlers: new MessageHandlerConfigBuilder<any, any>()
+                .addConfig(
+                  USER_PRESENCE_ENVELOPE_SCHEMA,
+                  USER_PRESENCE_DETAIL_SCHEMA,
+                  (message, context) => {
+                    // Always throw error to trigger error path
+                    throw new Error('Intentional test error')
+                  },
+                )
+                .build(),
+            },
+            executionContext,
+          )
+        }
 
-    // Key assertion: Verify the originalMessage stored in handlerSpy contains the envelope
-    // with the 'time' field (not the detail's 'timestamp' field)
-    expect(processedMessages.message).toBeDefined()
-    // The message should be the full envelope (originalMessage), which has 'time' field
-    expect(processedMessages.message).toHaveProperty('time', envelopeTimestamp)
-    expect(processedMessages.message).toHaveProperty('detail-type', 'v2.users.{id}.presence')
+        public get queueProps() {
+          return {
+            name: this.queueName,
+            url: this.queueUrl,
+            arn: this.queueArn,
+          }
+        }
+      }
 
-    // Verify it's the envelope, not just the detail
-    expect(processedMessages.message).toHaveProperty('version', '0')
-    expect(processedMessages.message).toHaveProperty('source', 'genesys.cloud')
-  })
+      const failingConsumer = new FailingEventBridgeConsumer(
+        { ...diContainer.cradle, messageMetricsManager: spyMetricsManager },
+        errorThrowingContext,
+      )
+      await failingConsumer.start()
+
+      // Create EventBridge event with DIFFERENT timestamps in envelope vs payload
+      const envelopeTimestamp = '2025-11-18T16:30:45.123Z'
+      const payloadTimestampMs = new Date('2025-11-18T16:30:00.000Z').getTime()
+      const eventBridgeEvent = {
+        version: '0',
+        id: 'error-test-1',
+        'detail-type': 'v2.users.{id}.presence',
+        source: 'genesys.cloud',
+        account: '111222333444',
+        time: envelopeTimestamp, // Envelope timestamp
+        region: 'us-east-1',
+        resources: [],
+        detail: {
+          topicName: 'v2.users.{id}.presence',
+          userId: 'error-test-user',
+          organizationId: 'org-error',
+          presenceDefinition: {
+            id: '1',
+            systemPresence: 'AVAILABLE',
+            mobilePresence: 'OFFLINE',
+            aggregationPresence: 'AVAILABLE',
+            message: null,
+          },
+          timestamp: '2025-11-18T16:30:00.000Z', // Different timestamp in payload
+        },
+      }
+
+      // Send message
+      await sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: failingConsumer.queueProps.url,
+          MessageBody: JSON.stringify(eventBridgeEvent),
+        }),
+      )
+
+      // Wait a bit for message to be processed
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      // CRITICAL ASSERTION: Verify metrics manager received metadata with ENVELOPE timestamp
+      // This verifies that even in the error path (where message: parsedMessage),
+      // the fullMessage parameter was passed so timestamp could be extracted from envelope
+      const envelopeTimestampMs = new Date(envelopeTimestamp).getTime()
+
+      // Find error metadata for our queue (messageId might not be extractable)
+      const errorMetadata = capturedMetadata.find(
+        (m) =>
+          m.queueName === 'failing_eventbridge_events' && m.processingResult?.status === 'error',
+      )
+
+      expect(errorMetadata).toBeDefined()
+      // This is the key assertion: timestamp should be from envelope, not payload
+      expect(errorMetadata.messageTimestamp).toBe(envelopeTimestampMs)
+      expect(errorMetadata.messageTimestamp).not.toBe(payloadTimestampMs)
+
+      // Verify the message stored is the detail payload (not the envelope)
+      expect(errorMetadata.message).toHaveProperty('userId', 'error-test-user')
+      expect(errorMetadata.message).not.toHaveProperty('version') // Envelope field
+      expect(errorMetadata.message).not.toHaveProperty('time') // Envelope field
+
+      // Cleanup
+      await failingConsumer.close()
+      await deleteQueue(sqsClient, failingConsumer.queueProps.name)
+    },
+    10000,
+  ) // 10 second timeout
 
   it('should handle multiple EventBridge events', async () => {
     // Arrange
