@@ -25,16 +25,11 @@ type PreHandlerOutput = {
   preHandlerCount: number
 }
 
-type SnsSqsPermissionConsumerFifoOptions = Pick<
-  SNSSQSConsumerOptions<SupportedMessages, ExecutionContext, PreHandlerOutput>,
-  | 'creationConfig'
-  | 'locatorConfig'
-  | 'deletionConfig'
-  | 'deadLetterQueue'
-  | 'consumerOverrides'
-  | 'maxRetryDuration'
-  | 'payloadStoreConfig'
-  | 'concurrentConsumersAmount'
+type SnsSqsPermissionConsumerFifoOptions = Partial<
+  Extract<
+    SNSSQSConsumerOptions<SupportedMessages, ExecutionContext, PreHandlerOutput>,
+    { fifoQueue: true }
+  >
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -176,6 +171,10 @@ export class SnsSqsPermissionConsumerFifo extends AbstractSnsSqsConsumer<
         },
         maxRetryDuration: options.maxRetryDuration,
         concurrentConsumersAmount: options.concurrentConsumersAmount,
+        barrierSleepCheckIntervalInMsecs: options.barrierSleepCheckIntervalInMsecs,
+        barrierVisibilityExtensionIntervalInMsecs:
+          options.barrierVisibilityExtensionIntervalInMsecs,
+        barrierVisibilityTimeoutInSeconds: options.barrierVisibilityTimeoutInSeconds,
       },
       {
         incrementAmount: 1,
