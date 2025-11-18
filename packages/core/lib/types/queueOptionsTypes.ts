@@ -83,15 +83,19 @@ export type CommonQueueOptions = {
   messageDeduplicationOptionsField?: string
   /**
    * Optional field name to extract the payload from the message.
-   * If specified, the handler will receive the value of this field instead of the entire message.
+   *
+   * When specified: The handler will receive the value of this field instead of the entire message.
    * This is useful for non-standard message formats like EventBridge events where the actual
    * payload is nested (e.g., in a 'detail' field).
-   * If undefined, the entire message is treated as the payload (default behavior).
+   *
+   * When not specified (undefined): The entire message is treated as the payload (default behavior).
+   *
+   * Default: undefined (no payload extraction, entire message is payload)
    */
   messagePayloadField?: string
   /**
    * When true, look up messageTypeField in the full/root message instead of the extracted payload.
-   * Only relevant when messagePayloadField is also configured.
+   * Only relevant when messagePayloadField is not set to undefined (i.e., when payload extraction is configured).
    *
    * Use case: EventBridge events where:
    * - messagePayloadField: 'detail' (extract nested payload)
@@ -102,7 +106,8 @@ export type CommonQueueOptions = {
    */
   messageTypeFromFullMessage?: boolean
   /**
-   * When messagePayloadField is set, determines where to look for the timestamp field for metadata extraction.
+   * When messagePayloadField is not set to undefined (i.e., when payload extraction is configured),
+   * determines where to look for the timestamp field for metadata extraction.
    *
    * Use case: EventBridge events where:
    * - messagePayloadField: 'detail' (extract nested payload)
@@ -115,21 +120,6 @@ export type CommonQueueOptions = {
    * Default: false (look in extracted payload for backward compatibility)
    */
   messageTimestampFromFullMessage?: boolean
-  /**
-   * If true, skip automatic timestamp addition and validation for messages without a timestamp field.
-   * This is useful for non-standard message formats that don't include timestamp information in
-   * either the envelope or the payload.
-   *
-   * When enabled:
-   * - Messages without timestamp won't have one auto-added
-   * - Retry logic will use current time for retry calculations
-   *
-   * Note: If your message has a timestamp in the envelope but not in the payload (like EventBridge),
-   * use messageTimestampFromFullMessage instead of this flag.
-   *
-   * Default: false (maintains backward compatibility)
-   */
-  skipMissingTimestampValidation?: boolean
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
   deletionConfig?: DeletionConfig

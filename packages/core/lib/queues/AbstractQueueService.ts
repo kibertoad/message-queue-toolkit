@@ -114,11 +114,6 @@ export abstract class AbstractQueueService<
    * Whether to extract timestamp from full message for metadata (when messagePayloadField is set)
    */
   protected readonly messageTimestampFromFullMessage: boolean
-  /**
-   * Skip timestamp validation and auto-addition for messages without timestamp
-   */
-  protected readonly skipMissingTimestampValidation: boolean
-
   protected readonly errorReporter: ErrorReporter
   public readonly logger: CommonLogger
   protected readonly messageIdField: string
@@ -161,7 +156,6 @@ export abstract class AbstractQueueService<
     this.messagePayloadField = options.messagePayloadField
     this.messageTypeFromFullMessage = options.messageTypeFromFullMessage ?? false
     this.messageTimestampFromFullMessage = options.messageTimestampFromFullMessage ?? false
-    this.skipMissingTimestampValidation = options.skipMissingTimestampValidation ?? false
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig
@@ -228,7 +222,7 @@ export abstract class AbstractQueueService<
     fullMessage: unknown
   } {
     if (!this.messagePayloadField) {
-      // No payload field configured, treat entire message as payload
+      // No payload field configured (undefined by default), treat entire message as payload
       return { payload: fullMessage, fullMessage }
     }
 
@@ -427,9 +421,8 @@ export abstract class AbstractQueueService<
     /**
      * If the message doesn't have a timestamp field -> add it
      * will be used to prevent infinite retries on the same message
-     * Skip this if skipMissingTimestampValidation is enabled (for non-standard message formats)
      */
-    if (!this.tryToExtractTimestamp(message) && !this.skipMissingTimestampValidation) {
+    if (!this.tryToExtractTimestamp(message)) {
       // @ts-expect-error
       messageCopy[this.messageTimestampField] = new Date().toISOString()
       this.logger.warn(`${this.messageTimestampField} not defined, adding it automatically`)

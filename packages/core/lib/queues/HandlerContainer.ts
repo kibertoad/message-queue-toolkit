@@ -132,7 +132,28 @@ export class MessageHandlerConfigBuilder<
     this.configs = []
   }
 
-  // Two-param version: schema is used for both routing and validation (backward compatible)
+  /**
+   * Two-parameter version: Use when the message type field for routing can be resolved from the payload schema.
+   * The same schema is used for both routing (to match the message type) and validation (for the handler).
+   *
+   * Use this when:
+   * - The entire message is the payload (messagePayloadField is undefined)
+   * - The message type field (e.g., 'type') is at the root level of the message
+   * - Handler receives and processes the entire message
+   *
+   * Example:
+   * ```typescript
+   * const USER_CREATED_SCHEMA = z.object({
+   *   type: z.literal('user.created'),
+   *   userId: z.string(),
+   *   email: z.string()
+   * })
+   *
+   * builder.addConfig(USER_CREATED_SCHEMA, async (message) => {
+   *   // message has type 'user.created', userId, and email
+   * })
+   * ```
+   */
   addConfig<MessagePayloadSchema extends MessagePayloadSchemas, const BarrierOutput>(
     schema: ZodSchema<MessagePayloadSchema> | CommonEventDefinition,
     handler: Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>,
@@ -144,7 +165,42 @@ export class MessageHandlerConfigBuilder<
     >,
   ): this
 
-  // Three-param version: envelopeSchema for routing, payloadSchema for validation
+  /**
+   * Three-parameter version: Use when the message type field for routing is only available in the message envelope,
+   * but the handler only needs to process a nested payload field.
+   *
+   * Use this when:
+   * - Payload extraction is configured (messagePayloadField is set, e.g., 'detail')
+   * - The message type field is in the envelope/root (e.g., 'detail-type')
+   * - Handler should only receive the extracted payload, not the full envelope
+   *
+   * The envelope schema is used for routing (must have a literal type field), and the payload schema
+   * is used for validating the extracted payload that the handler receives.
+   *
+   * Example (EventBridge events):
+   * ```typescript
+   * // Envelope schema with literal detail-type for routing
+   * const USER_CREATED_ENVELOPE = z.object({
+   *   'detail-type': z.literal('user.created'),
+   *   time: z.string(),
+   *   detail: z.object({ userId: z.string(), email: z.string() })
+   * })
+   *
+   * // Payload schema for validation
+   * const USER_CREATED_DETAIL = z.object({
+   *   userId: z.string(),
+   *   email: z.string()
+   * })
+   *
+   * builder.addConfig(
+   *   USER_CREATED_ENVELOPE,  // Used for routing by 'detail-type'
+   *   USER_CREATED_DETAIL,    // Used for validating extracted 'detail'
+   *   async (detail) => {
+   *     // detail only has userId and email, not the envelope fields
+   *   }
+   * )
+   * ```
+   */
   addConfig<MessagePayloadSchema extends MessagePayloadSchemas, const BarrierOutput>(
     envelopeSchema: ZodSchema<unknown>,
     payloadSchema: ZodSchema<MessagePayloadSchema>,

@@ -1,5 +1,9 @@
 import type { SendMessageCommandInput } from '@aws-sdk/client-sqs'
-import { SendMessageCommand, SetQueueAttributesCommand } from '@aws-sdk/client-sqs'
+import {
+  ChangeMessageVisibilityCommand,
+  SendMessageCommand,
+  SetQueueAttributesCommand,
+} from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
 import {
   type BarrierResult,
@@ -39,6 +43,9 @@ const ABORT_EARLY_EITHER: Either<'abort', never> = {
   error: 'abort',
 }
 const DEFAULT_MAX_RETRY_DURATION = 4 * 24 * 60 * 60 // 4 days in seconds
+const DEFAULT_BARRIER_SLEEP_CHECK_INTERVAL_IN_MSECS = 5000 // 5 seconds in milliseconds
+const DEFAULT_BARRIER_VISIBILITY_EXTENSION_INTERVAL_IN_MSECS = 30000 // 30 seconds in milliseconds
+const DEFAULT_BARRIER_VISIBILITY_TIMEOUT_IN_SECONDS = 90 // 90 seconds
 
 type SQSDeadLetterQueueOptions = {
   redrivePolicy: {
@@ -48,7 +55,7 @@ type SQSDeadLetterQueueOptions = {
 
 export type SQSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
 
-export type SQSConsumerOptions<
+type SQSConsumerCommonOptions<
   MessagePayloadSchemas extends object,
   ExecutionContext,
   PrehandlerOutput,
@@ -80,8 +87,60 @@ export type SQSConsumerOptions<
     | 'attributeNames'
   >
   concurrentConsumersAmount?: number
-  fifoQueue?: boolean
 }
+
+type SQSConsumerFifoOptions = {
+  fifoQueue: true
+  /**
+   * Interval in milliseconds between barrier re-checks during sleep period (FIFO queues only).
+   * FIFO queues sleep and recheck barriers instead of republishing messages to preserve order.
+   * The consumer will sleep and recheck for up to maxRetryDuration before moving to DLQ.
+   * Default: 5000 (5 seconds)
+   */
+  barrierSleepCheckIntervalInMsecs?: number
+  /**
+   * Interval in milliseconds between visibility timeout extensions during barrier sleep (FIFO queues only).
+   * Extensions happen BEFORE each sleep chunk to prevent message from becoming visible during long waits.
+   * Should be less than the VisibilityTimeout to prevent message reclaim.
+   * Default: 30000 (30 seconds)
+   */
+  barrierVisibilityExtensionIntervalInMsecs?: number
+  /**
+   * Duration in seconds to extend visibility timeout to during barrier sleep (FIFO queues only).
+   * Each extension sets visibility to this value from NOW (not cumulative).
+   * Should be significantly longer than barrierVisibilityExtensionIntervalInMsecs for safety buffer.
+   * Default: 90 (90 seconds, providing 60s buffer with 30s check interval)
+   */
+  barrierVisibilityTimeoutInSeconds?: number
+}
+
+type SQSConsumerStandardQueueOptions = {
+  fifoQueue?: false
+}
+
+export type SQSConsumerOptions<
+  MessagePayloadSchemas extends object,
+  ExecutionContext,
+  PrehandlerOutput,
+  CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
+  QueueLocatorType extends object = SQSQueueLocatorType,
+> =
+  | (SQSConsumerCommonOptions<
+      MessagePayloadSchemas,
+      ExecutionContext,
+      PrehandlerOutput,
+      CreationConfigType,
+      QueueLocatorType
+    > &
+      SQSConsumerFifoOptions)
+  | (SQSConsumerCommonOptions<
+      MessagePayloadSchemas,
+      ExecutionContext,
+      PrehandlerOutput,
+      CreationConfigType,
+      QueueLocatorType
+    > &
+      SQSConsumerStandardQueueOptions)
 
 export abstract class AbstractSqsConsumer<
     MessagePayloadType extends object,
@@ -131,6 +190,9 @@ export abstract class AbstractSqsConsumer<
   private readonly isDeduplicationEnabled: boolean
   private maxRetryDuration: number
   private cachedContentBasedDeduplication?: boolean
+  private readonly barrierSleepCheckIntervalInMsecs: number
+  private readonly barrierVisibilityExtensionIntervalInMsecs: number
+  private readonly barrierVisibilityTimeoutInSeconds: number
 
   protected deadLetterQueueUrl?: string
   protected readonly errorResolver: ErrorResolver
@@ -149,6 +211,15 @@ export abstract class AbstractSqsConsumer<
     this.consumerOptionsOverride = options.consumerOverrides ?? {}
     this.deadLetterQueueOptions = options.deadLetterQueue
     this.maxRetryDuration = options.maxRetryDuration ?? DEFAULT_MAX_RETRY_DURATION
+    // Access FIFO-specific options (only available when fifoQueue: true)
+    const fifoOptions = options as Partial<SQSConsumerFifoOptions>
+    this.barrierSleepCheckIntervalInMsecs =
+      fifoOptions.barrierSleepCheckIntervalInMsecs ?? DEFAULT_BARRIER_SLEEP_CHECK_INTERVAL_IN_MSECS
+    this.barrierVisibilityExtensionIntervalInMsecs =
+      fifoOptions.barrierVisibilityExtensionIntervalInMsecs ??
+      DEFAULT_BARRIER_VISIBILITY_EXTENSION_INTERVAL_IN_MSECS
+    this.barrierVisibilityTimeoutInSeconds =
+      fifoOptions.barrierVisibilityTimeoutInSeconds ?? DEFAULT_BARRIER_VISIBILITY_TIMEOUT_IN_SECONDS
     this.executionContext = executionContext
     this.consumers = []
     this.concurrentConsumersAmount = options.concurrentConsumersAmount ?? 1
@@ -286,6 +357,7 @@ export abstract class AbstractSqsConsumer<
             originalMessage,
             parsedMessage,
             messageProcessingStartTimestamp,
+            false, // isHandlerRetry = false for lock failures
           )
 
           return message
@@ -357,6 +429,7 @@ export abstract class AbstractSqsConsumer<
             originalMessage,
             parsedMessage,
             messageProcessingStartTimestamp,
+            true, // isHandlerRetry = true for handler/barrier retries
           )
 
           return message
@@ -381,24 +454,57 @@ export abstract class AbstractSqsConsumer<
     originalMessage: MessagePayloadType,
     parsedMessage: MessagePayloadType,
     messageProcessingStartTimestamp: number,
+    isHandlerRetry: boolean = true,
   ): Promise<void> {
-    if (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
-      let sendMessageParams: SendMessageCommandInput
+    /**
+     * For FIFO queues, we use a special retry approach to preserve message ordering.
+     * For handler/barrier retries: sleep and periodically re-check until barrier passes or max sleep exceeded
+     * For lock failures: throw error immediately to trigger AWS retry
+     */
+    if (this.isFifoQueue) {
+      // Check if retry is still within the allowed duration
+      if (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
+        // Only use sleep-and-recheck for handler/barrier retries, not lock failures
+        if (isHandlerRetry) {
+          await this.sleepAndRecheckBarrier(
+            message,
+            originalMessage,
+            parsedMessage,
+            messageProcessingStartTimestamp,
+          )
+          return
+        }
 
-      // For FIFO queues, check if ContentBasedDeduplication is explicitly set in creationConfig
-      // If not explicitly set (undefined), we must fetch from SQS (async path)
-      const contentBasedDedup = this.creationConfig?.queue.Attributes?.ContentBasedDeduplication
-      const isContentBasedDedupExplicit =
-        contentBasedDedup === 'true' || contentBasedDedup === 'false'
-
-      if (this.isFifoQueue && !isContentBasedDedupExplicit) {
-        // Need to fetch ContentBasedDeduplication attribute from SQS (locatorConfig or not explicitly set)
-        sendMessageParams = await this.buildFifoRetryMessageParamsAsync(message, originalMessage)
-      } else {
-        // Standard queue or FIFO with explicit ContentBasedDeduplication value - synchronous path
-        sendMessageParams = this.buildRetryMessageParams(message, originalMessage)
+        // For lock failures, throw error immediately
+        this.handleMessageProcessed({
+          message: parsedMessage,
+          fullMessage: originalMessage,
+          processingResult: { status: 'retryLater' },
+          messageProcessingStartTimestamp,
+          queueName: this.queueName,
+        })
+        throw new Error(
+          'FIFO queue: Lock acquisition failed. Triggering AWS SQS retry to preserve message order.',
+        )
       }
+      // Retry duration exceeded for FIFO queue
+      await this.failProcessing(message)
+      this.handleMessageProcessed({
+        message: parsedMessage,
+        fullMessage: originalMessage,
+        processingResult: { status: 'error', errorReason: 'retryLaterExceeded' },
+        messageProcessingStartTimestamp,
+        queueName: this.queueName,
+      })
+      throw new Error('FIFO queue: Retry duration exceeded. Moving message to DLQ.')
+    }
 
+    // Standard queue handling: republish the message with delay
+    if (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
+      const sendMessageParams = await this.buildRetryMessageParamsWithDeduplicationCheck(
+        message,
+        originalMessage,
+      )
       await this.sqsClient.send(new SendMessageCommand(sendMessageParams))
 
       this.handleMessageProcessed({
@@ -418,6 +524,154 @@ export abstract class AbstractSqsConsumer<
         queueName: this.queueName,
       })
     }
+  }
+
+  /**
+   * Sleep and periodically recheck barrier for FIFO queues.
+   * This method implements the barrier sleep mechanism to avoid unnecessary AWS retries.
+   */
+  private async sleepAndRecheckBarrier(
+    message: SQSMessage,
+    originalMessage: MessagePayloadType,
+    parsedMessage: MessagePayloadType,
+    messageProcessingStartTimestamp: number,
+  ): Promise<void> {
+    // Extract message type for barrier rechecks
+    const messageForTypeResolution = this.getMessageForMetadata(parsedMessage, originalMessage)
+    // @ts-expect-error
+    const messageType = messageForTypeResolution[this.messageTypeField] as string
+
+    // Sleep and periodically recheck barrier until maxRetryDuration is exceeded
+    while (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
+      // Sleep for the check interval
+      await this.sleepWithVisibilityTimeoutExtension(message, this.barrierSleepCheckIntervalInMsecs)
+
+      // Re-check barrier
+      const result = await this.internalProcessMessage(parsedMessage, messageType).catch((err) => {
+        this.handleError(err)
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        return { error: err }
+      })
+
+      // If barrier passed and message processed successfully, we're done
+      if ('result' in result && result.result === 'success') {
+        this.handleMessageProcessed({
+          message: originalMessage,
+          fullMessage: originalMessage,
+          processingResult: { status: 'consumed' },
+          messageProcessingStartTimestamp,
+          queueName: this.queueName,
+        })
+        return
+      }
+
+      // If handler threw an error (not just retryLater), rethrow it
+      if (result.error !== 'retryLater') {
+        this.handleMessageProcessed({
+          message: parsedMessage,
+          fullMessage: originalMessage,
+          processingResult: { status: 'error', errorReason: 'handlerError' },
+          messageProcessingStartTimestamp,
+          queueName: this.queueName,
+        })
+        throw result.error
+      }
+
+      // Barrier still not passing, continue sleeping
+    }
+
+    // Max retry duration exceeded, send to DLQ
+    await this.failProcessing(message)
+    this.handleMessageProcessed({
+      message: parsedMessage,
+      fullMessage: originalMessage,
+      processingResult: { status: 'error', errorReason: 'retryLaterExceeded' },
+      messageProcessingStartTimestamp,
+      queueName: this.queueName,
+    })
+    throw new Error('FIFO queue: Retry duration exceeded. Moving message to DLQ.')
+  }
+
+  /**
+   * Sleep for the specified duration while optionally extending visibility timeout to prevent message reclaim.
+   * AWS SQS will reclaim messages if visibility timeout expires during processing.
+   *
+   * Visibility extension strategy:
+   * - If heartbeatInterval is set and <= extension interval: rely on sqs-consumer's automatic extension
+   * - Otherwise: explicitly extend at configured intervals during sleep
+   *
+   * This prevents redundant API calls when heartbeatInterval already provides sufficient coverage.
+   */
+  private async sleepWithVisibilityTimeoutExtension(
+    message: SQSMessage,
+    sleepDurationMs: number,
+  ): Promise<void> {
+    // Check if heartbeatInterval is set and sufficient for our needs
+    // If heartbeatInterval <= extension interval, sqs-consumer will extend frequently enough
+    const heartbeatInterval = this.consumerOptionsOverride?.heartbeatInterval
+    const extensionIntervalSeconds = this.barrierVisibilityExtensionIntervalInMsecs / 1000
+    const shouldExplicitlyExtend =
+      !heartbeatInterval || heartbeatInterval > extensionIntervalSeconds
+
+    let remainingSleepMs = sleepDurationMs
+    const startTime = Date.now()
+
+    while (remainingSleepMs > 0) {
+      // Extend visibility timeout BEFORE sleeping (not after) to prevent message from becoming visible
+      // Only extend explicitly if heartbeatInterval is not set or is too long
+      if (shouldExplicitlyExtend) {
+        try {
+          await this.sqsClient.send(
+            new ChangeMessageVisibilityCommand({
+              QueueUrl: this.queueUrl,
+              ReceiptHandle: message.ReceiptHandle,
+              VisibilityTimeout: this.barrierVisibilityTimeoutInSeconds,
+            }),
+          )
+        } catch (err) {
+          // Log error but don't fail - the message might have already been processed or deleted
+          this.logger.warn({
+            message: 'Failed to extend visibility timeout during barrier sleep',
+            error: err,
+          })
+        }
+      }
+
+      // Now sleep for the chunk
+      const sleepChunkMs = Math.min(
+        remainingSleepMs,
+        this.barrierVisibilityExtensionIntervalInMsecs,
+      )
+      await new Promise((resolve) => setTimeout(resolve, sleepChunkMs))
+
+      // Calculate remaining sleep time for next iteration
+      remainingSleepMs = sleepDurationMs - (Date.now() - startTime)
+    }
+  }
+
+  /**
+   * Determines whether to use async or sync path for building retry message params.
+   * For FIFO queues with locatorConfig, we need to fetch ContentBasedDeduplication from SQS.
+   */
+  private async buildRetryMessageParamsWithDeduplicationCheck(
+    message: SQSMessage,
+    originalMessage: MessagePayloadType,
+  ): Promise<SendMessageCommandInput> {
+    // For FIFO queues, check if ContentBasedDeduplication is explicitly set in creationConfig
+    // If not explicitly set (undefined), we must fetch from SQS (async path)
+    if (this.isFifoQueue) {
+      const contentBasedDedup = this.creationConfig?.queue.Attributes?.ContentBasedDeduplication
+      const isContentBasedDedupExplicit =
+        contentBasedDedup === 'true' || contentBasedDedup === 'false'
+
+      if (!isContentBasedDedupExplicit) {
+        // Need to fetch ContentBasedDeduplication attribute from SQS (locatorConfig or not explicitly set)
+        return await this.buildFifoRetryMessageParamsAsync(message, originalMessage)
+      }
+    }
+
+    // Standard queue or FIFO with explicit ContentBasedDeduplication value - synchronous path
+    return this.buildRetryMessageParams(message, originalMessage)
   }
 
   /**

@@ -1990,9 +1990,6 @@ class CustomConsumer extends AbstractSqsConsumer<PayloadType> {
       // If payload is nested, extract it
       messagePayloadField: 'data',          // Extract 'data' field
 
-      // Only if timestamp is truly absent from both envelope and payload
-      skipMissingTimestampValidation: true,
-
       // Standard 2-param addConfig when routing field is in payload
       handlers: new MessageHandlerConfigBuilder<PayloadType>()
         .addConfig(PAYLOAD_SCHEMA, async (payload) => {
@@ -2036,7 +2033,6 @@ handlers: new MessageHandlerConfigBuilder<PayloadType>()
 - `messagePayloadField` (optional) - If specified, extract this nested field as the payload before validation. If not specified, the entire message is validated
 - `messageTypeFromFullMessage` (optional, default: `false`) - When `true`, look up `messageTypeField` in the full/root message instead of the extracted payload. Use this when the routing field is at the root but payload is nested. Only relevant when `messagePayloadField` is also configured
 - `messageTimestampFromFullMessage` (optional, default: `false`) - When `true`, extract timestamp from the full/root message for metadata and logging. Use this when the timestamp field is in the envelope but not in the extracted payload (e.g., EventBridge events). Only relevant when `messagePayloadField` is also configured
-- `skipMissingTimestampValidation` (optional, default: `false`) - If `true`, don't auto-add timestamp field for messages without one. Use this only when timestamp is truly absent from both envelope and payload. If timestamp exists in the envelope but not the payload, use `messageTimestampFromFullMessage` instead
 
 **Processing Flow:**
 
@@ -2103,31 +2099,6 @@ Use this when the timestamp field is in the root message, not in the nested payl
 ```
 
 Without `messageTimestampFromFullMessage: true`, the consumer would try to extract timestamp from the `detail` object for metadata/logging, which would fail or use undefined.
-
-**When to use `skipMissingTimestampValidation`:**
-
-Use this **only** when timestamp is truly absent from both envelope and payload:
-
-```typescript
-// Message without any timestamp:
-{
-  "eventType": "user.action",
-  "correlationId": "abc-123",
-  "data": {
-    "action": "click"
-    // No timestamp anywhere!
-  }
-}
-
-// Configuration:
-{
-  skipMissingTimestampValidation: true,  // Don't try to add timestamp
-}
-```
-
-**DO NOT use** `skipMissingTimestampValidation` if:
-- Timestamp exists in the envelope (use `messageTimestampFromFullMessage` instead)
-- Timestamp exists in the payload (no special flag needed)
 
 ## FIFO Queues
 
@@ -2200,6 +2171,170 @@ await publisher.publish({ id: '4', userId: 'user-456', action: 'create' })
 Message 1 (user-123) → Message 2 (user-123) → Message 3 (user-123)
 Message 4 (user-456) can process in parallel with above
 ```
+
+### FIFO Retry Behavior
+
+**IMPORTANT**: FIFO queues have special retry behavior to preserve message ordering.
+
+When a handler returns `{ error: 'retryLater' }` for a FIFO queue:
+
+1. **The consumer throws an error** instead of republishing the message
+2. **AWS SQS handles the retry** using its native retry mechanism
+3. **Message order is preserved** within the MessageGroupId
+4. The message returns to the **same position** in the queue after visibility timeout
+
+**Why this matters:**
+
+```typescript
+// ❌ Standard queue: Republishes message to back of queue (breaks order)
+// Message 1 → Message 2 → Message 3
+// If Message 1 retries: Message 2 → Message 3 → Message 1 (wrong!)
+
+// ✅ FIFO queue: Throws error, AWS retries in place (preserves order)
+// Message 1 → Message 2 → Message 3
+// If Message 1 retries: Message 1 (retry) → Message 2 → Message 3 (correct!)
+```
+
+**Configuration:**
+
+```typescript
+class MyFifoConsumer extends AbstractSqsConsumer<MessageType, Context> {
+  constructor(dependencies: SQSConsumerDependencies) {
+    super(dependencies, {
+      creationConfig: {
+        queue: {
+          QueueName: 'my-queue.fifo',
+          Attributes: {
+            FifoQueue: 'true',
+            VisibilityTimeout: '30',  // Retry delay
+          },
+        },
+      },
+      handlers: new MessageHandlerConfigBuilder()
+        .addConfig(SCHEMA, async (message) => {
+          // Return retryLater to trigger AWS SQS native retry
+          if (shouldRetry) {
+            return { error: 'retryLater' }
+          }
+          return { result: 'success' }
+        })
+        .build(),
+    })
+  }
+}
+```
+
+**Barrier Sleep Mechanism (FIFO Queues):**
+
+When using barriers with FIFO queues, the consumer implements a smart sleep-and-check mechanism to avoid unnecessary AWS retries:
+
+1. **Handler or barrier returns `{ error: 'retryLater' }`**
+2. **Consumer enters sleep loop** instead of immediately throwing error
+3. **Periodically re-checks barrier** (every `barrierSleepCheckIntervalInMsecs`, default: 5 seconds)
+4. **If barrier passes**: Process message successfully and exit
+5. **If max retry duration exceeded** (`maxRetryDuration`, default: 4 days): Send message to DLQ
+6. **Visibility timeout extended** every 30 seconds during sleep to prevent message reclaim
+
+**Configuration with barrier sleep:**
+
+```typescript
+class MyFifoConsumer extends AbstractSqsConsumer<MessageType, Context> {
+  constructor(dependencies: SQSConsumerDependencies) {
+    super(dependencies, {
+      creationConfig: {
+        queue: {
+          QueueName: 'my-queue.fifo',
+          Attributes: {
+            FifoQueue: 'true',
+            VisibilityTimeout: '3600',  // 1 hour - must be greater than heartbeatInterval
+          },
+        },
+      },
+      maxRetryDuration: 345600,                   // 4 days in seconds (default)
+      barrierSleepCheckIntervalInMsecs: 5000,     // 5 seconds (default)
+
+      // Consumer configuration - controls visibility timeout management
+      consumerOverrides: {
+        heartbeatInterval: 300,  // Extends visibility every 5 minutes (default)
+        // Must be less than VisibilityTimeout
+        // Prevents AWS from reclaiming the message during long processing or barrier sleep
+      },
+
+      handlers: new MessageHandlerConfigBuilder()
+        .addConfig(
+          SCHEMA,
+          async (message) => {
+            return { result: 'success' }
+          },
+          {
+            preHandlerBarrier: async (message, context) => {
+              // Check if prerequisite is met
+              const prerequisiteMet = await checkPrerequisite(message)
+              return { isPassing: prerequisiteMet }
+            }
+          }
+        )
+        .build(),
+    })
+  }
+}
+```
+
+**Retry flow for FIFO queues (with barrier sleep):**
+1. Handler or barrier returns `{ error: 'retryLater' }`
+2. Consumer enters sleep loop for up to `maxRetryDuration` (default: 4 days)
+3. Every `barrierSleepCheckIntervalInMsecs` (default: 5 sec), consumer:
+   - Re-checks barrier
+   - Extends visibility timeout (every 30 seconds)
+4. If barrier passes: Process message and mark as consumed
+5. If `maxRetryDuration` exceeded: Send message to DLQ with error `"FIFO queue: Retry duration exceeded. Moving message to DLQ."`
+
+**Retry flow for FIFO queues (without barrier - immediate retry):**
+1. Handler returns `{ error: 'retryLater' }` but no barrier configured
+2. Consumer immediately throws error: `"FIFO queue: Triggering AWS SQS retry to preserve message order"`
+3. AWS SQS makes message invisible for `VisibilityTimeout` duration
+4. After timeout, message becomes visible again **at the same position**
+5. Consumer processes it again
+
+**Retry duration limit:**
+- The `maxRetryDuration` setting still applies (default: 4 days)
+- After exceeding retry duration, message moves to DLQ
+- Error message: `"FIFO queue: Retry duration exceeded. Moving message to DLQ"`
+
+**Understanding VisibilityTimeout and heartbeatInterval:**
+
+The visibility timeout mechanism prevents multiple consumers from processing the same message:
+
+- **`VisibilityTimeout` (queue attribute)**: Initial time (in seconds) that a message is hidden from other consumers after being received. This is the starting timeout when a message is first picked up.
+
+- **`heartbeatInterval` (consumerOverrides option)**: Interval (in seconds) at which the consumer automatically extends the visibility timeout using `ChangeMessageVisibilityCommand`. This keeps the message "locked" to the current consumer during long processing.
+
+**How they work together:**
+
+1. **Message received**: AWS SQS hides message for `VisibilityTimeout` seconds
+2. **During processing**: Consumer automatically extends timeout every `heartbeatInterval` seconds
+3. **If processing exceeds VisibilityTimeout without extension**: AWS makes message visible again (allowing retry)
+4. **Requirement**: `heartbeatInterval` < `VisibilityTimeout` (otherwise extension happens after message already became visible)
+
+**For FIFO queues with barrier sleep:**
+- The barrier sleep mechanism can explicitly extend visibility timeout every 30 seconds
+- Extensions set visibility to 90 seconds **from now** (not cumulative) before each sleep chunk
+- Extension happens BEFORE sleeping (not after) to prevent first-check vulnerability
+- The 90-second value (3x the check interval) provides a 60-second safety buffer against timing drift
+- However, it smartly defers to `heartbeatInterval` when set to avoid redundant API calls:
+  - If `heartbeatInterval` <= 30 seconds: rely on sqs-consumer's automatic extension (no explicit extension)
+  - If `heartbeatInterval` > 30 seconds or not set: explicitly extend every 30 seconds during sleep
+- This optimization prevents unnecessary ChangeMessageVisibility API calls
+- Set `VisibilityTimeout` high enough for expected barrier wait time (e.g., 3600 seconds / 1 hour)
+
+**Best practices:**
+- Set `VisibilityTimeout` high enough to accommodate the barrier sleep period (consider `maxRetryDuration`)
+- Use `heartbeatInterval` < `VisibilityTimeout` (default: 300 seconds / 5 minutes)
+- For long-running barriers: increase `VisibilityTimeout` (not `heartbeatInterval`)
+- Use `maxRetryDuration` to control total retry time for both FIFO and standard queues
+- Adjust `barrierSleepCheckIntervalInMsecs` based on how quickly prerequisites typically become available
+- For FIFO queues: barriers are rechecked periodically instead of republishing messages
+- For standard queues: messages are republished with exponential backoff delay
 
 ### Message Groups
 

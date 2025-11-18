@@ -182,7 +182,7 @@ class EventBridgeConsumer extends AbstractSqsConsumer<SupportedPayloads, EventBr
 const exampleEventBridgeEvent = {
   version: '0',
   id: '123e4567-e89b-12d3-a456-426614174000',
-  'detail-type': 'v2.users.abcdef12-3456-7890-abcd-ef1234567890.presence',
+  'detail-type': 'v2.users.{id}.presence',
   source: 'genesys.cloud',
   account: '111222333444',
   time: '2025-11-18T12:34:56.789Z',
@@ -190,7 +190,7 @@ const exampleEventBridgeEvent = {
   resources: [],
   detail: {
     // This is what the handler receives
-    topicName: 'v2.users.abcdef12-3456-7890-abcd-ef1234567890.presence',
+    topicName: 'v2.users.{id}.presence',
     userId: 'abcdef12-3456-7890-abcd-ef1234567890',
     organizationId: 'org12345-6789-abcd-ef01-234567890abc',
     presenceDefinition: {
