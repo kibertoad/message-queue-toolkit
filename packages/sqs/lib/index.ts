@@ -24,6 +24,8 @@ export type { CommonMessage, SQSMessage } from './types/MessageTypes.ts'
 export {
   createEventBridgeSchema,
   createEventBridgeSchemas,
+  EVENT_BRIDGE_BASE_SCHEMA,
+  type EventBridgeBaseSchema,
   type EventBridgeDetail,
 } from './utils/eventBridgeSchemaBuilder.ts'
 export { resolveOutgoingMessageAttributes } from './utils/messageUtils.ts'
