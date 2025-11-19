@@ -4,7 +4,7 @@ import z from 'zod/v4'
 /**
  * Base EventBridge envelope schema (without detail typing)
  */
-const EVENT_BRIDGE_BASE_SCHEMA = z.object({
+export const EVENT_BRIDGE_BASE_SCHEMA = z.object({
   version: z.string(),
   id: z.string(),
   'detail-type': z.string(),
@@ -14,6 +14,8 @@ const EVENT_BRIDGE_BASE_SCHEMA = z.object({
   region: z.string(),
   resources: z.array(z.string()),
 })
+
+export type EventBridgeBaseSchema = z.infer<typeof EVENT_BRIDGE_BASE_SCHEMA>
 
 /**
  * Creates a typed EventBridge event schema with a custom detail payload.
