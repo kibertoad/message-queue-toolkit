@@ -1693,8 +1693,7 @@ The toolkit provides helper functions to create properly typed EventBridge schem
 
 ```typescript
 import {
-  AbstractSqsConsumer,
-  createEventBridgeSchema,
+  AbstractSqsConsumer, createEventBridgeSchema,
 } from '@message-queue-toolkit/sqs'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import z from 'zod'
@@ -1774,7 +1773,7 @@ class EventBridgeConsumer extends AbstractSqsConsumer<UserPresenceEvent, Executi
 Handle multiple EventBridge event types with distinct detail-type values:
 
 ```typescript
-import { createEventBridgeSchema, createEventBridgeSchemas } from '@message-queue-toolkit/sqs'
+import { createEventBridgeSchema } from '@message-queue-toolkit/sqs'
 
 // Step 1: Define detail (payload) schemas
 const USER_PRESENCE_DETAIL = z.object({
