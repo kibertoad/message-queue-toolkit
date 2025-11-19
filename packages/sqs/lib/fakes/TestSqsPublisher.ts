@@ -99,8 +99,7 @@ export class TestSqsPublisher {
    * ```
    */
   async publish(
-    // biome-ignore lint/suspicious/noExplicitAny: Allow any payload for testing
-    payload: any,
+    payload: unknown,
     options:
       | {
           queueUrl: string
