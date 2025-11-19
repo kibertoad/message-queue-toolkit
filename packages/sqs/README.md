@@ -2400,6 +2400,225 @@ import { SQS_RESOURCE_CURRENT_QUEUE } from '@message-queue-toolkit/sqs'
 
 The library is designed to be testable:
 
+### TestSqsPublisher - Testing Utility for Invalid Messages
+
+`TestSqsPublisher` is a specialized testing utility that allows you to publish arbitrary messages to SQS queues **without any validation**. This is useful for:
+
+- Testing error handling with invalid/malformed messages
+- Testing edge cases without schema constraints
+- Integration testing with arbitrary test data
+- Verifying consumer behavior with non-standard messages
+
+**⚠️ IMPORTANT: This is a testing utility only. Do not use in production code.**
+
+#### Features
+
+- ✅ **No validation** - Bypasses Zod schemas, deduplication, and payload offloading
+- ✅ **Flexible queue targeting** - Accepts `queueUrl`, `queueName`, consumer, or publisher instances
+- ✅ **FIFO support** - Works with both standard and FIFO queues
+- ✅ **Simple API** - One publisher instance can publish to any queue
+
+#### Basic Usage
+
+```typescript
+import { TestSqsPublisher } from '@message-queue-toolkit/sqs'
+import { SQSClient } from '@aws-sdk/client-sqs'
+
+const sqsClient = new SQSClient({ region: 'us-east-1' })
+const testPublisher = new TestSqsPublisher(sqsClient)
+
+// Publish to a queue by URL
+await testPublisher.publish(
+  { any: 'data', without: 'validation' },
+  { queueUrl: 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue' }
+)
+
+// Publish to a queue by name
+await testPublisher.publish(
+  { incomplete: 'message' },
+  { queueName: 'my-queue' }
+)
+```
+
+#### Publishing to Consumer's Queue
+
+Extract the queue URL from an existing consumer:
+
+```typescript
+const consumer = new UserEventsConsumer(sqsClient, userService)
+await consumer.init()
+
+const testPublisher = new TestSqsPublisher(sqsClient)
+
+// Publish directly to the consumer's queue
+await testPublisher.publish(
+  {
+    invalid: 'schema',
+    missing: 'required fields',
+  },
+  { consumer }
+)
+```
+
+#### Publishing to Publisher's Queue
+
+Extract the queue URL from an existing publisher:
+
+```typescript
+const regularPublisher = new UserEventsPublisher(sqsClient)
+await regularPublisher.init()
+
+const testPublisher = new TestSqsPublisher(sqsClient)
+
+// Publish to the same queue without validation
+await testPublisher.publish(
+  { totally: 'arbitrary', data: true },
+  { publisher: regularPublisher }
+)
+```
+
+#### Testing Invalid Message Handling
+
+```typescript
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+
+describe('Consumer Error Handling', () => {
+  let sqsClient: SQSClient
+  let consumer: UserEventsConsumer
+  let testPublisher: TestSqsPublisher
+
+  beforeEach(async () => {
+    sqsClient = new SQSClient({
+      endpoint: 'http://localhost:4566',  // LocalStack
+      region: 'us-east-1',
+    })
+
+    consumer = new UserEventsConsumer(sqsClient, userService, {
+      handlerSpy: true,
+    })
+    await consumer.start()
+
+    testPublisher = new TestSqsPublisher(sqsClient)
+  })
+
+  afterEach(async () => {
+    await consumer.close()
+  })
+
+  it('handles message with missing required fields', async () => {
+    // Publish invalid message
+    await testPublisher.publish(
+      {
+        // Missing: id, messageType, timestamp
+        someData: 'incomplete',
+      },
+      { consumer }  // Publish to consumer's queue
+    )
+
+    // Wait briefly for processing
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    // Verify consumer handled the error gracefully
+    // (e.g., sent to DLQ, logged error, etc.)
+    expect(errorLogger.errors).toContainEqual(
+      expect.objectContaining({
+        message: expect.stringContaining('Invalid message format'),
+      })
+    )
+  })
+
+  it('handles message with wrong data types', async () => {
+    await testPublisher.publish(
+      {
+        id: 123,  // Should be string
+        messageType: null,  // Should be string literal
+        userId: ['not', 'a', 'string'],  // Should be string
+      },
+      { consumer }
+    )
+
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    // Verify error handling
+    expect(validationErrors).toHaveLength(1)
+  })
+
+  it('handles completely malformed messages', async () => {
+    await testPublisher.publish(
+      {
+        totally: 'random',
+        nested: { deeply: { data: [1, 2, 3] } },
+        unexpected: true,
+      },
+      { consumer }
+    )
+
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    // Message should be rejected and sent to DLQ
+    expect(dlqMessages).toHaveLength(1)
+  })
+})
+```
+
+#### FIFO Queue Testing
+
+```typescript
+it('publishes to FIFO queue with MessageGroupId', async () => {
+  const testPublisher = new TestSqsPublisher(sqsClient)
+
+  await testPublisher.publish(
+    { test: 'fifo-message' },
+    {
+      queueUrl: 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue.fifo',
+      MessageGroupId: 'test-group',
+      MessageDeduplicationId: 'unique-id-123',
+    }
+  )
+
+  // Verify message was published
+  const result = await consumer.handlerSpy.waitForMessage(
+    (msg) => msg.test === 'fifo-message',
+    'consumed'
+  )
+
+  expect(result).toBeDefined()
+})
+```
+
+#### API Reference
+
+```typescript
+class TestSqsPublisher {
+  constructor(sqsClient: SQSClient)
+
+  /**
+   * Publish a message to an SQS queue without validation
+   * @param payload - Any JSON-serializable object
+   * @param options - Queue targeting and FIFO options
+   */
+  async publish(
+    payload: any,
+    options:
+      | { queueUrl: string; MessageGroupId?: string; MessageDeduplicationId?: string }
+      | { queueName: string; MessageGroupId?: string; MessageDeduplicationId?: string }
+      | { consumer: AbstractSqsConsumer<any, any, any, any, any>; MessageGroupId?: string; MessageDeduplicationId?: string }
+      | { publisher: AbstractSqsPublisher<any>; MessageGroupId?: string; MessageDeduplicationId?: string }
+  ): Promise<void>
+}
+```
+
+**When to use `TestSqsPublisher`:**
+- ✅ Testing error handling and edge cases
+- ✅ Integration tests with invalid data
+- ✅ Testing consumer resilience
+- ✅ Debugging message processing issues
+
+**When NOT to use `TestSqsPublisher`:**
+- ❌ Production code
+- ❌ Publishing valid messages (use regular publishers)
+- ❌ Messages that need validation, deduplication, or offloading
+
 ### Integration Tests
 
 ```typescript
