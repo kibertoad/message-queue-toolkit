@@ -79,14 +79,9 @@ describe('SqsEventBridgeConsumer', () => {
     const spy = await consumer.handlerSpy.waitForMessageWithId(eventBridgeEvent.id, 'consumed')
     expect(spy.processingResult).toEqual({ status: 'consumed' })
 
-    // Verify the handler received only the 'detail' field content, not the full envelope
+    // Verify the handler received the full envelope
     expect(executionContext.userPresenceMessages).toHaveLength(1)
-    expect(executionContext.userPresenceMessages[0]).toEqual(eventBridgeEvent.detail)
-
-    // Verify the handler did NOT receive the envelope fields
-    expect(executionContext.userPresenceMessages[0]).not.toHaveProperty('version')
-    expect(executionContext.userPresenceMessages[0]).not.toHaveProperty('source')
-    expect(executionContext.userPresenceMessages[0]).not.toHaveProperty('account')
+    expect(executionContext.userPresenceMessages[0]).toEqual(eventBridgeEvent)
   })
 
   it('should consume EventBridge user routing status event', async () => {
@@ -126,14 +121,13 @@ describe('SqsEventBridgeConsumer', () => {
     expect(spy.processingResult).toEqual({ status: 'consumed' })
 
     expect(executionContext.userRoutingStatusMessages).toHaveLength(1)
-    expect(executionContext.userRoutingStatusMessages[0]).toEqual(eventBridgeEvent.detail)
+    expect(executionContext.userRoutingStatusMessages[0]).toEqual(eventBridgeEvent)
   })
 
   it('should extract timestamp from envelope even when handler throws error', async () => {
-    // This test verifies the critical bug fix: when handler throws an error,
-    // the code path uses message: parsedMessage (detail payload without 'time' field).
-    // The fix ensures fullMessage: originalMessage is also passed, so timestamp
-    // can be extracted from the envelope for metadata/logging.
+    // This test verifies that custom timestamp field mapping works correctly in error paths.
+    // EventBridge uses 'time' instead of 'timestamp', and this test ensures the
+    // messageTimestampField configuration is respected when capturing error metadata.
 
     const capturedMetadata: any[] = []
     const spyMetricsManager = {
@@ -237,11 +231,11 @@ describe('SqsEventBridgeConsumer', () => {
     await new Promise((resolve) => setTimeout(resolve, 2000))
 
     // CRITICAL ASSERTION: Verify metrics manager received metadata with ENVELOPE timestamp
-    // This verifies that even in the error path (where message: parsedMessage),
-    // the fullMessage parameter was passed so timestamp could be extracted from envelope
+    // This verifies that messageTimestampField: 'time' configuration is correctly used
+    // to extract timestamps from EventBridge's 'time' field, not 'timestamp' field
     const envelopeTimestampMs = new Date(envelopeTimestamp).getTime()
 
-    // Find error metadata for our queue (messageId might not be extractable)
+    // Find error metadata for our queue
     const errorMetadata = capturedMetadata.find(
       (m) => m.queueName === 'failing_eventbridge_events' && m.processingResult?.status === 'error',
     )
@@ -251,10 +245,11 @@ describe('SqsEventBridgeConsumer', () => {
     expect(errorMetadata.messageTimestamp).toBe(envelopeTimestampMs)
     expect(errorMetadata.messageTimestamp).not.toBe(payloadTimestampMs)
 
-    // Verify the message stored is the detail payload (not the envelope)
-    expect(errorMetadata.message).toHaveProperty('userId', 'error-test-user')
-    expect(errorMetadata.message).not.toHaveProperty('version') // Envelope field
-    expect(errorMetadata.message).not.toHaveProperty('time') // Envelope field
+    // Verify the message stored is the full envelope
+    expect(errorMetadata.message).toHaveProperty('version') // Envelope field
+    expect(errorMetadata.message).toHaveProperty('time') // Envelope field
+    expect(errorMetadata.message).toHaveProperty('detail')
+    expect(errorMetadata.message.detail).toHaveProperty('userId', 'error-test-user')
 
     // Cleanup
     await failingConsumer.close()

@@ -1,11 +1,10 @@
 /**
  * Example: Consuming EventBridge-style events with SQS
  *
- * This example demonstrates how to consume non-standard message formats
- * like AWS EventBridge events, where:
- * - Metadata fields (id, type, timestamp) are at different locations
- * - The actual payload is nested in a field (e.g., 'detail')
- * - Field names don't match the default structure
+ * This example demonstrates how to consume AWS EventBridge events, where:
+ * - Field names differ from toolkit defaults ('detail-type' vs 'type', 'time' vs 'timestamp')
+ * - The business payload is nested in the 'detail' field
+ * - Handlers receive the full EventBridge envelope and access nested data directly
  */
 
 import { SQSClient } from '@aws-sdk/client-sqs'
@@ -14,12 +13,12 @@ import { AbstractSqsConsumer, createEventBridgeSchema } from '@message-queue-too
 import z from 'zod/v4'
 
 // ============================================================================
-// Step 1: Define your payload (detail) schemas
+// Step 1: Define your detail field schemas
 // ============================================================================
 
 /**
- * Define the 'detail' field schemas
- * These are what your handlers will receive
+ * Define the 'detail' field schemas.
+ * These describe the business payload nested within EventBridge events.
  */
 const USER_PRESENCE_DETAIL_SCHEMA = z.object({
   topicName: z.string(),
@@ -48,15 +47,15 @@ const USER_ROUTING_STATUS_DETAIL_SCHEMA = z.object({
 })
 
 // ============================================================================
-// Step 2: Create envelope schemas for routing
+// Step 2: Create EventBridge envelope schemas
 // ============================================================================
 
 /**
- * Create EventBridge envelope schemas with literal detail-type values.
- * These are used for routing messages to the correct handler.
- *
- * The second parameter is the literal detail-type value that will be matched
- * for routing purposes.
+ * Create full EventBridge envelope schemas with literal detail-type values.
+ * These schemas:
+ * - Validate the complete EventBridge message structure
+ * - Include literal 'detail-type' values for routing
+ * - Are what handlers receive (the full envelope)
  */
 const USER_PRESENCE_ENVELOPE_SCHEMA = createEventBridgeSchema(
   USER_PRESENCE_DETAIL_SCHEMA,
@@ -68,21 +67,21 @@ const USER_ROUTING_STATUS_ENVELOPE_SCHEMA = createEventBridgeSchema(
   'v2.users.{id}.routing.status',
 )
 
-// Type definitions
-type UserPresencePayload = z.output<typeof USER_PRESENCE_DETAIL_SCHEMA>
-type UserRoutingStatusPayload = z.output<typeof USER_ROUTING_STATUS_DETAIL_SCHEMA>
-type SupportedPayloads = UserPresencePayload | UserRoutingStatusPayload
+// Type definitions - handlers receive the full envelope
+type UserPresenceEnvelope = z.output<typeof USER_PRESENCE_ENVELOPE_SCHEMA>
+type UserRoutingStatusEnvelope = z.output<typeof USER_ROUTING_STATUS_ENVELOPE_SCHEMA>
+type SupportedEvents = UserPresenceEnvelope | UserRoutingStatusEnvelope
 
 type EventBridgeContext = {
-  userPresenceMessages: UserPresencePayload[]
-  userRoutingStatusMessages: UserRoutingStatusPayload[]
+  userPresenceMessages: UserPresenceEnvelope[]
+  userRoutingStatusMessages: UserRoutingStatusEnvelope[]
 }
 
 // ============================================================================
 // Step 3: Create a consumer with EventBridge-specific configuration
 // ============================================================================
 
-class EventBridgeConsumer extends AbstractSqsConsumer<SupportedPayloads, EventBridgeContext> {
+class EventBridgeConsumer extends AbstractSqsConsumer<SupportedEvents, EventBridgeContext> {
   constructor(sqsClient: SQSClient, queueUrl: string, executionContext: EventBridgeContext) {
     super(
       {
@@ -118,44 +117,32 @@ class EventBridgeConsumer extends AbstractSqsConsumer<SupportedPayloads, EventBr
         // EventBridge uses 'time' instead of 'timestamp'
         messageTimestampField: 'time',
 
-        // IMPORTANT: Extract the 'detail' field as the payload
-        // This means handlers will receive the content of 'detail', not the full envelope
-        messagePayloadField: 'detail',
-
-        // Look for 'detail-type' in the root message (not in the extracted payload)
-        // This is required when using envelope schemas for routing
-        messageTypeFromFullMessage: true,
-
-        // Extract timestamp from the root message for metadata/logging
-        // The 'time' field is in the envelope, not in the extracted 'detail' payload
-        messageTimestampFromFullMessage: true,
-
         // ======================================================================
-        // Handler configuration with envelope and payload schemas
+        // Handler configuration
         // ======================================================================
         //
-        // Using 3-parameter addConfig:
-        // - First param: Envelope schema (for routing with literal detail-type)
-        // - Second param: Payload schema (for validating extracted detail)
-        // - Third param: Handler (receives validated detail payload)
+        // Handlers receive the full EventBridge envelope (validated by the schema)
+        // and access the 'detail' field directly
 
-        handlers: new MessageHandlerConfigBuilder<SupportedPayloads, EventBridgeContext>()
-          .addConfig(
-            USER_PRESENCE_ENVELOPE_SCHEMA,
-            USER_PRESENCE_DETAIL_SCHEMA,
-            (payload: UserPresencePayload, context: EventBridgeContext) => {
-              context.userPresenceMessages.push(payload)
-              return Promise.resolve({ result: 'success' as const })
-            },
-          )
-          .addConfig(
-            USER_ROUTING_STATUS_ENVELOPE_SCHEMA,
-            USER_ROUTING_STATUS_DETAIL_SCHEMA,
-            (payload: UserRoutingStatusPayload, context: EventBridgeContext) => {
-              context.userRoutingStatusMessages.push(payload)
-              return Promise.resolve({ result: 'success' as const })
-            },
-          )
+        handlers: new MessageHandlerConfigBuilder<SupportedEvents, EventBridgeContext>()
+          .addConfig(USER_PRESENCE_ENVELOPE_SCHEMA, (message, context) => {
+            // Handler receives the full EventBridge envelope
+            // Type is inferred from USER_PRESENCE_ENVELOPE_SCHEMA
+            // Access the detail field directly
+            context.userPresenceMessages.push(message)
+            // biome-ignore lint/suspicious/noConsole: Example code
+            console.log('User presence:', message.detail.userId, message.detail.presenceDefinition)
+            return Promise.resolve({ result: 'success' as const })
+          })
+          .addConfig(USER_ROUTING_STATUS_ENVELOPE_SCHEMA, (message, context) => {
+            // Handler receives the full EventBridge envelope
+            // Type is inferred from USER_ROUTING_STATUS_ENVELOPE_SCHEMA
+            // Access the detail field directly
+            context.userRoutingStatusMessages.push(message)
+            // biome-ignore lint/suspicious/noConsole: Example code
+            console.log('Routing status:', message.detail.userId, message.detail.routingStatus)
+            return Promise.resolve({ result: 'success' as const })
+          })
           .build(),
       },
       executionContext,
@@ -171,13 +158,13 @@ class EventBridgeConsumer extends AbstractSqsConsumer<SupportedPayloads, EventBr
  * This is what the actual EventBridge event looks like in SQS.
  * Note the structure:
  * - Metadata is at root level: id, detail-type, time
- * - Payload is nested in 'detail' field
+ * - Business payload is nested in 'detail' field
  *
- * Processing flow with two-schema approach:
- * 1. Envelope schema matches 'detail-type' for routing
- * 2. messagePayloadField: 'detail' extracts the detail field
- * 3. Payload schema validates the extracted detail field
- * 4. Handler receives the validated detail field content
+ * Processing flow:
+ * 1. Envelope schema validates the complete message structure
+ * 2. Literal 'detail-type' value is used for routing to the correct handler
+ * 3. Handler receives the full validated EventBridge envelope
+ * 4. Handler accesses message.detail to get the business payload
  */
 const exampleEventBridgeEvent = {
   version: '0',
@@ -222,7 +209,7 @@ async function _main() {
   await consumer.start()
 
   // Consumer is now listening for EventBridge events
-  // Handlers will receive the 'detail' field content directly
+  // Handlers will receive the full EventBridge envelope
 }
 
 // ============================================================================
@@ -230,57 +217,69 @@ async function _main() {
 // ============================================================================
 
 /**
- * 1. **Type-safe routing**: Envelope schemas with literal detail-type values ensure
+ * 1. **Type-safe routing**: Literal detail-type values in schemas ensure
  *    correct message routing at compile time
  *
- * 2. **Clean payload validation**: Payload schemas validate only the data handlers need
+ * 2. **Full validation**: Envelope schema validates the entire EventBridge structure
  *
- * 3. **No message transformation needed**: The toolkit handles extraction automatically
+ * 3. **Simple configuration**: Just map field names - no payload extraction needed
  *
- * 4. **Type-safe handlers**: Handlers receive properly typed payload objects
+ * 4. **Type-safe handlers**: Handlers receive properly typed envelope objects with
+ *    TypeScript knowing the exact structure of message.detail
  *
- * 5. **Metadata still accessible**: Deduplication, logging, etc. use root-level fields
+ * 5. **Full message access**: Handlers can access both envelope metadata (id, time, source)
+ *    and business payload (detail) when needed
  *
- * 6. **Clean handler code**: No need to manually extract 'detail' in every handler
+ * 6. **Explicit code**: message.detail access is visible in handler code
  *
  * 7. **Standard toolkit features work**: Retries, DLQ, deduplication, etc. all work
  */
 
 // ============================================================================
-// Comparison: Single Schema vs Two-Schema Approach
+// Comparison: Standard Messages vs EventBridge Events
 // ============================================================================
 
 /**
- * SINGLE SCHEMA APPROACH (for simple cases):
+ * STANDARD MESSAGE APPROACH (flat structure):
  *
  * ```typescript
- * // When payload and message are the same structure
+ * const SIMPLE_MESSAGE_SCHEMA = z.object({
+ *   type: z.literal('user.created'),
+ *   userId: z.string(),
+ *   email: z.string()
+ * })
+ *
  * .addConfig(
  *   SIMPLE_MESSAGE_SCHEMA,
  *   async (message, context) => {
- *     console.log(message.userId)
+ *     console.log(message.userId)  // Direct access
  *     return { result: 'success' as const }
  *   }
  * )
  * ```
  *
- * TWO-SCHEMA APPROACH (for EventBridge-style envelopes):
+ * EVENTBRIDGE APPROACH (nested structure):
  *
  * ```typescript
- * // Envelope schema for routing, payload schema for validation
+ * const USER_PRESENCE_ENVELOPE = createEventBridgeSchema(
+ *   USER_PRESENCE_DETAIL,
+ *   'v2.users.{id}.presence'  // Literal for routing
+ * )
+ *
  * .addConfig(
- *   USER_PRESENCE_ENVELOPE_SCHEMA,  // Routes using 'detail-type'
- *   USER_PRESENCE_DETAIL_SCHEMA,     // Validates extracted 'detail'
- *   async (detail, context) => {
- *     console.log(detail.userId)     // Handler receives detail only
+ *   USER_PRESENCE_ENVELOPE,
+ *   async (message, context) => {
+ *     console.log(message.detail.userId)  // Access nested payload
+ *     console.log(message.time)            // Access envelope metadata if needed
  *     return { result: 'success' as const }
  *   }
  * )
  * ```
  *
- * The two-schema approach separates concerns:
- * - Envelope schema: Full message structure + literal type values for routing
- * - Payload schema: Extracted payload structure for validation and handler typing
+ * The EventBridge approach:
+ * - Validates the full EventBridge envelope structure
+ * - Uses literal 'detail-type' values for routing
+ * - Handlers receive complete message with type-safe access to nested payload
  */
 
 export { EventBridgeConsumer, exampleEventBridgeEvent }
