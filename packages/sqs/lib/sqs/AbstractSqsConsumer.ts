@@ -325,16 +325,13 @@ export abstract class AbstractSqsConsumer<
           return message
         }
         const { parsedMessage, originalMessage } = deserializedMessage.result
-        // For metadata extraction, use originalMessage when payload field is configured
-        const messageForMetadata = this.getMessageForMetadata(parsedMessage, originalMessage)
 
         if (
-          this.isDeduplicationEnabledForMessage(messageForMetadata) &&
-          (await this.isMessageDuplicated(messageForMetadata, DeduplicationRequesterEnum.Consumer))
+          this.isDeduplicationEnabledForMessage(parsedMessage) &&
+          (await this.isMessageDuplicated(parsedMessage, DeduplicationRequesterEnum.Consumer))
         ) {
           this.handleMessageProcessed({
             message: parsedMessage,
-            fullMessage: originalMessage,
             processingResult: { status: 'consumed', skippedAsDuplicate: true },
             messageProcessingStartTimestamp,
             queueName: this.queueName,
@@ -344,8 +341,8 @@ export abstract class AbstractSqsConsumer<
           return message
         }
 
-        const acquireLockResult = this.isDeduplicationEnabledForMessage(messageForMetadata)
-          ? await this.acquireLockForMessage(messageForMetadata)
+        const acquireLockResult = this.isDeduplicationEnabledForMessage(parsedMessage)
+          ? await this.acquireLockForMessage(parsedMessage)
           : { result: noopReleasableLock }
 
         // Lock cannot be acquired as it is already being processed by another consumer.
@@ -366,13 +363,12 @@ export abstract class AbstractSqsConsumer<
         // While the consumer was waiting for a lock to be acquired, the message might have been processed
         // by another consumer already, hence we need to check again if the message is not marked as duplicated.
         if (
-          this.isDeduplicationEnabledForMessage(messageForMetadata) &&
-          (await this.isMessageDuplicated(messageForMetadata, DeduplicationRequesterEnum.Consumer))
+          this.isDeduplicationEnabledForMessage(parsedMessage) &&
+          (await this.isMessageDuplicated(parsedMessage, DeduplicationRequesterEnum.Consumer))
         ) {
           await acquireLockResult.result?.release()
           this.handleMessageProcessed({
             message: parsedMessage,
-            fullMessage: originalMessage,
             processingResult: { status: 'consumed', skippedAsDuplicate: true },
             messageProcessingStartTimestamp,
             queueName: this.queueName,
@@ -384,11 +380,11 @@ export abstract class AbstractSqsConsumer<
 
         // @ts-expect-error
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        const messageType = messageForMetadata[this.messageTypeField]
+        const messageType = parsedMessage[this.messageTypeField]
         const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
         // @ts-expect-error
-        const uniqueTransactionKey = messageForMetadata[this.messageIdField]
+        const uniqueTransactionKey = parsedMessage[this.messageIdField]
         this.transactionObservabilityManager?.start(transactionSpanId, uniqueTransactionKey)
         if (this.logMessages) {
           const resolvedLogMessage = this.resolveMessageLog(parsedMessage, messageType)
@@ -409,11 +405,10 @@ export abstract class AbstractSqsConsumer<
 
         // success
         if (result.result) {
-          await this.deduplicateMessage(messageForMetadata, DeduplicationRequesterEnum.Consumer)
+          await this.deduplicateMessage(parsedMessage, DeduplicationRequesterEnum.Consumer)
           await acquireLockResult.result?.release()
           this.handleMessageProcessed({
             message: originalMessage,
-            fullMessage: originalMessage,
             processingResult: { status: 'consumed' },
             messageProcessingStartTimestamp,
             queueName: this.queueName,
@@ -438,7 +433,6 @@ export abstract class AbstractSqsConsumer<
         await acquireLockResult.result?.release()
         this.handleMessageProcessed({
           message: parsedMessage,
-          fullMessage: originalMessage,
           processingResult: { status: 'error', errorReason: 'handlerError' },
           messageProcessingStartTimestamp,
           queueName: this.queueName,
@@ -478,7 +472,6 @@ export abstract class AbstractSqsConsumer<
         // For lock failures, throw error immediately
         this.handleMessageProcessed({
           message: parsedMessage,
-          fullMessage: originalMessage,
           processingResult: { status: 'retryLater' },
           messageProcessingStartTimestamp,
           queueName: this.queueName,
@@ -491,7 +484,6 @@ export abstract class AbstractSqsConsumer<
       await this.failProcessing(message)
       this.handleMessageProcessed({
         message: parsedMessage,
-        fullMessage: originalMessage,
         processingResult: { status: 'error', errorReason: 'retryLaterExceeded' },
         messageProcessingStartTimestamp,
         queueName: this.queueName,
@@ -509,7 +501,6 @@ export abstract class AbstractSqsConsumer<
 
       this.handleMessageProcessed({
         message: parsedMessage,
-        fullMessage: originalMessage,
         processingResult: { status: 'retryLater' },
         messageProcessingStartTimestamp,
         queueName: this.queueName,
@@ -518,7 +509,6 @@ export abstract class AbstractSqsConsumer<
       await this.failProcessing(message)
       this.handleMessageProcessed({
         message: parsedMessage,
-        fullMessage: originalMessage,
         processingResult: { status: 'error', errorReason: 'retryLaterExceeded' },
         messageProcessingStartTimestamp,
         queueName: this.queueName,
@@ -537,9 +527,8 @@ export abstract class AbstractSqsConsumer<
     messageProcessingStartTimestamp: number,
   ): Promise<void> {
     // Extract message type for barrier rechecks
-    const messageForTypeResolution = this.getMessageForMetadata(parsedMessage, originalMessage)
     // @ts-expect-error
-    const messageType = messageForTypeResolution[this.messageTypeField] as string
+    const messageType = parsedMessage[this.messageTypeField] as string
 
     // Sleep and periodically recheck barrier until maxRetryDuration is exceeded
     while (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {
@@ -557,7 +546,6 @@ export abstract class AbstractSqsConsumer<
       if ('result' in result && result.result === 'success') {
         this.handleMessageProcessed({
           message: originalMessage,
-          fullMessage: originalMessage,
           processingResult: { status: 'consumed' },
           messageProcessingStartTimestamp,
           queueName: this.queueName,
@@ -569,7 +557,6 @@ export abstract class AbstractSqsConsumer<
       if (result.error !== 'retryLater') {
         this.handleMessageProcessed({
           message: parsedMessage,
-          fullMessage: originalMessage,
           processingResult: { status: 'error', errorReason: 'handlerError' },
           messageProcessingStartTimestamp,
           queueName: this.queueName,
@@ -584,7 +571,6 @@ export abstract class AbstractSqsConsumer<
     await this.failProcessing(message)
     this.handleMessageProcessed({
       message: parsedMessage,
-      fullMessage: originalMessage,
       processingResult: { status: 'error', errorReason: 'retryLaterExceeded' },
       messageProcessingStartTimestamp,
       queueName: this.queueName,
@@ -828,30 +814,8 @@ export abstract class AbstractSqsConsumer<
 
   protected override resolveSchema(
     message: MessagePayloadType,
-    messageForTypeResolution?: unknown,
   ): Either<Error, ZodSchema<MessagePayloadType>> {
-    // Use messageForTypeResolution if provided (for type field lookup)
-    const messageForType = (messageForTypeResolution ?? message) as Record<string, unknown>
-
-    // First use messageSchemaContainer for routing (finds the message type)
-    const schemaResult = this._messageSchemaContainer.resolveSchema(messageForType)
-
-    if (schemaResult.error) {
-      return schemaResult
-    }
-
-    // For consumers with envelope schemas, we need to return the payload schema for validation
-    // MessageSchemaContainer already validated the message type exists using envelope schema routing
-    // Now we get the corresponding handler config to extract its payload schema
-    const messageType = this.messageTypeField ? messageForType[this.messageTypeField] : undefined
-    if (messageType) {
-      const handlerConfig = this.handlerContainer.resolveHandler(messageType as string)
-      // Return payload schema for validation (not envelope schema used for routing)
-      return { result: handlerConfig.schema }
-    }
-
-    // Fallback to messageSchemaContainer result (for cases without envelope schemas)
-    return schemaResult
+    return this._messageSchemaContainer.resolveSchema(message as Record<string, unknown>)
   }
 
   // eslint-disable-next-line max-params
@@ -913,18 +877,6 @@ export abstract class AbstractSqsConsumer<
     return resolveMessageResult
   }
 
-  /**
-   * Get the message to use for metadata extraction.
-   * When messagePayloadField is configured, metadata is in the originalMessage (full message),
-   * not in the parsedMessage (extracted payload).
-   */
-  private getMessageForMetadata(
-    parsedMessage: MessagePayloadType,
-    originalMessage: MessagePayloadType,
-  ): MessagePayloadType {
-    return this.messagePayloadField ? originalMessage : parsedMessage
-  }
-
   private tryToExtractId(message: SQSMessage): Either<'abort', string> {
     const resolveMessageResult = this.resolveMessage(message)
     if (isMessageError(resolveMessageResult.error)) {
@@ -961,25 +913,14 @@ export abstract class AbstractSqsConsumer<
 
     const fullMessage = resolveMessageResult.result.body
 
-    // Extract payload if messagePayloadField is configured
-    const { payload, fullMessage: extractedFullMessage } = this.extractMessagePayload(fullMessage)
-
-    // When messageTypeFromFullMessage is true, look up the type in the full message
-    // Otherwise, look it up in the extracted payload (default behavior)
-    const messageForTypeResolution =
-      this.messageTypeFromFullMessage && this.messagePayloadField ? extractedFullMessage : payload
-
-    const resolveSchemaResult = this.resolveSchema(
-      payload as MessagePayloadType,
-      messageForTypeResolution,
-    )
+    const resolveSchemaResult = this.resolveSchema(fullMessage as MessagePayloadType)
     if (resolveSchemaResult.error) {
       this.handleError(resolveSchemaResult.error)
       return ABORT_EARLY_EITHER
     }
 
     const deserializationResult = parseMessage(
-      payload,
+      fullMessage,
       resolveSchemaResult.result,
       this.errorResolver,
     )
@@ -992,15 +933,10 @@ export abstract class AbstractSqsConsumer<
       return ABORT_EARLY_EITHER
     }
 
-    // When messagePayloadField is configured:
-    // - parsedMessage = validated payload (passed to handler)
-    // - originalMessage = full message (used for metadata extraction and retries)
     return {
       result: {
         parsedMessage: deserializationResult.result.parsedMessage,
-        originalMessage: this.messagePayloadField
-          ? (extractedFullMessage as MessagePayloadType)
-          : deserializationResult.result.originalMessage,
+        originalMessage: deserializationResult.result.originalMessage,
       },
     }
   }

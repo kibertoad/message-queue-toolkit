@@ -8,7 +8,6 @@ import { deleteQueue } from '../../lib/utils/sqsUtils.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import {
-  USER_PRESENCE_DETAIL_SCHEMA,
   USER_PRESENCE_ENVELOPE_SCHEMA,
   type UserPresenceEnvelope,
   type UserRoutingStatusEnvelope,
@@ -171,20 +170,13 @@ describe('SqsEventBridgeConsumer', () => {
             messageTypeField: 'detail-type',
             messageIdField: 'id',
             messageTimestampField: 'time',
-            messagePayloadField: 'detail',
-            messageTypeFromFullMessage: true,
-            messageTimestampFromFullMessage: true,
             handlerSpy: true,
             maxRetryDuration: 0, // Don't retry - fail immediately
             handlers: new MessageHandlerConfigBuilder<any, any>()
-              .addConfig(
-                USER_PRESENCE_ENVELOPE_SCHEMA,
-                USER_PRESENCE_DETAIL_SCHEMA,
-                (_message, _context) => {
-                  // Always throw error to trigger error path
-                  throw new Error('Intentional test error')
-                },
-              )
+              .addConfig(USER_PRESENCE_ENVELOPE_SCHEMA, (_message, _context) => {
+                // Always throw error to trigger error path
+                throw new Error('Intentional test error')
+              })
               .build(),
           },
           executionContext,
@@ -339,7 +331,7 @@ describe('SqsEventBridgeConsumer', () => {
 
     expect(executionContext.userPresenceMessages).toHaveLength(1)
     expect(executionContext.userRoutingStatusMessages).toHaveLength(1)
-    expect(executionContext.userPresenceMessages[0]?.userId).toBe('user1')
-    expect(executionContext.userRoutingStatusMessages[0]?.userId).toBe('user2')
+    expect(executionContext.userPresenceMessages[0]?.detail.userId).toBe('user1')
+    expect(executionContext.userRoutingStatusMessages[0]?.detail.userId).toBe('user2')
   })
 })

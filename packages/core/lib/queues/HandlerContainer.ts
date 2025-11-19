@@ -72,7 +72,6 @@ export class MessageHandlerConfig<
   const BarrierOutput = unknown,
 > {
   public readonly schema: ZodSchema<MessagePayloadSchema>
-  public readonly envelopeSchema?: ZodSchema<unknown>
   public readonly definition?: CommonEventDefinition
   public readonly handler: Handler<
     MessagePayloadSchema,
@@ -103,10 +102,8 @@ export class MessageHandlerConfig<
       BarrierOutput
     >,
     eventDefinition?: CommonEventDefinition,
-    envelopeSchema?: ZodSchema<unknown>,
   ) {
     this.schema = schema
-    this.envelopeSchema = envelopeSchema
     this.definition = eventDefinition
     this.handler = handler
     this.messageLogFormatter = options?.messageLogFormatter ?? defaultLogFormatter
@@ -133,13 +130,11 @@ export class MessageHandlerConfigBuilder<
   }
 
   /**
-   * Two-parameter version: Use when the message type field for routing can be resolved from the payload schema.
-   * The same schema is used for both routing (to match the message type) and validation (for the handler).
+   * Add a handler configuration for a specific message type.
+   * The schema is used for both routing (to match the message type) and validation (for the handler).
    *
-   * Use this when:
-   * - The entire message is the payload (messagePayloadField is undefined)
-   * - The message type field (e.g., 'type') is at the root level of the message
-   * - Handler receives and processes the entire message
+   * The message type field (e.g., 'type' or 'detail-type') must be at the root level of the message
+   * and must be a literal value in the schema for routing to work.
    *
    * Example:
    * ```typescript
@@ -153,6 +148,23 @@ export class MessageHandlerConfigBuilder<
    *   // message has type 'user.created', userId, and email
    * })
    * ```
+   *
+   * EventBridge example:
+   * ```typescript
+   * const USER_PRESENCE_SCHEMA = z.object({
+   *   'detail-type': z.literal('v2.users.{id}.presence'),
+   *   time: z.string(),
+   *   detail: z.object({
+   *     userId: z.string(),
+   *     presenceStatus: z.string()
+   *   })
+   * })
+   *
+   * builder.addConfig(USER_PRESENCE_SCHEMA, async (message) => {
+   *   // message is the full EventBridge envelope
+   *   const detail = message.detail  // Access nested payload directly
+   * })
+   * ```
    */
   addConfig<MessagePayloadSchema extends MessagePayloadSchemas, const BarrierOutput>(
     schema: ZodSchema<MessagePayloadSchema> | CommonEventDefinition,
@@ -163,131 +175,12 @@ export class MessageHandlerConfigBuilder<
       PrehandlerOutput,
       BarrierOutput
     >,
-  ): this
-
-  /**
-   * Three-parameter version: Use when the message type field for routing is only available in the message envelope,
-   * but the handler only needs to process a nested payload field.
-   *
-   * Use this when:
-   * - Payload extraction is configured (messagePayloadField is set, e.g., 'detail')
-   * - The message type field is in the envelope/root (e.g., 'detail-type')
-   * - Handler should only receive the extracted payload, not the full envelope
-   *
-   * The envelope schema is used for routing (must have a literal type field), and the payload schema
-   * is used for validating the extracted payload that the handler receives.
-   *
-   * Example (EventBridge events):
-   * ```typescript
-   * // Envelope schema with literal detail-type for routing
-   * const USER_CREATED_ENVELOPE = z.object({
-   *   'detail-type': z.literal('user.created'),
-   *   time: z.string(),
-   *   detail: z.object({ userId: z.string(), email: z.string() })
-   * })
-   *
-   * // Payload schema for validation
-   * const USER_CREATED_DETAIL = z.object({
-   *   userId: z.string(),
-   *   email: z.string()
-   * })
-   *
-   * builder.addConfig(
-   *   USER_CREATED_ENVELOPE,  // Used for routing by 'detail-type'
-   *   USER_CREATED_DETAIL,    // Used for validating extracted 'detail'
-   *   async (detail) => {
-   *     // detail only has userId and email, not the envelope fields
-   *   }
-   * )
-   * ```
-   */
-  addConfig<MessagePayloadSchema extends MessagePayloadSchemas, const BarrierOutput>(
-    envelopeSchema: ZodSchema<unknown>,
-    payloadSchema: ZodSchema<MessagePayloadSchema>,
-    handler: Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>,
-    options?: HandlerConfigOptions<
-      MessagePayloadSchema,
-      ExecutionContext,
-      PrehandlerOutput,
-      BarrierOutput
-    >,
-  ): this
-
-  // Implementation
-  addConfig<MessagePayloadSchema extends MessagePayloadSchemas, const BarrierOutput>(
-    schemaOrEnvelope: ZodSchema<MessagePayloadSchema> | CommonEventDefinition | ZodSchema<unknown>,
-    handlerOrPayloadSchema:
-      | Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>
-      | ZodSchema<MessagePayloadSchema>,
-    optionsOrHandler?:
-      | HandlerConfigOptions<
-          MessagePayloadSchema,
-          ExecutionContext,
-          PrehandlerOutput,
-          BarrierOutput
-        >
-      | Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>,
-    maybeOptions?: HandlerConfigOptions<
-      MessagePayloadSchema,
-      ExecutionContext,
-      PrehandlerOutput,
-      BarrierOutput
-    >,
-  ) {
-    // Detect which overload was called based on parameter types
-    const isThreeParamVersion =
-      typeof handlerOrPayloadSchema === 'object' && 'parse' in handlerOrPayloadSchema
-
-    let payloadSchema: ZodSchema<MessagePayloadSchema>
-    let handler: Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>
-    let options:
-      | HandlerConfigOptions<
-          MessagePayloadSchema,
-          ExecutionContext,
-          PrehandlerOutput,
-          BarrierOutput
-        >
-      | undefined
-    let definition: CommonEventDefinition | undefined
-    let envelopeSchema: ZodSchema<unknown> | undefined
-
-    if (isThreeParamVersion) {
-      // Three-param version: (envelopeSchema, payloadSchema, handler, options?)
-      envelopeSchema = schemaOrEnvelope as ZodSchema<unknown>
-      payloadSchema = handlerOrPayloadSchema as ZodSchema<MessagePayloadSchema>
-      handler = optionsOrHandler as Handler<
-        MessagePayloadSchema,
-        ExecutionContext,
-        PrehandlerOutput,
-        BarrierOutput
-      >
-      options = maybeOptions
-      definition = undefined
-    } else {
-      // Two-param version: (schema, handler, options?) - schema used for both routing and validation
-      const schema = schemaOrEnvelope as ZodSchema<MessagePayloadSchema> | CommonEventDefinition
-      payloadSchema = isCommonEventDefinition(schema)
-        ? // @ts-ignore
-          (schema.consumerSchema as ZodSchema<MessagePayloadSchema>)
-        : schema
-      definition = isCommonEventDefinition(schema) ? schema : undefined
-      handler = handlerOrPayloadSchema as Handler<
-        MessagePayloadSchema,
-        ExecutionContext,
-        PrehandlerOutput,
-        BarrierOutput
-      >
-      options = optionsOrHandler as
-        | HandlerConfigOptions<
-            MessagePayloadSchema,
-            ExecutionContext,
-            PrehandlerOutput,
-            BarrierOutput
-          >
-        | undefined
-      // If envelopeSchema not provided, routing will use payloadSchema
-      envelopeSchema = undefined
-    }
+  ): this {
+    const payloadSchema = isCommonEventDefinition(schema)
+      ? // @ts-ignore
+        (schema.consumerSchema as ZodSchema<MessagePayloadSchema>)
+      : schema
+    const definition = isCommonEventDefinition(schema) ? schema : undefined
 
     this.configs.push(
       new MessageHandlerConfig<
@@ -301,7 +194,6 @@ export class MessageHandlerConfigBuilder<
         handler,
         options,
         definition,
-        envelopeSchema,
       ),
     )
     return this
@@ -379,10 +271,8 @@ export class HandlerContainer<
   > {
     return supportedHandlers.reduce(
       (acc, entry) => {
-        // Use envelopeSchema for routing if provided, otherwise use payloadSchema
-        const schemaForRouting = entry.envelopeSchema ?? entry.schema
         // @ts-expect-error
-        const messageType = schemaForRouting.shape[this.messageTypeField].value
+        const messageType = entry.schema.shape[this.messageTypeField].value
         acc[messageType] = entry
         return acc
       },

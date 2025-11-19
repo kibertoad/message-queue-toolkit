@@ -4,14 +4,12 @@ import type { SQSConsumerDependencies } from '../../lib/sqs/AbstractSqsConsumer.
 import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer.ts'
 
 import type {
-  SupportedEventBridgePayloads,
-  UserPresencePayload,
-  UserRoutingStatusPayload,
+  SupportedEventBridgeEnvelopes,
+  UserPresenceEnvelope,
+  UserRoutingStatusEnvelope,
 } from './eventBridgeSchemas.ts'
 import {
-  USER_PRESENCE_DETAIL_SCHEMA,
   USER_PRESENCE_ENVELOPE_SCHEMA,
-  USER_ROUTING_STATUS_DETAIL_SCHEMA,
   USER_ROUTING_STATUS_ENVELOPE_SCHEMA,
 } from './eventBridgeSchemas.ts'
 
@@ -19,8 +17,8 @@ import {
  * Execution context for EventBridge consumer tests
  */
 export type EventBridgeTestContext = {
-  userPresenceMessages: UserPresencePayload[]
-  userRoutingStatusMessages: UserRoutingStatusPayload[]
+  userPresenceMessages: UserPresenceEnvelope[]
+  userRoutingStatusMessages: UserRoutingStatusEnvelope[]
 }
 
 /**
@@ -29,18 +27,13 @@ export type EventBridgeTestContext = {
  * Key configurations:
  * - messageTypeField: 'detail-type' (instead of default 'type')
  * - messageTimestampField: 'time' (instead of default 'timestamp')
- * - messagePayloadField: 'detail' (extracts nested payload for validation and handler)
- * - messageTypeFromFullMessage: true (look for detail-type in envelope, not payload)
- * - messageTimestampFromFullMessage: true (extract timestamp from envelope for metadata)
  *
  * How it works:
- * - messagePayloadField extracts the 'detail' field from the EventBridge envelope
- * - Schemas validate the extracted 'detail' content
- * - Handlers receive the validated 'detail' payload
- * - Metadata extraction uses the full envelope for type and timestamp fields
+ * - Full EventBridge envelope is validated and passed to handlers
+ * - Handlers receive the complete envelope and can access message.detail directly
  */
 export class SqsEventBridgeConsumer extends AbstractSqsConsumer<
-  SupportedEventBridgePayloads,
+  SupportedEventBridgeEnvelopes,
   EventBridgeTestContext
 > {
   public static readonly QUEUE_NAME = 'eventbridge_events'
@@ -64,44 +57,28 @@ export class SqsEventBridgeConsumer extends AbstractSqsConsumer<
         messageIdField: 'id', // Standard field, same as default
         messageTimestampField: 'time', // EventBridge uses 'time' instead of 'timestamp'
 
-        // Payload extraction configuration
-        messagePayloadField: 'detail', // Extract 'detail' field and pass to handler
-        messageTypeFromFullMessage: true, // Look for 'detail-type' in root, not in extracted payload
-        messageTimestampFromFullMessage: true, // Extract 'time' from root for metadata/logging
-
         // Enable handler spy for testing
         handlerSpy: true,
 
         // Handler configuration
-        // Three-param addConfig: (envelopeSchema, payloadSchema, handler)
-        // - envelopeSchema: Used for routing (matches 'detail-type')
-        // - payloadSchema: Used for validation of extracted 'detail'
-        // - handler: Receives validated 'detail' payload
+        // Handlers receive the full EventBridge envelope and can access message.detail
         handlers: new MessageHandlerConfigBuilder<
-          SupportedEventBridgePayloads,
+          SupportedEventBridgeEnvelopes,
           EventBridgeTestContext
         >()
-          .addConfig(
-            USER_PRESENCE_ENVELOPE_SCHEMA,
-            USER_PRESENCE_DETAIL_SCHEMA,
-            (message, context) => {
-              // Handler receives the 'detail' field content (extracted by messagePayloadField)
-              context.userPresenceMessages.push(message)
-              return Promise.resolve({
-                result: 'success' as const,
-              })
-            },
-          )
-          .addConfig(
-            USER_ROUTING_STATUS_ENVELOPE_SCHEMA,
-            USER_ROUTING_STATUS_DETAIL_SCHEMA,
-            (message, context) => {
-              context.userRoutingStatusMessages.push(message)
-              return Promise.resolve({
-                result: 'success' as const,
-              })
-            },
-          )
+          .addConfig(USER_PRESENCE_ENVELOPE_SCHEMA, (message, context) => {
+            // Handler receives the full EventBridge envelope
+            context.userPresenceMessages.push(message)
+            return Promise.resolve({
+              result: 'success' as const,
+            })
+          })
+          .addConfig(USER_ROUTING_STATUS_ENVELOPE_SCHEMA, (message, context) => {
+            context.userRoutingStatusMessages.push(message)
+            return Promise.resolve({
+              result: 'success' as const,
+            })
+          })
           .build(),
       },
       executionContext,

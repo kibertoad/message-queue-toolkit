@@ -57,3 +57,4 @@ export type UserPresenceEnvelope = z.output<typeof USER_PRESENCE_ENVELOPE_SCHEMA
 export type UserRoutingStatusEnvelope = z.output<typeof USER_ROUTING_STATUS_ENVELOPE_SCHEMA>
 
 export type SupportedEventBridgePayloads = UserPresencePayload | UserRoutingStatusPayload
+export type SupportedEventBridgeEnvelopes = UserPresenceEnvelope | UserRoutingStatusEnvelope

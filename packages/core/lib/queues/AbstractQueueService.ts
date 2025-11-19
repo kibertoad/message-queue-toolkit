@@ -102,18 +102,6 @@ export abstract class AbstractQueueService<
    * Used to know the store-based message deduplication options
    */
   protected readonly messageDeduplicationOptionsField: string
-  /**
-   * Optional field name to extract the payload from
-   */
-  protected readonly messagePayloadField?: string
-  /**
-   * Whether to look up messageTypeField in the full message instead of extracted payload
-   */
-  protected readonly messageTypeFromFullMessage: boolean
-  /**
-   * Whether to extract timestamp from full message for metadata (when messagePayloadField is set)
-   */
-  protected readonly messageTimestampFromFullMessage: boolean
   protected readonly errorReporter: ErrorReporter
   public readonly logger: CommonLogger
   protected readonly messageIdField: string
@@ -153,9 +141,6 @@ export abstract class AbstractQueueService<
     this.messageDeduplicationIdField = options.messageDeduplicationIdField ?? 'deduplicationId'
     this.messageDeduplicationOptionsField =
       options.messageDeduplicationOptionsField ?? 'deduplicationOptions'
-    this.messagePayloadField = options.messagePayloadField ?? 'payload'
-    this.messageTypeFromFullMessage = options.messageTypeFromFullMessage ?? false
-    this.messageTimestampFromFullMessage = options.messageTimestampFromFullMessage ?? false
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig
@@ -176,10 +161,7 @@ export abstract class AbstractQueueService<
     handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
     messageTypeField: string
   }) {
-    // Use envelopeSchema for routing if provided, otherwise use payloadSchema
-    const messageSchemas = options.handlers.map(
-      (entry) => (entry.envelopeSchema ?? entry.schema) as ZodSchema<MessagePayloadSchemas>,
-    )
+    const messageSchemas = options.handlers.map((entry) => entry.schema)
     const messageDefinitions: CommonEventDefinition[] = options.handlers
       .map((entry) => entry.definition)
       .filter((entry) => entry !== undefined)
@@ -213,40 +195,6 @@ export abstract class AbstractQueueService<
   ): Either<MessageInvalidFormatError | MessageValidationError, ResolvedMessage>
 
   /**
-   * Extract payload from message if messagePayloadField is configured.
-   * Returns an object containing both the extracted payload (for validation and handler)
-   * and the full message (for metadata extraction).
-   */
-  protected extractMessagePayload(fullMessage: unknown): {
-    payload: unknown
-    fullMessage: unknown
-  } {
-    if (!this.messagePayloadField) {
-      // No payload field configured (undefined by default), treat entire message as payload
-      return { payload: fullMessage, fullMessage }
-    }
-
-    // Extract the payload field
-    if (
-      typeof fullMessage === 'object' &&
-      fullMessage !== null &&
-      this.messagePayloadField in fullMessage
-    ) {
-      return {
-        // @ts-expect-error - dynamic field access
-        payload: fullMessage[this.messagePayloadField],
-        fullMessage,
-      }
-    }
-
-    // Payload field not found, log warning and return full message
-    this.logger.warn(
-      `messagePayloadField "${this.messagePayloadField}" not found in message, using full message`,
-    )
-    return { payload: fullMessage, fullMessage }
-  }
-
-  /**
    * Format message for logging
    */
   protected resolveMessageLog(message: MessagePayloadSchemas, _messageType: string): unknown {
@@ -273,13 +221,12 @@ export abstract class AbstractQueueService<
 
   protected handleMessageProcessed(params: {
     message: MessagePayloadSchemas | null
-    fullMessage?: MessagePayloadSchemas | null
     processingResult: MessageProcessingResult
     messageProcessingStartTimestamp: number
     queueName: string
     messageId?: string
   }) {
-    const { message, fullMessage, processingResult, messageId } = params
+    const { message, processingResult, messageId } = params
     const messageProcessingEndTimestamp = Date.now()
 
     this._handlerSpy?.addProcessedMessage(
@@ -295,7 +242,6 @@ export abstract class AbstractQueueService<
 
     const processedMessageMetadata = this.resolveProcessedMessageMetadata(
       message,
-      fullMessage,
       processingResult,
       params.messageProcessingStartTimestamp,
       messageProcessingEndTimestamp,
@@ -315,7 +261,6 @@ export abstract class AbstractQueueService<
 
   private resolveProcessedMessageMetadata(
     message: MessagePayloadSchemas | null,
-    fullMessage: MessagePayloadSchemas | null | undefined,
     processingResult: MessageProcessingResult,
     messageProcessingStartTimestamp: number,
     messageProcessingEndTimestamp: number,
@@ -325,13 +270,7 @@ export abstract class AbstractQueueService<
     // @ts-expect-error
     const resolvedMessageId: string | undefined = message?.[this.messageIdField] ?? messageId
 
-    // When messageTimestampFromFullMessage is true and fullMessage is provided,
-    // extract timestamp from fullMessage for proper metadata tracking
-    const messageForTimestamp =
-      this.messageTimestampFromFullMessage && fullMessage ? fullMessage : message
-    const messageTimestamp = messageForTimestamp
-      ? this.tryToExtractTimestamp(messageForTimestamp)?.getTime()
-      : undefined
+    const messageTimestamp = message ? this.tryToExtractTimestamp(message)?.getTime() : undefined
     const messageType =
       message && this.messageTypeField in message
         ? // @ts-ignore

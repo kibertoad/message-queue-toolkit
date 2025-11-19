@@ -81,54 +81,6 @@ export type CommonQueueOptions = {
   messageTimestampField?: string
   messageDeduplicationIdField?: string
   messageDeduplicationOptionsField?: string
-  /**
-   * Field name containing the business payload within the message envelope.
-   *
-   * The "payload" is the part of the message relevant for handler processing logic (e.g., user data, order details),
-   * as opposed to metadata fields used primarily for observability, routing, error handling, and flow control
-   * (e.g., id, timestamp, messageType, deduplicationId).
-   *
-   * When specified: The handler receives only the extracted payload field, while metadata fields remain accessible
-   * from the full message for logging, deduplication, and error reporting.
-   *
-   * Common patterns:
-   * - Envelope structure: { id, type, timestamp, payload: {...} } → handler receives payload content
-   * - EventBridge events: { source, detail-type, time, detail: {...} } → use 'detail' as messagePayloadField
-   * - Flat structure: Set to undefined to treat the entire message as payload (useful for external systems,
-   *   simple use cases, or when you don't control the message format)
-   *
-   * If the specified field is not found in a message, the system logs a warning and uses the full message as fallback.
-   *
-   * Default: 'payload'
-   */
-  messagePayloadField?: string
-  /**
-   * When true, look up messageTypeField in the full/root message instead of the extracted payload.
-   * Only relevant when messagePayloadField is not set to undefined (i.e., when payload extraction is configured).
-   *
-   * Use case: EventBridge events where:
-   * - messagePayloadField: 'detail' (extract nested payload)
-   * - messageTypeField: 'detail-type' (type field is in root, not in detail)
-   * - messageTypeFromFullMessage: true (look for detail-type in root message)
-   *
-   * Default: false (look in extracted payload for backward compatibility)
-   */
-  messageTypeFromFullMessage?: boolean
-  /**
-   * When messagePayloadField is not set to undefined (i.e., when payload extraction is configured),
-   * determines where to look for the timestamp field for metadata extraction.
-   *
-   * Use case: EventBridge events where:
-   * - messagePayloadField: 'detail' (extract nested payload)
-   * - messageTimestampField: 'time' (timestamp field is in root, not in detail)
-   * - messageTimestampFromFullMessage: true (extract timestamp from root message for metadata/logging)
-   *
-   * Note: Retry logic always uses the full message for timestamp extraction.
-   * This flag only affects metadata extraction in handleMessageProcessed.
-   *
-   * Default: false (look in extracted payload for backward compatibility)
-   */
-  messageTimestampFromFullMessage?: boolean
   handlerSpy?: HandlerSpy<object> | HandlerSpyParams | boolean
   logMessages?: boolean
   deletionConfig?: DeletionConfig
