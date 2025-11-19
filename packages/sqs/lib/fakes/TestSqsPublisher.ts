@@ -6,6 +6,56 @@ import type { AbstractSqsPublisher } from '../sqs/AbstractSqsPublisher.ts'
 import { getQueueUrl } from '../utils/sqsUtils.ts'
 
 /**
+ * Options for publishing messages with TestSqsPublisher.
+ * Supports multiple mutually exclusive ways to specify the target queue.
+ */
+export type TestSqsPublishOptions =
+  | {
+      queueUrl: string
+      queueName?: never
+      consumer?: never
+      publisher?: never
+      MessageGroupId?: string
+      MessageDeduplicationId?: string
+    }
+  | {
+      queueName: string
+      queueUrl?: never
+      consumer?: never
+      publisher?: never
+      MessageGroupId?: string
+      MessageDeduplicationId?: string
+    }
+  | {
+      consumer: AbstractSqsConsumer<
+        // biome-ignore lint/suspicious/noExplicitAny: Allow any message type for testing
+        any,
+        // biome-ignore lint/suspicious/noExplicitAny: Allow any context for testing
+        any,
+        // biome-ignore lint/suspicious/noExplicitAny: Allow any prehandler output for testing
+        any,
+        // biome-ignore lint/suspicious/noExplicitAny: Allow any creation config for testing
+        any,
+        // biome-ignore lint/suspicious/noExplicitAny: Allow any locator type for testing
+        any
+      >
+      queueUrl?: never
+      queueName?: never
+      publisher?: never
+      MessageGroupId?: string
+      MessageDeduplicationId?: string
+    }
+  | {
+      // biome-ignore lint/suspicious/noExplicitAny: Allow any message type for testing
+      publisher: AbstractSqsPublisher<any>
+      queueUrl?: never
+      queueName?: never
+      consumer?: never
+      MessageGroupId?: string
+      MessageDeduplicationId?: string
+    }
+
+/**
  * TestSqsPublisher - A testing utility for publishing arbitrary messages to SQS queues without validation.
  *
  * This publisher bypasses all message validation, schema checking, deduplication, and payload offloading
@@ -98,54 +148,7 @@ export class TestSqsPublisher {
    * )
    * ```
    */
-  async publish(
-    payload: unknown,
-    options:
-      | {
-          queueUrl: string
-          queueName?: never
-          consumer?: never
-          publisher?: never
-          MessageGroupId?: string
-          MessageDeduplicationId?: string
-        }
-      | {
-          queueName: string
-          queueUrl?: never
-          consumer?: never
-          publisher?: never
-          MessageGroupId?: string
-          MessageDeduplicationId?: string
-        }
-      | {
-          consumer: AbstractSqsConsumer<
-            // biome-ignore lint/suspicious/noExplicitAny: Allow any message type for testing
-            any,
-            // biome-ignore lint/suspicious/noExplicitAny: Allow any context for testing
-            any,
-            // biome-ignore lint/suspicious/noExplicitAny: Allow any prehandler output for testing
-            any,
-            // biome-ignore lint/suspicious/noExplicitAny: Allow any creation config for testing
-            any,
-            // biome-ignore lint/suspicious/noExplicitAny: Allow any locator type for testing
-            any
-          >
-          queueUrl?: never
-          queueName?: never
-          publisher?: never
-          MessageGroupId?: string
-          MessageDeduplicationId?: string
-        }
-      | {
-          // biome-ignore lint/suspicious/noExplicitAny: Allow any message type for testing
-          publisher: AbstractSqsPublisher<any>
-          queueUrl?: never
-          queueName?: never
-          consumer?: never
-          MessageGroupId?: string
-          MessageDeduplicationId?: string
-        },
-  ): Promise<void> {
+  async publish(payload: unknown, options: TestSqsPublishOptions): Promise<void> {
     let queueUrl: string
 
     if (options.queueUrl) {

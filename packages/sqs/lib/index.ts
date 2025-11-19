@@ -1,6 +1,6 @@
 export { SqsConsumerErrorResolver } from './errors/SqsConsumerErrorResolver.ts'
 export { FakeConsumerErrorResolver } from './fakes/FakeConsumerErrorResolver.ts'
-export { TestSqsPublisher } from './fakes/TestSqsPublisher.ts'
+export { TestSqsPublisher, type TestSqsPublishOptions } from './fakes/TestSqsPublisher.ts'
 export type { SQSConsumerDependencies, SQSConsumerOptions } from './sqs/AbstractSqsConsumer.ts'
 export { AbstractSqsConsumer } from './sqs/AbstractSqsConsumer.ts'
 export type { SQSMessageOptions, SQSPublisherOptions } from './sqs/AbstractSqsPublisher.ts'
