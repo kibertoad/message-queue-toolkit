@@ -32,3 +32,29 @@ export async function getObjectContent(s3: S3, bucket: string, key: string) {
   const result = await s3.getObject({ Bucket: bucket, Key: key })
   return result.Body?.transformToString()
 }
+
+export async function waitForS3Objects(
+  s3: S3,
+  bucketName: string,
+  minCount = 1,
+  timeoutMs = 5000,
+  checkIntervalMs = 100,
+): Promise<string[]> {
+  const startTime = Date.now()
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      const objects = await s3.listObjects({ Bucket: bucketName })
+      const keys =
+        objects.Contents?.map((obj) => obj.Key).filter((key): key is string => !!key) ?? []
+      if (keys.length >= minCount) {
+        return keys
+      }
+    } catch (e) {
+      if (e instanceof NoSuchBucket) {
+        throw new Error(`Bucket ${bucketName} does not exist`)
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, checkIntervalMs))
+  }
+  throw new Error(`Timeout waiting for ${minCount} S3 objects in bucket ${bucketName}`)
+}

@@ -109,6 +109,7 @@ describe('SqsPermissionConsumerFifo', () => {
         deletionConfig: {
           deleteIfExists: true,
         },
+        barrierSleepCheckIntervalInMsecs: 100, // Fast recheck for tests
         addHandlerOverride: () => {
           attemptCount++
           if (attemptCount < 2) {
@@ -132,8 +133,7 @@ describe('SqsPermissionConsumerFifo', () => {
 
       await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
 
-      // Check that retry was sent without DelaySeconds
-      // Filter for actual retries (_internalRetryLaterCount >= 1)
+      // FIFO queues use barrier sleep approach - no retry republishing
       const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
         if (!(call[0] instanceof SendMessageCommand)) return false
         const command = call[0] as SendMessageCommand
@@ -150,17 +150,10 @@ describe('SqsPermissionConsumerFifo', () => {
         }
       })
 
-      expect(retrySendCalls.length).toBeGreaterThan(0)
+      // No retry republishing for FIFO queues
+      expect(retrySendCalls.length).toBe(0)
 
-      const retryCommand = retrySendCalls[0]?.[0] as SendMessageCommand
-      // FIFO queues should not have DelaySeconds
-      expect(retryCommand.input.DelaySeconds).toBeUndefined()
-      // FIFO queues should preserve MessageGroupId
-      expect(retryCommand.input.MessageGroupId).toBe('test-group')
-      // When ContentBasedDeduplication is enabled, MessageDeduplicationId should NOT be set
-      // (SQS generates it based on message body)
-      expect(retryCommand.input.MessageDeduplicationId).toBeUndefined()
-
+      // Verify message was processed twice (initial attempt + recheck after sleep)
       expect(attemptCount).toBe(2)
 
       await consumer.close(true)
@@ -197,6 +190,7 @@ describe('SqsPermissionConsumerFifo', () => {
         deletionConfig: {
           deleteIfExists: true,
         },
+        barrierSleepCheckIntervalInMsecs: 100, // Fast recheck for tests
         addHandlerOverride: () => {
           attemptCount++
           if (attemptCount < 2) {
@@ -226,8 +220,7 @@ describe('SqsPermissionConsumerFifo', () => {
 
       await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
 
-      // Check that retry modified MessageDeduplicationId
-      // Filter for actual retries (_internalRetryLaterCount >= 1)
+      // FIFO queues use barrier sleep approach - no retry republishing
       const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
         if (!(call[0] instanceof SendMessageCommand)) return false
         const command = call[0] as SendMessageCommand
@@ -244,17 +237,10 @@ describe('SqsPermissionConsumerFifo', () => {
         }
       })
 
-      expect(retrySendCalls.length).toBeGreaterThan(0)
+      // No retry republishing for FIFO queues
+      expect(retrySendCalls.length).toBe(0)
 
-      const retryCommand = retrySendCalls[0]?.[0] as SendMessageCommand
-      // When ContentBasedDeduplication is disabled, MessageDeduplicationId should be modified with retry count
-      // to prevent SQS from treating it as duplicate within 5-minute deduplication window
-      expect(retryCommand.input.MessageDeduplicationId).toBe('unique-dedup-id-123-retry-1')
-      // FIFO queues should preserve MessageGroupId
-      expect(retryCommand.input.MessageGroupId).toBe('test-group')
-      // FIFO queues should not have DelaySeconds
-      expect(retryCommand.input.DelaySeconds).toBeUndefined()
-
+      // Verify message was processed twice (initial attempt + recheck after sleep)
       expect(attemptCount).toBe(2)
 
       await consumer.close(true)
@@ -291,6 +277,7 @@ describe('SqsPermissionConsumerFifo', () => {
         deletionConfig: {
           deleteIfExists: true,
         },
+        barrierSleepCheckIntervalInMsecs: 100, // Fast recheck for tests
         addHandlerOverride: () => {
           attemptCount++
           if (attemptCount < 2) {
@@ -313,7 +300,9 @@ describe('SqsPermissionConsumerFifo', () => {
 
       await consumer.handlerSpy.waitForMessageWithId('3', 'consumed')
 
-      // Check that MessageGroupId was preserved
+      // For FIFO queues with new barrier sleep approach:
+      // - No retry republishing (no SendMessageCommand for retry)
+      // - Consumer sleeps and rechecks, processing on second attempt within sleep loop
       const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
         if (!(call[0] instanceof SendMessageCommand)) return false
         const command = call[0] as SendMessageCommand
@@ -330,10 +319,11 @@ describe('SqsPermissionConsumerFifo', () => {
         }
       })
 
-      expect(retrySendCalls.length).toBeGreaterThan(0)
+      // No retry republishing for FIFO queues - they use sleep-and-recheck instead
+      expect(retrySendCalls.length).toBe(0)
 
-      const retryCommand = retrySendCalls[0]?.[0] as SendMessageCommand
-      expect(retryCommand.input.MessageGroupId).toBe('custom-group-id')
+      // Verify message was processed twice (initial attempt + recheck after sleep)
+      expect(attemptCount).toBe(2)
 
       await consumer.close(true)
     })
@@ -515,6 +505,7 @@ describe('SqsPermissionConsumerFifo', () => {
         locatorConfig: {
           queueUrl: publisher.queueProps.url,
         },
+        barrierSleepCheckIntervalInMsecs: 100, // Fast recheck for tests
         addHandlerOverride: () => {
           attemptCount++
           if (attemptCount < 2) {
@@ -542,7 +533,7 @@ describe('SqsPermissionConsumerFifo', () => {
 
       await consumer.handlerSpy.waitForMessageWithId('locator-test', 'consumed')
 
-      // Check that retry modified MessageDeduplicationId
+      // FIFO queues use barrier sleep approach - no retry republishing
       const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
         if (!(call[0] instanceof SendMessageCommand)) return false
         const command = call[0] as SendMessageCommand
@@ -559,13 +550,70 @@ describe('SqsPermissionConsumerFifo', () => {
         }
       })
 
-      expect(retrySendCalls.length).toBeGreaterThan(0)
+      // No retry republishing for FIFO queues
+      expect(retrySendCalls.length).toBe(0)
 
-      const retryCommand = retrySendCalls[0]?.[0] as SendMessageCommand
-      // Should have fetched ContentBasedDeduplication=false from SQS and modified the ID
-      expect(retryCommand.input.MessageDeduplicationId).toBe('locator-dedup-id-retry-1')
-      expect(retryCommand.input.MessageGroupId).toBe('test-group')
+      // Verify message was processed twice (initial attempt + recheck after sleep)
+      expect(attemptCount).toBe(2)
 
+      await consumer.close(true)
+    })
+
+    it('uses custom visibility extension parameters', async () => {
+      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'true',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        defaultMessageGroupId: 'test-group',
+      })
+
+      let attemptCount = 0
+      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+        creationConfig: {
+          queue: {
+            QueueName: queueName,
+            Attributes: {
+              FifoQueue: 'true',
+              ContentBasedDeduplication: 'true',
+            },
+          },
+        },
+        deletionConfig: {
+          deleteIfExists: true,
+        },
+        barrierSleepCheckIntervalInMsecs: 100, // Fast recheck for tests
+        barrierVisibilityExtensionIntervalInMsecs: 5000, // Custom: 5 seconds
+        barrierVisibilityTimeoutInSeconds: 15, // Custom: 15 seconds
+        addHandlerOverride: () => {
+          attemptCount++
+          if (attemptCount < 2) {
+            return Promise.resolve({ error: 'retryLater' })
+          }
+          return Promise.resolve({ result: 'success' })
+        },
+      })
+
+      await publisher.init()
+      await consumer.start()
+
+      await publisher.publish({
+        id: 'custom-visibility-test',
+        messageType: 'add',
+        userIds: 'user-custom',
+      })
+
+      await consumer.handlerSpy.waitForMessageWithId('custom-visibility-test', 'consumed')
+
+      // Verify message was processed twice (initial attempt + recheck after sleep)
       expect(attemptCount).toBe(2)
 
       await consumer.close(true)

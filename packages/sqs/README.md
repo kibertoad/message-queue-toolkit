@@ -26,6 +26,9 @@ AWS SQS (Simple Queue Service) implementation for the message-queue-toolkit. Pro
   - [Message Handlers](#message-handlers)
   - [Pre-handlers and Barriers](#pre-handlers-and-barriers)
   - [Handler Spies](#handler-spies)
+- [Non-Standard Message Formats](#non-standard-message-formats)
+  - [EventBridge Events](#eventbridge-events)
+  - [Custom Message Structures](#custom-message-structures)
 - [FIFO Queues](#fifo-queues)
   - [FIFO Queue Requirements](#fifo-queue-requirements)
   - [Message Ordering](#message-ordering)
@@ -1670,6 +1673,308 @@ interface HandlerSpy<Message> {
 4. **Use in integration tests** - Handler spies are most valuable for integration tests, not unit tests
 5. **Don't use in production** - Handler spies add memory overhead (circular buffer of messages)
 
+## Non-Standard Message Formats
+
+The toolkit supports consuming messages that don't follow the standard message structure (with `type`, `id`, and `timestamp` fields at the root level). This is particularly useful for consuming events from external systems like AWS EventBridge, CloudWatch Events, or custom event sources.
+
+### EventBridge Events
+
+AWS EventBridge events have a different structure than standard toolkit messages. They use:
+- `detail-type` instead of `type` (routing field at root level)
+- `time` instead of `timestamp`
+- `detail` for the actual payload (nested)
+- `id` for the message ID (same as default)
+
+Handlers receive the full EventBridge envelope and can access the nested `detail` field directly.
+
+#### Using the EventBridge Schema Builder
+
+The toolkit provides helper functions to create properly typed EventBridge schemas:
+
+```typescript
+import {
+  AbstractSqsConsumer, createEventBridgeSchema,
+} from '@message-queue-toolkit/sqs'
+import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
+import z from 'zod'
+
+// Step 1: Define your detail (payload) schema
+const USER_PRESENCE_DETAIL = z.object({
+  userId: z.string(),
+  status: z.enum(['AVAILABLE', 'AWAY', 'BUSY', 'OFFLINE']),
+  timestamp: z.string(),
+})
+
+// Step 2: Create envelope schema with literal detail-type for routing
+const USER_PRESENCE_ENVELOPE = createEventBridgeSchema(
+  USER_PRESENCE_DETAIL,
+  'user.presence.changed'  // Literal value for routing
+)
+
+// Step 3: Infer the envelope type (what handlers receive)
+type UserPresenceEvent = z.infer<typeof USER_PRESENCE_ENVELOPE>
+// {
+//   version: string
+//   id: string
+//   'detail-type': 'user.presence.changed'  // Literal type for routing
+//   source: string
+//   account: string
+//   time: string
+//   region: string
+//   resources: string[]
+//   detail: {
+//     userId: string
+//     status: 'AVAILABLE' | 'AWAY' | 'BUSY' | 'OFFLINE'
+//     timestamp: string
+//   }
+// }
+```
+
+#### Creating an EventBridge Consumer
+
+```typescript
+class EventBridgeConsumer extends AbstractSqsConsumer<UserPresenceEvent, ExecutionContext> {
+  constructor(dependencies: SQSConsumerDependencies) {
+    super(dependencies, {
+      creationConfig: {
+        queue: { QueueName: 'eventbridge-events' },
+      },
+
+      // Configure field mappings for EventBridge
+      messageTypeField: 'detail-type',     // EventBridge uses 'detail-type'
+      messageIdField: 'id',                // Standard, same as default
+      messageTimestampField: 'time',       // EventBridge uses 'time'
+
+      // Handlers receive the full EventBridge envelope
+      handlers: new MessageHandlerConfigBuilder<UserPresenceEvent, ExecutionContext>()
+        .addConfig(
+          USER_PRESENCE_ENVELOPE,          // Schema validates full envelope
+          async (message, context) => {
+            // message is the full EventBridge envelope
+            // Access the detail field directly
+            console.log('User status changed:', message.detail.userId, message.detail.status)
+            return { result: 'success' as const }
+          },
+        )
+        .build(),
+    })
+  }
+}
+```
+
+**Key Points:**
+- The envelope schema validates the full EventBridge message structure
+- The literal `detail-type` value in the schema is used for routing
+- Handlers receive the complete validated envelope
+- Access nested payload via `message.detail`
+
+#### Multiple EventBridge Event Types
+
+Handle multiple EventBridge event types with distinct detail-type values:
+
+```typescript
+import { createEventBridgeSchema } from '@message-queue-toolkit/sqs'
+
+// Step 1: Define detail (payload) schemas
+const USER_PRESENCE_DETAIL = z.object({
+  userId: z.string(),
+  status: z.string(),
+  timestamp: z.string(),
+})
+
+const USER_ROUTING_STATUS_DETAIL = z.object({
+  userId: z.string(),
+  routingStatus: z.object({
+    id: z.string(),
+    status: z.string(),
+  }),
+  timestamp: z.string(),
+})
+
+// Step 2: Create envelope schemas with literal detail-type values
+const USER_PRESENCE_ENVELOPE = createEventBridgeSchema(
+  USER_PRESENCE_DETAIL,
+  'v2.users.{id}.presence'  // Literal routing value
+)
+
+const USER_ROUTING_STATUS_ENVELOPE = createEventBridgeSchema(
+  USER_ROUTING_STATUS_DETAIL,
+  'v2.users.{id}.routing.status'  // Literal routing value
+)
+
+// Step 3: Union type for all event envelopes
+type SupportedEventBridgeEvents =
+  | z.infer<typeof USER_PRESENCE_ENVELOPE>
+  | z.infer<typeof USER_ROUTING_STATUS_ENVELOPE>
+
+// Step 4: Consumer with multiple handlers
+class MultiEventConsumer extends AbstractSqsConsumer<SupportedEventBridgeEvents, ExecutionContext> {
+  constructor(dependencies: SQSConsumerDependencies) {
+    super(dependencies, {
+      creationConfig: { queue: { QueueName: 'multi-event-queue' } },
+
+      messageTypeField: 'detail-type',
+      messageTimestampField: 'time',
+
+      handlers: new MessageHandlerConfigBuilder<SupportedEventBridgeEvents, ExecutionContext>()
+        .addConfig(
+          USER_PRESENCE_ENVELOPE,
+          async (message, context) => {
+            // message.detail is typed as UserPresenceDetail
+            console.log(`User ${message.detail.userId} status: ${message.detail.status}`)
+            return { result: 'success' as const }
+          }
+        )
+        .addConfig(
+          USER_ROUTING_STATUS_ENVELOPE,
+          async (message, context) => {
+            // message.detail is typed as UserRoutingStatusDetail
+            console.log(`User ${message.detail.userId} routing: ${message.detail.routingStatus.status}`)
+            return { result: 'success' as const }
+          }
+        )
+        .build(),
+    })
+  }
+}
+```
+
+#### Complete EventBridge Example
+
+```typescript
+import { SQSClient } from '@aws-sdk/client-sqs'
+import {
+  AbstractSqsConsumer,
+  createEventBridgeSchema,
+  SqsConsumerErrorResolver,
+  type SQSConsumerDependencies
+} from '@message-queue-toolkit/sqs'
+import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
+import z from 'zod'
+
+// 1. Define the detail payload schema
+const USER_CREATED_DETAIL = z.object({
+  userId: z.string(),
+  email: z.string().email(),
+  name: z.string(),
+  createdAt: z.string(),
+})
+
+// 2. Create envelope schema with literal detail-type for routing
+const USER_CREATED_ENVELOPE = createEventBridgeSchema(
+  USER_CREATED_DETAIL,
+  'user.created'  // Literal value for routing
+)
+
+// 3. Type for the event envelope (what handlers receive)
+type UserCreatedEvent = z.infer<typeof USER_CREATED_ENVELOPE>
+
+// 4. Create consumer
+class UserEventConsumer extends AbstractSqsConsumer<UserCreatedEvent> {
+  constructor(dependencies: SQSConsumerDependencies) {
+    super(dependencies, {
+      creationConfig: {
+        queue: { QueueName: 'user-events' },
+      },
+
+      // EventBridge field mappings
+      messageTypeField: 'detail-type',
+      messageTimestampField: 'time',
+
+      handlers: new MessageHandlerConfigBuilder<UserCreatedEvent>()
+        .addConfig(
+          USER_CREATED_ENVELOPE,
+          async (message) => {
+            // message is the full EventBridge envelope
+            // Access the detail field directly
+            console.log(`New user created: ${message.detail.name} (${message.detail.email})`)
+            await saveUserToDatabase(message.detail)
+            return { result: 'success' as const }
+          },
+        )
+        .build(),
+    })
+  }
+}
+
+// 5. Use the consumer
+const sqsClient = new SQSClient({ region: 'us-east-1' })
+const consumer = new UserEventConsumer({
+  sqsClient,
+  consumerErrorResolver: new SqsConsumerErrorResolver(),
+  errorReporter: { report: (error) => console.error(error) },
+  logger: console,
+  transactionObservabilityManager: undefined,
+})
+
+await consumer.start()
+
+// Example EventBridge event structure (for testing):
+const exampleEvent = {
+  version: '0',
+  id: '12345678-1234-1234-1234-123456789012',
+  'detail-type': 'user.created',
+  source: 'my.application',
+  account: '123456789012',
+  time: '2025-01-15T12:00:00Z',
+  region: 'us-east-1',
+  resources: [],
+  detail: {
+    userId: 'user-123',
+    email: 'user@example.com',
+    name: 'John Doe',
+    createdAt: '2025-01-15T12:00:00Z',
+  },
+} satisfies UserCreatedEvent
+```
+
+### Custom Message Structures
+
+For other non-standard message formats, you can configure the field mappings:
+
+```typescript
+// Define your custom message schema
+const CUSTOM_MESSAGE_SCHEMA = z.object({
+  eventType: z.literal('order.created'),  // Routing field
+  correlationId: z.string(),
+  occurredAt: z.string(),
+  data: z.object({
+    orderId: z.string(),
+    amount: z.number(),
+  }),
+})
+
+type CustomMessage = z.infer<typeof CUSTOM_MESSAGE_SCHEMA>
+
+class CustomConsumer extends AbstractSqsConsumer<CustomMessage> {
+  constructor(dependencies: SQSConsumerDependencies) {
+    super(dependencies, {
+      creationConfig: { queue: { QueueName: 'custom-queue' } },
+
+      // Map your custom field names
+      messageTypeField: 'eventType',        // Instead of 'type'
+      messageIdField: 'correlationId',      // Instead of 'id'
+      messageTimestampField: 'occurredAt',  // Instead of 'timestamp'
+
+      handlers: new MessageHandlerConfigBuilder<CustomMessage>()
+        .addConfig(CUSTOM_MESSAGE_SCHEMA, async (message) => {
+          // Handler receives the full validated message
+          // Access nested data via message.data
+          console.log(`Order ${message.data.orderId}: $${message.data.amount}`)
+          return { result: 'success' as const }
+        })
+        .build(),
+    })
+  }
+}
+```
+
+**Configuration Options:**
+
+- `messageTypeField` (required) - Field name containing the message type for routing
+- `messageIdField` (optional, default: `'id'`) - Field name containing the message ID
+- `messageTimestampField` (optional, default: `'timestamp'`) - Field name containing the timestamp
+
 ## FIFO Queues
 
 FIFO (First-In-First-Out) queues provide message ordering and exactly-once processing.
@@ -1741,6 +2046,170 @@ await publisher.publish({ id: '4', userId: 'user-456', action: 'create' })
 Message 1 (user-123) → Message 2 (user-123) → Message 3 (user-123)
 Message 4 (user-456) can process in parallel with above
 ```
+
+### FIFO Retry Behavior
+
+**IMPORTANT**: FIFO queues have special retry behavior to preserve message ordering.
+
+When a handler returns `{ error: 'retryLater' }` for a FIFO queue:
+
+1. **The consumer throws an error** instead of republishing the message
+2. **AWS SQS handles the retry** using its native retry mechanism
+3. **Message order is preserved** within the MessageGroupId
+4. The message returns to the **same position** in the queue after visibility timeout
+
+**Why this matters:**
+
+```typescript
+// ❌ Standard queue: Republishes message to back of queue (breaks order)
+// Message 1 → Message 2 → Message 3
+// If Message 1 retries: Message 2 → Message 3 → Message 1 (wrong!)
+
+// ✅ FIFO queue: Throws error, AWS retries in place (preserves order)
+// Message 1 → Message 2 → Message 3
+// If Message 1 retries: Message 1 (retry) → Message 2 → Message 3 (correct!)
+```
+
+**Configuration:**
+
+```typescript
+class MyFifoConsumer extends AbstractSqsConsumer<MessageType, Context> {
+  constructor(dependencies: SQSConsumerDependencies) {
+    super(dependencies, {
+      creationConfig: {
+        queue: {
+          QueueName: 'my-queue.fifo',
+          Attributes: {
+            FifoQueue: 'true',
+            VisibilityTimeout: '30',  // Retry delay
+          },
+        },
+      },
+      handlers: new MessageHandlerConfigBuilder()
+        .addConfig(SCHEMA, async (message) => {
+          // Return retryLater to trigger AWS SQS native retry
+          if (shouldRetry) {
+            return { error: 'retryLater' }
+          }
+          return { result: 'success' }
+        })
+        .build(),
+    })
+  }
+}
+```
+
+**Barrier Sleep Mechanism (FIFO Queues):**
+
+When using barriers with FIFO queues, the consumer implements a smart sleep-and-check mechanism to avoid unnecessary AWS retries:
+
+1. **Handler or barrier returns `{ error: 'retryLater' }`**
+2. **Consumer enters sleep loop** instead of immediately throwing error
+3. **Periodically re-checks barrier** (every `barrierSleepCheckIntervalInMsecs`, default: 5 seconds)
+4. **If barrier passes**: Process message successfully and exit
+5. **If max retry duration exceeded** (`maxRetryDuration`, default: 4 days): Send message to DLQ
+6. **Visibility timeout extended** every 30 seconds during sleep to prevent message reclaim
+
+**Configuration with barrier sleep:**
+
+```typescript
+class MyFifoConsumer extends AbstractSqsConsumer<MessageType, Context> {
+  constructor(dependencies: SQSConsumerDependencies) {
+    super(dependencies, {
+      creationConfig: {
+        queue: {
+          QueueName: 'my-queue.fifo',
+          Attributes: {
+            FifoQueue: 'true',
+            VisibilityTimeout: '3600',  // 1 hour - must be greater than heartbeatInterval
+          },
+        },
+      },
+      maxRetryDuration: 345600,                   // 4 days in seconds (default)
+      barrierSleepCheckIntervalInMsecs: 5000,     // 5 seconds (default)
+
+      // Consumer configuration - controls visibility timeout management
+      consumerOverrides: {
+        heartbeatInterval: 300,  // Extends visibility every 5 minutes (default)
+        // Must be less than VisibilityTimeout
+        // Prevents AWS from reclaiming the message during long processing or barrier sleep
+      },
+
+      handlers: new MessageHandlerConfigBuilder()
+        .addConfig(
+          SCHEMA,
+          async (message) => {
+            return { result: 'success' }
+          },
+          {
+            preHandlerBarrier: async (message, context) => {
+              // Check if prerequisite is met
+              const prerequisiteMet = await checkPrerequisite(message)
+              return { isPassing: prerequisiteMet }
+            }
+          }
+        )
+        .build(),
+    })
+  }
+}
+```
+
+**Retry flow for FIFO queues (with barrier sleep):**
+1. Handler or barrier returns `{ error: 'retryLater' }`
+2. Consumer enters sleep loop for up to `maxRetryDuration` (default: 4 days)
+3. Every `barrierSleepCheckIntervalInMsecs` (default: 5 sec), consumer:
+   - Re-checks barrier
+   - Extends visibility timeout (every 30 seconds)
+4. If barrier passes: Process message and mark as consumed
+5. If `maxRetryDuration` exceeded: Send message to DLQ with error `"FIFO queue: Retry duration exceeded. Moving message to DLQ."`
+
+**Retry flow for FIFO queues (without barrier - immediate retry):**
+1. Handler returns `{ error: 'retryLater' }` but no barrier configured
+2. Consumer immediately throws error: `"FIFO queue: Triggering AWS SQS retry to preserve message order"`
+3. AWS SQS makes message invisible for `VisibilityTimeout` duration
+4. After timeout, message becomes visible again **at the same position**
+5. Consumer processes it again
+
+**Retry duration limit:**
+- The `maxRetryDuration` setting still applies (default: 4 days)
+- After exceeding retry duration, message moves to DLQ
+- Error message: `"FIFO queue: Retry duration exceeded. Moving message to DLQ"`
+
+**Understanding VisibilityTimeout and heartbeatInterval:**
+
+The visibility timeout mechanism prevents multiple consumers from processing the same message:
+
+- **`VisibilityTimeout` (queue attribute)**: Initial time (in seconds) that a message is hidden from other consumers after being received. This is the starting timeout when a message is first picked up.
+
+- **`heartbeatInterval` (consumerOverrides option)**: Interval (in seconds) at which the consumer automatically extends the visibility timeout using `ChangeMessageVisibilityCommand`. This keeps the message "locked" to the current consumer during long processing.
+
+**How they work together:**
+
+1. **Message received**: AWS SQS hides message for `VisibilityTimeout` seconds
+2. **During processing**: Consumer automatically extends timeout every `heartbeatInterval` seconds
+3. **If processing exceeds VisibilityTimeout without extension**: AWS makes message visible again (allowing retry)
+4. **Requirement**: `heartbeatInterval` < `VisibilityTimeout` (otherwise extension happens after message already became visible)
+
+**For FIFO queues with barrier sleep:**
+- The barrier sleep mechanism can explicitly extend visibility timeout every 30 seconds
+- Extensions set visibility to 90 seconds **from now** (not cumulative) before each sleep chunk
+- Extension happens BEFORE sleeping (not after) to prevent first-check vulnerability
+- The 90-second value (3x the check interval) provides a 60-second safety buffer against timing drift
+- However, it smartly defers to `heartbeatInterval` when set to avoid redundant API calls:
+  - If `heartbeatInterval` <= 30 seconds: rely on sqs-consumer's automatic extension (no explicit extension)
+  - If `heartbeatInterval` > 30 seconds or not set: explicitly extend every 30 seconds during sleep
+- This optimization prevents unnecessary ChangeMessageVisibility API calls
+- Set `VisibilityTimeout` high enough for expected barrier wait time (e.g., 3600 seconds / 1 hour)
+
+**Best practices:**
+- Set `VisibilityTimeout` high enough to accommodate the barrier sleep period (consider `maxRetryDuration`)
+- Use `heartbeatInterval` < `VisibilityTimeout` (default: 300 seconds / 5 minutes)
+- For long-running barriers: increase `VisibilityTimeout` (not `heartbeatInterval`)
+- Use `maxRetryDuration` to control total retry time for both FIFO and standard queues
+- Adjust `barrierSleepCheckIntervalInMsecs` based on how quickly prerequisites typically become available
+- For FIFO queues: barriers are rechecked periodically instead of republishing messages
+- For standard queues: messages are republished with exponential backoff delay
 
 ### Message Groups
 

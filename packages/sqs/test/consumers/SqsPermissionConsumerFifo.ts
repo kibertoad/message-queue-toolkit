@@ -19,18 +19,11 @@ import {
 
 export type SupportedMessages = PERMISSIONS_ADD_MESSAGE_TYPE | PERMISSIONS_REMOVE_MESSAGE_TYPE
 
-type SqsPermissionConsumerFifoOptions = Pick<
-  SQSConsumerOptions<SupportedMessages, ExecutionContext, PrehandlerOutput>,
-  | 'creationConfig'
-  | 'locatorConfig'
-  | 'logMessages'
-  | 'deletionConfig'
-  | 'deadLetterQueue'
-  | 'consumerOverrides'
-  | 'maxRetryDuration'
-  | 'payloadStoreConfig'
-  | 'messageDeduplicationConfig'
-  | 'enableConsumerDeduplication'
+type SqsPermissionConsumerFifoOptions = Partial<
+  Extract<
+    SQSConsumerOptions<SupportedMessages, ExecutionContext, PrehandlerOutput>,
+    { fifoQueue: true }
+  >
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -134,6 +127,10 @@ export class SqsPermissionConsumerFifo extends AbstractSqsConsumer<
         },
         concurrentConsumersAmount: options.concurrentConsumersAmount,
         maxRetryDuration: options.maxRetryDuration,
+        barrierSleepCheckIntervalInMsecs: options.barrierSleepCheckIntervalInMsecs,
+        barrierVisibilityExtensionIntervalInMsecs:
+          options.barrierVisibilityExtensionIntervalInMsecs,
+        barrierVisibilityTimeoutInSeconds: options.barrierVisibilityTimeoutInSeconds,
         payloadStoreConfig: options.payloadStoreConfig,
         messageDeduplicationConfig: options.messageDeduplicationConfig,
         enableConsumerDeduplication: options.enableConsumerDeduplication,

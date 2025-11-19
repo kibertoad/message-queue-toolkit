@@ -129,6 +129,43 @@ export class MessageHandlerConfigBuilder<
     this.configs = []
   }
 
+  /**
+   * Add a handler configuration for a specific message type.
+   * The schema is used for both routing (to match the message type) and validation (for the handler).
+   *
+   * The message type field (e.g., 'type' or 'detail-type') must be at the root level of the message
+   * and must be a literal value in the schema for routing to work.
+   *
+   * Example:
+   * ```typescript
+   * const USER_CREATED_SCHEMA = z.object({
+   *   type: z.literal('user.created'),
+   *   userId: z.string(),
+   *   email: z.string()
+   * })
+   *
+   * builder.addConfig(USER_CREATED_SCHEMA, async (message) => {
+   *   // message has type 'user.created', userId, and email
+   * })
+   * ```
+   *
+   * EventBridge example:
+   * ```typescript
+   * const USER_PRESENCE_SCHEMA = z.object({
+   *   'detail-type': z.literal('v2.users.{id}.presence'),
+   *   time: z.string(),
+   *   detail: z.object({
+   *     userId: z.string(),
+   *     presenceStatus: z.string()
+   *   })
+   * })
+   *
+   * builder.addConfig(USER_PRESENCE_SCHEMA, async (message) => {
+   *   // message is the full EventBridge envelope
+   *   const detail = message.detail  // Access nested payload directly
+   * })
+   * ```
+   */
   addConfig<MessagePayloadSchema extends MessagePayloadSchemas, const BarrierOutput>(
     schema: ZodSchema<MessagePayloadSchema> | CommonEventDefinition,
     handler: Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>,
@@ -138,8 +175,8 @@ export class MessageHandlerConfigBuilder<
       PrehandlerOutput,
       BarrierOutput
     >,
-  ) {
-    const resolvedSchema: ZodSchema<MessagePayloadSchema> = isCommonEventDefinition(schema)
+  ): this {
+    const payloadSchema = isCommonEventDefinition(schema)
       ? // @ts-ignore
         (schema.consumerSchema as ZodSchema<MessagePayloadSchema>)
       : schema
@@ -152,7 +189,7 @@ export class MessageHandlerConfigBuilder<
         PrehandlerOutput,
         BarrierOutput
       >(
-        resolvedSchema,
+        payloadSchema,
         // @ts-expect-error
         handler,
         options,
