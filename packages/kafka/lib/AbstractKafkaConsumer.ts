@@ -211,12 +211,18 @@ export abstract class AbstractKafkaConsumer<
       )
       this.messageBatchStream.on('error', (error) => this.handlerError(error))
     } else {
-      this.consumerStream.on('data', (message) =>
-        this.consume(
-          message.topic,
-          message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
-        ),
-      )
+      this.consumerStream.on('data', async (message) => {
+        this.consumerStream.pause()
+
+        try {
+          await this.consume(
+            message.topic,
+            message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
+          )
+        } finally {
+          this.consumerStream.resume()
+        }
+      })
     }
 
     this.consumerStream.on('error', (error) => this.handlerError(error))
