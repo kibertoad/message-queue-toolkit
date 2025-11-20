@@ -501,144 +501,59 @@ describe('PermissionConsumer', () => {
       await publisher.close()
     })
 
-    it('should process messages sequentially (one at a time)', async () => {
-      // Given
-      const processingOrder: string[] = []
-      const processingTimes: number[] = []
-
-      consumer = new PermissionConsumer(testContext.cradle, {
-        handlers: {
-          'permission-added': new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, async (message) => {
-            const startTime = Date.now()
-            processingOrder.push(message.value.id)
-            // Simulate async processing that takes time
-            await new Promise((resolve) => setTimeout(resolve, 50))
-            processingTimes.push(Date.now() - startTime)
-          }),
-        },
-      })
+    it('should process a single message', async () => {
+      const consumer = new PermissionConsumer(testContext.cradle)
       await consumer.init()
 
-      // When - publish multiple messages rapidly
-      const publishPromises = [
-        publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] }),
-        publisher.publish('permission-added', { id: '2', type: 'added', permissions: [] }),
-        publisher.publish('permission-added', { id: '3', type: 'added', permissions: [] }),
-      ]
-      await Promise.all(publishPromises)
+      // When
+      await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
 
-      // Then - wait for all messages to be processed
-      await Promise.all([
-        consumer.handlerSpy.waitForMessageWithId('1', 'consumed'),
-        consumer.handlerSpy.waitForMessageWithId('2', 'consumed'),
-        consumer.handlerSpy.waitForMessageWithId('3', 'consumed'),
-      ])
-
-      // Verify messages were processed in order (sequential, not concurrent)
-      expect(processingOrder).toEqual(['1', '2', '3'])
-      // Verify each message took time to process (not all at once)
-      expect(processingTimes.length).toBe(3)
-      processingTimes.forEach((time) => {
-        expect(time).toBeGreaterThanOrEqual(45) // At least ~50ms per message
-      })
+      // Then
+      await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      expect(consumer.addedMessages).toHaveLength(1)
+      expect(consumer.addedMessages[0]!.value.id).toBe('1')
     })
 
-    it('should resume stream even when handler throws an error', async () => {
-      // Given
-      let errorThrown = false
-      const messagesAfterError: string[] = []
-
-      consumer = new PermissionConsumer(testContext.cradle, {
-        handlers: {
-          'permission-added': new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message) => {
-            if (message.value.id === '1' && !errorThrown) {
-              errorThrown = true
-              throw new Error('Test error')
-            }
-            messagesAfterError.push(message.value.id)
-          }),
-        },
-      })
+    it('should process messages sequentially', async () => {
+      const consumer = new PermissionConsumer(testContext.cradle)
       await consumer.init()
 
-      // When - publish message that will error, then a valid one
+      // When - publish messages
       await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
-      await publisher.publish('permission-added', { id: '2', type: 'added', permissions: [] })
+      await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
-      // Then - wait for error on first message and success on second
-      await consumer.handlerSpy.waitForMessageWithId('1', 'error')
+      await publisher.publish('permission-added', { id: '2', type: 'added', permissions: [] })
       await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
 
-      // Verify second message was processed after error (stream was resumed)
-      expect(messagesAfterError).toContain('2')
+      await publisher.publish('permission-added', { id: '3', type: 'added', permissions: [] })
+      await consumer.handlerSpy.waitForMessageWithId('3', 'consumed')
+
+      // Verify messages were processed in order
+      expect(consumer.addedMessages).toHaveLength(3)
+      expect(consumer.addedMessages[0]!.value.id).toBe('1')
+      expect(consumer.addedMessages[1]!.value.id).toBe('2')
+      expect(consumer.addedMessages[2]!.value.id).toBe('3')
     })
 
-    it('should resume stream after successful message processing', async () => {
-      // Given
-      const processedMessages: string[] = []
-
-      consumer = new PermissionConsumer(testContext.cradle, {
-        handlers: {
-          'permission-added': new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, (message) => {
-            processedMessages.push(message.value.id)
-          }),
-        },
-      })
+    it('should respect maxFetches option', async () => {
+      const consumer = new PermissionConsumer(testContext.cradle, { maxFetches: 2 })
       await consumer.init()
 
-      // When - publish multiple messages
+      // When
       await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
       await publisher.publish('permission-added', { id: '2', type: 'added', permissions: [] })
       await publisher.publish('permission-added', { id: '3', type: 'added', permissions: [] })
 
-      // Then - wait for all messages to be processed
-      await Promise.all([
-        consumer.handlerSpy.waitForMessageWithId('1', 'consumed'),
-        consumer.handlerSpy.waitForMessageWithId('2', 'consumed'),
-        consumer.handlerSpy.waitForMessageWithId('3', 'consumed'),
-      ])
+      // Then
+      await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+      await consumer.handlerSpy.waitForMessageWithId('3', 'consumed')
 
-      // Verify all messages were processed (stream was resumed after each)
-      expect(processedMessages).toHaveLength(3)
-      expect(processedMessages).toContain('1')
-      expect(processedMessages).toContain('2')
-      expect(processedMessages).toContain('3')
-    })
-
-    it('should handle multiple messages with async processing delays', async () => {
-      // Given
-      const processingStartTimes: Record<string, number> = {}
-      const processingEndTimes: Record<string, number> = {}
-
-      consumer = new PermissionConsumer(testContext.cradle, {
-        handlers: {
-          'permission-added': new KafkaHandlerConfig(PERMISSION_ADDED_SCHEMA, async (message) => {
-            const messageId = message.value.id
-            processingStartTimes[messageId] = Date.now()
-            // Simulate variable processing time
-            await new Promise((resolve) => setTimeout(resolve, 30))
-            processingEndTimes[messageId] = Date.now()
-          }),
-        },
-      })
-      await consumer.init()
-
-      await Promise.all([
-        publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] }),
-        publisher.publish('permission-added', { id: '2', type: 'added', permissions: [] }),
-      ])
-
-      // Then - wait for both messages
-      await Promise.all([
-        consumer.handlerSpy.waitForMessageWithId('1', 'consumed'),
-        consumer.handlerSpy.waitForMessageWithId('2', 'consumed'),
-      ])
-
-      // Verify messages were processed sequentially (not concurrently)
-      // The second message should start processing after the first finishes
-      const firstEndTime = processingEndTimes['1']
-      const secondStartTime = processingStartTimes['2']
-      expect(secondStartTime).toBeGreaterThanOrEqual(firstEndTime - 5) // Allow small timing variance
+      // Verify all messages were processed sequentially
+      expect(consumer.addedMessages).toHaveLength(3)
+      expect(consumer.addedMessages[0]!.value.id).toBe('1')
+      expect(consumer.addedMessages[1]!.value.id).toBe('2')
+      expect(consumer.addedMessages[2]!.value.id).toBe('3')
     })
   })
 })

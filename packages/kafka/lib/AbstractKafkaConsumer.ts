@@ -13,6 +13,7 @@ import {
   type ConsumeOptions,
   Consumer,
   type ConsumerOptions,
+  type Message,
   type MessagesStream,
   ProtocolError,
   ResponseError,
@@ -101,6 +102,10 @@ export abstract class AbstractKafkaConsumer<
 
   private readonly transactionObservabilityManager: TransactionObservabilityManager
   private readonly executionContext: ExecutionContext
+  private readonly maxFetches: number
+
+  private readonly syncMessagesToProcess: Message<string, object, string, string>[] = []
+  private syncMessagesProcessing: boolean = false
 
   constructor(
     dependencies: KafkaConsumerDependencies,
@@ -111,6 +116,7 @@ export abstract class AbstractKafkaConsumer<
 
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.executionContext = executionContext
+    this.maxFetches = this.options.maxFetches ?? 10
 
     this.consumer = new Consumer({
       ...this.options.kafka,
@@ -213,21 +219,54 @@ export abstract class AbstractKafkaConsumer<
     } else {
       // biome-ignore lint/style/noNonNullAssertion: consumerStream is always created
       const stream = this.consumerStream!
-      stream.on('data', async (message) => {
-        stream.pause()
+      stream.on('data', (message) => {
+        this.syncMessagesToProcess.push(message)
+        this.startProcessingSyncMessages(stream)
 
-        try {
-          await this.consume(
-            message.topic,
-            message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
-          )
-        } finally {
-          stream.resume()
+        // Pause stream when we've reached maxFetches to control backpressure
+        // Only pause if we've actually reached the limit (not on every message)
+        if (this.syncMessagesToProcess.length >= this.maxFetches) {
+          stream.pause()
         }
       })
     }
 
     this.consumerStream.on('error', (error) => this.handlerError(error))
+  }
+
+  private startProcessingSyncMessages(
+    stream: MessagesStream<unknown, unknown, unknown, unknown>,
+  ): void {
+    if (this.syncMessagesProcessing) return
+
+    this.syncMessagesProcessing = true
+
+    this.processFirstMessageInBatch(stream)
+  }
+
+  private processFirstMessageInBatch(
+    stream: MessagesStream<unknown, unknown, unknown, unknown>,
+  ): void {
+    const message = this.syncMessagesToProcess.shift()
+
+    if (!message) {
+      this.syncMessagesProcessing = false
+
+      if (stream.isPaused()) {
+        stream.resume()
+      }
+
+      return
+    }
+
+    this.consume(
+      message.topic,
+      message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
+    )
+      .catch(this.handlerError)
+      .finally(() => {
+        this.processFirstMessageInBatch(stream)
+      })
   }
 
   async close(): Promise<void> {
