@@ -211,8 +211,10 @@ export abstract class AbstractKafkaConsumer<
       )
       this.messageBatchStream.on('error', (error) => this.handlerError(error))
     } else {
-      this.consumerStream.on('data', async (message) => {
-        this.consumerStream.pause()
+      // biome-ignore lint/style/noNonNullAssertion: consumerStream is always created
+      const stream = this.consumerStream!
+      stream.on('data', async (message) => {
+        stream.pause()
 
         try {
           await this.consume(
@@ -220,7 +222,7 @@ export abstract class AbstractKafkaConsumer<
             message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
           )
         } finally {
-          this.consumerStream.resume()
+          stream.resume()
         }
       })
     }
