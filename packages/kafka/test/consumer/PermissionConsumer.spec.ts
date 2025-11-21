@@ -492,6 +492,7 @@ describe('PermissionConsumer', () => {
 
   describe('sync message processing ', () => {
     let publisher: PermissionPublisher
+    let consumer: PermissionConsumer | undefined
 
     beforeAll(() => {
       publisher = new PermissionPublisher(testContext.cradle)
@@ -499,10 +500,11 @@ describe('PermissionConsumer', () => {
 
     afterAll(async () => {
       await publisher.close()
+      await consumer?.close()
     })
 
     it('should process a single message', async () => {
-      const consumer = new PermissionConsumer(testContext.cradle)
+      consumer = new PermissionConsumer(testContext.cradle)
       await consumer.init()
 
       // When
@@ -515,7 +517,7 @@ describe('PermissionConsumer', () => {
     })
 
     it('should process messages sequentially', async () => {
-      const consumer = new PermissionConsumer(testContext.cradle)
+      consumer = new PermissionConsumer(testContext.cradle)
       await consumer.init()
 
       // When - publish messages

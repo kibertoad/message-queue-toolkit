@@ -214,6 +214,8 @@ export abstract class AbstractKafkaConsumer<
       // biome-ignore lint/style/noNonNullAssertion: consumerStream is always created
       const stream = this.consumerStream!
 
+      // we are not waiting for the stream to complete
+      // because init() must return promised void
       this.handleSyncStream(stream).catch(this.handlerError)
     }
 
