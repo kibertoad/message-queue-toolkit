@@ -31,7 +31,7 @@ type PermissionConsumerOptions = Partial<
     | 'handlers'
     | 'headerRequestIdField'
     | 'messageIdField'
-    | 'maxFetches'
+    | 'maxFetchesBeforePausing'
   >
 >
 
@@ -76,7 +76,7 @@ export class PermissionConsumer extends AbstractKafkaConsumer<
         handlerSpy: options.handlerSpy ?? true,
         headerRequestIdField: options.headerRequestIdField,
         messageIdField: options.messageIdField,
-        maxFetches: options.maxFetches,
+        maxFetchesBeforePausing: options.maxFetchesBeforePausing,
       },
       {
         incrementAmount: 0,

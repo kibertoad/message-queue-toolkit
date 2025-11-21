@@ -72,6 +72,7 @@ export type KafkaConsumerOptions<
   Omit<ConsumeOptions<string, object, string, string>, 'topics'> &
   KafkaBatchProcessingOptions<BatchProcessingEnabled> & {
     handlers: KafkaHandlerRouting<TopicsConfig, ExecutionContext, BatchProcessingEnabled>
+    maxFetchesBeforePausing?: number
   }
 
 const commitErrorCodesToIgnore = new Set([
@@ -102,7 +103,7 @@ export abstract class AbstractKafkaConsumer<
 
   private readonly transactionObservabilityManager: TransactionObservabilityManager
   private readonly executionContext: ExecutionContext
-  private readonly maxFetches: number
+  private readonly maxFetchesBeforePausing: number
 
   private readonly syncMessagesToProcess: Message<string, object, string, string>[] = []
   private syncMessagesProcessing: boolean = false
@@ -116,7 +117,7 @@ export abstract class AbstractKafkaConsumer<
 
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.executionContext = executionContext
-    this.maxFetches = this.options.maxFetches ?? 10
+    this.maxFetchesBeforePausing = this.options.maxFetchesBeforePausing ?? 10
 
     this.consumer = new Consumer({
       ...this.options.kafka,
@@ -224,7 +225,7 @@ export abstract class AbstractKafkaConsumer<
 
         // Pause stream when we've reached maxFetches to control backpressure
         // Only pause if we've actually reached the limit (not on every message)
-        if (this.syncMessagesToProcess.length >= this.maxFetches) {
+        if (this.syncMessagesToProcess.length >= this.maxFetchesBeforePausing) {
           stream.pause()
         }
 
@@ -249,7 +250,10 @@ export abstract class AbstractKafkaConsumer<
         break
       }
 
-      if (this.syncMessagesToProcess.length >= this.maxFetches / 2 && stream.isPaused()) {
+      if (
+        this.syncMessagesToProcess.length >= this.maxFetchesBeforePausing / 2 &&
+        stream.isPaused()
+      ) {
         stream.resume()
       }
 

@@ -536,7 +536,7 @@ describe('PermissionConsumer', () => {
     })
 
     it('should respect maxFetches option', async () => {
-      const consumer = new PermissionConsumer(testContext.cradle, { maxFetches: 2 })
+      const consumer = new PermissionConsumer(testContext.cradle, { maxFetchesBeforePausing: 2 })
       await consumer.init()
 
       // When
