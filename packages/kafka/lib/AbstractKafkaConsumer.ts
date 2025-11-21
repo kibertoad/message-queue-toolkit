@@ -251,12 +251,11 @@ export abstract class AbstractKafkaConsumer<
 
     if (!message) {
       this.syncMessagesProcessing = false
-
-      if (stream.isPaused()) {
-        stream.resume()
-      }
-
       return
+    }
+
+    if (this.syncMessagesToProcess.length >= this.maxFetches / 2 && stream.isPaused()) {
+      stream.resume()
     }
 
     this.consume(
