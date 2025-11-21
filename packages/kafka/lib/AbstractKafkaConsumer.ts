@@ -220,14 +220,15 @@ export abstract class AbstractKafkaConsumer<
       // biome-ignore lint/style/noNonNullAssertion: consumerStream is always created
       const stream = this.consumerStream!
       stream.on('data', (message) => {
+        this.syncMessagesToProcess.push(message)
+
         // Pause stream when we've reached maxFetches to control backpressure
         // Only pause if we've actually reached the limit (not on every message)
         if (this.syncMessagesToProcess.length >= this.maxFetches) {
           stream.pause()
         }
 
-        this.syncMessagesToProcess.push(message)
-        this.startProcessingSyncMessages(stream)
+        void this.startProcessingSyncMessages(stream)
       })
     }
 
@@ -245,8 +246,7 @@ export abstract class AbstractKafkaConsumer<
       const message = this.syncMessagesToProcess.shift()
 
       if (!message) {
-        this.syncMessagesProcessing = false
-        return
+        break
       }
 
       if (this.syncMessagesToProcess.length >= this.maxFetches / 2 && stream.isPaused()) {
@@ -262,6 +262,8 @@ export abstract class AbstractKafkaConsumer<
         this.handlerError(error)
       }
     } while (this.syncMessagesToProcess.length > 0)
+
+    this.syncMessagesProcessing = false
   }
 
   async close(): Promise<void> {
