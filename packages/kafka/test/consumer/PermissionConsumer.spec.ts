@@ -489,4 +489,50 @@ describe('PermissionConsumer', () => {
       })
     })
   })
+
+  describe('sync message processing ', () => {
+    let publisher: PermissionPublisher
+
+    beforeAll(() => {
+      publisher = new PermissionPublisher(testContext.cradle)
+    })
+
+    afterAll(async () => {
+      await publisher.close()
+    })
+
+    it('should process a single message', async () => {
+      const consumer = new PermissionConsumer(testContext.cradle)
+      await consumer.init()
+
+      // When
+      await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
+
+      // Then
+      await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      expect(consumer.addedMessages).toHaveLength(1)
+      expect(consumer.addedMessages[0]!.value.id).toBe('1')
+    })
+
+    it('should process messages sequentially', async () => {
+      const consumer = new PermissionConsumer(testContext.cradle)
+      await consumer.init()
+
+      // When - publish messages
+      await publisher.publish('permission-added', { id: '1', type: 'added', permissions: [] })
+      await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+
+      await publisher.publish('permission-added', { id: '2', type: 'added', permissions: [] })
+      await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+
+      await publisher.publish('permission-added', { id: '3', type: 'added', permissions: [] })
+      await consumer.handlerSpy.waitForMessageWithId('3', 'consumed')
+
+      // Verify messages were processed in order
+      expect(consumer.addedMessages).toHaveLength(3)
+      expect(consumer.addedMessages[0]!.value.id).toBe('1')
+      expect(consumer.addedMessages[1]!.value.id).toBe('2')
+      expect(consumer.addedMessages[2]!.value.id).toBe('3')
+    })
+  })
 })
