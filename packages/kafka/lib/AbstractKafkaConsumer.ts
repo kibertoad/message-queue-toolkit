@@ -216,7 +216,7 @@ export abstract class AbstractKafkaConsumer<
 
       // we are not waiting for the stream to complete
       // because init() must return promised void
-      this.handleSyncStream(stream).catch(this.handlerError)
+      this.handleSyncStream(stream).catch((error) => this.handlerError(error))
     }
 
     this.consumerStream.on('error', (error) => this.handlerError(error))
