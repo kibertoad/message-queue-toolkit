@@ -220,52 +220,48 @@ export abstract class AbstractKafkaConsumer<
       // biome-ignore lint/style/noNonNullAssertion: consumerStream is always created
       const stream = this.consumerStream!
       stream.on('data', (message) => {
-        this.syncMessagesToProcess.push(message)
-        this.startProcessingSyncMessages(stream)
-
         // Pause stream when we've reached maxFetches to control backpressure
         // Only pause if we've actually reached the limit (not on every message)
         if (this.syncMessagesToProcess.length >= this.maxFetches) {
           stream.pause()
         }
+
+        this.syncMessagesToProcess.push(message)
+        this.startProcessingSyncMessages(stream)
       })
     }
 
     this.consumerStream.on('error', (error) => this.handlerError(error))
   }
 
-  private startProcessingSyncMessages(
+  private async startProcessingSyncMessages(
     stream: MessagesStream<unknown, unknown, unknown, unknown>,
-  ): void {
+  ): Promise<void> {
     if (this.syncMessagesProcessing) return
 
     this.syncMessagesProcessing = true
 
-    this.processFirstMessageInBatch(stream)
-  }
+    do {
+      const message = this.syncMessagesToProcess.shift()
 
-  private processFirstMessageInBatch(
-    stream: MessagesStream<unknown, unknown, unknown, unknown>,
-  ): void {
-    const message = this.syncMessagesToProcess.shift()
+      if (!message) {
+        this.syncMessagesProcessing = false
+        return
+      }
 
-    if (!message) {
-      this.syncMessagesProcessing = false
-      return
-    }
+      if (this.syncMessagesToProcess.length >= this.maxFetches / 2 && stream.isPaused()) {
+        stream.resume()
+      }
 
-    if (this.syncMessagesToProcess.length >= this.maxFetches / 2 && stream.isPaused()) {
-      stream.resume()
-    }
-
-    this.consume(
-      message.topic,
-      message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
-    )
-      .catch(this.handlerError)
-      .finally(() => {
-        this.processFirstMessageInBatch(stream)
-      })
+      try {
+        await this.consume(
+          message.topic,
+          message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
+        )
+      } catch (error) {
+        this.handlerError(error)
+      }
+    } while (this.syncMessagesToProcess.length > 0)
   }
 
   async close(): Promise<void> {
