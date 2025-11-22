@@ -69,6 +69,20 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
     restart: on-failure
 
+  gcs-emulator:
+    image: fsouza/fake-gcs-server:1.52.3
+    ports:
+      - '4443:4443'
+    command: -scheme http -port 4443 -external-url http://localhost:4443
+    restart: on-failure
+
+  pubsub-emulator:
+    image: google/cloud-sdk:547.0.0-emulators
+    ports:
+      - '8085:8085'
+    command: gcloud beta emulators pubsub start --project=test-project --host-port=0.0.0.0:8085
+    restart: on-failure
+
 volumes:
   rabbit_data:
     driver: local
