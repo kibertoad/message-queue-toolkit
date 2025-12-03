@@ -24,11 +24,13 @@ export class AmqpConsumerErrorResolver implements ErrorResolver {
       return new InternalError({
         message: error.message,
         errorCode: error.code,
+        cause: error,
       })
     }
     return new InternalError({
       message: 'Error processing message',
       errorCode: 'INTERNAL_ERROR',
+      cause: error,
     })
   }
 }

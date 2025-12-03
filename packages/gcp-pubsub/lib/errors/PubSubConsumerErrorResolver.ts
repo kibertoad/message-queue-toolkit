@@ -1,11 +1,9 @@
 import { types } from 'node:util'
-
-import type { ErrorResolver } from '@lokalise/node-core'
-import { InternalError, isStandardizedError } from '@lokalise/node-core'
+import { type ErrorResolver, InternalError, isStandardizedError } from '@lokalise/node-core'
 import { MessageInvalidFormatError, MessageValidationError } from '@message-queue-toolkit/core'
 import { ZodError } from 'zod/v4'
 
-export class SqsConsumerErrorResolver implements ErrorResolver {
+export class PubSubConsumerErrorResolver implements ErrorResolver {
   public processError(error: unknown): InternalError {
     if (types.isNativeError(error) && error?.name === 'SyntaxError') {
       return new MessageInvalidFormatError({
@@ -27,12 +25,10 @@ export class SqsConsumerErrorResolver implements ErrorResolver {
         cause: error,
       })
     }
-    /* c8 ignore start */
     return new InternalError({
       message: 'Error processing message',
       errorCode: 'INTERNAL_ERROR',
       cause: error,
     })
-    /* c8 ignore stop */
   }
 }

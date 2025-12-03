@@ -68,13 +68,14 @@ export function createEventBridgeSchema<T extends ZodType>(detailSchema: T, deta
  * // Same as: z.infer<typeof USER_CREATED_DETAIL>
  * ```
  */
-export type EventBridgeDetail<T> = T extends z.ZodObject<infer U>
-  ? U extends { detail: infer D }
-    ? D extends ZodType
-      ? z.infer<D>
+export type EventBridgeDetail<T> =
+  T extends z.ZodObject<infer U>
+    ? U extends { detail: infer D }
+      ? D extends ZodType
+        ? z.infer<D>
+        : never
       : never
     : never
-  : never
 
 /**
  * Creates multiple EventBridge event schemas for different detail types.
