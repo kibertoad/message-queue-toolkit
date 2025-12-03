@@ -276,7 +276,7 @@ export abstract class AbstractKafkaConsumer<
     )
 
     if (!validMessages.length) {
-      this.logger.debug({ origin: this.constructor.name, topic }, 'Received message(s) is empty')
+      this.logger.debug({ origin: this.constructor.name, topic }, 'Received not valid message(s)')
       return this.commit(messageOrBatch)
     } else {
         this.logger.debug(
