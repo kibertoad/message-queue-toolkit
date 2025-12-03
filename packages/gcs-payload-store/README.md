@@ -256,7 +256,7 @@ class LargeMessagePublisher extends AbstractSqsPublisher<MyMessage> {
 ```typescript
 import { Storage } from '@google-cloud/storage'
 import { GCSPayloadStore } from '@message-queue-toolkit/gcs-payload-store'
-import { AbstractPubSubPublisher, PUBSUB_MESSAGE_MAX_SIZE } from '@message-queue-toolkit/pubsub'
+import { AbstractPubSubPublisher, PUBSUB_MESSAGE_MAX_SIZE } from '@message-queue-toolkit/gcp-pubsub'
 
 const storage = new Storage({ projectId: 'my-project' })
 

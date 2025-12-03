@@ -28,7 +28,7 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^14.4.2"
+        "@lokalise/node-core": "^14.6.0"
     },
     "peerDependencies": {
         "@google-cloud/pubsub": "^5.2.0",
@@ -37,7 +37,7 @@
     },
     "devDependencies": {
         "@google-cloud/pubsub": "^5.2.0",
-        "@biomejs/biome": "^2.3.6",
+        "@biomejs/biome": "^2.3.8",
         "@lokalise/biome-config": "^3.1.0",
         "@lokalise/tsconfig": "^3.0.0",
         "@message-queue-toolkit/core": "*",
@@ -52,7 +52,7 @@
         "rimraf": "^6.0.1",
         "typescript": "^5.9.3",
         "vitest": "^3.2.4",
-        "zod": "^4.1.12"
+        "zod": "^4.1.13"
     },
     "homepage": "https://github.com/kibertoad/message-queue-toolkit",
     "repository": {

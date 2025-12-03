@@ -9,7 +9,7 @@ export function deserializePubSubMessage(
 ): Either<MessageInvalidFormatError, unknown> {
   const readResult = readPubSubMessage(message)
 
-  if ('error' in readResult) {
+  if (readResult.error) {
     const resolvedError = errorResolver.processError(readResult.error)
     if (isMessageError(resolvedError)) {
       return { error: resolvedError }

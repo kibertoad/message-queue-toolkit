@@ -1,4 +1,9 @@
 import type { Either, ErrorResolver } from '@lokalise/node-core'
+import type {
+  MessageInvalidFormatError,
+  MessageValidationError,
+  ResolvedMessage,
+} from '@message-queue-toolkit/core'
 import {
   type BarrierResult,
   DeduplicationRequesterEnum,
@@ -13,7 +18,6 @@ import {
   type QueueConsumerOptions,
   type TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
-
 import type { PubSubMessage } from '../types/MessageTypes.ts'
 import { hasOffloadedPayload } from '../utils/messageUtils.ts'
 import { deserializePubSubMessage } from '../utils/pubSubMessageDeserializer.ts'
@@ -224,7 +228,7 @@ export abstract class AbstractPubSubConsumer<
     try {
       // Parse and validate message (deserializes once via resolveMessage)
       const resolvedMessage = this.resolveMessage(message)
-      if ('error' in resolvedMessage) {
+      if (resolvedMessage.error) {
         this.handleMessageProcessed({
           message: resolvedMessage.error.message as unknown as MessagePayloadType,
           processingResult: {
@@ -259,7 +263,7 @@ export abstract class AbstractPubSubConsumer<
       }
 
       const resolveSchemaResult = this.resolveSchema(messagePayload as MessagePayloadType)
-      if ('error' in resolveSchemaResult) {
+      if (resolveSchemaResult.error) {
         this.handleError(resolveSchemaResult.error)
         message.ack()
         return
@@ -271,7 +275,7 @@ export abstract class AbstractPubSubConsumer<
         this.errorResolver,
       )
 
-      if ('error' in parseResult) {
+      if (parseResult.error) {
         this.handleMessageProcessed({
           message: messagePayload as MessagePayloadType,
           processingResult: {
@@ -295,7 +299,7 @@ export abstract class AbstractPubSubConsumer<
       // Lock cannot be acquired as it is already being processed by another consumer.
       // We don't want to discard message yet as we don't know if the other consumer will be able to process it successfully.
       // We're re-queueing the message, so it can be processed later.
-      if ('error' in acquireLockResult) {
+      if (acquireLockResult.error) {
         message.nack()
         return
       }
@@ -398,7 +402,9 @@ export abstract class AbstractPubSubConsumer<
     return { error: 'retryLater' }
   }
 
-  protected override resolveMessage(message: PubSubMessage) {
+  protected override resolveMessage(
+    message: PubSubMessage,
+  ): Either<MessageInvalidFormatError | MessageValidationError, ResolvedMessage> {
     const deserializedPayload = deserializePubSubMessage(message, this.errorResolver)
     if (deserializedPayload.error) {
       return deserializedPayload

@@ -70,7 +70,7 @@ npm install @message-queue-toolkit/gcp-pubsub @google-cloud/pubsub zod
 
 Google Pub/Sub follows a strict topic/subscription model:
 
-```
+```text
 Publisher → Topic → Subscription → Consumer
 ```
 
@@ -791,7 +791,7 @@ The library implements intelligent retry logic with exponential backoff:
    - If exceeded, sends to DLQ (if configured) or marks as failed
 
 3. **Exponential Backoff:**
-   ```
+   ```text
    Attempt 1: Message nacked, redelivered by Pub/Sub
    Attempt 2: Message nacked, redelivered by Pub/Sub
    Attempt 3: Message nacked, redelivered by Pub/Sub
