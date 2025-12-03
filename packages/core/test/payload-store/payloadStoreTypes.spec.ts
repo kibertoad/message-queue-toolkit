@@ -47,6 +47,7 @@ describe('payloadStoreTypes', () => {
       const config: SinglePayloadStoreConfig = {
         messageSizeThreshold: 1024,
         store: mockStore,
+        storeName: 'test-store',
       }
 
       expect(isMultiPayloadStoreConfig(config)).toBe(false)

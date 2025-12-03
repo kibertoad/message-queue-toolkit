@@ -30,6 +30,7 @@ import { jsonStreamStringifySerializer } from '../payload-store/JsonStreamString
 import {
   OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA,
   type OffloadedPayloadPointerPayload,
+  type PayloadRef,
 } from '../payload-store/offloadedPayloadMessageSchemas.ts'
 import type {
   MultiPayloadStoreConfig,
@@ -498,16 +499,7 @@ export abstract class AbstractQueueService<
     }
 
     // Single-store configuration
-    let storeName: string
-    if (this.payloadStoreConfig.storeName) {
-      storeName = this.payloadStoreConfig.storeName
-    } else {
-      storeName = this.payloadStoreConfig.store.constructor.name
-      this.logger.warn(
-        `Payload store configuration is missing 'storeName'. Using class name '${storeName}' as fallback. It is recommended to explicitly set 'storeName' in your payload store configuration for better stability and clarity.`,
-      )
-    }
-    return { store: this.payloadStoreConfig.store, storeName }
+    return { store: this.payloadStoreConfig.store, storeName: this.payloadStoreConfig.storeName }
   }
 
   /**
@@ -515,8 +507,8 @@ export abstract class AbstractQueueService<
    */
   private resolveStoreFromPayloadRef(
     config: SinglePayloadStoreConfig | MultiPayloadStoreConfig,
-    payloadRef: { id: string; store: string; size: number },
-  ): Either<Error, { store: PayloadStore; payloadId: string; payloadSize: number }> {
+    payloadRef: PayloadRef,
+  ): Either<Error, { store: PayloadStore; payloadId: string }> {
     if (isMultiPayloadStoreConfig(config)) {
       const store = config.stores[payloadRef.store]
       if (!store) {
@@ -526,23 +518,20 @@ export abstract class AbstractQueueService<
           ),
         }
       }
-      return { result: { store, payloadId: payloadRef.id, payloadSize: payloadRef.size } }
+      return { result: { store, payloadId: payloadRef.id } }
     }
 
     // Single-store config - validate that payloadRef.store matches configured store name
-    const expectedStoreName = config.storeName ?? config.store.constructor.name
-    if (payloadRef.store !== expectedStoreName) {
+    if (payloadRef.store !== config.storeName) {
       return {
         error: new Error(
-          `Store "${payloadRef.store}" specified in payloadRef does not match configured store name "${expectedStoreName}". ` +
+          `Store "${payloadRef.store}" specified in payloadRef does not match configured store name "${config.storeName}". ` +
             'This may indicate a misconfiguration or that the message was published by a different system. ' +
             'If you need to consume messages from multiple stores, consider using MultiPayloadStoreConfig.',
         ),
       }
     }
-    return {
-      result: { store: config.store, payloadId: payloadRef.id, payloadSize: payloadRef.size },
-    }
+    return { result: { store: config.store, payloadId: payloadRef.id } }
   }
 
   /**
@@ -551,7 +540,7 @@ export abstract class AbstractQueueService<
   private resolveStoreFromLegacyPointer(
     config: SinglePayloadStoreConfig | MultiPayloadStoreConfig,
     legacyPointer: string,
-  ): Either<Error, { store: PayloadStore; payloadId: string; payloadSize: number }> {
+  ): Either<Error, { store: PayloadStore; payloadId: string }> {
     if (isMultiPayloadStoreConfig(config)) {
       if (!config.defaultIncomingStore) {
         return {
@@ -568,10 +557,9 @@ export abstract class AbstractQueueService<
           ),
         }
       }
-      return { result: { store, payloadId: legacyPointer, payloadSize: 0 } }
+      return { result: { store, payloadId: legacyPointer } }
     }
-    // Single-store config with legacy format
-    return { result: { store: config.store, payloadId: legacyPointer, payloadSize: 0 } }
+    return { result: { store: config.store, payloadId: legacyPointer } }
   }
 
   /**
@@ -581,9 +569,9 @@ export abstract class AbstractQueueService<
    * For single-store: always uses the configured store.
    */
   private resolveIncomingStore(
-    payloadRef: { id: string; store: string; size: number } | undefined,
+    payloadRef: PayloadRef | undefined,
     legacyPointer: string | undefined,
-  ): Either<Error, { store: PayloadStore; payloadId: string; payloadSize: number }> {
+  ): Either<Error, { store: PayloadStore; payloadId: string }> {
     if (!this.payloadStoreConfig) {
       return { error: new Error('Payload store is not configured') }
     }

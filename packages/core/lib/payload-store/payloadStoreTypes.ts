@@ -42,14 +42,10 @@ export type SinglePayloadStoreConfig = {
   store: PayloadStore
 
   /**
-   * Identifier for this store (used in offloaded payload message).
-   *
-   * @recommended It is strongly recommended to explicitly provide a store name.
-   * If not provided, the implementation class name will be used as a fallback,
-   * which may not be stable across refactoring or code minification.
-   * A warning will be logged when this field is not provided.
+   * Identifier for this store (used in offloaded payload messages).
+   * This name is embedded in the message payload to identify which store holds the data.
    */
-  storeName?: string
+  storeName: string
 
   /** The serializer to use for serializing the payload. */
   serializer?: PayloadSerializer

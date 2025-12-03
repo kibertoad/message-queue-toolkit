@@ -278,6 +278,7 @@ describe('SqsPermissionPublisherFifo', () => {
       const payloadStoreConfig: PayloadStoreConfig = {
         messageSizeThreshold: 100, // Very small threshold to force offloading
         store: new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketName }),
+        storeName: 's3',
       }
 
       const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {

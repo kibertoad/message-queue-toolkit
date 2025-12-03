@@ -474,11 +474,9 @@ Payload offloading allows you to manage large message payloads by storing them i
             }
         ),
         messageSizeThreshold: SQS_MESSAGE_MAX_SIZE,
-        storeName: 'my-s3-store' // Identifies this store in message payloads, which helps track down misconfigurations where producer and consumer services end up using different stores.
-
+        storeName: 'my-s3-store' // Required: identifies this store in message payloads
     }
     ```
-    > **Note:** While `storeName` is optional, it is strongly recommended to set it explicitly. Without it, the store's class name is used as a fallback (with a warning logged), which can break if code is minified or refactored.
 
     #### Multi-Store Configuration
     For scenarios requiring multiple payload stores (e.g., multi-region setups, migration between stores):
