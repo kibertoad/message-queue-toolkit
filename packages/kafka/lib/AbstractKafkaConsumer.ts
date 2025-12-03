@@ -262,7 +262,10 @@ export abstract class AbstractKafkaConsumer<
     messageOrBatch: MessageOrBatch<SupportedMessageValues<TopicsConfig>>,
   ): Promise<void> {
     const messageProcessingStartTimestamp = Date.now()
-    this.logger.debug({ origin: this.constructor.name, topic }, 'Consuming message(s)')
+    this.logger.debug(
+      { origin: this.constructor.name, topic, count: messageOrBatch },
+      'Consuming message(s)',
+    )
 
     const handlerConfig = this.resolveHandler(topic)
 
@@ -279,10 +282,10 @@ export abstract class AbstractKafkaConsumer<
       this.logger.debug({ origin: this.constructor.name, topic }, 'Received not valid message(s)')
       return this.commit(messageOrBatch)
     } else {
-        this.logger.debug(
+      this.logger.debug(
         { origin: this.constructor.name, topic, validMessagesCount: validMessages.length },
         'Received valid message(s) to process',
-        )
+      )
     }
 
     // biome-ignore lint/style/noNonNullAssertion: we check validMessages length above
