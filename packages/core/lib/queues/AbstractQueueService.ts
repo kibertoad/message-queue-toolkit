@@ -31,8 +31,12 @@ import {
   OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA,
   type OffloadedPayloadPointerPayload,
 } from '../payload-store/offloadedPayloadMessageSchemas.ts'
-import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes.ts'
-import { isDestroyable } from '../payload-store/payloadStoreTypes.ts'
+import type {
+  MultiPayloadStoreConfig,
+  PayloadStore,
+  SinglePayloadStoreConfig,
+} from '../payload-store/payloadStoreTypes.ts'
+import { isDestroyable, isMultiPayloadStoreConfig } from '../payload-store/payloadStoreTypes.ts'
 import type { MessageProcessingResult } from '../types/MessageQueueTypes.ts'
 import type {
   DeletionConfig,
@@ -110,8 +114,11 @@ export abstract class AbstractQueueService<
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
   protected readonly deletionConfig?: DeletionConfig
-  protected readonly payloadStoreConfig?: Omit<PayloadStoreConfig, 'serializer'> &
-    Required<Pick<PayloadStoreConfig, 'serializer'>>
+  protected readonly payloadStoreConfig?:
+    | (Omit<SinglePayloadStoreConfig, 'serializer'> &
+        Required<Pick<SinglePayloadStoreConfig, 'serializer'>>)
+    | (Omit<MultiPayloadStoreConfig, 'serializer'> &
+        Required<Pick<MultiPayloadStoreConfig, 'serializer'>>)
   protected readonly messageDeduplicationConfig?: MessageDeduplicationConfig
   protected readonly messageMetricsManager?: MessageMetricsManager<MessagePayloadSchemas>
   protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
@@ -470,9 +477,141 @@ export abstract class AbstractQueueService<
   public abstract close(): Promise<unknown>
 
   /**
+   * Resolves the store and store name for outgoing (publishing) messages.
+   * For multi-store: uses outgoingStore from config.
+   * For single-store: uses the configured store and storeName (or class name as fallback).
+   */
+  private resolveOutgoingStore(): { store: PayloadStore; storeName: string } {
+    if (!this.payloadStoreConfig) {
+      throw new Error('Payload store is not configured')
+    }
+
+    if (isMultiPayloadStoreConfig(this.payloadStoreConfig)) {
+      const storeName = this.payloadStoreConfig.outgoingStore
+      const store = this.payloadStoreConfig.stores[storeName]
+      if (!store) {
+        throw new Error(
+          `Outgoing store "${storeName}" not found in stores configuration. Available stores: ${Object.keys(this.payloadStoreConfig.stores).join(', ')}`,
+        )
+      }
+      return { store, storeName }
+    }
+
+    // Single-store configuration
+    let storeName: string
+    if (this.payloadStoreConfig.storeName) {
+      storeName = this.payloadStoreConfig.storeName
+    } else {
+      storeName = this.payloadStoreConfig.store.constructor.name
+      this.logger.warn(
+        `Payload store configuration is missing 'storeName'. Using class name '${storeName}' as fallback. It is recommended to explicitly set 'storeName' in your payload store configuration for better stability and clarity.`,
+      )
+    }
+    return { store: this.payloadStoreConfig.store, storeName }
+  }
+
+  /**
+   * Resolves store from payloadRef (new format).
+   */
+  private resolveStoreFromPayloadRef(
+    config: SinglePayloadStoreConfig | MultiPayloadStoreConfig,
+    payloadRef: { id: string; store: string; size: number },
+  ): Either<Error, { store: PayloadStore; payloadId: string; payloadSize: number }> {
+    if (isMultiPayloadStoreConfig(config)) {
+      const store = config.stores[payloadRef.store]
+      if (!store) {
+        return {
+          error: new Error(
+            `Store "${payloadRef.store}" specified in payloadRef not found in stores configuration. Available stores: ${Object.keys(config.stores).join(', ')}`,
+          ),
+        }
+      }
+      return { result: { store, payloadId: payloadRef.id, payloadSize: payloadRef.size } }
+    }
+
+    // Single-store config - validate that payloadRef.store matches configured store name
+    const expectedStoreName = config.storeName ?? config.store.constructor.name
+    if (payloadRef.store !== expectedStoreName) {
+      return {
+        error: new Error(
+          `Store "${payloadRef.store}" specified in payloadRef does not match configured store name "${expectedStoreName}". ` +
+            'This may indicate a misconfiguration or that the message was published by a different system. ' +
+            'If you need to consume messages from multiple stores, consider using MultiPayloadStoreConfig.',
+        ),
+      }
+    }
+    return {
+      result: { store: config.store, payloadId: payloadRef.id, payloadSize: payloadRef.size },
+    }
+  }
+
+  /**
+   * Resolves store from legacy pointer (old format).
+   */
+  private resolveStoreFromLegacyPointer(
+    config: SinglePayloadStoreConfig | MultiPayloadStoreConfig,
+    legacyPointer: string,
+  ): Either<Error, { store: PayloadStore; payloadId: string; payloadSize: number }> {
+    if (isMultiPayloadStoreConfig(config)) {
+      if (!config.defaultIncomingStore) {
+        return {
+          error: new Error(
+            'Message contains legacy offloadedPayloadPointer format, but no defaultIncomingStore is configured in multi-store setup. Please configure defaultIncomingStore or migrate messages to use payloadRef format.',
+          ),
+        }
+      }
+      const store = config.stores[config.defaultIncomingStore]
+      if (!store) {
+        return {
+          error: new Error(
+            `Default incoming store "${config.defaultIncomingStore}" not found in stores configuration. Available stores: ${Object.keys(config.stores).join(', ')}`,
+          ),
+        }
+      }
+      return { result: { store, payloadId: legacyPointer, payloadSize: 0 } }
+    }
+    // Single-store config with legacy format
+    return { result: { store: config.store, payloadId: legacyPointer, payloadSize: 0 } }
+  }
+
+  /**
+   * Resolves the store for incoming (consuming) messages based on payload reference.
+   * For multi-store with payloadRef: uses the store specified in payloadRef.
+   * For multi-store with legacy format: uses defaultIncomingStore.
+   * For single-store: always uses the configured store.
+   */
+  private resolveIncomingStore(
+    payloadRef: { id: string; store: string; size: number } | undefined,
+    legacyPointer: string | undefined,
+  ): Either<Error, { store: PayloadStore; payloadId: string; payloadSize: number }> {
+    if (!this.payloadStoreConfig) {
+      return { error: new Error('Payload store is not configured') }
+    }
+
+    if (payloadRef) {
+      return this.resolveStoreFromPayloadRef(this.payloadStoreConfig, payloadRef)
+    }
+
+    if (legacyPointer) {
+      return this.resolveStoreFromLegacyPointer(this.payloadStoreConfig, legacyPointer)
+    }
+
+    return {
+      error: new Error(
+        'Invalid offloaded payload: neither payloadRef nor offloadedPayloadPointer is present',
+      ),
+    }
+  }
+
+  /**
    * Offload message payload to an external store if it exceeds the threshold.
    * Returns a special type that contains a pointer to the offloaded payload or the original payload if it was not offloaded.
    * Requires message size as only the implementation knows how to calculate it.
+   *
+   * For multi-store configuration, uses the configured outgoingStore.
+   * For single-store configuration, uses the single store.
+   *
+   * The returned payload includes both the new payloadRef format and legacy fields for backward compatibility.
    */
   protected async offloadMessagePayloadIfNeeded(
     message: MessagePayloadSchemas,
@@ -485,18 +624,28 @@ export abstract class AbstractQueueService<
       return message
     }
 
-    let offloadedPayloadPointer: string
+    const { store, storeName } = this.resolveOutgoingStore()
     const serializedPayload = await this.payloadStoreConfig.serializer.serialize(message)
+
+    let payloadId: string
     try {
-      offloadedPayloadPointer = await this.payloadStoreConfig.store.storePayload(serializedPayload)
+      payloadId = await store.storePayload(serializedPayload)
     } finally {
       if (isDestroyable(serializedPayload)) {
         await serializedPayload.destroy()
       }
     }
 
+    // Return message with both new and legacy formats for backward compatibility
     return {
-      offloadedPayloadPointer,
+      // Extended payload reference format
+      payloadRef: {
+        id: payloadId,
+        store: storeName,
+        size: serializedPayload.size,
+      },
+      // Legacy format for backward compatibility
+      offloadedPayloadPointer: payloadId,
       offloadedPayloadSize: serializedPayload.size,
       // @ts-expect-error
       [this.messageIdField]: message[this.messageIdField],
@@ -514,6 +663,8 @@ export abstract class AbstractQueueService<
   /**
    * Retrieve previously offloaded message payload using provided pointer payload.
    * Returns the original payload or an error if the payload was not found or could not be parsed.
+   *
+   * Supports both new multi-store format (payloadRef) and legacy format (offloadedPayloadPointer).
    */
   protected async retrieveOffloadedMessagePayload(
     maybeOffloadedPayloadPointerPayload: unknown,
@@ -537,20 +688,38 @@ export abstract class AbstractQueueService<
       }
     }
 
-    const serializedOffloadedPayloadReadable = await this.payloadStoreConfig.store.retrievePayload(
-      pointerPayloadParseResult.data.offloadedPayloadPointer,
+    const parsedPayload = pointerPayloadParseResult.data
+
+    // Resolve which store to use
+    const storeResult = this.resolveIncomingStore(
+      parsedPayload.payloadRef,
+      parsedPayload.offloadedPayloadPointer,
     )
-    if (serializedOffloadedPayloadReadable === null) {
+    if (storeResult.error) {
+      return storeResult
+    }
+
+    const { store, payloadId } = storeResult.result
+    const payloadSize = parsedPayload.payloadRef?.size ?? parsedPayload.offloadedPayloadSize
+    if (payloadSize === undefined) {
       return {
         error: new Error(
-          `Payload with key ${pointerPayloadParseResult.data.offloadedPayloadPointer} was not found in the store`,
+          'Invalid offloaded payload: payload size is missing from both payloadRef and offloadedPayloadSize',
         ),
+      }
+    }
+
+    // Retrieve the payload from the resolved store
+    const serializedOffloadedPayloadReadable = await store.retrievePayload(payloadId)
+    if (serializedOffloadedPayloadReadable === null) {
+      return {
+        error: new Error(`Payload with key ${payloadId} was not found in the store`),
       }
     }
 
     const serializedOffloadedPayloadString = await streamWithKnownSizeToString(
       serializedOffloadedPayloadReadable,
-      pointerPayloadParseResult.data.offloadedPayloadSize,
+      payloadSize,
     )
     try {
       return { result: JSON.parse(serializedOffloadedPayloadString) }

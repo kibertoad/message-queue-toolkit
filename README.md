@@ -449,10 +449,12 @@ Payload offloading allows you to manage large message payloads by storing them i
    ```
 
 2. **Configure your setup:**
+
+    #### Single-Store Configuration
     ```typescript
     import { S3 } from '@aws-sdk/client-s3'
     import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
-    import { PayloadStoreConfig } from '@message-queue-toolkit/core'
+    import type { SinglePayloadStoreConfig } from '@message-queue-toolkit/core'
     import { SQS_MESSAGE_MAX_SIZE } from '@message-queue-toolkit/sqs'
     
     const s3Client = new S3({
@@ -463,17 +465,39 @@ Payload offloading allows you to manage large message payloads by storing them i
         }
     })
     
-    const payloadStoreConfig = {
+    const payloadStoreConfig: SinglePayloadStoreConfig = {
         store: new S3PayloadStore(
-            {s3: s3Client},
+            { s3: s3Client },
             {
                 bucketName: 'your-s3-bucket-name',
                 keyPrefix: 'optional-key-prefix'
             }
         ),
         messageSizeThreshold: SQS_MESSAGE_MAX_SIZE,
+        storeName: 'my-s3-store' // Identifies this store in message payloads, which helps track down misconfigurations where producer and consumer services end up using different stores.
+
     }
+    ```
+    > **Note:** While `storeName` is optional, it is strongly recommended to set it explicitly. Without it, the store's class name is used as a fallback (with a warning logged), which can break if code is minified or refactored.
+
+    #### Multi-Store Configuration
+    For scenarios requiring multiple payload stores (e.g., multi-region setups, migration between stores):
+    ```typescript
+    import type { MultiPayloadStoreConfig } from '@message-queue-toolkit/core'
     
+    const payloadStoreConfig: MultiPayloadStoreConfig = {
+        messageSizeThreshold: SQS_MESSAGE_MAX_SIZE,
+        stores: {
+            'store-us': new S3PayloadStore(deps, { bucketName: 'us-bucket' }),
+            'store-eu': new S3PayloadStore(deps, { bucketName: 'eu-bucket' })
+        },
+        outgoingStore: 'store-eu',           // Required: store for publishing messages
+        defaultIncomingStore: 'store-us'     // Optional: fallback for legacy messages
+    }
+    ```
+
+    #### Using the Configuration
+    ```typescript    
     export class MyConsumer extends AbstractSqsConsumer<> {
         constructor(
             // dependencies and options

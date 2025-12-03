@@ -4,8 +4,8 @@ import type { Message, SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import { waitAndRetry } from '@lokalise/node-core'
 import type {
+  MultiPayloadStoreConfig,
   OffloadedPayloadPointerPayload,
-  SinglePayloadStoreConfig,
 } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import {
@@ -17,6 +17,7 @@ import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+
 import { SNS_MESSAGE_BODY_SCHEMA } from '../../lib/types/MessageTypes.ts'
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber.ts'
 import { deleteTopic } from '../../lib/utils/snsUtils.ts'
@@ -24,14 +25,16 @@ import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSche
 import { assertBucket, getObjectContent } from '../utils/s3Utils.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
+
 import { SnsPermissionPublisher } from './SnsPermissionPublisher.ts'
 
-const queueName = 'payloadOffloadingTestQueue'
+const queueName = 'multiStorePayloadOffloadingTestQueue'
 
-describe('SnsPermissionPublisher - single-store payload offloading', () => {
+describe('SnsPermissionPublisher - multi-store payload offloading', () => {
   describe('publish', () => {
     const largeMessageSizeThreshold = 1024 // Messages larger than 1KB shall be offloaded
-    const s3BucketName = 'payload-offloading-test-bucket'
+    const s3BucketNameStore1 = 'sns-payload-offloading-store1-bucket'
+    const s3BucketNameStore2 = 'sns-payload-offloading-store2-bucket'
 
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
@@ -39,8 +42,6 @@ describe('SnsPermissionPublisher - single-store payload offloading', () => {
     let stsClient: STSClient
     let s3: S3
 
-    let payloadStoreConfig: SinglePayloadStoreConfig
-    let publisher: SnsPermissionPublisher
     let consumer: Consumer
     let receivedSnsMessages: Message[]
 
@@ -54,33 +55,21 @@ describe('SnsPermissionPublisher - single-store payload offloading', () => {
       stsClient = diContainer.cradle.stsClient
       s3 = diContainer.cradle.s3
 
-      await assertBucket(s3, s3BucketName)
-      payloadStoreConfig = {
-        messageSizeThreshold: largeMessageSizeThreshold,
-        store: new S3PayloadStore(diContainer.cradle, {
-          bucketName: s3BucketName,
-        }),
-        storeName: 's3',
-      }
+      await assertBucket(s3, s3BucketNameStore1)
+      await assertBucket(s3, s3BucketNameStore2)
     })
 
     beforeEach(async () => {
       await deleteQueue(sqsClient, queueName)
       await deleteTopic(snsClient, stsClient, SnsPermissionPublisher.TOPIC_NAME)
-      const { queueUrl } = await assertQueue(sqsClient, {
-        QueueName: queueName,
-      })
+      const { queueUrl } = await assertQueue(sqsClient, { QueueName: queueName })
       await subscribeToTopic(
         sqsClient,
         snsClient,
         stsClient,
         { QueueName: queueName },
-        {
-          Name: SnsPermissionPublisher.TOPIC_NAME,
-        },
-        {
-          updateAttributesIfExists: false,
-        },
+        { Name: SnsPermissionPublisher.TOPIC_NAME },
+        { updateAttributesIfExists: false },
       )
 
       receivedSnsMessages = []
@@ -93,16 +82,11 @@ describe('SnsPermissionPublisher - single-store payload offloading', () => {
         sqs: sqsClient,
         messageAttributeNames: [OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE],
       })
-      publisher = new SnsPermissionPublisher(diContainer.cradle, {
-        payloadStoreConfig,
-      })
 
       consumer.start()
-      await publisher.init()
     })
 
-    afterEach(async () => {
-      await publisher.close()
+    afterEach(() => {
       consumer.stop()
     })
 
@@ -112,7 +96,25 @@ describe('SnsPermissionPublisher - single-store payload offloading', () => {
       await diContainer.dispose()
     })
 
-    it('offloads large message payload to payload store', async () => {
+    it('multi-store publisher offloads payload to configured outgoing store', async () => {
+      const store1 = new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketNameStore1 })
+      const store2 = new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketNameStore2 })
+
+      const payloadStoreConfig: MultiPayloadStoreConfig = {
+        messageSizeThreshold: largeMessageSizeThreshold,
+        stores: {
+          's3-us-east-1': store1,
+          's3-eu-central-1': store2,
+        },
+        outgoingStore: 's3-eu-central-1', // Use store2 for outgoing messages
+      } satisfies MultiPayloadStoreConfig
+
+      const publisher = new SnsPermissionPublisher(diContainer.cradle, {
+        payloadStoreConfig,
+      })
+
+      await publisher.init()
+
       const message = {
         id: '1',
         messageType: 'add',
@@ -127,7 +129,7 @@ describe('SnsPermissionPublisher - single-store payload offloading', () => {
       ).resolves.toBeDefined()
       await waitAndRetry(() => receivedSnsMessages.length > 0)
 
-      // Check that the published message's body is a pointer to the offloaded payload.
+      // Check that the published message's body is a pointer to the offloaded payload
       expect(receivedSnsMessages.length).toBe(1)
       const snsMessageBodyParseResult = SNS_MESSAGE_BODY_SCHEMA.safeParse(
         JSON.parse(receivedSnsMessages[0]!.Body!),
@@ -138,11 +140,11 @@ describe('SnsPermissionPublisher - single-store payload offloading', () => {
         snsMessageBodyParseResult.data!.Message,
       ) as OffloadedPayloadPointerPayload
 
-      // Check that message contains new payloadRef format
+      // Check that message contains new payloadRef with correct store name
       expect(parsedSnsMessage.payloadRef).toBeDefined()
       expect(parsedSnsMessage.payloadRef).toMatchObject({
         id: expect.any(String),
-        store: 's3', // Matches the configured storeName
+        store: 's3-eu-central-1', // Should use the outgoing store
         size: expect.any(Number),
       })
 
@@ -155,10 +157,12 @@ describe('SnsPermissionPublisher - single-store payload offloading', () => {
       expect(receivedMessageAttributes).toBeDefined()
       expect(receivedMessageAttributes![OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE]).toBeDefined()
 
-      // Make sure the payload was offloaded to the S3 bucket
+      // Make sure the payload was offloaded to the correct S3 bucket (store2)
       await expect(
-        getObjectContent(s3, s3BucketName, parsedSnsMessage.payloadRef!.id),
+        getObjectContent(s3, s3BucketNameStore2, parsedSnsMessage.payloadRef!.id),
       ).resolves.toBeDefined()
+
+      await publisher.close()
     })
   })
 })
