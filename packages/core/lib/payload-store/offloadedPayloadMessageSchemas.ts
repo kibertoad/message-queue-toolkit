@@ -52,6 +52,9 @@ export type OffloadedPayloadPointerPayload = z.output<
 export function isOffloadedPayloadPointerPayload(
   value: unknown,
 ): value is OffloadedPayloadPointerPayload {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
   const payload = value as OffloadedPayloadPointerPayload
   return payload.payloadRef !== undefined || payload.offloadedPayloadPointer !== undefined
 }
