@@ -262,10 +262,7 @@ export abstract class AbstractKafkaConsumer<
     messageOrBatch: MessageOrBatch<SupportedMessageValues<TopicsConfig>>,
   ): Promise<void> {
     const messageProcessingStartTimestamp = Date.now()
-    this.logger.debug(
-      { origin: this.constructor.name, topic },
-      'Consuming message(s)',
-    )
+    this.logger.debug({ origin: this.constructor.name, topic }, 'Consuming message(s)')
 
     const handlerConfig = this.resolveHandler(topic)
 
