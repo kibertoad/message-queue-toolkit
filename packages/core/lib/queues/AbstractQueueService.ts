@@ -102,7 +102,6 @@ export abstract class AbstractQueueService<
    * Used to know the store-based message deduplication options
    */
   protected readonly messageDeduplicationOptionsField: string
-
   protected readonly errorReporter: ErrorReporter
   public readonly logger: CommonLogger
   protected readonly messageIdField: string

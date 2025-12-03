@@ -1,39 +1,43 @@
+import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-import { SqsPermissionPublisherFifo } from '../publishers/SqsPermissionPublisherFifo.ts'
+import { deleteTopic } from '../../lib/utils/snsUtils.ts'
+import { SnsPermissionPublisherFifo } from '../publishers/SnsPermissionPublisherFifo.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
-import { SqsPermissionConsumerFifo } from './SqsPermissionConsumerFifo.ts'
+import { SnsSqsPermissionConsumerFifo } from './SnsSqsPermissionConsumerFifo.ts'
 
-describe('SqsPermissionConsumerFifo', () => {
-  describe('FIFO queue consumption and retry', () => {
+describe('SnsSqsPermissionConsumerFifo', () => {
+  describe('FIFO topic/queue consumption and retry', () => {
+    const topicName = 'test-fifo-consumer.fifo'
     const queueName = 'test-fifo-consumer.fifo'
     const dlqName = 'test-fifo-consumer-dlq.fifo'
 
     let diContainer: AwilixContainer<Dependencies>
+    let snsClient: SNSClient
     let sqsClient: SQSClient
     beforeEach(async () => {
       diContainer = await registerDependencies()
+      snsClient = diContainer.cradle.snsClient
       sqsClient = diContainer.cradle.sqsClient
-      // Deletion handled by deletionConfig.deleteIfExists in each test
     })
 
     afterEach(async () => {
+      await deleteTopic(snsClient, diContainer.cradle.stsClient, topicName)
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
       await diContainer.dispose()
     })
 
-    it('creates FIFO queue and consumes messages', async () => {
-      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+    it('creates FIFO topic/queue and consumes messages', async () => {
+      const publisher = new SnsPermissionPublisherFifo(diContainer.cradle, {
         creationConfig: {
-          queue: {
-            QueueName: queueName,
+          topic: {
+            Name: topicName,
             Attributes: {
-              FifoQueue: 'true',
+              FifoTopic: 'true',
               ContentBasedDeduplication: 'true',
             },
           },
@@ -44,12 +48,19 @@ describe('SqsPermissionConsumerFifo', () => {
         defaultMessageGroupId: 'test-group',
       })
 
-      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+      const consumer = new SnsSqsPermissionConsumerFifo(diContainer.cradle, {
         creationConfig: {
           queue: {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
+              ContentBasedDeduplication: 'true',
+            },
+          },
+          topic: {
+            Name: topicName,
+            Attributes: {
+              FifoTopic: 'true',
               ContentBasedDeduplication: 'true',
             },
           },
@@ -62,7 +73,7 @@ describe('SqsPermissionConsumerFifo', () => {
       await publisher.init()
       await consumer.start()
 
-      expect(consumer.queueProps.isFifo).toBe(true)
+      expect(consumer.subscriptionProps.queueName).toBe(queueName)
 
       await publisher.publish({
         id: '1',
@@ -79,12 +90,12 @@ describe('SqsPermissionConsumerFifo', () => {
     })
 
     it('retries with ContentBasedDeduplication enabled - no MessageDeduplicationId', async () => {
-      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+      const publisher = new SnsPermissionPublisherFifo(diContainer.cradle, {
         creationConfig: {
-          queue: {
-            QueueName: queueName,
+          topic: {
+            Name: topicName,
             Attributes: {
-              FifoQueue: 'true',
+              FifoTopic: 'true',
               ContentBasedDeduplication: 'true',
             },
           },
@@ -96,7 +107,7 @@ describe('SqsPermissionConsumerFifo', () => {
       })
 
       let attemptCount = 0
-      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+      const consumer = new SnsSqsPermissionConsumerFifo(diContainer.cradle, {
         creationConfig: {
           queue: {
             QueueName: queueName,
@@ -105,11 +116,18 @@ describe('SqsPermissionConsumerFifo', () => {
               ContentBasedDeduplication: 'true',
             },
           },
+          topic: {
+            Name: topicName,
+            Attributes: {
+              FifoTopic: 'true',
+              ContentBasedDeduplication: 'true',
+            },
+          },
         },
         deletionConfig: {
           deleteIfExists: true,
         },
-        barrierSleepCheckIntervalInMsecs: 100, // Fast recheck for tests
+        barrierSleepCheckIntervalInMsecs: 200, // Short interval for faster test execution
         addHandlerOverride: () => {
           attemptCount++
           if (attemptCount < 2) {
@@ -159,100 +177,13 @@ describe('SqsPermissionConsumerFifo', () => {
       await consumer.close(true)
     })
 
-    it('retries with ContentBasedDeduplication disabled - preserves MessageDeduplicationId', async () => {
-      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
-        creationConfig: {
-          queue: {
-            QueueName: queueName,
-            Attributes: {
-              FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
-            },
-          },
-        },
-        deletionConfig: {
-          deleteIfExists: true,
-        },
-        defaultMessageGroupId: 'test-group',
-      })
-
-      let attemptCount = 0
-      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
-        creationConfig: {
-          queue: {
-            QueueName: queueName,
-            Attributes: {
-              FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
-            },
-          },
-        },
-        deletionConfig: {
-          deleteIfExists: true,
-        },
-        barrierSleepCheckIntervalInMsecs: 100, // Fast recheck for tests
-        addHandlerOverride: () => {
-          attemptCount++
-          if (attemptCount < 2) {
-            return Promise.resolve({ error: 'retryLater' })
-          }
-          return Promise.resolve({ result: 'success' })
-        },
-      })
-
-      await publisher.init()
-
-      const sqsSpy = vi.spyOn(sqsClient, 'send')
-
-      await consumer.start()
-
-      // Publish with explicit MessageDeduplicationId
-      await publisher.publish(
-        {
-          id: '2',
-          messageType: 'add',
-          userIds: 'user-2',
-        },
-        {
-          MessageDeduplicationId: 'unique-dedup-id-123',
-        },
-      )
-
-      await consumer.handlerSpy.waitForMessageWithId('2', 'consumed')
-
-      // FIFO queues use barrier sleep approach - no retry republishing
-      const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
-        if (!(call[0] instanceof SendMessageCommand)) return false
-        const command = call[0] as SendMessageCommand
-        const body = command.input.MessageBody
-        if (!body?.includes('"id":"2"')) return false
-        try {
-          const parsed = JSON.parse(body)
-          return (
-            typeof parsed._internalRetryLaterCount === 'number' &&
-            parsed._internalRetryLaterCount >= 1
-          )
-        } catch {
-          return false
-        }
-      })
-
-      // No retry republishing for FIFO queues
-      expect(retrySendCalls.length).toBe(0)
-
-      // Verify message was processed twice (initial attempt + recheck after sleep)
-      expect(attemptCount).toBe(2)
-
-      await consumer.close(true)
-    })
-
     it('preserves MessageGroupId during retry', async () => {
-      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+      const publisher = new SnsPermissionPublisherFifo(diContainer.cradle, {
         creationConfig: {
-          queue: {
-            QueueName: queueName,
+          topic: {
+            Name: topicName,
             Attributes: {
-              FifoQueue: 'true',
+              FifoTopic: 'true',
               ContentBasedDeduplication: 'true',
             },
           },
@@ -264,7 +195,7 @@ describe('SqsPermissionConsumerFifo', () => {
       })
 
       let attemptCount = 0
-      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+      const consumer = new SnsSqsPermissionConsumerFifo(diContainer.cradle, {
         creationConfig: {
           queue: {
             QueueName: queueName,
@@ -273,11 +204,18 @@ describe('SqsPermissionConsumerFifo', () => {
               ContentBasedDeduplication: 'true',
             },
           },
+          topic: {
+            Name: topicName,
+            Attributes: {
+              FifoTopic: 'true',
+              ContentBasedDeduplication: 'true',
+            },
+          },
         },
         deletionConfig: {
           deleteIfExists: true,
         },
-        barrierSleepCheckIntervalInMsecs: 100, // Fast recheck for tests
+        barrierSleepCheckIntervalInMsecs: 200, // Short interval for faster test execution
         addHandlerOverride: () => {
           attemptCount++
           if (attemptCount < 2) {
@@ -300,9 +238,7 @@ describe('SqsPermissionConsumerFifo', () => {
 
       await consumer.handlerSpy.waitForMessageWithId('3', 'consumed')
 
-      // For FIFO queues with new barrier sleep approach:
-      // - No retry republishing (no SendMessageCommand for retry)
-      // - Consumer sleeps and rechecks, processing on second attempt within sleep loop
+      // FIFO queues use barrier sleep approach - no retry republishing
       const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
         if (!(call[0] instanceof SendMessageCommand)) return false
         const command = call[0] as SendMessageCommand
@@ -319,7 +255,7 @@ describe('SqsPermissionConsumerFifo', () => {
         }
       })
 
-      // No retry republishing for FIFO queues - they use sleep-and-recheck instead
+      // No retry republishing for FIFO queues
       expect(retrySendCalls.length).toBe(0)
 
       // Verify message was processed twice (initial attempt + recheck after sleep)
@@ -329,12 +265,12 @@ describe('SqsPermissionConsumerFifo', () => {
     })
 
     it('sends failed messages to FIFO DLQ with MessageGroupId', async () => {
-      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+      const publisher = new SnsPermissionPublisherFifo(diContainer.cradle, {
         creationConfig: {
-          queue: {
-            QueueName: queueName,
+          topic: {
+            Name: topicName,
             Attributes: {
-              FifoQueue: 'true',
+              FifoTopic: 'true',
               ContentBasedDeduplication: 'true',
             },
           },
@@ -345,7 +281,7 @@ describe('SqsPermissionConsumerFifo', () => {
         defaultMessageGroupId: 'test-group',
       })
 
-      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+      const consumer = new SnsSqsPermissionConsumerFifo(diContainer.cradle, {
         creationConfig: {
           queue: {
             QueueName: queueName,
@@ -353,6 +289,13 @@ describe('SqsPermissionConsumerFifo', () => {
               FifoQueue: 'true',
               ContentBasedDeduplication: 'true',
               VisibilityTimeout: '1',
+            },
+          },
+          topic: {
+            Name: topicName,
+            Attributes: {
+              FifoTopic: 'true',
+              ContentBasedDeduplication: 'true',
             },
           },
         },
@@ -374,6 +317,7 @@ describe('SqsPermissionConsumerFifo', () => {
           },
         },
         maxRetryDuration: 2, // 2 seconds max retry
+        barrierSleepCheckIntervalInMsecs: 200, // Short interval for faster test execution
         addHandlerOverride: () => {
           return Promise.resolve({ error: 'retryLater' })
         },
@@ -423,12 +367,12 @@ describe('SqsPermissionConsumerFifo', () => {
     }, 15000) // 15 second timeout for DLQ test
 
     it('maintains message order within message group', async () => {
-      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
+      const publisher = new SnsPermissionPublisherFifo(diContainer.cradle, {
         creationConfig: {
-          queue: {
-            QueueName: queueName,
+          topic: {
+            Name: topicName,
             Attributes: {
-              FifoQueue: 'true',
+              FifoTopic: 'true',
               ContentBasedDeduplication: 'true',
             },
           },
@@ -440,12 +384,19 @@ describe('SqsPermissionConsumerFifo', () => {
       })
 
       const processedOrder: string[] = []
-      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
+      const consumer = new SnsSqsPermissionConsumerFifo(diContainer.cradle, {
         creationConfig: {
           queue: {
             QueueName: queueName,
             Attributes: {
               FifoQueue: 'true',
+              ContentBasedDeduplication: 'true',
+            },
+          },
+          topic: {
+            Name: topicName,
+            Attributes: {
+              FifoTopic: 'true',
               ContentBasedDeduplication: 'true',
             },
           },
@@ -475,146 +426,6 @@ describe('SqsPermissionConsumerFifo', () => {
 
       // Verify messages were processed in order
       expect(processedOrder).toEqual(['1', '2', '3', '4', '5'])
-
-      await consumer.close(true)
-    })
-
-    it('retries with locatorConfig - fetches ContentBasedDeduplication from SQS', async () => {
-      // First create the queue with a publisher
-      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
-        creationConfig: {
-          queue: {
-            QueueName: queueName,
-            Attributes: {
-              FifoQueue: 'true',
-              ContentBasedDeduplication: 'false',
-            },
-          },
-        },
-        deletionConfig: {
-          deleteIfExists: true,
-        },
-        defaultMessageGroupId: 'test-group',
-      })
-
-      await publisher.init()
-
-      let attemptCount = 0
-      // Consumer uses locatorConfig, not creationConfig - forces async fetch of ContentBasedDeduplication
-      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
-        locatorConfig: {
-          queueUrl: publisher.queueProps.url,
-        },
-        barrierSleepCheckIntervalInMsecs: 100, // Fast recheck for tests
-        addHandlerOverride: () => {
-          attemptCount++
-          if (attemptCount < 2) {
-            return Promise.resolve({ error: 'retryLater' })
-          }
-          return Promise.resolve({ result: 'success' })
-        },
-      })
-
-      const sqsSpy = vi.spyOn(sqsClient, 'send')
-
-      await consumer.start()
-
-      // Publish with explicit MessageDeduplicationId
-      await publisher.publish(
-        {
-          id: 'locator-test',
-          messageType: 'add',
-          userIds: 'user-locator',
-        },
-        {
-          MessageDeduplicationId: 'locator-dedup-id',
-        },
-      )
-
-      await consumer.handlerSpy.waitForMessageWithId('locator-test', 'consumed')
-
-      // FIFO queues use barrier sleep approach - no retry republishing
-      const retrySendCalls = sqsSpy.mock.calls.filter((call) => {
-        if (!(call[0] instanceof SendMessageCommand)) return false
-        const command = call[0] as SendMessageCommand
-        const body = command.input.MessageBody
-        if (!body?.includes('"id":"locator-test"')) return false
-        try {
-          const parsed = JSON.parse(body)
-          return (
-            typeof parsed._internalRetryLaterCount === 'number' &&
-            parsed._internalRetryLaterCount >= 1
-          )
-        } catch {
-          return false
-        }
-      })
-
-      // No retry republishing for FIFO queues
-      expect(retrySendCalls.length).toBe(0)
-
-      // Verify message was processed twice (initial attempt + recheck after sleep)
-      expect(attemptCount).toBe(2)
-
-      await consumer.close(true)
-    })
-
-    it('uses custom visibility extension parameters', async () => {
-      const publisher = new SqsPermissionPublisherFifo(diContainer.cradle, {
-        creationConfig: {
-          queue: {
-            QueueName: queueName,
-            Attributes: {
-              FifoQueue: 'true',
-              ContentBasedDeduplication: 'true',
-            },
-          },
-        },
-        deletionConfig: {
-          deleteIfExists: true,
-        },
-        defaultMessageGroupId: 'test-group',
-      })
-
-      let attemptCount = 0
-      const consumer = new SqsPermissionConsumerFifo(diContainer.cradle, {
-        creationConfig: {
-          queue: {
-            QueueName: queueName,
-            Attributes: {
-              FifoQueue: 'true',
-              ContentBasedDeduplication: 'true',
-            },
-          },
-        },
-        deletionConfig: {
-          deleteIfExists: true,
-        },
-        barrierSleepCheckIntervalInMsecs: 100, // Fast recheck for tests
-        barrierVisibilityExtensionIntervalInMsecs: 5000, // Custom: 5 seconds
-        barrierVisibilityTimeoutInSeconds: 15, // Custom: 15 seconds
-        addHandlerOverride: () => {
-          attemptCount++
-          if (attemptCount < 2) {
-            return Promise.resolve({ error: 'retryLater' })
-          }
-          return Promise.resolve({ result: 'success' })
-        },
-      })
-
-      await publisher.init()
-      await consumer.start()
-
-      await publisher.publish({
-        id: 'custom-visibility-test',
-        messageType: 'add',
-        userIds: 'user-custom',
-      })
-
-      await consumer.handlerSpy.waitForMessageWithId('custom-visibility-test', 'consumed')
-
-      // Verify message was processed twice (initial attempt + recheck after sleep)
-      expect(attemptCount).toBe(2)
 
       await consumer.close(true)
     })

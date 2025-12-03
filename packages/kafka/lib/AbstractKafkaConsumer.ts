@@ -211,15 +211,26 @@ export abstract class AbstractKafkaConsumer<
       )
       this.messageBatchStream.on('error', (error) => this.handlerError(error))
     } else {
-      this.consumerStream.on('data', (message) =>
-        this.consume(
-          message.topic,
-          message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
-        ),
-      )
+      // biome-ignore lint/style/noNonNullAssertion: consumerStream is always created
+      const stream = this.consumerStream!
+
+      // we are not waiting for the stream to complete
+      // because init() must return promised void
+      this.handleSyncStream(stream).catch((error) => this.handlerError(error))
     }
 
     this.consumerStream.on('error', (error) => this.handlerError(error))
+  }
+
+  private async handleSyncStream(
+    stream: MessagesStream<string, object, string, string>,
+  ): Promise<void> {
+    for await (const message of stream) {
+      await this.consume(
+        message.topic,
+        message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
+      )
+    }
   }
 
   async close(): Promise<void> {
