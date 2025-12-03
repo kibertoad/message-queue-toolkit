@@ -263,7 +263,7 @@ export abstract class AbstractKafkaConsumer<
   ): Promise<void> {
     const messageProcessingStartTimestamp = Date.now()
     this.logger.debug(
-      { origin: this.constructor.name, topic, count: messageOrBatch },
+      { origin: this.constructor.name, topic },
       'Consuming message(s)',
     )
 
