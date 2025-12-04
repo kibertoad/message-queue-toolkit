@@ -56,5 +56,8 @@ export function isOffloadedPayloadPointerPayload(
     return false
   }
   const payload = value as OffloadedPayloadPointerPayload
-  return payload.payloadRef !== undefined || payload.offloadedPayloadPointer !== undefined
+  return (
+    payload.payloadRef !== undefined ||
+    (payload.offloadedPayloadPointer !== undefined && payload.offloadedPayloadSize !== undefined)
+  )
 }
