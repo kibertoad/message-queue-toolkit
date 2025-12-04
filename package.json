@@ -8,7 +8,7 @@
         "lint:fix": "turbo run lint:fix --continue",
         "test:ci": "turbo run test:coverage",
         "clean": "turbo run clean",
-        "docker:start": "docker compose up -d --quiet-pull",
+        "docker:start": "docker compose up -d --quiet-pull --wait",
         "docker:stop": "docker compose down",
         "docker:start:ci": "turbo run docker:start",
         "docker:stop:ci": "turbo run docker:stop"
