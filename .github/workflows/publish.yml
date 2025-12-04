@@ -97,7 +97,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24.x
-          cache: ''
+          package-manager-cache: false
 
       - name: Bump versions for changed packages
         env:
@@ -239,7 +239,7 @@ jobs:
         with:
           node-version: 24.x
           registry-url: 'https://registry.npmjs.org'
-          cache: ''
+          package-manager-cache: false
 
       - name: Get version
         if: steps.gate.outputs.should_publish == 'true'
