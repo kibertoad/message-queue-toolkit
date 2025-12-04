@@ -20,6 +20,7 @@ import {
 } from '@message-queue-toolkit/core'
 import type { PubSubMessage } from '../types/MessageTypes.ts'
 import { hasOffloadedPayload } from '../utils/messageUtils.ts'
+import { deletePubSub, initPubSub } from '../utils/pubSubInitter.ts'
 import { deserializePubSubMessage } from '../utils/pubSubMessageDeserializer.ts'
 import type {
   PubSubCreationConfig,
@@ -148,11 +149,7 @@ export abstract class AbstractPubSubConsumer<
   }
 
   public override async init(): Promise<void> {
-    // Import at method level to avoid circular dependency
-    const { initPubSub } = await import('../utils/pubSubInitter.ts')
-
     if (this.deletionConfig && this.creationConfig) {
-      const { deletePubSub } = await import('../utils/pubSubInitter.ts')
       await deletePubSub(this.pubSubClient, this.deletionConfig, this.creationConfig)
     }
 
@@ -173,6 +170,11 @@ export abstract class AbstractPubSubConsumer<
   }
 
   public async start(): Promise<void> {
+    // Prevent starting multiple times
+    if (this.isConsuming) {
+      return
+    }
+
     await this.init()
 
     if (!this.subscription) {

@@ -23,6 +23,7 @@ describe('PubSubPermissionConsumer', () => {
     consumer.addCounter = 0
     consumer.removeCounter = 0
     consumer.processedMessagesIds.clear()
+    consumer.handlerSpy.clear()
 
     // Clean up topics and subscriptions
     await deletePubSubTopicAndSubscription(
