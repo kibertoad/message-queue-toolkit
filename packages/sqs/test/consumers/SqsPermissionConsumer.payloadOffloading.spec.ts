@@ -1,28 +1,33 @@
 import type { S3 } from '@aws-sdk/client-s3'
-import type { PayloadStoreConfig } from '@message-queue-toolkit/core'
+import { SendMessageCommand } from '@aws-sdk/client-sqs'
+import type { SinglePayloadStoreConfig } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
-import { deleteQueue } from '@message-queue-toolkit/sqs'
+import {
+  assertQueue,
+  deleteQueue,
+  OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE,
+} from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SQS_MESSAGE_MAX_SIZE } from '../../lib/sqs/AbstractSqsService.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
-import { assertBucket, emptyBucket, waitForS3Objects } from '../utils/s3Utils.ts'
+import { assertBucket, emptyBucket, putObjectContent, waitForS3Objects } from '../utils/s3Utils.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 
 import { SqsPermissionConsumer } from './SqsPermissionConsumer.ts'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas.ts'
 
-describe('SqsPermissionConsumer', () => {
+describe('SqsPermissionConsumer - single-store payload offloading', () => {
   describe('consume', () => {
     const largeMessageSizeThreshold = SQS_MESSAGE_MAX_SIZE
     const s3BucketName = 'test-bucket'
 
     let diContainer: AwilixContainer<Dependencies>
     let s3: S3
-    let payloadStoreConfig: PayloadStoreConfig
+    let payloadStoreConfig: SinglePayloadStoreConfig
 
     let publisher: SqsPermissionPublisher
     let consumer: SqsPermissionConsumer
@@ -38,6 +43,7 @@ describe('SqsPermissionConsumer', () => {
       payloadStoreConfig = {
         messageSizeThreshold: largeMessageSizeThreshold,
         store: new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketName }),
+        storeName: 's3',
       }
     })
     beforeEach(async () => {
@@ -177,6 +183,71 @@ describe('SqsPermissionConsumer', () => {
       expect(payloadError.error.message).toMatch(/was not found in the store/)
 
       // Clean up
+      await testConsumer.close(true)
+    })
+
+    it('consumes message with legacy format (backward compatibility)', async () => {
+      // This test verifies backward compatibility with messages that only have
+      // offloadedPayloadPointer and offloadedPayloadSize (no payloadRef)
+      const TEST_QUEUE_NAME = 'user_permissions_legacy_format_test'
+      const { sqsClient } = diContainer.cradle
+
+      await deleteQueue(sqsClient, TEST_QUEUE_NAME)
+      const { queueUrl } = await assertQueue(sqsClient, { QueueName: TEST_QUEUE_NAME })
+
+      // Manually create a payload in S3 (simulating what an old publisher would do)
+      const originalMessage = {
+        id: 'legacy-format-test-1',
+        messageType: 'add',
+        timestamp: new Date().toISOString(),
+        metadata: {
+          largeField: 'd'.repeat(largeMessageSizeThreshold),
+        },
+      }
+      const serializedPayload = JSON.stringify(originalMessage)
+      const payloadKey = `legacy-test-payload-${Date.now()}`
+
+      await putObjectContent(s3, s3BucketName, payloadKey, serializedPayload)
+
+      // Send a message with ONLY legacy format (no payloadRef) - simulating old library version
+      const legacyPointerMessage = {
+        offloadedPayloadPointer: payloadKey,
+        offloadedPayloadSize: serializedPayload.length,
+        // Note: NO payloadRef field - this simulates a message from an older version
+        id: originalMessage.id,
+        messageType: originalMessage.messageType,
+        timestamp: originalMessage.timestamp,
+      }
+
+      await sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: queueUrl,
+          MessageBody: JSON.stringify(legacyPointerMessage),
+          // Include the size attribute so consumer knows this is an offloaded payload
+          MessageAttributes: {
+            [OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE]: {
+              DataType: 'Number',
+              StringValue: serializedPayload.length.toString(),
+            },
+          },
+        }),
+      )
+
+      // Create consumer for the test queue
+      const testConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+        locatorConfig: { queueUrl },
+        payloadStoreConfig,
+        deletionConfig: { deleteIfExists: false },
+      })
+      await testConsumer.start()
+
+      // Consumer should be able to read the legacy format message
+      const consumptionResult = await testConsumer.handlerSpy.waitForMessageWithId(
+        originalMessage.id,
+        'consumed',
+      )
+      expect(consumptionResult.message).toMatchObject(originalMessage)
+
       await testConsumer.close(true)
     })
   })

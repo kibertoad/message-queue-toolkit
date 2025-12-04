@@ -1,7 +1,7 @@
 import type { ResolvedMessage } from '@message-queue-toolkit/core'
 import { isOffloadedPayloadPointerPayload } from '@message-queue-toolkit/core'
 
-export const OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE = 'payloadOffloading.size'
+import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '../sqs/AbstractSqsPublisher.ts'
 
 export function resolveOutgoingMessageAttributes<MessageAttributeValue>(
   payload: unknown,
@@ -9,10 +9,16 @@ export function resolveOutgoingMessageAttributes<MessageAttributeValue>(
   const attributes: Record<string, MessageAttributeValue> = {}
 
   if (isOffloadedPayloadPointerPayload(payload)) {
+    // Prefer payloadRef.size (new format), fall back to offloadedPayloadSize (legacy format)
+    const size = payload.payloadRef?.size ?? payload.offloadedPayloadSize
+    if (size === undefined) {
+      throw new Error(
+        'Offloaded payload is missing size information. Expected either payloadRef.size or offloadedPayloadSize.',
+      )
+    }
     attributes[OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE] = {
       DataType: 'Number',
-      // The SQS SDK does not provide properties to set numeric values, we have to convert it to string
-      StringValue: payload.offloadedPayloadSize.toString(),
+      StringValue: size.toString(),
     } as MessageAttributeValue
   }
 

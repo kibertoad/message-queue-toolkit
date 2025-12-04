@@ -1,6 +1,6 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import { PublishCommand } from '@aws-sdk/client-sns'
-import type { PayloadStoreConfig } from '@message-queue-toolkit/core'
+import type { SinglePayloadStoreConfig } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -274,9 +274,10 @@ describe('SnsPermissionPublisherFifo', () => {
       const s3 = diContainer.cradle.s3
       await assertBucket(s3, s3BucketName)
 
-      const payloadStoreConfig: PayloadStoreConfig = {
+      const payloadStoreConfig: SinglePayloadStoreConfig = {
         messageSizeThreshold: 100, // Very small threshold to force offloading
         store: new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketName }),
+        storeName: 's3',
       }
 
       const publisher = new SnsPermissionPublisherFifo(diContainer.cradle, {

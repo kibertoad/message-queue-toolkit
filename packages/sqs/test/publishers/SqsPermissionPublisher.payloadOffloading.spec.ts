@@ -3,7 +3,7 @@ import type { Message, SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type {
   OffloadedPayloadPointerPayload,
-  PayloadStoreConfig,
+  SinglePayloadStoreConfig,
 } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import {
@@ -34,7 +34,7 @@ describe('SqsPermissionPublisher - payload offloading', () => {
     let sqsClient: SQSClient
     let s3: S3
 
-    let payloadStoreConfig: PayloadStoreConfig
+    let payloadStoreConfig: SinglePayloadStoreConfig
     let publisher: SqsPermissionPublisher
     let consumer: Consumer
     let receivedSqsMessages: Message[]
@@ -51,6 +51,7 @@ describe('SqsPermissionPublisher - payload offloading', () => {
       payloadStoreConfig = {
         messageSizeThreshold: largeMessageSizeThreshold,
         store: new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketName }),
+        storeName: 's3',
       }
     })
     beforeEach(async () => {
@@ -104,13 +105,29 @@ describe('SqsPermissionPublisher - payload offloading', () => {
       await waitAndRetry(() => receivedSqsMessages.length > 0)
 
       // Check that the published message's body is a pointer to the offloaded payload.
-      // Check that the published message's body is a pointer to the offloaded payload.
       expect(receivedSqsMessages.length).toBe(1)
       const parsedReceivedMessageBody = JSON.parse(receivedSqsMessages[0]!.Body!)
+
+      // Check that message contains both new payloadRef format and legacy format for backward compatibility
       expect(parsedReceivedMessageBody).toMatchObject({
+        // New format
+        payloadRef: {
+          id: expect.any(String),
+          store: 's3',
+          size: expect.any(Number),
+        },
+        // Legacy format for backward compatibility
         offloadedPayloadPointer: expect.any(String),
         offloadedPayloadSize: expect.any(Number), //The actual size of the offloaded message is larger than JSON.stringify(message) because of the additional metadata (timestamp, retry count) that is added internally.
       })
+
+      // Verify that the legacy and new format contain the same information
+      expect(parsedReceivedMessageBody.offloadedPayloadPointer).toBe(
+        parsedReceivedMessageBody.payloadRef.id,
+      )
+      expect(parsedReceivedMessageBody.offloadedPayloadSize).toBe(
+        parsedReceivedMessageBody.payloadRef.size,
+      )
 
       // Check that the published message had offloaded payload indicator.
       const receivedMessageAttributes = receivedSqsMessages[0]!.MessageAttributes
@@ -119,7 +136,7 @@ describe('SqsPermissionPublisher - payload offloading', () => {
 
       // Make sure the payload was offloaded to the S3 bucket.
       const offloadedPayloadPointer = (parsedReceivedMessageBody as OffloadedPayloadPointerPayload)
-        .offloadedPayloadPointer
+        .payloadRef!.id
       await expect(
         getObjectContent(s3, s3BucketName, offloadedPayloadPointer),
       ).resolves.toBeDefined()

@@ -33,6 +33,10 @@ export async function getObjectContent(s3: S3, bucket: string, key: string) {
   return result.Body?.transformToString()
 }
 
+export async function putObjectContent(s3: S3, bucket: string, key: string, content: string) {
+  await s3.putObject({ Bucket: bucket, Key: key, Body: content })
+}
+
 export async function waitForS3Objects(
   s3: S3,
   bucketName: string,
