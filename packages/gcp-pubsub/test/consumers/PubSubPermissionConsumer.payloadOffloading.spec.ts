@@ -1,4 +1,3 @@
-import type { PubSub } from '@google-cloud/pubsub'
 import type { Storage } from '@google-cloud/storage'
 import type { PayloadStoreConfig } from '@message-queue-toolkit/core'
 import { GCSPayloadStore } from '@message-queue-toolkit/gcs-payload-store'
@@ -8,7 +7,6 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 
 import { PUBSUB_MESSAGE_MAX_SIZE } from '../../lib/pubsub/AbstractPubSubService.ts'
 import { PubSubPermissionPublisher } from '../publishers/PubSubPermissionPublisher.ts'
-import { deletePubSubTopicAndSubscription } from '../utils/cleanupPubSub.ts'
 import { assertBucket, emptyBucket } from '../utils/gcsUtils.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -22,7 +20,6 @@ describe('PubSubPermissionConsumer - Payload Offloading', () => {
 
     let diContainer: AwilixContainer<Dependencies>
     let gcsStorage: Storage
-    let pubSubClient: PubSub
     let payloadStoreConfig: PayloadStoreConfig
 
     let publisher: PubSubPermissionPublisher
@@ -34,7 +31,6 @@ describe('PubSubPermissionConsumer - Payload Offloading', () => {
         permissionConsumer: asValue(() => undefined),
       })
       gcsStorage = diContainer.cradle.gcsStorage
-      pubSubClient = diContainer.cradle.pubSubClient
 
       await assertBucket(gcsStorage, gcsBucketName)
       payloadStoreConfig = {
@@ -45,34 +41,31 @@ describe('PubSubPermissionConsumer - Payload Offloading', () => {
     })
 
     beforeEach(async () => {
+      // Create new consumer/publisher with payloadStoreConfig
+      // Use deletionConfig to clean up existing resources before creating new ones
       consumer = new PubSubPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           topic: { name: PubSubPermissionConsumer.TOPIC_NAME },
           subscription: { name: PubSubPermissionConsumer.SUBSCRIPTION_NAME },
         },
+        deletionConfig: { deleteIfExists: true },
         payloadStoreConfig,
       })
       publisher = new PubSubPermissionPublisher(diContainer.cradle, {
         creationConfig: {
           topic: { name: PubSubPermissionPublisher.TOPIC_NAME },
         },
+        deletionConfig: { deleteIfExists: true },
         payloadStoreConfig,
       })
 
-      await deletePubSubTopicAndSubscription(
-        pubSubClient,
-        PubSubPermissionConsumer.TOPIC_NAME,
-        PubSubPermissionConsumer.SUBSCRIPTION_NAME,
-      )
-
       await publisher.init()
-      await consumer.init()
       await consumer.start()
     })
 
     afterEach(async () => {
-      await publisher.close()
       await consumer.close()
+      await publisher.close()
     })
 
     afterAll(async () => {

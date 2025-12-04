@@ -255,8 +255,7 @@ export abstract class AbstractPubSubConsumer<
           messageProcessingStartTimestamp,
           queueName: this.subscriptionName ?? this.topicName,
         })
-        // nack() to trigger DLQ after maxDeliveryAttempts (if configured)
-        message.nack()
+        this.handleTerminalError(message, 'invalidMessage')
         return
       }
 
@@ -274,8 +273,7 @@ export abstract class AbstractPubSubConsumer<
             messageProcessingStartTimestamp,
             queueName: this.subscriptionName ?? this.topicName,
           })
-          // nack() to trigger DLQ after maxDeliveryAttempts (if configured)
-          message.nack()
+          this.handleTerminalError(message, 'invalidMessage')
           return
         }
         messagePayload = retrievalResult.result
@@ -293,8 +291,7 @@ export abstract class AbstractPubSubConsumer<
           queueName: this.subscriptionName ?? this.topicName,
         })
         this.handleError(resolveSchemaResult.error)
-        // nack() to trigger DLQ after maxDeliveryAttempts (if configured)
-        message.nack()
+        this.handleTerminalError(message, 'invalidMessage')
         return
       }
 
@@ -314,8 +311,7 @@ export abstract class AbstractPubSubConsumer<
           messageProcessingStartTimestamp,
           queueName: this.subscriptionName ?? this.topicName,
         })
-        // nack() to trigger DLQ after maxDeliveryAttempts (if configured)
-        message.nack()
+        this.handleTerminalError(message, 'invalidMessage')
         return
       }
 
@@ -372,8 +368,7 @@ export abstract class AbstractPubSubConsumer<
               messageProcessingStartTimestamp,
               queueName: this.subscriptionName ?? this.topicName,
             })
-            // nack() to trigger DLQ after maxDeliveryAttempts (if configured)
-            message.nack()
+            this.handleTerminalError(message, 'retryLaterExceeded')
           } else {
             this.handleMessageProcessed({
               message: validatedMessage,
@@ -408,11 +403,11 @@ export abstract class AbstractPubSubConsumer<
           messageProcessingStartTimestamp,
           queueName: this.subscriptionName ?? this.topicName,
         })
-        message.nack()
+        this.handleTerminalError(message, 'handlerError')
       }
     } catch (error) {
       this.handleError(error as Error)
-      message.nack()
+      this.handleTerminalError(message, 'invalidMessage')
     }
   }
 
@@ -527,5 +522,25 @@ export abstract class AbstractPubSubConsumer<
     const elapsedSeconds = (now - messageTimestamp) / 1000
 
     return elapsedSeconds > this.maxRetryDuration
+  }
+
+  /**
+   * Handles terminal errors by either nacking (if DLQ is configured) or acking (if no DLQ).
+   * When no DLQ is configured, acking prevents infinite redelivery of unprocessable messages.
+   */
+  private handleTerminalError(
+    message: PubSubMessage,
+    reason: 'invalidMessage' | 'retryLaterExceeded' | 'handlerError',
+  ): void {
+    if (this.deadLetterQueueOptions) {
+      // DLQ configured: nack to trigger DLQ after maxDeliveryAttempts
+      message.nack()
+    } else {
+      // No DLQ: ack to prevent infinite redelivery
+      this.logger.warn(
+        `Acknowledging message due to ${reason} with no DLQ configured (subscription: ${this.subscriptionName ?? this.topicName})`,
+      )
+      message.ack()
+    }
   }
 }

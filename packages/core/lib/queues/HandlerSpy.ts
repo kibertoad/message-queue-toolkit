@@ -138,6 +138,10 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     this.messageBuffer.clear()
   }
 
+  getAllReceivedMessages(): SpyResultOutput<MessagePayloadSchemas>[] {
+    return Object.values(this.messageBuffer.items).map((item) => item.value)
+  }
+
   addProcessedMessage(processingResult: SpyResultInput<MessagePayloadSchemas>, messageId?: string) {
     const resolvedMessageId =
       processingResult.message?.[this.messageIdField] ?? messageId ?? randomUUID()
