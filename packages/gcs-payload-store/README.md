@@ -4,7 +4,7 @@ Google Cloud Storage-based payload store implementation for message-queue-toolki
 
 ## Overview
 
-This package provides a GCS-based implementation of the `PayloadStoreTypes` interface, allowing you to automatically store large message payloads in Google Cloud Storage while keeping only a reference pointer in the actual message.
+This package provides a GCS-based implementation of the `PayloadStore` interface, allowing you to automatically store large message payloads in Google Cloud Storage while keeping only a reference pointer in the actual message.
 
 This is particularly useful when:
 - Message payloads exceed queue system limits (e.g., 256 KB for SQS, 10 MB for Pub/Sub)
@@ -86,7 +86,7 @@ const payloadStoreConfig = resolvePayloadStoreConfig(
 
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
-| `store` | `PayloadStoreTypes` | ✅ | Instance of `GCSPayloadStore` |
+| `store` | `PayloadStore` | ✅ | Instance of `GCSPayloadStore` |
 | `messageSizeThreshold` | `number` | ✅ | Size threshold in bytes - payloads exceeding this will be offloaded |
 | `serializer` | `PayloadSerializer` | ❌ | Custom payload serializer (defaults to JSON) |
 
