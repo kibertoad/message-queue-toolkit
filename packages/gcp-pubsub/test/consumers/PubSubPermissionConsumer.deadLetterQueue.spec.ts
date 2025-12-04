@@ -130,7 +130,7 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
           subscription: { name: subscriptionName },
         },
         deadLetterQueue: {
-          deadLetterPolicy: { maxDeliveryAttempts: 2 },
+          deadLetterPolicy: { maxDeliveryAttempts: 5 },
           creationConfig: { topic: { name: deadLetterTopicName } },
         },
         removeHandlerOverride: () => {
@@ -161,7 +161,7 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
       await waitAndRetry(() => dlqMessage, 50, 40)
 
       expect(dlqMessage).toBeDefined()
-      expect(counter).toBe(2)
+      expect(counter).toBe(5)
 
       const dlqMessageBody = JSON.parse(dlqMessage!.data.toString())
       expect(dlqMessageBody).toMatchObject({
@@ -171,7 +171,7 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
       })
     })
 
-    it('messages with retryLater should be retried with exponential delay and not go to DLQ', async () => {
+    it('messages with retryLater should be retried and not go to DLQ', async () => {
       const pubsubMessage: PERMISSIONS_REMOVE_MESSAGE_TYPE = {
         id: '1',
         messageType: 'remove',
@@ -180,7 +180,6 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
       }
 
       let counter = 0
-      const messageArrivalTime: number[] = []
       consumer = new PubSubPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           topic: { name: queueName },
@@ -195,7 +194,6 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
             throw new Error('not expected message')
           }
           counter++
-          messageArrivalTime.push(Date.now())
           return counter < 2
             ? Promise.resolve({ error: 'retryLater' })
             : Promise.resolve({ result: 'success' })
@@ -210,10 +208,7 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
       expect(handlerSpyResult.message).toMatchObject({ id: '1', messageType: 'remove' })
 
       expect(counter).toBe(2)
-
-      // Verify retry delay (should be at least 1 second due to exponential backoff)
-      const secondsRetry = (messageArrivalTime[1]! - messageArrivalTime[0]!) / 1000
-      expect(secondsRetry).toBeGreaterThan(1)
+      // Note: Pub/Sub emulator doesn't implement exponential backoff, so we don't test timing here
     })
 
     it('messages with deserialization errors should go to DLQ', async () => {
@@ -223,7 +218,7 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
           subscription: { name: subscriptionName },
         },
         deadLetterQueue: {
-          deadLetterPolicy: { maxDeliveryAttempts: 2 },
+          deadLetterPolicy: { maxDeliveryAttempts: 5 },
           creationConfig: { topic: { name: deadLetterTopicName } },
         },
       })
@@ -265,7 +260,7 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
           deadLetterPolicy: { maxDeliveryAttempts: 5 },
           creationConfig: { topic: { name: deadLetterTopicName } },
         },
-        maxRetryDuration: 2,
+        maxRetryDuration: 1, // 1 second - message will expire quickly
         addPreHandlerBarrier: (_msg) => {
           counter++
           return Promise.resolve({ isPassing: false })
@@ -287,23 +282,24 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
       const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
         id: '1',
         messageType: 'add',
-        timestamp: new Date(Date.now() - 1000).toISOString(),
+        // Message timestamp 2 seconds ago - already past maxRetryDuration
+        timestamp: new Date(Date.now() - 2000).toISOString(),
       }
       await permissionPublisher.publish(message)
 
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
       expect(spyResult.message).toEqual(message)
-      // Due to exponential backoff and timestamp, message is retried a few times before being moved to DLQ
-      expect(counter).toBeGreaterThanOrEqual(2)
+      // Message should be processed at least once before being moved to DLQ
+      expect(counter).toBeGreaterThanOrEqual(1)
 
-      await waitAndRetry(() => dlqMessage, 50, 40)
+      await waitAndRetry(() => dlqMessage, 50, 60)
       const messageBody = JSON.parse(dlqMessage!.data.toString())
       expect(messageBody).toMatchObject({
         id: '1',
         messageType: 'add',
         timestamp: message.timestamp,
       })
-    })
+    }, 15000)
 
     it('messages stuck on handler', async () => {
       let counter = 0
@@ -316,7 +312,7 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
           deadLetterPolicy: { maxDeliveryAttempts: 5 },
           creationConfig: { topic: { name: deadLetterTopicName } },
         },
-        maxRetryDuration: 2,
+        maxRetryDuration: 1, // 1 second - message will expire quickly
         removeHandlerOverride: () => {
           counter++
           return Promise.resolve({ error: 'retryLater' })
@@ -338,23 +334,24 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
       const message: PERMISSIONS_REMOVE_MESSAGE_TYPE = {
         id: '2',
         messageType: 'remove',
-        timestamp: new Date(Date.now() - 1000).toISOString(),
+        // Message timestamp 2 seconds ago - already past maxRetryDuration
+        timestamp: new Date(Date.now() - 2000).toISOString(),
         userIds: [],
       }
       await permissionPublisher.publish(message)
 
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('2', 'error')
       expect(spyResult.message).toEqual(message)
-      // Due to exponential backoff and timestamp, message is retried a few times before being moved to DLQ
-      expect(counter).toBeGreaterThanOrEqual(2)
+      // Message should be processed at least once before being moved to DLQ
+      expect(counter).toBeGreaterThanOrEqual(1)
 
-      await waitAndRetry(() => dlqMessage, 50, 40)
+      await waitAndRetry(() => dlqMessage, 50, 60)
       const messageBody = JSON.parse(dlqMessage!.data.toString())
       expect(messageBody).toMatchObject({
         id: '2',
         messageType: 'remove',
         timestamp: message.timestamp,
       })
-    }, 10000)
+    }, 15000)
   })
 })

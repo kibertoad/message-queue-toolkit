@@ -238,7 +238,8 @@ export abstract class AbstractPubSubConsumer<
           messageProcessingStartTimestamp,
           queueName: this.subscriptionName ?? this.topicName,
         })
-        message.ack() // Invalid messages should be removed
+        // nack() to trigger DLQ after maxDeliveryAttempts (if configured)
+        message.nack()
         return
       }
 
@@ -256,7 +257,8 @@ export abstract class AbstractPubSubConsumer<
             messageProcessingStartTimestamp,
             queueName: this.subscriptionName ?? this.topicName,
           })
-          message.ack()
+          // nack() to trigger DLQ after maxDeliveryAttempts (if configured)
+          message.nack()
           return
         }
         messagePayload = retrievalResult.result
@@ -265,7 +267,8 @@ export abstract class AbstractPubSubConsumer<
       const resolveSchemaResult = this.resolveSchema(messagePayload as MessagePayloadType)
       if (resolveSchemaResult.error) {
         this.handleError(resolveSchemaResult.error)
-        message.ack()
+        // nack() to trigger DLQ after maxDeliveryAttempts (if configured)
+        message.nack()
         return
       }
 
@@ -285,7 +288,8 @@ export abstract class AbstractPubSubConsumer<
           messageProcessingStartTimestamp,
           queueName: this.subscriptionName ?? this.topicName,
         })
-        message.ack()
+        // nack() to trigger DLQ after maxDeliveryAttempts (if configured)
+        message.nack()
         return
       }
 
@@ -342,7 +346,8 @@ export abstract class AbstractPubSubConsumer<
               messageProcessingStartTimestamp,
               queueName: this.subscriptionName ?? this.topicName,
             })
-            message.ack() // Remove from queue (should go to DLQ if configured)
+            // nack() to trigger DLQ after maxDeliveryAttempts (if configured)
+            message.nack()
           } else {
             this.handleMessageProcessed({
               message: validatedMessage,

@@ -45,9 +45,16 @@ describe('PubSubPermissionConsumer - Payload Offloading', () => {
 
     beforeEach(async () => {
       consumer = new PubSubPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          topic: { name: PubSubPermissionConsumer.TOPIC_NAME },
+          subscription: { name: PubSubPermissionConsumer.SUBSCRIPTION_NAME },
+        },
         payloadStoreConfig,
       })
       publisher = new PubSubPermissionPublisher(diContainer.cradle, {
+        creationConfig: {
+          topic: { name: PubSubPermissionPublisher.TOPIC_NAME },
+        },
         payloadStoreConfig,
       })
 
@@ -119,8 +126,12 @@ describe('PubSubPermissionConsumer - Payload Offloading', () => {
     })
 
     it('consumes offloaded message with array field and validates schema correctly', async () => {
-      // Create a large array of userIds to trigger offloading
-      const largeUserIdArray = Array.from({ length: 10000 }, (_, i) => `user-${i}`)
+      // Create a large array of userIds to trigger offloading (need > 10MB)
+      // Each userId needs to be ~1000 chars to make 10,500 items exceed 10MB
+      const largeUserIdArray = Array.from(
+        { length: 10500 },
+        (_, i) => `user-${i}-${'x'.repeat(1000)}`,
+      )
 
       const message = {
         id: 'large-array-message-1',

@@ -1,5 +1,6 @@
 export * from './errors/PubSubConsumerErrorResolver.ts'
 export * from './fakes/FakeConsumerErrorResolver.ts'
+export * from './fakes/TestPubSubPublisher.ts'
 export * from './pubsub/AbstractPubSubConsumer.ts'
 export * from './pubsub/AbstractPubSubPublisher.ts'
 export * from './pubsub/CommonPubSubPublisherFactory.ts'
