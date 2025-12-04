@@ -111,6 +111,7 @@ describe('S3PayloadStore', () => {
       )
       expect(result).toEqual({
         store: expect.any(S3PayloadStore),
+        storeName: 's3',
         messageSizeThreshold: 1,
       })
     })

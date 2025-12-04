@@ -26,12 +26,20 @@ export {
   isOffloadedPayloadPointerPayload,
   OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA,
   type OffloadedPayloadPointerPayload,
+  PAYLOAD_REF_SCHEMA,
+  type PayloadRef,
 } from './payload-store/offloadedPayloadMessageSchemas.ts'
 export type {
+  MultiPayloadStoreConfig,
   PayloadSerializer,
+  PayloadStore,
   PayloadStoreConfig,
-  PayloadStoreTypes,
   SerializedPayload,
+  SinglePayloadStoreConfig,
+} from './payload-store/payloadStoreTypes.ts'
+export {
+  createMultiStoreConfig,
+  isMultiPayloadStoreConfig,
 } from './payload-store/payloadStoreTypes.ts'
 export * from './queues/AbstractPublisherManager.ts'
 export {

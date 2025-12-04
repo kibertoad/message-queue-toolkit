@@ -3,7 +3,7 @@ import type { Readable } from 'node:stream'
 
 import type { S3 } from '@aws-sdk/client-s3'
 import { NoSuchKey } from '@aws-sdk/client-s3'
-import type { PayloadStoreTypes, SerializedPayload } from '@message-queue-toolkit/core'
+import type { PayloadStore, SerializedPayload } from '@message-queue-toolkit/core'
 
 export type S3AwareDependencies = { s3?: S3 }
 export type MessageQueuePayloadOffloadingConfig = {
@@ -23,6 +23,7 @@ export function resolvePayloadStoreConfig(
       { s3: dependencies.s3 },
       { bucketName: config.s3PayloadOffloadingBucket },
     ),
+    storeName: 's3',
     messageSizeThreshold: config.messageSizeThreshold,
   }
 }
@@ -36,7 +37,7 @@ export type S3PayloadStoreConfiguration = {
   keyPrefix?: string
 }
 
-export class S3PayloadStore implements PayloadStoreTypes {
+export class S3PayloadStore implements PayloadStore {
   private s3: S3
   private readonly config: S3PayloadStoreConfiguration
 
