@@ -70,7 +70,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   }
 
   get handlerSpy(): PublicHandlerSpy<
-    CommonEventDefinitionPublisherSchemaType<SupportedEvents[number]>
+    CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>
   > {
     if (!this._handlerSpy) {
       throw new Error(

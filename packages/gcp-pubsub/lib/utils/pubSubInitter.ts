@@ -235,8 +235,8 @@ export async function deletePubSub(
               return true
             }
           },
-          100, // 100ms sleep between checks (vs default 20ms, since we're making API calls)
-          15, // max 15 retry attempts (matches SQS default)
+          20,
+          30,
         )
       }
     }
@@ -261,8 +261,8 @@ export async function deletePubSub(
             return true
           }
         },
-        100, // 100ms sleep between checks
-        15, // max 15 retry attempts
+        20, // 100ms sleep between checks
+        30, // max 15 retry attempts
       )
     }
   }

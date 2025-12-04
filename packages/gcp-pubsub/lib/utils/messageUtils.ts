@@ -8,15 +8,17 @@ export function buildOffloadedPayloadAttributes(
   payload: unknown,
   attributes: Record<string, string> = {},
 ): Record<string, string> {
-  // Check if payload has been offloaded
+  // Check if payload has been offloaded (using payloadRef format)
   if (
     typeof payload === 'object' &&
     payload !== null &&
-    'offloadedPayloadPointer' in payload &&
-    'offloadedPayloadSize' in payload
+    'payloadRef' in payload &&
+    payload.payloadRef &&
+    typeof payload.payloadRef === 'object' &&
+    'size' in payload.payloadRef
   ) {
-    const offloadedPayload = payload as { offloadedPayloadSize: number }
-    attributes[OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE] = offloadedPayload.offloadedPayloadSize.toString()
+    const payloadRef = payload.payloadRef as { size: number }
+    attributes[OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE] = payloadRef.size.toString()
   }
 
   return attributes

@@ -20,7 +20,9 @@ jobs:
           '@message-queue-toolkit/s3-payload-store',
           '@message-queue-toolkit/schemas',
           '@message-queue-toolkit/sns',
-          '@message-queue-toolkit/sqs'
+          '@message-queue-toolkit/sqs',
+          '@message-queue-toolkit/gcp-pubsub',
+          '@message-queue-toolkit/gcs-payload-store'
         ]
     uses: kibertoad/message-queue-toolkit/.github/workflows/ci.common.yml@main
     with:

@@ -20,6 +20,7 @@ import {
 } from '@message-queue-toolkit/core'
 import type { PubSubMessage } from '../types/MessageTypes.ts'
 import { hasOffloadedPayload } from '../utils/messageUtils.ts'
+import { deletePubSub, initPubSub } from '../utils/pubSubInitter.ts'
 import { deserializePubSubMessage } from '../utils/pubSubMessageDeserializer.ts'
 import type {
   PubSubCreationConfig,
@@ -148,11 +149,7 @@ export abstract class AbstractPubSubConsumer<
   }
 
   public override async init(): Promise<void> {
-    // Import at method level to avoid circular dependency
-    const { initPubSub } = await import('../utils/pubSubInitter.ts')
-
     if (this.deletionConfig && this.creationConfig) {
-      const { deletePubSub } = await import('../utils/pubSubInitter.ts')
       await deletePubSub(this.pubSubClient, this.deletionConfig, this.creationConfig)
     }
 
@@ -173,17 +170,19 @@ export abstract class AbstractPubSubConsumer<
   }
 
   public async start(): Promise<void> {
+    // Prevent starting multiple times
+    if (this.isConsuming) {
+      return
+    }
+
     await this.init()
 
     if (!this.subscription) {
       throw new Error('Subscription not initialized after init()')
     }
 
-    // Verify subscription exists before starting to listen
-    const [subscriptionExists] = await this.subscription.exists()
-    if (!subscriptionExists) {
-      throw new Error(`Subscription ${this.subscriptionName} does not exist after init`)
-    }
+    // Wait for subscription to exist and be ready
+    await this.waitForSubscriptionReady()
 
     this.isConsuming = true
 
@@ -205,6 +204,24 @@ export abstract class AbstractPubSubConsumer<
         flowControl: this.consumerOverrides.flowControl,
       })
     }
+  }
+
+  private async waitForSubscriptionReady(maxAttempts = 100, delayMs = 20): Promise<void> {
+    if (!this.subscription) {
+      throw new Error('Subscription not initialized')
+    }
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const [exists] = await this.subscription.exists()
+      if (exists) {
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+    }
+
+    throw new Error(
+      `Subscription ${this.subscriptionName} did not become ready after ${maxAttempts * delayMs}ms`,
+    )
   }
 
   public override async close(): Promise<void> {
@@ -238,7 +255,7 @@ export abstract class AbstractPubSubConsumer<
           messageProcessingStartTimestamp,
           queueName: this.subscriptionName ?? this.topicName,
         })
-        message.ack() // Invalid messages should be removed
+        this.handleTerminalError(message, 'invalidMessage')
         return
       }
 
@@ -256,7 +273,7 @@ export abstract class AbstractPubSubConsumer<
             messageProcessingStartTimestamp,
             queueName: this.subscriptionName ?? this.topicName,
           })
-          message.ack()
+          this.handleTerminalError(message, 'invalidMessage')
           return
         }
         messagePayload = retrievalResult.result
@@ -264,8 +281,17 @@ export abstract class AbstractPubSubConsumer<
 
       const resolveSchemaResult = this.resolveSchema(messagePayload as MessagePayloadType)
       if (resolveSchemaResult.error) {
+        this.handleMessageProcessed({
+          message: messagePayload as MessagePayloadType,
+          processingResult: {
+            status: 'error',
+            errorReason: 'invalidMessage',
+          },
+          messageProcessingStartTimestamp,
+          queueName: this.subscriptionName ?? this.topicName,
+        })
         this.handleError(resolveSchemaResult.error)
-        message.ack()
+        this.handleTerminalError(message, 'invalidMessage')
         return
       }
 
@@ -285,7 +311,7 @@ export abstract class AbstractPubSubConsumer<
           messageProcessingStartTimestamp,
           queueName: this.subscriptionName ?? this.topicName,
         })
-        message.ack()
+        this.handleTerminalError(message, 'invalidMessage')
         return
       }
 
@@ -342,7 +368,7 @@ export abstract class AbstractPubSubConsumer<
               messageProcessingStartTimestamp,
               queueName: this.subscriptionName ?? this.topicName,
             })
-            message.ack() // Remove from queue (should go to DLQ if configured)
+            this.handleTerminalError(message, 'retryLaterExceeded')
           } else {
             this.handleMessageProcessed({
               message: validatedMessage,
@@ -377,11 +403,11 @@ export abstract class AbstractPubSubConsumer<
           messageProcessingStartTimestamp,
           queueName: this.subscriptionName ?? this.topicName,
         })
-        message.nack()
+        this.handleTerminalError(message, 'handlerError')
       }
     } catch (error) {
       this.handleError(error as Error)
-      message.nack()
+      this.handleTerminalError(message, 'invalidMessage')
     }
   }
 
@@ -496,5 +522,25 @@ export abstract class AbstractPubSubConsumer<
     const elapsedSeconds = (now - messageTimestamp) / 1000
 
     return elapsedSeconds > this.maxRetryDuration
+  }
+
+  /**
+   * Handles terminal errors by either nacking (if DLQ is configured) or acking (if no DLQ).
+   * When no DLQ is configured, acking prevents infinite redelivery of unprocessable messages.
+   */
+  private handleTerminalError(
+    message: PubSubMessage,
+    reason: 'invalidMessage' | 'retryLaterExceeded' | 'handlerError',
+  ): void {
+    if (this.deadLetterQueueOptions) {
+      // DLQ configured: nack to trigger DLQ after maxDeliveryAttempts
+      message.nack()
+    } else {
+      // No DLQ: ack to prevent infinite redelivery
+      this.logger.warn(
+        `Acknowledging message due to ${reason} with no DLQ configured (subscription: ${this.subscriptionName ?? this.topicName})`,
+      )
+      message.ack()
+    }
   }
 }

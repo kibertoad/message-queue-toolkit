@@ -7,6 +7,7 @@ export default defineConfig({
     watch: false,
     restoreMocks: true,
     pool: 'threads',
+    fileParallelism: false,
     poolOptions: {
       threads: { singleThread: true },
     },
@@ -15,10 +16,10 @@ export default defineConfig({
       include: ['lib/**/*.ts'],
       exclude: ['vitest.config.ts', 'lib/**/index.ts'],
       thresholds: {
-        lines: 66,
-        functions: 87,
-        branches: 62,
-        statements: 66,
+        lines: 80,
+        functions: 90,
+        branches: 74,
+        statements: 80,
       },
     },
   },

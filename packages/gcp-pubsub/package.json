@@ -22,16 +22,16 @@
         "test:coverage": "npm run test -- --coverage",
         "lint": "biome check . && tsc",
         "lint:fix": "biome check --write .",
-        "docker:start": "docker compose up -d pubsub-emulator redis",
+        "docker:start": "docker compose up -d --quiet-pull --wait pubsub-emulator redis gcs-emulator",
         "docker:stop": "docker compose down",
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^14.6.0"
+        "@lokalise/node-core": "^14.6.1"
     },
     "peerDependencies": {
         "@google-cloud/pubsub": "^5.2.0",
-        "@message-queue-toolkit/core": ">=22.0.0",
+        "@message-queue-toolkit/core": ">=24.0.0",
         "zod": ">=3.25.76 <5.0.0"
     },
     "devDependencies": {

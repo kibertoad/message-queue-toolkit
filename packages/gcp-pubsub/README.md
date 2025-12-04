@@ -24,6 +24,7 @@ Google Cloud Pub/Sub implementation for the message-queue-toolkit. Provides a ro
   - [Payload Offloading](#payload-offloading)
   - [Message Deduplication](#message-deduplication)
   - [Dead Letter Queue](#dead-letter-queue)
+    - [Processing DLQ Messages with AbstractPubSubDlqConsumer](#processing-dlq-messages-with-abstractpubsubdlqconsumer)
   - [Message Ordering](#message-ordering)
   - [Message Retry Logic](#message-retry-logic)
   - [Message Handlers](#message-handlers)
@@ -33,6 +34,9 @@ Google Cloud Pub/Sub implementation for the message-queue-toolkit. Provides a ro
   - [Multiple Message Types](#multiple-message-types)
 - [Error Handling](#error-handling)
 - [Testing](#testing)
+  - [TestPubSubPublisher](#testpubsubpublisher)
+  - [Integration Tests with Emulator](#integration-tests-with-emulator)
+  - [Unit Tests with Handler Spies](#unit-tests-with-handler-spies)
 - [API Reference](#api-reference)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
@@ -772,6 +776,58 @@ Dead Letter Queues capture messages that cannot be processed after multiple atte
 - Create a subscription on the DLQ topic to process dead-lettered messages
 - Ensure Pub/Sub service account has permissions on the DLQ topic
 
+#### Processing DLQ Messages with AbstractPubSubDlqConsumer
+
+The library provides `AbstractPubSubDlqConsumer`, a convenience class for consuming messages from a DLQ topic. Unlike regular consumers that route messages by type, DLQ consumers accept any message structure since dead-lettered messages can come from various failed processing scenarios.
+
+```typescript
+import { AbstractPubSubDlqConsumer, type DlqMessage } from '@message-queue-toolkit/gcp-pubsub'
+
+class MyDlqConsumer extends AbstractPubSubDlqConsumer<MyContext> {
+  constructor(dependencies: PubSubConsumerDependencies, context: MyContext) {
+    super(
+      dependencies,
+      {
+        creationConfig: {
+          topic: { name: 'my-dlq-topic' },
+          subscription: { name: 'my-dlq-subscription' },
+        },
+        handlerSpy: true,  // Optional: for testing
+        handler: async (message, context) => {
+          // message is typed as DlqMessage (has 'id' field plus any other fields)
+          console.log('DLQ message received:', message.id)
+
+          // Log the dead letter for investigation
+          await context.logger.error('Dead letter received', { message })
+
+          // Optionally reprocess or store for manual review
+          await context.deadLetterRepository.save(message)
+
+          return { result: 'success' }
+        },
+      },
+      context,
+    )
+  }
+}
+
+// Usage
+const dlqConsumer = new MyDlqConsumer(dependencies, myContext)
+await dlqConsumer.start()
+```
+
+**Key differences from AbstractPubSubConsumer:**
+- Does NOT require `messageTypeField` (accepts all message types)
+- Uses a passthrough schema that accepts any message with an `id` field
+- Simplified handler configuration (single handler for all messages)
+- The `DlqMessage` type includes `id: string` and passes through all other fields
+
+**When to use:**
+- Processing messages that failed validation or deserialization
+- Logging and alerting on dead-lettered messages
+- Implementing manual review workflows
+- Re-routing messages to other systems for investigation
+
 ### Message Retry Logic
 
 The library implements intelligent retry logic with exponential backoff:
@@ -1392,6 +1448,48 @@ async (message) => {
 }
 ```
 
+### Terminal Errors and DLQ Behavior
+
+When a message cannot be processed (invalid format, schema validation failure, handler error, or max retry duration exceeded), the consumer handles it based on whether a Dead Letter Queue is configured:
+
+**With DLQ configured:**
+- Message is NACKed
+- Pub/Sub tracks delivery attempts
+- After `maxDeliveryAttempts`, message is automatically forwarded to DLQ
+- This is the recommended approach for production systems
+
+**Without DLQ configured:**
+- Message is ACKed (acknowledged) to prevent infinite redelivery
+- A warning is logged indicating the message was acknowledged without DLQ
+- The message is effectively dropped
+- This prevents poison messages from blocking the subscription
+
+```typescript
+// Without DLQ - invalid messages are acknowledged to prevent infinite redelivery
+{
+  creationConfig: {
+    topic: { name: 'my-topic' },
+    subscription: { name: 'my-subscription' },
+  },
+  // No deadLetterQueue configured
+  // Invalid messages will be ACKed with a warning log
+}
+
+// With DLQ - invalid messages go to DLQ after max attempts
+{
+  creationConfig: {
+    topic: { name: 'my-topic' },
+    subscription: { name: 'my-subscription' },
+  },
+  deadLetterQueue: {
+    deadLetterPolicy: { maxDeliveryAttempts: 5 },
+    creationConfig: { topic: { name: 'my-dlq-topic' } },
+  },
+}
+```
+
+**Best Practice:** Always configure a DLQ in production to capture and analyze failed messages.
+
 ### Error Resolver
 
 ```typescript
@@ -1412,6 +1510,99 @@ class CustomErrorResolver implements ErrorResolver {
 
 The library is designed to be testable:
 
+### TestPubSubPublisher
+
+`TestPubSubPublisher` is a testing utility for publishing arbitrary messages to Pub/Sub topics **without validation**. This is useful for:
+
+- Testing how consumers handle invalid or malformed messages
+- Simulating edge cases that would be rejected by schema validation
+- Integration testing without needing to create full publisher implementations
+
+**Features:**
+- Publish any JSON-serializable payload without Zod schema validation
+- No message deduplication checks
+- No payload offloading
+- Supports Pub/Sub ordering keys and attributes
+- Can extract topic name from existing consumer or publisher instances
+
+```typescript
+import { TestPubSubPublisher } from '@message-queue-toolkit/gcp-pubsub'
+
+// Create test publisher
+const testPublisher = new TestPubSubPublisher(pubSubClient)
+
+// Publish to a topic by name
+await testPublisher.publish(
+  { any: 'data', without: 'validation' },
+  { topicName: 'my-topic' }
+)
+
+// Publish to the same topic as an existing consumer
+await testPublisher.publish(
+  { invalid: 'message', missing: 'required fields' },
+  { consumer: myConsumer }
+)
+
+// Publish to the same topic as an existing publisher
+await testPublisher.publish(
+  { test: 'data' },
+  { publisher: myPublisher }
+)
+
+// With ordering key and attributes
+await testPublisher.publish(
+  { test: 'message' },
+  {
+    topicName: 'my-topic',
+    orderingKey: 'order-1',
+    attributes: { key: 'value' }
+  }
+)
+```
+
+**Example: Testing Invalid Message Handling**
+
+```typescript
+import { TestPubSubPublisher } from '@message-queue-toolkit/gcp-pubsub'
+
+describe('Consumer handles invalid messages', () => {
+  let testPublisher: TestPubSubPublisher
+  let consumer: MyConsumer
+
+  beforeEach(async () => {
+    testPublisher = new TestPubSubPublisher(pubSubClient)
+    consumer = new MyConsumer(dependencies)
+    await consumer.start()
+  })
+
+  it('rejects messages with invalid schema', async () => {
+    // Publish a message that doesn't match the consumer's expected schema
+    await testPublisher.publish(
+      {
+        id: 'test-1',
+        messageType: 'unknown.type',  // Invalid message type
+        data: 'invalid'
+      },
+      { consumer }
+    )
+
+    // Consumer should handle the invalid message gracefully
+    // (e.g., nack it, send to DLQ after max attempts)
+  })
+
+  it('handles messages missing required fields', async () => {
+    await testPublisher.publish(
+      { incomplete: 'message' },  // Missing id, messageType, timestamp
+      { consumer }
+    )
+  })
+})
+```
+
+**Important:**
+- The `consumer` or `publisher` must be initialized before passing to `publish()` (call `start()` or `init()` first)
+- This utility is for testing only - do not use in production code
+
 ### Integration Tests with Emulator
 
 ```bash
@@ -1419,26 +1610,64 @@ The library is designed to be testable:
 docker compose up -d pubsub-emulator
 ```
 
+#### Test Configuration
+
+**Important:** Integration tests should run sequentially to avoid race conditions with shared Pub/Sub emulator resources. Configure Vitest to disable file parallelism:
+
 ```typescript
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+// vitest.config.ts
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    fileParallelism: false,  // Run test files sequentially
+    pool: 'threads',
+    poolOptions: {
+      threads: { singleThread: true },
+    },
+  },
+})
+```
+
+#### Test Pattern: Per-Test Isolation
+
+For reliable integration tests, create fresh consumer/publisher instances for each test with explicit resource cleanup. The correct order is:
+1. Create instances first (so we know which resources to delete)
+2. Delete existing resources
+3. Start/init the instances (which recreates the resources)
+
+```typescript
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest'
 import { PubSub } from '@google-cloud/pubsub'
+import { deletePubSubTopicAndSubscription } from '@message-queue-toolkit/gcp-pubsub'
 
 describe('UserEventsConsumer', () => {
   let pubSubClient: PubSub
   let publisher: UserEventsPublisher
   let consumer: UserEventsConsumer
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     pubSubClient = new PubSub({
       projectId: 'test-project',
       apiEndpoint: 'localhost:8085',  // Emulator
     })
+  })
 
-    publisher = new UserEventsPublisher(pubSubClient)
-    consumer = new UserEventsConsumer(pubSubClient, userService)
+  beforeEach(async () => {
+    // 1. Create instances first
+    consumer = new UserEventsConsumer({ pubSubClient, logger, errorReporter })
+    publisher = new UserEventsPublisher({ pubSubClient, logger, errorReporter })
 
-    await publisher.init()
+    // 2. Delete resources after creating instances but before start/init
+    await deletePubSubTopicAndSubscription(
+      pubSubClient,
+      UserEventsConsumer.TOPIC_NAME,
+      UserEventsConsumer.SUBSCRIPTION_NAME,
+    )
+
+    // 3. Start/init (this creates fresh resources)
     await consumer.start()
+    await publisher.init()
   })
 
   afterEach(async () => {
@@ -1482,6 +1711,13 @@ describe('UserEventsConsumer', () => {
   })
 })
 ```
+
+**Key Points:**
+- **Run tests sequentially** - Set `fileParallelism: false` in vitest.config.ts to prevent race conditions
+- **Create instances first** - Create consumer/publisher before deleting resources so you know which topic/subscription names to delete
+- **Delete then start** - Delete resources after creating instances, then call start/init to recreate them fresh
+- **Close in afterEach** - Always close instances to release subscription listeners
+- **Use handlerSpy** - Wait for message processing with `waitForMessageWithId` instead of arbitrary delays
 
 ### Unit Tests with Handler Spies
 

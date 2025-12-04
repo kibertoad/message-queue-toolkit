@@ -75,6 +75,12 @@ services:
       - '4443:4443'
     command: -scheme http -port 4443 -external-url http://localhost:4443
     restart: on-failure
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4443/storage/v1/b"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
 
   pubsub-emulator:
     image: google/cloud-sdk:547.0.0-emulators
@@ -82,6 +88,12 @@ services:
       - '8085:8085'
     command: gcloud beta emulators pubsub start --project=test-project --host-port=0.0.0.0:8085
     restart: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8085 || wget -q --spider http://localhost:8085"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
 volumes:
   rabbit_data:

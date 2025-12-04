@@ -22,14 +22,14 @@
         "test:coverage": "npm run test -- --coverage",
         "lint": "biome check . && tsc",
         "lint:fix": "biome check --write .",
-        "docker:start": "docker compose up -d gcs-emulator",
+        "docker:start": "docker compose up -d --quiet-pull --wait gcs-emulator",
         "docker:stop": "docker compose down",
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {},
     "peerDependencies": {
         "@google-cloud/storage": "^7.17.0",
-        "@message-queue-toolkit/core": ">=21.0.0"
+        "@message-queue-toolkit/core": ">=24.0.0"
     },
     "devDependencies": {
         "@google-cloud/storage": "^7.17.2",

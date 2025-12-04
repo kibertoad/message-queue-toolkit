@@ -225,6 +225,15 @@ export type HandlerContainerOptions<
   messageTypeField: string
 }
 
+/**
+ * Use this constant as `messageTypeField` value when your consumer should accept
+ * all message types without routing by type. When used, a single handler will
+ * process all incoming messages regardless of their type field value.
+ */
+export const NO_MESSAGE_TYPE_FIELD = ''
+
+const DEFAULT_HANDLER_KEY = 'NO_MESSAGE_TYPE'
+
 export class HandlerContainer<
   MessagePayloadSchemas extends object,
   ExecutionContext,
@@ -243,17 +252,23 @@ export class HandlerContainer<
     this.messageHandlers = this.resolveHandlerMap(options.messageHandlers)
   }
 
+  /**
+   * Resolves a handler for the given message type.
+   * When messageTypeField is NO_MESSAGE_TYPE_FIELD (empty string), pass undefined as messageType
+   * to get the default handler.
+   */
   public resolveHandler<PrehandlerOutput = undefined, BarrierOutput = undefined>(
-    messageType: string,
+    messageType: string | undefined,
   ): MessageHandlerConfig<
     MessagePayloadSchemas,
     ExecutionContext,
     PrehandlerOutput,
     BarrierOutput
   > {
-    const handler = this.messageHandlers[messageType]
+    const handlerKey = messageType ?? DEFAULT_HANDLER_KEY
+    const handler = this.messageHandlers[handlerKey]
     if (!handler) {
-      throw new Error(`Unsupported message type: ${messageType}`)
+      throw new Error(`Unsupported message type: ${handlerKey}`)
     }
     // @ts-expect-error
     return handler
@@ -271,9 +286,15 @@ export class HandlerContainer<
   > {
     return supportedHandlers.reduce(
       (acc, entry) => {
-        // @ts-expect-error
-        const messageType = entry.schema.shape[this.messageTypeField].value
-        acc[messageType] = entry
+        // When messageTypeField is empty (NO_MESSAGE_TYPE_FIELD), use DEFAULT_HANDLER_KEY
+        // This allows a single handler to process all message types
+        let messageType: string | undefined
+        if (this.messageTypeField) {
+          // @ts-expect-error
+          messageType = entry.schema.shape[this.messageTypeField]?.value
+        }
+        const handlerKey = messageType ?? DEFAULT_HANDLER_KEY
+        acc[handlerKey] = entry
         return acc
       },
       {} as Record<
