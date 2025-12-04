@@ -25,28 +25,19 @@ describe('PubSubPermissionConsumer', () => {
     })
 
     beforeEach(async () => {
-      // Delete existing resources before each test
+      // Create instances first
+      consumer = new PubSubPermissionConsumer(diContainer.cradle)
+      publisher = new PubSubPermissionPublisher(diContainer.cradle)
+
+      // Delete resources after creating instances but before start/init
       await deletePubSubTopicAndSubscription(
         pubSubClient,
         PubSubPermissionConsumer.TOPIC_NAME,
         PubSubPermissionConsumer.SUBSCRIPTION_NAME,
       )
 
-      // Create fresh consumer and publisher for each test
-      consumer = new PubSubPermissionConsumer(diContainer.cradle, {
-        creationConfig: {
-          topic: { name: PubSubPermissionConsumer.TOPIC_NAME },
-          subscription: { name: PubSubPermissionConsumer.SUBSCRIPTION_NAME },
-        },
-      })
-      publisher = new PubSubPermissionPublisher(diContainer.cradle, {
-        creationConfig: {
-          topic: { name: PubSubPermissionPublisher.TOPIC_NAME },
-        },
-      })
-
-      await publisher.init()
       await consumer.start()
+      await publisher.init()
     })
 
     afterEach(async () => {

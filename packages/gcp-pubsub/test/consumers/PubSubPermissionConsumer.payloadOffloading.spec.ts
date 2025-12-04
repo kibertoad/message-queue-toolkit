@@ -7,6 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 
 import { PUBSUB_MESSAGE_MAX_SIZE } from '../../lib/pubsub/AbstractPubSubService.ts'
 import { PubSubPermissionPublisher } from '../publishers/PubSubPermissionPublisher.ts'
+import { deletePubSubTopicAndSubscription } from '../utils/cleanupPubSub.ts'
 import { assertBucket, emptyBucket } from '../utils/gcsUtils.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -41,26 +42,30 @@ describe('PubSubPermissionConsumer - Payload Offloading', () => {
     })
 
     beforeEach(async () => {
-      // Create new consumer/publisher with payloadStoreConfig
-      // Use deletionConfig to clean up existing resources before creating new ones
+      // Create instances first
       consumer = new PubSubPermissionConsumer(diContainer.cradle, {
         creationConfig: {
           topic: { name: PubSubPermissionConsumer.TOPIC_NAME },
           subscription: { name: PubSubPermissionConsumer.SUBSCRIPTION_NAME },
         },
-        deletionConfig: { deleteIfExists: true },
         payloadStoreConfig,
       })
       publisher = new PubSubPermissionPublisher(diContainer.cradle, {
         creationConfig: {
           topic: { name: PubSubPermissionPublisher.TOPIC_NAME },
         },
-        deletionConfig: { deleteIfExists: true },
         payloadStoreConfig,
       })
 
-      await publisher.init()
+      // Delete resources after creating instances but before start/init
+      await deletePubSubTopicAndSubscription(
+        diContainer.cradle.pubSubClient,
+        PubSubPermissionConsumer.TOPIC_NAME,
+        PubSubPermissionConsumer.SUBSCRIPTION_NAME,
+      )
+
       await consumer.start()
+      await publisher.init()
     })
 
     afterEach(async () => {

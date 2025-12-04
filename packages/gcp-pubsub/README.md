@@ -1395,6 +1395,48 @@ async (message) => {
 }
 ```
 
+### Terminal Errors and DLQ Behavior
+
+When a message cannot be processed (invalid format, schema validation failure, handler error, or max retry duration exceeded), the consumer handles it based on whether a Dead Letter Queue is configured:
+
+**With DLQ configured:**
+- Message is NACKed
+- Pub/Sub tracks delivery attempts
+- After `maxDeliveryAttempts`, message is automatically forwarded to DLQ
+- This is the recommended approach for production systems
+
+**Without DLQ configured:**
+- Message is ACKed (acknowledged) to prevent infinite redelivery
+- A warning is logged indicating the message was acknowledged without DLQ
+- The message is effectively dropped
+- This prevents poison messages from blocking the subscription
+
+```typescript
+// Without DLQ - invalid messages are acknowledged to prevent infinite redelivery
+{
+  creationConfig: {
+    topic: { name: 'my-topic' },
+    subscription: { name: 'my-subscription' },
+  },
+  // No deadLetterQueue configured
+  // Invalid messages will be ACKed with a warning log
+}
+
+// With DLQ - invalid messages go to DLQ after max attempts
+{
+  creationConfig: {
+    topic: { name: 'my-topic' },
+    subscription: { name: 'my-subscription' },
+  },
+  deadLetterQueue: {
+    deadLetterPolicy: { maxDeliveryAttempts: 5 },
+    creationConfig: { topic: { name: 'my-dlq-topic' } },
+  },
+}
+```
+
+**Best Practice:** Always configure a DLQ in production to capture and analyze failed messages.
+
 ### Error Resolver
 
 ```typescript
