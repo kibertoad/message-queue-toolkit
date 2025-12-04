@@ -7,6 +7,7 @@ export default defineConfig({
     watch: false,
     restoreMocks: true,
     pool: 'threads',
+    fileParallelism: false,
     poolOptions: {
       threads: { singleThread: true },
     },
