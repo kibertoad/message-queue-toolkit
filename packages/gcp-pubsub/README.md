@@ -1557,26 +1557,64 @@ describe('Consumer handles invalid messages', () => {
 docker compose up -d pubsub-emulator
 ```
 
+#### Test Configuration
+
+**Important:** Integration tests should run sequentially to avoid race conditions with shared Pub/Sub emulator resources. Configure Vitest to disable file parallelism:
+
 ```typescript
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+// vitest.config.ts
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    fileParallelism: false,  // Run test files sequentially
+    pool: 'threads',
+    poolOptions: {
+      threads: { singleThread: true },
+    },
+  },
+})
+```
+
+#### Test Pattern: Per-Test Isolation
+
+For reliable integration tests, create fresh consumer/publisher instances for each test with explicit resource cleanup. The correct order is:
+1. Create instances first (so we know which resources to delete)
+2. Delete existing resources
+3. Start/init the instances (which recreates the resources)
+
+```typescript
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest'
 import { PubSub } from '@google-cloud/pubsub'
+import { deletePubSubTopicAndSubscription } from '@message-queue-toolkit/gcp-pubsub'
 
 describe('UserEventsConsumer', () => {
   let pubSubClient: PubSub
   let publisher: UserEventsPublisher
   let consumer: UserEventsConsumer
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     pubSubClient = new PubSub({
       projectId: 'test-project',
       apiEndpoint: 'localhost:8085',  // Emulator
     })
+  })
 
-    publisher = new UserEventsPublisher(pubSubClient)
-    consumer = new UserEventsConsumer(pubSubClient, userService)
+  beforeEach(async () => {
+    // 1. Create instances first
+    consumer = new UserEventsConsumer({ pubSubClient, logger, errorReporter })
+    publisher = new UserEventsPublisher({ pubSubClient, logger, errorReporter })
 
-    await publisher.init()
+    // 2. Delete resources after creating instances but before start/init
+    await deletePubSubTopicAndSubscription(
+      pubSubClient,
+      UserEventsConsumer.TOPIC_NAME,
+      UserEventsConsumer.SUBSCRIPTION_NAME,
+    )
+
+    // 3. Start/init (this creates fresh resources)
     await consumer.start()
+    await publisher.init()
   })
 
   afterEach(async () => {
@@ -1620,6 +1658,13 @@ describe('UserEventsConsumer', () => {
   })
 })
 ```
+
+**Key Points:**
+- **Run tests sequentially** - Set `fileParallelism: false` in vitest.config.ts to prevent race conditions
+- **Create instances first** - Create consumer/publisher before deleting resources so you know which topic/subscription names to delete
+- **Delete then start** - Delete resources after creating instances, then call start/init to recreate them fresh
+- **Close in afterEach** - Always close instances to release subscription listeners
+- **Use handlerSpy** - Wait for message processing with `waitForMessageWithId` instead of arbitrary delays
 
 ### Unit Tests with Handler Spies
 

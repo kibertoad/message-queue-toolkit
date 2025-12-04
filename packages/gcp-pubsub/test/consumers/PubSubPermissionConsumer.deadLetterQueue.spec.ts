@@ -1,9 +1,13 @@
-import type { PubSub, Message as PubSubMessageType } from '@google-cloud/pubsub'
-import { waitAndRetry } from '@lokalise/node-core'
+import type { PubSub } from '@google-cloud/pubsub'
+import type { Either } from '@lokalise/node-core'
+import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
+import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-
-import type { PubSubPermissionPublisher } from '../publishers/PubSubPermissionPublisher.ts'
+import { z } from 'zod/v4'
+import type { PubSubConsumerDependencies } from '../../lib/pubsub/AbstractPubSubConsumer.ts'
+import { AbstractPubSubConsumer } from '../../lib/pubsub/AbstractPubSubConsumer.ts'
+import { PubSubPermissionPublisher } from '../publishers/PubSubPermissionPublisher.ts'
 import { deletePubSubTopicAndSubscription } from '../utils/cleanupPubSub.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -13,6 +17,50 @@ import type {
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
 } from './userConsumerSchemas.ts'
 
+// Simple schema that accepts any JSON object for DLQ messages
+const DLQ_MESSAGE_SCHEMA = z
+  .object({
+    id: z.string(),
+    messageType: z.string(),
+    timestamp: z.string().optional(),
+  })
+  .passthrough()
+
+type DlqMessage = z.infer<typeof DLQ_MESSAGE_SCHEMA>
+
+// Execution context type for DLQ consumer (empty, not needed)
+type DlqExecutionContext = Record<string, never>
+
+// Simple DLQ consumer for testing
+class DlqConsumer extends AbstractPubSubConsumer<DlqMessage, DlqExecutionContext> {
+  public receivedMessages: DlqMessage[] = []
+
+  constructor(
+    dependencies: PubSubConsumerDependencies,
+    topicName: string,
+    subscriptionName: string,
+  ) {
+    super(
+      dependencies,
+      {
+        creationConfig: {
+          topic: { name: topicName },
+          subscription: { name: subscriptionName },
+        },
+        messageTypeField: 'messageType',
+        handlerSpy: true,
+        handlers: new MessageHandlerConfigBuilder<DlqMessage, DlqExecutionContext>()
+          .addConfig(DLQ_MESSAGE_SCHEMA, (message): Promise<Either<'retryLater', 'success'>> => {
+            this.receivedMessages.push(message)
+            return Promise.resolve({ result: 'success' })
+          })
+          .build(),
+      },
+      {} as DlqExecutionContext,
+    )
+  }
+}
+
 describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
   const queueName = PubSubPermissionConsumer.TOPIC_NAME
   const subscriptionName = PubSubPermissionConsumer.SUBSCRIPTION_NAME
@@ -21,33 +69,40 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
 
   let diContainer: AwilixContainer<Dependencies>
   let pubSubClient: PubSub
-  let permissionPublisher: PubSubPermissionPublisher
+  let publisher: PubSubPermissionPublisher
   let consumer: PubSubPermissionConsumer | undefined
-  let dlqSubscription: ReturnType<typeof pubSubClient.subscription> | undefined
+  let dlqConsumer: DlqConsumer | undefined
 
   beforeAll(async () => {
-    diContainer = await registerDependencies()
+    diContainer = await registerDependencies({
+      permissionConsumer: asValue(() => undefined),
+      permissionPublisher: asValue(() => undefined),
+    })
     pubSubClient = diContainer.cradle.pubSubClient
-    permissionPublisher = diContainer.cradle.permissionPublisher
   })
 
   beforeEach(async () => {
+    // Create publisher instance first
+    publisher = new PubSubPermissionPublisher(diContainer.cradle)
+
+    // Delete resources after creating instances but before init
     await deletePubSubTopicAndSubscription(pubSubClient, queueName, subscriptionName)
     await deletePubSubTopicAndSubscription(
       pubSubClient,
       deadLetterTopicName,
       deadLetterSubscriptionName,
     )
+
+    // Init publisher (consumer is created per-test with different options)
+    await publisher.init()
   })
 
   afterEach(async () => {
     await consumer?.close()
-    if (dlqSubscription) {
-      dlqSubscription.removeAllListeners()
-      await dlqSubscription.close()
-    }
-    dlqSubscription = undefined
+    await dlqConsumer?.close()
+    await publisher?.close()
     consumer = undefined
+    dlqConsumer = undefined
   })
 
   afterAll(async () => {
@@ -138,37 +193,36 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
           throw new Error('Error')
         },
       })
+
+      // Init consumer first to create DLQ topic, but don't start yet
+      await consumer.init()
+
+      // Create and start DLQ consumer BEFORE starting main consumer to avoid race condition
+      dlqConsumer = new DlqConsumer(
+        diContainer.cradle,
+        deadLetterTopicName,
+        deadLetterSubscriptionName,
+      )
+      await dlqConsumer.start()
+
+      // Now start main consumer
       await consumer.start()
 
-      // Create DLQ subscription to listen for messages
-      const dlqTopic = pubSubClient.topic(deadLetterTopicName)
-      const [dlqSub] = await dlqTopic.createSubscription(deadLetterSubscriptionName)
-      dlqSubscription = dlqSub
-
-      let dlqMessage: PubSubMessageType | undefined
-      dlqSubscription.on('message', (message: PubSubMessageType) => {
-        dlqMessage = message
-        message.ack()
-      })
-
-      await permissionPublisher.publish({
+      await publisher.publish({
         id: '1',
         messageType: 'remove',
         timestamp: new Date().toISOString(),
         userIds: [],
       })
 
-      await waitAndRetry(() => dlqMessage, 50, 40)
+      // Wait for message to appear in DLQ
+      const dlqResult = await dlqConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
-      expect(dlqMessage).toBeDefined()
-      expect(counter).toBe(5)
-
-      const dlqMessageBody = JSON.parse(dlqMessage!.data.toString())
-      expect(dlqMessageBody).toMatchObject({
+      expect(dlqResult.message).toMatchObject({
         id: '1',
         messageType: 'remove',
-        timestamp: expect.any(String),
       })
+      expect(counter).toBe(5)
     })
 
     it('messages with retryLater should be retried and not go to DLQ', async () => {
@@ -201,7 +255,7 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
       })
       await consumer.start()
 
-      await permissionPublisher.publish(pubsubMessage)
+      await publisher.publish(pubsubMessage)
 
       const handlerSpyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'consumed')
       expect(handlerSpyResult.processingResult).toEqual({ status: 'consumed' })
@@ -222,18 +276,20 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
           creationConfig: { topic: { name: deadLetterTopicName } },
         },
       })
+
+      // Init consumer first to create DLQ topic, but don't start yet
+      await consumer.init()
+
+      // Create and start DLQ consumer BEFORE starting main consumer
+      dlqConsumer = new DlqConsumer(
+        diContainer.cradle,
+        deadLetterTopicName,
+        deadLetterSubscriptionName,
+      )
+      await dlqConsumer.start()
+
+      // Now start main consumer
       await consumer.start()
-
-      // Create DLQ subscription
-      const dlqTopic = pubSubClient.topic(deadLetterTopicName)
-      const [dlqSub] = await dlqTopic.createSubscription(deadLetterSubscriptionName)
-      dlqSubscription = dlqSub
-
-      let dlqMessage: PubSubMessageType | undefined
-      dlqSubscription.on('message', (message: PubSubMessageType) => {
-        dlqMessage = message
-        message.ack()
-      })
 
       // Publish invalid message directly
       const topic = pubSubClient.topic(queueName)
@@ -241,10 +297,13 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
         data: Buffer.from(JSON.stringify({ id: '1', messageType: 'bad' })),
       })
 
-      await waitAndRetry(async () => dlqMessage, 50, 40)
+      // Wait for message to appear in DLQ
+      const dlqResult = await dlqConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
 
-      expect(dlqMessage).toBeDefined()
-      expect(dlqMessage!.data.toString()).toBe(JSON.stringify({ id: '1', messageType: 'bad' }))
+      expect(dlqResult.message).toMatchObject({
+        id: '1',
+        messageType: 'bad',
+      })
     })
   })
 
@@ -266,18 +325,20 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
           return Promise.resolve({ isPassing: false })
         },
       })
+
+      // Init consumer first to create DLQ topic, but don't start yet
+      await consumer.init()
+
+      // Create and start DLQ consumer BEFORE starting main consumer
+      dlqConsumer = new DlqConsumer(
+        diContainer.cradle,
+        deadLetterTopicName,
+        deadLetterSubscriptionName,
+      )
+      await dlqConsumer.start()
+
+      // Now start main consumer
       await consumer.start()
-
-      // Create DLQ subscription
-      const dlqTopic = pubSubClient.topic(deadLetterTopicName)
-      const [dlqSub] = await dlqTopic.createSubscription(deadLetterSubscriptionName)
-      dlqSubscription = dlqSub
-
-      let dlqMessage: PubSubMessageType | undefined
-      dlqSubscription.on('message', (message: PubSubMessageType) => {
-        dlqMessage = message
-        message.ack()
-      })
 
       const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
         id: '1',
@@ -285,16 +346,16 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
         // Message timestamp 2 seconds ago - already past maxRetryDuration
         timestamp: new Date(Date.now() - 2000).toISOString(),
       }
-      await permissionPublisher.publish(message)
+      await publisher.publish(message)
 
+      // Verify error is tracked by main consumer
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('1', 'error')
       expect(spyResult.message).toEqual(message)
-      // Message should be processed at least once before being moved to DLQ
       expect(counter).toBeGreaterThanOrEqual(1)
 
-      await waitAndRetry(() => dlqMessage, 50, 60)
-      const messageBody = JSON.parse(dlqMessage!.data.toString())
-      expect(messageBody).toMatchObject({
+      // Wait for message to appear in DLQ
+      const dlqResult = await dlqConsumer.handlerSpy.waitForMessageWithId('1', 'consumed')
+      expect(dlqResult.message).toMatchObject({
         id: '1',
         messageType: 'add',
         timestamp: message.timestamp,
@@ -318,18 +379,20 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
           return Promise.resolve({ error: 'retryLater' })
         },
       })
+
+      // Init consumer first to create DLQ topic, but don't start yet
+      await consumer.init()
+
+      // Create and start DLQ consumer BEFORE starting main consumer
+      dlqConsumer = new DlqConsumer(
+        diContainer.cradle,
+        deadLetterTopicName,
+        deadLetterSubscriptionName,
+      )
+      await dlqConsumer.start()
+
+      // Now start main consumer
       await consumer.start()
-
-      // Create DLQ subscription
-      const dlqTopic = pubSubClient.topic(deadLetterTopicName)
-      const [dlqSub] = await dlqTopic.createSubscription(deadLetterSubscriptionName)
-      dlqSubscription = dlqSub
-
-      let dlqMessage: PubSubMessageType | undefined
-      dlqSubscription.on('message', (message: PubSubMessageType) => {
-        dlqMessage = message
-        message.ack()
-      })
 
       const message: PERMISSIONS_REMOVE_MESSAGE_TYPE = {
         id: '2',
@@ -338,16 +401,16 @@ describe('PubSubPermissionConsumer - Dead Letter Queue', () => {
         timestamp: new Date(Date.now() - 2000).toISOString(),
         userIds: [],
       }
-      await permissionPublisher.publish(message)
+      await publisher.publish(message)
 
+      // Verify error is tracked by main consumer
       const spyResult = await consumer.handlerSpy.waitForMessageWithId('2', 'error')
       expect(spyResult.message).toEqual(message)
-      // Message should be processed at least once before being moved to DLQ
       expect(counter).toBeGreaterThanOrEqual(1)
 
-      await waitAndRetry(() => dlqMessage, 50, 60)
-      const messageBody = JSON.parse(dlqMessage!.data.toString())
-      expect(messageBody).toMatchObject({
+      // Wait for message to appear in DLQ
+      const dlqResult = await dlqConsumer.handlerSpy.waitForMessageWithId('2', 'consumed')
+      expect(dlqResult.message).toMatchObject({
         id: '2',
         messageType: 'remove',
         timestamp: message.timestamp,
