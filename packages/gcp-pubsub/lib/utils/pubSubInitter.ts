@@ -261,8 +261,8 @@ export async function deletePubSub(
             return true
           }
         },
-        20, // 100ms sleep between checks
-        30, // max 15 retry attempts
+        20,
+        30,
       )
     }
   }
