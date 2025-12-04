@@ -34,7 +34,6 @@ export type {
   PayloadSerializer,
   PayloadStore,
   PayloadStoreConfig,
-  PayloadStoreTypes,
   SerializedPayload,
   SinglePayloadStoreConfig,
 } from './payload-store/payloadStoreTypes.ts'

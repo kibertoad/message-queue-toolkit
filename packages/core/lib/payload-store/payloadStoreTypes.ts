@@ -8,11 +8,6 @@ export interface PayloadStore {
   retrievePayload(key: string): Promise<Readable | null>
 }
 
-/**
- * @deprecated Use `PayloadStore` instead. This alias will be removed in a future version.
- */
-export type PayloadStoreTypes = PayloadStore
-
 export type SerializedPayload = {
   value: string | Readable
   size: number
