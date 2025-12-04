@@ -33,9 +33,17 @@ jobs:
             echo "Version bump: patch"
           fi
 
+      - name: Debug PR info
+        run: |
+          echo "PR base SHA: ${{ github.event.pull_request.base.sha }}"
+          echo "PR head SHA: ${{ github.event.pull_request.head.sha }}"
+          echo "Comparing changes between these commits..."
+
       - id: filter
         uses: dorny/paths-filter@v3
         with:
+          base: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           filters: |
             pkg_core:
               - 'packages/core/**'
@@ -73,6 +81,10 @@ jobs:
             pkg_schemas:
               - 'packages/schemas/**'
               - '!packages/schemas/test/**'
+
+      - name: Debug filter output
+        run: |
+          echo "Changed packages: ${{ steps.filter.outputs.changes }}"
 
   bump-versions:
     needs: detect-changes
