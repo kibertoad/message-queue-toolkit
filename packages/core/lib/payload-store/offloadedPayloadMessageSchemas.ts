@@ -38,10 +38,15 @@ export const OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA = z
   .refine(
     (data) => {
       // At least one format must be present
-      return data.payloadRef !== undefined || data.offloadedPayloadPointer !== undefined
+      // For the legacy format, both offloadedPayloadPointer and offloadedPayloadSize are required
+      return (
+        data.payloadRef !== undefined ||
+        (data.offloadedPayloadPointer !== undefined && data.offloadedPayloadSize !== undefined)
+      )
     },
     {
-      message: 'Either payloadRef or offloadedPayloadPointer must be present',
+      message:
+        'Either payloadRef or both offloadedPayloadPointer and offloadedPayloadSize must be present',
     },
   )
 
