@@ -148,11 +148,6 @@ export abstract class AbstractPubSubConsumer<
   }
 
   public override async init(): Promise<void> {
-    // Skip if already initialized
-    if (this.isInitted) {
-      return
-    }
-
     // Import at method level to avoid circular dependency
     const { initPubSub } = await import('../utils/pubSubInitter.ts')
 
