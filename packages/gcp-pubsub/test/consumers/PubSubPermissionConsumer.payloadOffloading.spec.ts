@@ -40,6 +40,7 @@ describe('PubSubPermissionConsumer - Payload Offloading', () => {
       payloadStoreConfig = {
         messageSizeThreshold: largeMessageSizeThreshold,
         store: new GCSPayloadStore(diContainer.cradle, { bucketName: gcsBucketName }),
+        storeName: 'gcs',
       }
     })
 
