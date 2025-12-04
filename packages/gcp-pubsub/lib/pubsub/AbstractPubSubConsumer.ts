@@ -179,11 +179,8 @@ export abstract class AbstractPubSubConsumer<
       throw new Error('Subscription not initialized after init()')
     }
 
-    // Verify subscription exists before starting to listen
-    const [subscriptionExists] = await this.subscription.exists()
-    if (!subscriptionExists) {
-      throw new Error(`Subscription ${this.subscriptionName} does not exist after init`)
-    }
+    // Wait for subscription to exist and be ready
+    await this.waitForSubscriptionReady()
 
     this.isConsuming = true
 
@@ -205,6 +202,24 @@ export abstract class AbstractPubSubConsumer<
         flowControl: this.consumerOverrides.flowControl,
       })
     }
+  }
+
+  private async waitForSubscriptionReady(maxAttempts = 100, delayMs = 20): Promise<void> {
+    if (!this.subscription) {
+      throw new Error('Subscription not initialized')
+    }
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const [exists] = await this.subscription.exists()
+      if (exists) {
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+    }
+
+    throw new Error(
+      `Subscription ${this.subscriptionName} did not become ready after ${maxAttempts * delayMs}ms`,
+    )
   }
 
   public override async close(): Promise<void> {

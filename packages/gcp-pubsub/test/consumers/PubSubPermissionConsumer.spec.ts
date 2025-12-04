@@ -57,7 +57,7 @@ describe('PubSubPermissionConsumer', () => {
   })
 
   describe('message consumption', () => {
-    it('consumes add messages', async () => {
+    it('consumes add messages', { timeout: 10000 }, async () => {
       const message = {
         id: 'add-1',
         messageType: 'add' as const,
@@ -75,7 +75,7 @@ describe('PubSubPermissionConsumer', () => {
       expect(consumer.processedMessagesIds.has('add-1')).toBe(true)
     })
 
-    it('consumes remove messages', async () => {
+    it('consumes remove messages', { timeout: 10000 }, async () => {
       const message = {
         id: 'remove-1',
         messageType: 'remove' as const,
@@ -91,7 +91,7 @@ describe('PubSubPermissionConsumer', () => {
       expect(consumer.removeCounter).toBe(1)
     })
 
-    it('consumes multiple messages in order', async () => {
+    it('consumes multiple messages in order', { timeout: 10000 }, async () => {
       const messages = [
         {
           id: 'msg-1',
