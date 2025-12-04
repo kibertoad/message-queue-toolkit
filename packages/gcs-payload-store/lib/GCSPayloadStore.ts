@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { Readable } from 'node:stream'
 
 import type { Bucket, Storage } from '@google-cloud/storage'
-import type { PayloadStoreTypes, SerializedPayload } from '@message-queue-toolkit/core'
+import type { PayloadStore, SerializedPayload } from '@message-queue-toolkit/core'
 
 export type GCSAwareDependencies = {
   gcsStorage?: Storage
@@ -40,7 +40,7 @@ export type GCSPayloadStoreConfiguration = {
   keyPrefix?: string
 }
 
-export class GCSPayloadStore implements PayloadStoreTypes {
+export class GCSPayloadStore implements PayloadStore {
   private readonly storage: Storage
   private readonly bucket: Bucket
   private readonly config: GCSPayloadStoreConfiguration

@@ -7,6 +7,7 @@ import {
   type MessageInvalidFormatError,
   type MessageSchemaContainer,
   type MessageValidationError,
+  type OffloadedPayloadPointerPayload,
   type QueuePublisherOptions,
   type ResolvedMessage,
 } from '@message-queue-toolkit/core'
@@ -119,7 +120,7 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
   }
 
   private async sendMessage(
-    message: MessagePayloadType | { offloadedPayloadPointer: string; offloadedPayloadSize: number },
+    message: MessagePayloadType | OffloadedPayloadPointerPayload,
     options: PubSubMessageOptions,
   ): Promise<void> {
     const messageData = Buffer.from(JSON.stringify(message))
