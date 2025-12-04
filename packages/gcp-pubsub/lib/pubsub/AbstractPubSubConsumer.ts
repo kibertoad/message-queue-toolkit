@@ -148,6 +148,11 @@ export abstract class AbstractPubSubConsumer<
   }
 
   public override async init(): Promise<void> {
+    // Skip if already initialized
+    if (this.isInitted) {
+      return
+    }
+
     // Import at method level to avoid circular dependency
     const { initPubSub } = await import('../utils/pubSubInitter.ts')
 
@@ -266,6 +271,15 @@ export abstract class AbstractPubSubConsumer<
 
       const resolveSchemaResult = this.resolveSchema(messagePayload as MessagePayloadType)
       if (resolveSchemaResult.error) {
+        this.handleMessageProcessed({
+          message: messagePayload as MessagePayloadType,
+          processingResult: {
+            status: 'error',
+            errorReason: 'invalidMessage',
+          },
+          messageProcessingStartTimestamp,
+          queueName: this.subscriptionName ?? this.topicName,
+        })
         this.handleError(resolveSchemaResult.error)
         // nack() to trigger DLQ after maxDeliveryAttempts (if configured)
         message.nack()
