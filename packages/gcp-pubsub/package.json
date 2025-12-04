@@ -31,7 +31,7 @@
     },
     "peerDependencies": {
         "@google-cloud/pubsub": "^5.2.0",
-        "@message-queue-toolkit/core": ">=24.0.0",
+        "@message-queue-toolkit/core": ">=24.2.0",
         "zod": ">=3.25.76 <5.0.0"
     },
     "devDependencies": {
