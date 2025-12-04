@@ -33,46 +33,74 @@ jobs:
             echo "Version bump: patch"
           fi
 
+      - name: Debug PR info
+        run: |
+          echo "PR base SHA: ${{ github.event.pull_request.base.sha }}"
+          echo "PR head SHA: ${{ github.event.pull_request.head.sha }}"
+          echo "Comparing changes between these commits..."
+          echo ""
+          echo "Files changed in PR:"
+          git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} || echo "git diff failed"
+
       - id: filter
         uses: dorny/paths-filter@v3
         with:
+          base: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          list-files: shell
           filters: |
             pkg_core:
-              - 'packages/core/**'
-              - '!packages/core/test/**'
+              - 'packages/core/lib/**'
+              - 'packages/core/package.json'
+              - 'packages/core/README.md'
             pkg_amqp:
-              - 'packages/amqp/**'
-              - '!packages/amqp/test/**'
+              - 'packages/amqp/lib/**'
+              - 'packages/amqp/package.json'
+              - 'packages/amqp/README.md'
             pkg_sqs:
-              - 'packages/sqs/**'
-              - '!packages/sqs/test/**'
+              - 'packages/sqs/lib/**'
+              - 'packages/sqs/package.json'
+              - 'packages/sqs/README.md'
             pkg_sns:
-              - 'packages/sns/**'
-              - '!packages/sns/test/**'
+              - 'packages/sns/lib/**'
+              - 'packages/sns/package.json'
+              - 'packages/sns/README.md'
             pkg_kafka:
-              - 'packages/kafka/**'
-              - '!packages/kafka/test/**'
+              - 'packages/kafka/lib/**'
+              - 'packages/kafka/package.json'
+              - 'packages/kafka/README.md'
             pkg_gcp_pubsub:
-              - 'packages/gcp-pubsub/**'
-              - '!packages/gcp-pubsub/test/**'
+              - 'packages/gcp-pubsub/lib/**'
+              - 'packages/gcp-pubsub/package.json'
+              - 'packages/gcp-pubsub/README.md'
             pkg_gcs_payload_store:
-              - 'packages/gcs-payload-store/**'
-              - '!packages/gcs-payload-store/test/**'
+              - 'packages/gcs-payload-store/lib/**'
+              - 'packages/gcs-payload-store/package.json'
+              - 'packages/gcs-payload-store/README.md'
             pkg_s3_payload_store:
-              - 'packages/s3-payload-store/**'
-              - '!packages/s3-payload-store/test/**'
+              - 'packages/s3-payload-store/lib/**'
+              - 'packages/s3-payload-store/package.json'
+              - 'packages/s3-payload-store/README.md'
             pkg_metrics:
-              - 'packages/metrics/**'
-              - '!packages/metrics/test/**'
+              - 'packages/metrics/lib/**'
+              - 'packages/metrics/package.json'
+              - 'packages/metrics/README.md'
             pkg_outbox_core:
-              - 'packages/outbox-core/**'
-              - '!packages/outbox-core/test/**'
+              - 'packages/outbox-core/lib/**'
+              - 'packages/outbox-core/package.json'
+              - 'packages/outbox-core/README.md'
             pkg_redis_message_deduplication_store:
-              - 'packages/redis-message-deduplication-store/**'
-              - '!packages/redis-message-deduplication-store/test/**'
+              - 'packages/redis-message-deduplication-store/lib/**'
+              - 'packages/redis-message-deduplication-store/package.json'
+              - 'packages/redis-message-deduplication-store/README.md'
             pkg_schemas:
-              - 'packages/schemas/**'
-              - '!packages/schemas/test/**'
+              - 'packages/schemas/lib/**'
+              - 'packages/schemas/package.json'
+              - 'packages/schemas/README.md'
+
+      - name: Debug filter output
+        run: |
+          echo "Changed packages: ${{ steps.filter.outputs.changes }}"
 
   bump-versions:
     needs: detect-changes
