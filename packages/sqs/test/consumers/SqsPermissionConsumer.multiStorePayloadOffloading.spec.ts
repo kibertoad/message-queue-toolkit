@@ -108,7 +108,7 @@ describe('SqsPermissionConsumer - multi-store payload offloading', () => {
 
       await publisher.publish(message)
 
-      // Consumer should retrieve payload from store-eu (specified in payloadRef)
+      // Consumer should retrieve payload from 's3-eu-central-1' (specified in payloadRef)
       const consumptionResult = await consumer.handlerSpy.waitForMessageWithId(
         message.id,
         'consumed',
@@ -158,7 +158,7 @@ describe('SqsPermissionConsumer - multi-store payload offloading', () => {
 
       await publisher.publish(message)
 
-      // Consumer should retrieve payload from store-eu (specified in payloadRef)
+      // Consumer should retrieve payload from 's3-us-west-1' (specified in payloadRef)
       const consumptionResult = await consumer.handlerSpy.waitForMessageWithId(
         message.id,
         'consumed',
@@ -208,7 +208,7 @@ describe('SqsPermissionConsumer - multi-store payload offloading', () => {
 
       await publisher.publish(message)
 
-      // Consumer should retrieve payload from store-eu (specified in payloadRef)
+      // Consumer should retrieve payload from 's3-us-west-1' (specified in payloadRef)
       const consumptionResult = await consumer.handlerSpy.waitForMessageWithId(
         message.id,
         'consumed',

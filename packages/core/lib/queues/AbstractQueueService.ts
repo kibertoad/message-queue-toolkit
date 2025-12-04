@@ -480,7 +480,8 @@ export abstract class AbstractQueueService<
   /**
    * Resolves the store and store name for outgoing (publishing) messages.
    * For multi-store: uses outgoingStore from config.
-   * For single-store: uses the configured store and storeName (or class name as fallback).
+   * For single-store: uses the configured store and storeName.
+   * @throws Error if payloadStoreConfig is not configured or the named store is not found.
    */
   private resolveOutgoingStore(): { store: PayloadStore; storeName: string } {
     if (!this.payloadStoreConfig) {
