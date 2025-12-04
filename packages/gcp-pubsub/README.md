@@ -33,6 +33,9 @@ Google Cloud Pub/Sub implementation for the message-queue-toolkit. Provides a ro
   - [Multiple Message Types](#multiple-message-types)
 - [Error Handling](#error-handling)
 - [Testing](#testing)
+  - [TestPubSubPublisher](#testpubsubpublisher)
+  - [Integration Tests with Emulator](#integration-tests-with-emulator)
+  - [Unit Tests with Handler Spies](#unit-tests-with-handler-spies)
 - [API Reference](#api-reference)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
@@ -1411,6 +1414,99 @@ class CustomErrorResolver implements ErrorResolver {
 ## Testing
 
 The library is designed to be testable:
+
+### TestPubSubPublisher
+
+`TestPubSubPublisher` is a testing utility for publishing arbitrary messages to Pub/Sub topics **without validation**. This is useful for:
+
+- Testing how consumers handle invalid or malformed messages
+- Simulating edge cases that would be rejected by schema validation
+- Integration testing without needing to create full publisher implementations
+
+**Features:**
+- Publish any JSON-serializable payload without Zod schema validation
+- No message deduplication checks
+- No payload offloading
+- Supports Pub/Sub ordering keys and attributes
+- Can extract topic name from existing consumer or publisher instances
+
+```typescript
+import { TestPubSubPublisher } from '@message-queue-toolkit/gcp-pubsub'
+
+// Create test publisher
+const testPublisher = new TestPubSubPublisher(pubSubClient)
+
+// Publish to a topic by name
+await testPublisher.publish(
+  { any: 'data', without: 'validation' },
+  { topicName: 'my-topic' }
+)
+
+// Publish to the same topic as an existing consumer
+await testPublisher.publish(
+  { invalid: 'message', missing: 'required fields' },
+  { consumer: myConsumer }
+)
+
+// Publish to the same topic as an existing publisher
+await testPublisher.publish(
+  { test: 'data' },
+  { publisher: myPublisher }
+)
+
+// With ordering key and attributes
+await testPublisher.publish(
+  { test: 'message' },
+  {
+    topicName: 'my-topic',
+    orderingKey: 'order-1',
+    attributes: { key: 'value' }
+  }
+)
+```
+
+**Example: Testing Invalid Message Handling**
+
+```typescript
+import { TestPubSubPublisher } from '@message-queue-toolkit/gcp-pubsub'
+
+describe('Consumer handles invalid messages', () => {
+  let testPublisher: TestPubSubPublisher
+  let consumer: MyConsumer
+
+  beforeEach(async () => {
+    testPublisher = new TestPubSubPublisher(pubSubClient)
+    consumer = new MyConsumer(dependencies)
+    await consumer.start()
+  })
+
+  it('rejects messages with invalid schema', async () => {
+    // Publish a message that doesn't match the consumer's expected schema
+    await testPublisher.publish(
+      {
+        id: 'test-1',
+        messageType: 'unknown.type',  // Invalid message type
+        data: 'invalid'
+      },
+      { consumer }
+    )
+
+    // Consumer should handle the invalid message gracefully
+    // (e.g., nack it, send to DLQ after max attempts)
+  })
+
+  it('handles messages missing required fields', async () => {
+    await testPublisher.publish(
+      { incomplete: 'message' },  // Missing id, messageType, timestamp
+      { consumer }
+    )
+  })
+})
+```
+
+**Important:**
+- The `consumer` or `publisher` must be initialized before passing to `publish()` (call `start()` or `init()` first)
+- This utility is for testing only - do not use in production code
 
 ### Integration Tests with Emulator
 
