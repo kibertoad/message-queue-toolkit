@@ -24,7 +24,7 @@ jobs:
           '@message-queue-toolkit/gcp-pubsub',
           '@message-queue-toolkit/gcs-payload-store'
         ]
-    uses: kibertoad/message-queue-toolkit/.github/workflows/ci.common.yml@main
+    uses: ./.github/workflows/ci.common.yml
     with:
       node_version: ${{ matrix.node-version }}
       package_name: ${{ matrix.package-name }}
@@ -33,7 +33,7 @@ jobs:
     strategy:
       matrix:
         node-version: [22.x, 24.x]
-    uses: kibertoad/message-queue-toolkit/.github/workflows/ci.common.yml@main
+    uses: ./.github/workflows/ci.common.yml
     with:
       package_name: '@message-queue-toolkit/kafka'
       node_version: ${{ matrix.node-version }}
