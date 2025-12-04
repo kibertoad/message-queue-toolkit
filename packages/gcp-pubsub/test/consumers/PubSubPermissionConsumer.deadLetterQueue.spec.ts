@@ -1,12 +1,12 @@
 import type { PubSub } from '@google-cloud/pubsub'
-import type { Either } from '@lokalise/node-core'
-import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { z } from 'zod/v4'
 import type { PubSubConsumerDependencies } from '../../lib/pubsub/AbstractPubSubConsumer.ts'
-import { AbstractPubSubConsumer } from '../../lib/pubsub/AbstractPubSubConsumer.ts'
+import {
+  AbstractPubSubDlqConsumer,
+  type DlqMessage,
+} from '../../lib/pubsub/AbstractPubSubDlqConsumer.ts'
 import { PubSubPermissionPublisher } from '../publishers/PubSubPermissionPublisher.ts'
 import { deletePubSubTopicAndSubscription } from '../utils/cleanupPubSub.ts'
 import type { Dependencies } from '../utils/testContext.ts'
@@ -17,22 +17,11 @@ import type {
   PERMISSIONS_REMOVE_MESSAGE_TYPE,
 } from './userConsumerSchemas.ts'
 
-// Simple schema that accepts any JSON object for DLQ messages
-const DLQ_MESSAGE_SCHEMA = z
-  .object({
-    id: z.string(),
-    messageType: z.string(),
-    timestamp: z.string().optional(),
-  })
-  .passthrough()
-
-type DlqMessage = z.infer<typeof DLQ_MESSAGE_SCHEMA>
-
 // Execution context type for DLQ consumer (empty, not needed)
 type DlqExecutionContext = Record<string, never>
 
-// Simple DLQ consumer for testing
-class DlqConsumer extends AbstractPubSubConsumer<DlqMessage, DlqExecutionContext> {
+// Simple DLQ consumer for testing using AbstractPubSubDlqConsumer
+class DlqConsumer extends AbstractPubSubDlqConsumer<DlqExecutionContext> {
   public receivedMessages: DlqMessage[] = []
 
   constructor(
@@ -47,14 +36,11 @@ class DlqConsumer extends AbstractPubSubConsumer<DlqMessage, DlqExecutionContext
           topic: { name: topicName },
           subscription: { name: subscriptionName },
         },
-        messageTypeField: 'messageType',
         handlerSpy: true,
-        handlers: new MessageHandlerConfigBuilder<DlqMessage, DlqExecutionContext>()
-          .addConfig(DLQ_MESSAGE_SCHEMA, (message): Promise<Either<'retryLater', 'success'>> => {
-            this.receivedMessages.push(message)
-            return Promise.resolve({ result: 'success' })
-          })
-          .build(),
+        handler: (message) => {
+          this.receivedMessages.push(message)
+          return Promise.resolve({ result: 'success' })
+        },
       },
       {} as DlqExecutionContext,
     )

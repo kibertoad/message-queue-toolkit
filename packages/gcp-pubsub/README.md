@@ -24,6 +24,7 @@ Google Cloud Pub/Sub implementation for the message-queue-toolkit. Provides a ro
   - [Payload Offloading](#payload-offloading)
   - [Message Deduplication](#message-deduplication)
   - [Dead Letter Queue](#dead-letter-queue)
+    - [Processing DLQ Messages with AbstractPubSubDlqConsumer](#processing-dlq-messages-with-abstractpubsubdlqconsumer)
   - [Message Ordering](#message-ordering)
   - [Message Retry Logic](#message-retry-logic)
   - [Message Handlers](#message-handlers)
@@ -774,6 +775,58 @@ Dead Letter Queues capture messages that cannot be processed after multiple atte
   - `CloudPubSubDeadLetterSourceTopicPublishTime`: Original publish timestamp
 - Create a subscription on the DLQ topic to process dead-lettered messages
 - Ensure Pub/Sub service account has permissions on the DLQ topic
+
+#### Processing DLQ Messages with AbstractPubSubDlqConsumer
+
+The library provides `AbstractPubSubDlqConsumer`, a convenience class for consuming messages from a DLQ topic. Unlike regular consumers that route messages by type, DLQ consumers accept any message structure since dead-lettered messages can come from various failed processing scenarios.
+
+```typescript
+import { AbstractPubSubDlqConsumer, type DlqMessage } from '@message-queue-toolkit/gcp-pubsub'
+
+class MyDlqConsumer extends AbstractPubSubDlqConsumer<MyContext> {
+  constructor(dependencies: PubSubConsumerDependencies, context: MyContext) {
+    super(
+      dependencies,
+      {
+        creationConfig: {
+          topic: { name: 'my-dlq-topic' },
+          subscription: { name: 'my-dlq-subscription' },
+        },
+        handlerSpy: true,  // Optional: for testing
+        handler: async (message, context) => {
+          // message is typed as DlqMessage (has 'id' field plus any other fields)
+          console.log('DLQ message received:', message.id)
+
+          // Log the dead letter for investigation
+          await context.logger.error('Dead letter received', { message })
+
+          // Optionally reprocess or store for manual review
+          await context.deadLetterRepository.save(message)
+
+          return { result: 'success' }
+        },
+      },
+      context,
+    )
+  }
+}
+
+// Usage
+const dlqConsumer = new MyDlqConsumer(dependencies, myContext)
+await dlqConsumer.start()
+```
+
+**Key differences from AbstractPubSubConsumer:**
+- Does NOT require `messageTypeField` (accepts all message types)
+- Uses a passthrough schema that accepts any message with an `id` field
+- Simplified handler configuration (single handler for all messages)
+- The `DlqMessage` type includes `id: string` and passes through all other fields
+
+**When to use:**
+- Processing messages that failed validation or deserialization
+- Logging and alerting on dead-lettered messages
+- Implementing manual review workflows
+- Re-routing messages to other systems for investigation
 
 ### Message Retry Logic
 
