@@ -26,6 +26,7 @@
     },
     "dependencies": {
         "@lokalise/node-core": "^14.2.0",
+        "@lokalise/universal-ts-utils": "^4.5.1",
         "@message-queue-toolkit/schemas": "^7.0.0",
         "fast-equals": "^5.2.2",
         "json-stream-stringify": "^3.1.6",

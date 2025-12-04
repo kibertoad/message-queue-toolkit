@@ -7,6 +7,7 @@ import {
   resolveGlobalErrorLogObject,
   stringValueSerializer,
 } from '@lokalise/node-core'
+import type { MakeRequired } from '@lokalise/universal-ts-utils/node'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import {
   MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA,
@@ -116,10 +117,8 @@ export abstract class AbstractQueueService<
   protected readonly locatorConfig?: QueueLocatorType
   protected readonly deletionConfig?: DeletionConfig
   protected readonly payloadStoreConfig?:
-    | (Omit<SinglePayloadStoreConfig, 'serializer'> &
-        Required<Pick<SinglePayloadStoreConfig, 'serializer'>>)
-    | (Omit<MultiPayloadStoreConfig, 'serializer'> &
-        Required<Pick<MultiPayloadStoreConfig, 'serializer'>>)
+    | MakeRequired<SinglePayloadStoreConfig, 'serializer'>
+    | MakeRequired<MultiPayloadStoreConfig, 'serializer'>
   protected readonly messageDeduplicationConfig?: MessageDeduplicationConfig
   protected readonly messageMetricsManager?: MessageMetricsManager<MessagePayloadSchemas>
   protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
