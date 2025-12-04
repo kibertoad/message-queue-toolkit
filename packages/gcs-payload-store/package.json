@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/gcs-payload-store",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "license": "MIT",
     "description": "Google Cloud Storage-based message store implementation for message-queue-toolkit",
     "maintainers": [

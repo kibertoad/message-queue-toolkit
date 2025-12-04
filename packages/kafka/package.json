@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/kafka",
-    "version": "0.7.9",
+    "version": "0.8.0",
     "engines": {
         "node": ">= 22.14.0"
     },
