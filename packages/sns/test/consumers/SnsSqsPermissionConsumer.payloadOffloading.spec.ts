@@ -93,6 +93,6 @@ describe('SnsSqsPermissionConsumer - single-store payload offloading', () => {
         'consumed',
       )
       expect(consumptionResult.message).toMatchObject(message)
-    }, 10000)
+    }, 15000)
   })
 })

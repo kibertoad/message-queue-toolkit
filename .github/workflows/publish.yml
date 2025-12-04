@@ -1,0 +1,324 @@
+name: Publish to npm
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  detect-changes:
+    if: github.event.pull_request.merged == true && (contains(github.event.pull_request.labels.*.name, 'patch') || contains(github.event.pull_request.labels.*.name, 'minor') || contains(github.event.pull_request.labels.*.name, 'major'))
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.filter.outputs.changes }}
+      bump: ${{ steps.version.outputs.bump }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Determine version bump
+        id: version
+        run: |
+          if ${{ contains(github.event.pull_request.labels.*.name, 'major') }}; then
+            echo "bump=major" >> $GITHUB_OUTPUT
+            echo "Version bump: major"
+          elif ${{ contains(github.event.pull_request.labels.*.name, 'minor') }}; then
+            echo "bump=minor" >> $GITHUB_OUTPUT
+            echo "Version bump: minor"
+          else
+            echo "bump=patch" >> $GITHUB_OUTPUT
+            echo "Version bump: patch"
+          fi
+
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            pkg_core:
+              - 'packages/core/**'
+              - '!packages/core/test/**'
+            pkg_amqp:
+              - 'packages/amqp/**'
+              - '!packages/amqp/test/**'
+            pkg_sqs:
+              - 'packages/sqs/**'
+              - '!packages/sqs/test/**'
+            pkg_sns:
+              - 'packages/sns/**'
+              - '!packages/sns/test/**'
+            pkg_kafka:
+              - 'packages/kafka/**'
+              - '!packages/kafka/test/**'
+            pkg_gcp_pubsub:
+              - 'packages/gcp-pubsub/**'
+              - '!packages/gcp-pubsub/test/**'
+            pkg_gcs_payload_store:
+              - 'packages/gcs-payload-store/**'
+              - '!packages/gcs-payload-store/test/**'
+            pkg_s3_payload_store:
+              - 'packages/s3-payload-store/**'
+              - '!packages/s3-payload-store/test/**'
+            pkg_metrics:
+              - 'packages/metrics/**'
+              - '!packages/metrics/test/**'
+            pkg_outbox_core:
+              - 'packages/outbox-core/**'
+              - '!packages/outbox-core/test/**'
+            pkg_redis_message_deduplication_store:
+              - 'packages/redis-message-deduplication-store/**'
+              - '!packages/redis-message-deduplication-store/test/**'
+            pkg_schemas:
+              - 'packages/schemas/**'
+              - '!packages/schemas/test/**'
+
+  bump-versions:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.changed != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          package-manager-cache: false
+
+      - name: Bump versions for changed packages
+        env:
+          CHANGED: ${{ needs.detect-changes.outputs.changed }}
+          BUMP: ${{ needs.detect-changes.outputs.bump }}
+        run: |
+          echo "Changed packages: $CHANGED"
+          echo "Version bump type: $BUMP"
+
+          # Map of filterKey to package directory
+          declare -A PACKAGES=(
+            ["pkg_core"]="core"
+            ["pkg_amqp"]="amqp"
+            ["pkg_sqs"]="sqs"
+            ["pkg_sns"]="sns"
+            ["pkg_kafka"]="kafka"
+            ["pkg_gcp_pubsub"]="gcp-pubsub"
+            ["pkg_gcs_payload_store"]="gcs-payload-store"
+            ["pkg_s3_payload_store"]="s3-payload-store"
+            ["pkg_metrics"]="metrics"
+            ["pkg_outbox_core"]="outbox-core"
+            ["pkg_redis_message_deduplication_store"]="redis-message-deduplication-store"
+            ["pkg_schemas"]="schemas"
+          )
+
+          BUMPED_PACKAGES=""
+          for key in "${!PACKAGES[@]}"; do
+            if echo "$CHANGED" | grep -q "\"$key\""; then
+              PKG_DIR="${PACKAGES[$key]}"
+              echo "Bumping version for $PKG_DIR..."
+              cd "packages/$PKG_DIR"
+              OLD_VERSION=$(node -p "require('./package.json').version")
+              npm version "$BUMP" --no-git-tag-version
+              NEW_VERSION=$(node -p "require('./package.json').version")
+              echo "  $OLD_VERSION -> $NEW_VERSION"
+              BUMPED_PACKAGES="$BUMPED_PACKAGES $PKG_DIR"
+              cd ../..
+            fi
+          done
+
+          echo "Bumped packages:$BUMPED_PACKAGES"
+
+      - name: Commit and push version changes
+        run: |
+          git add packages/*/package.json
+          if git diff --staged --quiet; then
+            echo "No version changes to commit"
+          else
+            git commit -m "chore: bump versions [skip ci]"
+            git push
+          fi
+
+  publish:
+    needs: [detect-changes, bump-versions]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: core
+            filterKey: pkg_core
+            npmName: '@message-queue-toolkit/core'
+
+          - name: amqp
+            filterKey: pkg_amqp
+            npmName: '@message-queue-toolkit/amqp'
+
+          - name: sqs
+            filterKey: pkg_sqs
+            npmName: '@message-queue-toolkit/sqs'
+
+          - name: sns
+            filterKey: pkg_sns
+            npmName: '@message-queue-toolkit/sns'
+
+          - name: kafka
+            filterKey: pkg_kafka
+            npmName: '@message-queue-toolkit/kafka'
+
+          - name: gcp-pubsub
+            filterKey: pkg_gcp_pubsub
+            npmName: '@message-queue-toolkit/gcp-pubsub'
+
+          - name: gcs-payload-store
+            filterKey: pkg_gcs_payload_store
+            npmName: '@message-queue-toolkit/gcs-payload-store'
+
+          - name: s3-payload-store
+            filterKey: pkg_s3_payload_store
+            npmName: '@message-queue-toolkit/s3-payload-store'
+
+          - name: metrics
+            filterKey: pkg_metrics
+            npmName: '@message-queue-toolkit/metrics'
+
+          - name: outbox-core
+            filterKey: pkg_outbox_core
+            npmName: '@message-queue-toolkit/outbox-core'
+
+          - name: redis-message-deduplication-store
+            filterKey: pkg_redis_message_deduplication_store
+            npmName: '@message-queue-toolkit/redis-message-deduplication-store'
+
+          - name: schemas
+            filterKey: pkg_schemas
+            npmName: '@message-queue-toolkit/schemas'
+
+    concurrency:
+      group: publish-${{ matrix.name }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Check if should publish
+        id: gate
+        run: |
+          CHANGED='${{ needs.detect-changes.outputs.changed }}'
+          echo "Changed packages: $CHANGED"
+          if echo "$CHANGED" | grep -q '"${{ matrix.filterKey }}"'; then
+            echo "should_publish=true" >> $GITHUB_OUTPUT
+            echo "✓ Changes detected in ${{ matrix.name }}"
+          else
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+            echo "⊗ No changes in ${{ matrix.name }}"
+          fi
+
+      - name: Checkout Repository
+        if: steps.gate.outputs.should_publish == 'true'
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Setup Node
+        if: steps.gate.outputs.should_publish == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+
+      - name: Get version
+        if: steps.gate.outputs.should_publish == 'true'
+        id: version
+        working-directory: packages/${{ matrix.name }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION"
+
+      - name: Install dependencies
+        if: steps.gate.outputs.should_publish == 'true'
+        run: npm install --ignore-scripts
+
+      - name: Build package
+        if: steps.gate.outputs.should_publish == 'true'
+        run: npm run build -- --filter=${{ matrix.npmName }}
+
+      - name: Publish to npm
+        if: steps.gate.outputs.should_publish == 'true'
+        working-directory: packages/${{ matrix.name }}
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Summary
+        if: steps.gate.outputs.should_publish == 'true'
+        run: |
+          echo "### Published ${{ matrix.npmName }}@${{ steps.version.outputs.version }} :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View on npm](https://www.npmjs.com/package/${{ matrix.npmName }})" >> $GITHUB_STEP_SUMMARY
+
+  create-tags:
+    needs: [detect-changes, bump-versions, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create tags for published packages
+        env:
+          CHANGED: ${{ needs.detect-changes.outputs.changed }}
+        run: |
+          declare -A PACKAGES=(
+            ["pkg_core"]="core"
+            ["pkg_amqp"]="amqp"
+            ["pkg_sqs"]="sqs"
+            ["pkg_sns"]="sns"
+            ["pkg_kafka"]="kafka"
+            ["pkg_gcp_pubsub"]="gcp-pubsub"
+            ["pkg_gcs_payload_store"]="gcs-payload-store"
+            ["pkg_s3_payload_store"]="s3-payload-store"
+            ["pkg_metrics"]="metrics"
+            ["pkg_outbox_core"]="outbox-core"
+            ["pkg_redis_message_deduplication_store"]="redis-message-deduplication-store"
+            ["pkg_schemas"]="schemas"
+          )
+
+          for key in "${!PACKAGES[@]}"; do
+            if echo "$CHANGED" | grep -q "\"$key\""; then
+              PKG_DIR="${PACKAGES[$key]}"
+              VERSION=$(node -p "require('./packages/$PKG_DIR/package.json').version")
+              TAG="@message-queue-toolkit/${PKG_DIR}@${VERSION}"
+              echo "Creating tag: $TAG"
+              git tag "$TAG" || echo "Tag $TAG already exists"
+            fi
+          done
+
+      - name: Push tags
+        run: git push --tags
