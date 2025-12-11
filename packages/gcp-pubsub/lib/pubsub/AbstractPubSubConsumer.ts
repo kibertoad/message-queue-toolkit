@@ -525,12 +525,10 @@ export abstract class AbstractPubSubConsumer<
         }
       }
 
-      // All retries exhausted
-      const error = new Error(
+      // All retries exhausted - throw error to be handled by caller's catch block
+      throw new Error(
         `Failed to reinitialize subscription ${this.subscriptionName} after ${this.subscriptionRetryOptions.maxRetries} attempts`,
       )
-      this.handleError(error)
-      throw error
     } finally {
       this.isReinitializing = false
     }
