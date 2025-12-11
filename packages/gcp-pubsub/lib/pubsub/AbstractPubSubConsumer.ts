@@ -1,4 +1,4 @@
-import type { Either, ErrorResolver } from '@lokalise/node-core'
+import { type Either, type ErrorResolver, isError } from '@lokalise/node-core'
 import type {
   MessageInvalidFormatError,
   MessageValidationError,
@@ -160,12 +160,32 @@ export abstract class AbstractPubSubConsumer<
   private maxRetryDuration: number
   private isConsuming = false
   private isReinitializing = false
+  private _fatalError: Error | null = null
 
   protected readonly errorResolver: ErrorResolver
   protected readonly executionContext: ExecutionContext
 
   public dlqTopicName?: string
   public readonly _messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
+
+  /**
+   * Returns the fatal error that caused the consumer to stop, or null if healthy.
+   * Use this in health checks to detect permanent subscription failures.
+   *
+   * @example
+   * ```typescript
+   * app.get('/health', (req, res) => {
+   *   const error = consumer.fatalError
+   *   if (error) {
+   *     return res.status(503).json({ status: 'unhealthy', error: error.message })
+   *   }
+   *   return res.status(200).json({ status: 'healthy' })
+   * })
+   * ```
+   */
+  public get fatalError(): Error | null {
+    return this._fatalError
+  }
 
   protected constructor(
     dependencies: PubSubConsumerDependencies,
@@ -356,14 +376,10 @@ export abstract class AbstractPubSubConsumer<
 
       // Trigger reinitialization with retry
       this.reinitializeWithRetry(1).catch((reinitError) => {
-        this.logger.error({
-          msg: 'Failed to reinitialize subscription after retryable error',
-          subscriptionName: this.subscriptionName,
-          topicName: this.topicName,
-          error: reinitError,
-        })
-        // Re-throw to surface the error - consumer is now in a failed state
-        throw reinitError
+        // Mark consumer as failed - this will be visible via fatalError getter for health checks
+        this._fatalError = isError(reinitError) ? reinitError : new Error(String(reinitError))
+        this.isConsuming = false
+        this.handleError(reinitError)
       })
     } else {
       // Non-retryable error - log and report
@@ -397,12 +413,10 @@ export abstract class AbstractPubSubConsumer<
       })
 
       this.reinitializeWithRetry(1).catch((reinitError) => {
-        this.logger.error({
-          msg: 'Failed to reinitialize subscription after unexpected close',
-          subscriptionName: this.subscriptionName,
-          topicName: this.topicName,
-          error: reinitError,
-        })
+        // Mark consumer as failed - this will be visible via fatalError getter for health checks
+        this._fatalError = isError(reinitError) ? reinitError : new Error(String(reinitError))
+        this.isConsuming = false
+        this.handleError(reinitError)
       })
     }
   }
@@ -416,9 +430,13 @@ export abstract class AbstractPubSubConsumer<
    * 3. Reinitializes the subscription
    * 4. Reattaches event handlers
    *
-   * @param attempt - Current retry attempt number (1-based)
+   * Uses an iterative loop to keep isReinitializing true for the entire
+   * retry sequence, preventing concurrent callers from starting their own
+   * reinitialization attempts.
+   *
+   * @param startAttempt - Starting retry attempt number (1-based)
    */
-  private async reinitializeWithRetry(attempt: number): Promise<void> {
+  private async reinitializeWithRetry(startAttempt: number): Promise<void> {
     // Prevent concurrent reinitializations
     if (this.isReinitializing) {
       this.logger.debug({
@@ -428,86 +446,91 @@ export abstract class AbstractPubSubConsumer<
       return
     }
 
-    // Check if we've exceeded max retries
-    if (attempt > this.subscriptionRetryOptions.maxRetries) {
+    this.isReinitializing = true
+
+    try {
+      for (
+        let attempt = startAttempt;
+        attempt <= this.subscriptionRetryOptions.maxRetries;
+        attempt++
+      ) {
+        // Calculate delay with exponential backoff
+        const delay = Math.min(
+          this.subscriptionRetryOptions.baseRetryDelayMs * Math.pow(2, attempt - 1),
+          this.subscriptionRetryOptions.maxRetryDelayMs,
+        )
+
+        this.logger.info({
+          msg: `Reinitialization attempt ${attempt}/${this.subscriptionRetryOptions.maxRetries}, waiting ${delay}ms`,
+          subscriptionName: this.subscriptionName,
+          topicName: this.topicName,
+          attempt,
+          delayMs: delay,
+        })
+
+        // Wait before retry
+        await new Promise((resolve) => setTimeout(resolve, delay))
+
+        // Don't continue if we've been stopped during the wait
+        if (!this.isConsuming) {
+          this.logger.info({
+            msg: 'Consumer stopped during reinitialization wait, aborting',
+            subscriptionName: this.subscriptionName,
+          })
+          return
+        }
+
+        try {
+          // Close existing subscription to remove old event handlers
+          if (this.subscription) {
+            try {
+              this.subscription.removeAllListeners()
+              await this.subscription.close()
+            } catch {
+              // Ignore close errors - subscription may already be closed
+            }
+          }
+
+          // Reinitialize
+          await this.init()
+
+          if (!this.subscription) {
+            throw new Error('Subscription not initialized after init()')
+          }
+
+          // Wait for subscription to be ready
+          await this.waitForSubscriptionReady()
+
+          // Reattach event handlers
+          this.setupSubscriptionEventHandlers()
+
+          this.logger.info({
+            msg: 'Successfully reinitialized subscription',
+            subscriptionName: this.subscriptionName,
+            topicName: this.topicName,
+            attempt,
+          })
+
+          // Success - exit the retry loop
+          return
+        } catch (error) {
+          this.logger.warn({
+            msg: `Reinitialization attempt ${attempt} failed, will retry`,
+            subscriptionName: this.subscriptionName,
+            topicName: this.topicName,
+            attempt,
+            error,
+          })
+          // Continue to next iteration
+        }
+      }
+
+      // All retries exhausted
       const error = new Error(
         `Failed to reinitialize subscription ${this.subscriptionName} after ${this.subscriptionRetryOptions.maxRetries} attempts`,
       )
       this.handleError(error)
       throw error
-    }
-
-    this.isReinitializing = true
-
-    try {
-      // Calculate delay with exponential backoff
-      const delay = Math.min(
-        this.subscriptionRetryOptions.baseRetryDelayMs * Math.pow(2, attempt - 1),
-        this.subscriptionRetryOptions.maxRetryDelayMs,
-      )
-
-      this.logger.info({
-        msg: `Reinitialization attempt ${attempt}/${this.subscriptionRetryOptions.maxRetries}, waiting ${delay}ms`,
-        subscriptionName: this.subscriptionName,
-        topicName: this.topicName,
-        attempt,
-        delayMs: delay,
-      })
-
-      // Wait before retry
-      await new Promise((resolve) => setTimeout(resolve, delay))
-
-      // Don't continue if we've been stopped during the wait
-      if (!this.isConsuming) {
-        this.logger.info({
-          msg: 'Consumer stopped during reinitialization wait, aborting',
-          subscriptionName: this.subscriptionName,
-        })
-        return
-      }
-
-      // Close existing subscription to remove old event handlers
-      if (this.subscription) {
-        try {
-          this.subscription.removeAllListeners()
-          await this.subscription.close()
-        } catch {
-          // Ignore close errors - subscription may already be closed
-        }
-      }
-
-      // Reinitialize
-      await this.init()
-
-      if (!this.subscription) {
-        throw new Error('Subscription not initialized after init()')
-      }
-
-      // Wait for subscription to be ready
-      await this.waitForSubscriptionReady()
-
-      // Reattach event handlers
-      this.setupSubscriptionEventHandlers()
-
-      this.logger.info({
-        msg: 'Successfully reinitialized subscription',
-        subscriptionName: this.subscriptionName,
-        topicName: this.topicName,
-        attempt,
-      })
-    } catch (error) {
-      this.logger.warn({
-        msg: `Reinitialization attempt ${attempt} failed, will retry`,
-        subscriptionName: this.subscriptionName,
-        topicName: this.topicName,
-        attempt,
-        error,
-      })
-
-      this.isReinitializing = false
-
-      // Retry with incremented attempt count
-      await this.reinitializeWithRetry(attempt + 1)
     } finally {
       this.isReinitializing = false
     }

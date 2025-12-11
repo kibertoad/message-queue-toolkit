@@ -16,7 +16,9 @@ export function isSubscriptionDoesNotExistError(
     error !== null &&
     'name' in error &&
     'message' in error &&
+    'subscriptionName' in error &&
     error.name === 'SubscriptionDoesNotExistError' &&
-    typeof error.message === 'string'
+    typeof error.message === 'string' &&
+    typeof error.subscriptionName === 'string'
   )
 }

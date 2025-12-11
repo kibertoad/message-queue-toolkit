@@ -33,6 +33,7 @@ Google Cloud Pub/Sub implementation for the message-queue-toolkit. Provides a ro
   - [Consumer Flow Control](#consumer-flow-control)
   - [Multiple Message Types](#multiple-message-types)
 - [Error Handling](#error-handling)
+  - [Subscription-Level Error Handling](#subscription-level-error-handling)
 - [Testing](#testing)
   - [TestPubSubPublisher](#testpubsubpublisher)
   - [Integration Tests with Emulator](#integration-tests-with-emulator)
@@ -1561,7 +1562,7 @@ class MyConsumer extends AbstractPubSubConsumer<MyMessage, ExecutionContext> {
 ```
 
 **Exponential Backoff Formula:**
-```
+```text
 delay = min(baseRetryDelayMs * 2^(attempt-1), maxRetryDelayMs)
 ```
 
@@ -1570,6 +1571,30 @@ With default settings, delays are: 1s, 2s, 4s, 8s, 16s (capped at 30s).
 **Unexpected Subscription Closure:**
 
 The consumer also handles unexpected subscription closures (e.g., network issues, GCP service restarts). If the subscription closes while the consumer is still supposed to be consuming, it will automatically attempt reinitialization.
+
+**Health Check Integration:**
+
+If all retry attempts are exhausted, the consumer enters a failed state. You can detect this via the `fatalError` getter for health check integration:
+
+```typescript
+// In your health check endpoint
+app.get('/health', (req, res) => {
+  const error = consumer.fatalError
+  if (error) {
+    return res.status(503).json({
+      status: 'unhealthy',
+      error: error.message,
+    })
+  }
+  return res.status(200).json({ status: 'healthy' })
+})
+```
+
+The `fatalError` property returns:
+- `null` when the consumer is healthy
+- `Error` when the consumer has permanently failed (e.g., after exhausting all retry attempts)
+
+This allows your application to properly report unhealthy status to orchestration systems (Kubernetes, etc.) and trigger appropriate remediation (pod restart, alerting, etc.).
 
 **References:**
 - [GCP Pub/Sub Error Codes](https://cloud.google.com/pubsub/docs/reference/error-codes)
@@ -1861,12 +1886,16 @@ it('publishes message', async () => {
 - `deadLetterQueue`: DLQ configuration
 - `maxRetryDuration`: Max retry time in seconds
 - `consumerOverrides`: Flow control settings
+- `subscriptionRetryOptions`: Retry configuration for subscription errors (see [Subscription-Level Error Handling](#subscription-level-error-handling))
 
 **Methods:**
 - `init()`: Initialize consumer (create/locate resources)
 - `start()`: Start consuming messages
 - `close()`: Stop consumer and close connections
 - `handlerSpy`: Access spy for testing
+
+**Properties:**
+- `fatalError`: Returns `Error` if consumer has permanently failed, `null` otherwise (for health checks)
 
 ## Best Practices
 
