@@ -1,11 +1,27 @@
 import type { Either } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema } from 'zod/v4'
+import {
+  type MessageTypeResolverConfig,
+  type MessageTypeResolverContext,
+  extractMessageTypeFromSchema,
+  isMessageTypeLiteralConfig,
+  isMessageTypePathConfig,
+  resolveMessageType,
+} from './MessageTypeResolver.ts'
 
 export type MessageSchemaContainerOptions<MessagePayloadSchemas extends object> = {
   messageDefinitions: readonly CommonEventDefinition[]
   messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
+  /**
+   * @deprecated Use messageTypeResolver instead for new implementations
+   */
   messageTypeField?: string
+  /**
+   * New flexible message type resolver configuration.
+   * Takes precedence over messageTypeField if both are provided.
+   */
+  messageTypeResolver?: MessageTypeResolverConfig
 }
 
 const DEFAULT_SCHEMA_KEY = Symbol('NO_MESSAGE_TYPE')
@@ -14,19 +30,33 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
   public readonly messageDefinitions: Record<string | symbol, CommonEventDefinition>
 
   private readonly messageSchemas: Record<string | symbol, ZodSchema<MessagePayloadSchemas>>
+  private readonly messageTypeResolver?: MessageTypeResolverConfig
+  /**
+   * @deprecated Kept for backwards compatibility, use messageTypeResolver
+   */
   private readonly messageTypeField?: string
 
   constructor(options: MessageSchemaContainerOptions<MessagePayloadSchemas>) {
+    // New resolver takes precedence, but fall back to legacy field
+    this.messageTypeResolver = options.messageTypeResolver
     this.messageTypeField = options.messageTypeField
     this.messageSchemas = this.resolveMap(options.messageSchemas)
     this.messageDefinitions = this.resolveMap(options.messageDefinitions ?? [])
   }
 
+  /**
+   * Resolves the schema for a message based on its type.
+   *
+   * @param message - The parsed message data
+   * @param attributes - Optional message-level attributes (e.g., PubSub attributes)
+   * @returns Either an error or the resolved schema
+   */
   public resolveSchema(
     // biome-ignore lint/suspicious/noExplicitAny: This is expected
     message: Record<string, any>,
+    attributes?: Record<string, unknown>,
   ): Either<Error, ZodSchema<MessagePayloadSchemas>> {
-    const messageType = this.messageTypeField ? message[this.messageTypeField] : undefined
+    const messageType = this.resolveMessageTypeFromData(message, attributes)
 
     const schema = this.messageSchemas[messageType ?? DEFAULT_SCHEMA_KEY]
     if (!schema) {
@@ -39,22 +69,76 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
     return { result: schema }
   }
 
+  /**
+   * Resolves message type from message data and optional attributes.
+   */
+  private resolveMessageTypeFromData(
+    messageData: unknown,
+    messageAttributes?: Record<string, unknown>,
+  ): string | undefined {
+    if (this.messageTypeResolver) {
+      const context: MessageTypeResolverContext = { messageData, messageAttributes }
+      return resolveMessageType(this.messageTypeResolver, context)
+    }
+
+    // Legacy behavior: extract from messageTypeField
+    if (this.messageTypeField) {
+      const data = messageData as Record<string, unknown> | undefined
+      return data?.[this.messageTypeField] as string | undefined
+    }
+
+    return undefined
+  }
+
+  /**
+   * Gets the field path used for extracting message type from schemas during registration.
+   * Returns undefined for literal or custom resolver modes.
+   */
+  private getMessageTypePathForSchema(): string | undefined {
+    if (this.messageTypeResolver) {
+      if (isMessageTypePathConfig(this.messageTypeResolver)) {
+        return this.messageTypeResolver.messageTypePath
+      }
+      // For literal or custom resolver, we don't extract type from schema
+      return undefined
+    }
+    return this.messageTypeField
+  }
+
+  /**
+   * Gets the literal message type if configured.
+   */
+  private getLiteralMessageType(): string | undefined {
+    if (this.messageTypeResolver && isMessageTypeLiteralConfig(this.messageTypeResolver)) {
+      return this.messageTypeResolver.literal
+    }
+    return undefined
+  }
+
   private resolveMap<T extends CommonEventDefinition | ZodSchema<MessagePayloadSchemas>>(
     array: readonly T[],
   ): Record<string | symbol, T> {
     const result: Record<string | symbol, T> = {}
 
+    const literalType = this.getLiteralMessageType()
+    const messageTypePath = this.getMessageTypePathForSchema()
+
     for (const item of array) {
       let type: string | undefined
 
-      if (this.messageTypeField) {
+      // If literal type is configured, use it for all schemas
+      if (literalType) {
+        type = literalType
+      } else if (messageTypePath) {
+        // Extract type from schema shape using the field path
         type =
           'publisherSchema' in item
-            ? // @ts-expect-error
-              item.publisherSchema?.shape[this.messageTypeField]?.value
-            : // @ts-expect-error
-              item.shape?.[this.messageTypeField]?.value
+            ? extractMessageTypeFromSchema(item.publisherSchema, messageTypePath)
+            : // @ts-expect-error - ZodSchema has shape property at runtime
+              extractMessageTypeFromSchema(item, messageTypePath)
       }
+      // For custom resolver without field path, we can't extract from schema
+      // All schemas will use DEFAULT_SCHEMA_KEY
 
       const key = type ?? DEFAULT_SCHEMA_KEY
       if (result[key]) throw new Error(`Duplicate schema for type: ${key.toString()}`)

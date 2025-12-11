@@ -5,6 +5,14 @@ import type { ZodSchema } from 'zod/v4'
 
 import type { DoNotProcessMessageError } from '../errors/DoNotProcessError.ts'
 import type { RetryMessageLaterError } from '../errors/RetryMessageLaterError.ts'
+import {
+  type MessageTypeResolverConfig,
+  type MessageTypeResolverContext,
+  extractMessageTypeFromSchema,
+  isMessageTypeLiteralConfig,
+  isMessageTypePathConfig,
+  resolveMessageType,
+} from './MessageTypeResolver.ts'
 
 export type PreHandlingOutputs<PrehandlerOutput = undefined, BarrierOutput = undefined> = {
   preHandlerOutput: PrehandlerOutput
@@ -222,13 +230,24 @@ export type HandlerContainerOptions<
   PrehandlerOutput = undefined,
 > = {
   messageHandlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
-  messageTypeField: string
+  /**
+   * @deprecated Use messageTypeResolver instead for new implementations
+   */
+  messageTypeField?: string
+  /**
+   * New flexible message type resolver configuration.
+   * Takes precedence over messageTypeField if both are provided.
+   */
+  messageTypeResolver?: MessageTypeResolverConfig
 }
 
 /**
  * Use this constant as `messageTypeField` value when your consumer should accept
  * all message types without routing by type. When used, a single handler will
  * process all incoming messages regardless of their type field value.
+ *
+ * @deprecated Use `messageTypeResolver: { literal: 'your-type' }` instead for explicit typing,
+ * or omit both messageTypeField and messageTypeResolver for a single-handler consumer.
  */
 export const NO_MESSAGE_TYPE_FIELD = ''
 
@@ -243,11 +262,16 @@ export class HandlerContainer<
     string,
     MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
   >
-  private readonly messageTypeField: string
+  private readonly messageTypeResolver?: MessageTypeResolverConfig
+  /**
+   * @deprecated Kept for backwards compatibility
+   */
+  private readonly messageTypeField?: string
 
   constructor(
     options: HandlerContainerOptions<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>,
   ) {
+    this.messageTypeResolver = options.messageTypeResolver
     this.messageTypeField = options.messageTypeField
     this.messageHandlers = this.resolveHandlerMap(options.messageHandlers)
   }
@@ -274,6 +298,65 @@ export class HandlerContainer<
     return handler
   }
 
+  /**
+   * Resolves message type from message data and optional attributes using the configured resolver.
+   *
+   * @param messageData - The parsed message data
+   * @param messageAttributes - Optional message-level attributes (e.g., PubSub attributes)
+   * @returns The resolved message type
+   * @throws Error if message type cannot be resolved
+   */
+  public resolveMessageType(
+    messageData: unknown,
+    messageAttributes?: Record<string, unknown>,
+  ): string {
+    if (this.messageTypeResolver) {
+      const context: MessageTypeResolverContext = { messageData, messageAttributes }
+      return resolveMessageType(this.messageTypeResolver, context)
+    }
+
+    // Legacy behavior: extract from messageTypeField at root of message data
+    if (this.messageTypeField) {
+      const data = messageData as Record<string, unknown> | undefined
+      const messageType = data?.[this.messageTypeField] as string | undefined
+      if (messageType === undefined) {
+        throw new Error(
+          `Unable to resolve message type: field '${this.messageTypeField}' not found in message data`,
+        )
+      }
+      return messageType
+    }
+
+    throw new Error(
+      'Unable to resolve message type: neither messageTypeField nor messageTypeResolver is configured',
+    )
+  }
+
+  /**
+   * Gets the field path used for extracting message type from schemas during registration.
+   * Returns undefined for literal or custom resolver modes.
+   */
+  private getMessageTypePathForSchema(): string | undefined {
+    if (this.messageTypeResolver) {
+      if (isMessageTypePathConfig(this.messageTypeResolver)) {
+        return this.messageTypeResolver.messageTypePath
+      }
+      // For literal or custom resolver, we don't extract type from schema
+      return undefined
+    }
+    return this.messageTypeField
+  }
+
+  /**
+   * Gets the literal message type if configured.
+   */
+  private getLiteralMessageType(): string | undefined {
+    if (this.messageTypeResolver && isMessageTypeLiteralConfig(this.messageTypeResolver)) {
+      return this.messageTypeResolver.literal
+    }
+    return undefined
+  }
+
   private resolveHandlerMap(
     supportedHandlers: MessageHandlerConfig<
       MessagePayloadSchemas,
@@ -284,15 +367,24 @@ export class HandlerContainer<
     string,
     MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
   > {
+    const literalType = this.getLiteralMessageType()
+    const messageTypePath = this.getMessageTypePathForSchema()
+
     return supportedHandlers.reduce(
       (acc, entry) => {
-        // When messageTypeField is empty (NO_MESSAGE_TYPE_FIELD), use DEFAULT_HANDLER_KEY
-        // This allows a single handler to process all message types
         let messageType: string | undefined
-        if (this.messageTypeField) {
-          // @ts-expect-error
-          messageType = entry.schema.shape[this.messageTypeField]?.value
+
+        // If literal type is configured, use it for all handlers
+        if (literalType) {
+          messageType = literalType
+        } else if (messageTypePath) {
+          // Extract type from schema shape using the field path
+          // @ts-expect-error - ZodSchema has shape property at runtime
+          messageType = extractMessageTypeFromSchema(entry.schema, messageTypePath)
         }
+        // For custom resolver without field path, we can't extract from schema
+        // All handlers will use DEFAULT_HANDLER_KEY
+
         const handlerKey = messageType ?? DEFAULT_HANDLER_KEY
         acc[handlerKey] = entry
         return acc

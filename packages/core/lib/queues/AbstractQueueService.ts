@@ -61,6 +61,11 @@ import type {
 import type { HandlerSpy, PublicHandlerSpy } from './HandlerSpy.ts'
 import { resolveHandlerSpy } from './HandlerSpy.ts'
 import { MessageSchemaContainer } from './MessageSchemaContainer.ts'
+import {
+  type MessageTypeResolverConfig,
+  type MessageTypeResolverContext,
+  resolveMessageType,
+} from './MessageTypeResolver.ts'
 
 export type Deserializer<MessagePayloadType extends object> = (
   message: unknown,
@@ -111,7 +116,14 @@ export abstract class AbstractQueueService<
   protected readonly errorReporter: ErrorReporter
   public readonly logger: CommonLogger
   protected readonly messageIdField: string
+  /**
+   * @deprecated Use messageTypeResolver instead. Kept for backwards compatibility.
+   */
   protected readonly messageTypeField: string
+  /**
+   * New flexible message type resolver configuration.
+   */
+  protected readonly messageTypeResolver?: MessageTypeResolverConfig
   protected readonly logMessages: boolean
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
@@ -143,7 +155,9 @@ export abstract class AbstractQueueService<
     this.messageMetricsManager = messageMetricsManager
 
     this.messageIdField = options.messageIdField ?? 'id'
-    this.messageTypeField = options.messageTypeField
+    // Support both legacy messageTypeField and new messageTypeResolver
+    this.messageTypeField = options.messageTypeField ?? ''
+    this.messageTypeResolver = options.messageTypeResolver
     this.messageTimestampField = options.messageTimestampField ?? 'timestamp'
     this.messageDeduplicationIdField = options.messageDeduplicationIdField ?? 'deduplicationId'
     this.messageDeduplicationOptionsField =
@@ -166,7 +180,8 @@ export abstract class AbstractQueueService<
 
   protected resolveConsumerMessageSchemaContainer(options: {
     handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
-    messageTypeField: string
+    messageTypeField?: string
+    messageTypeResolver?: MessageTypeResolverConfig
   }) {
     const messageSchemas = options.handlers.map((entry) => entry.schema)
     const messageDefinitions: CommonEventDefinition[] = options.handlers
@@ -175,6 +190,7 @@ export abstract class AbstractQueueService<
 
     return new MessageSchemaContainer<MessagePayloadSchemas>({
       messageTypeField: options.messageTypeField,
+      messageTypeResolver: options.messageTypeResolver,
       messageSchemas,
       messageDefinitions,
     })
@@ -182,15 +198,43 @@ export abstract class AbstractQueueService<
 
   protected resolvePublisherMessageSchemaContainer(options: {
     messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
-    messageTypeField: string
+    messageTypeField?: string
+    messageTypeResolver?: MessageTypeResolverConfig
   }) {
     const messageSchemas = options.messageSchemas
 
     return new MessageSchemaContainer<MessagePayloadSchemas>({
       messageTypeField: options.messageTypeField,
+      messageTypeResolver: options.messageTypeResolver,
       messageSchemas,
       messageDefinitions: [],
     })
+  }
+
+  /**
+   * Resolves message type from message data and optional attributes.
+   * Uses messageTypeResolver if configured, otherwise falls back to messageTypeField.
+   *
+   * @param messageData - The parsed message data
+   * @param messageAttributes - Optional message-level attributes (e.g., PubSub attributes)
+   * @returns The resolved message type, or undefined if not found
+   */
+  protected resolveMessageTypeFromMessage(
+    messageData: unknown,
+    messageAttributes?: Record<string, unknown>,
+  ): string | undefined {
+    if (this.messageTypeResolver) {
+      const context: MessageTypeResolverContext = { messageData, messageAttributes }
+      return resolveMessageType(this.messageTypeResolver, context)
+    }
+
+    // Legacy behavior: extract from messageTypeField at root of message data
+    if (this.messageTypeField) {
+      const data = messageData as Record<string, unknown> | undefined
+      return data?.[this.messageTypeField] as string | undefined
+    }
+
+    return undefined
   }
 
   protected abstract resolveSchema(

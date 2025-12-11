@@ -74,6 +74,18 @@ export {
 export type { MessageSchemaContainerOptions } from './queues/MessageSchemaContainer.ts'
 export { MessageSchemaContainer } from './queues/MessageSchemaContainer.ts'
 export type {
+  MessageTypeResolverConfig,
+  MessageTypeResolverContext,
+  MessageTypeResolverFn,
+} from './queues/MessageTypeResolver.ts'
+export {
+  extractMessageTypeFromSchema,
+  isMessageTypeLiteralConfig,
+  isMessageTypePathConfig,
+  isMessageTypeResolverFnConfig,
+  resolveMessageType,
+} from './queues/MessageTypeResolver.ts'
+export type {
   AsyncPublisher,
   ExtraParams,
   MessageProcessingResult,

@@ -4,6 +4,7 @@ import type { MessageDeduplicationConfig } from '../message-deduplication/messag
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes.ts'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer.ts'
 import type { HandlerSpy, HandlerSpyParams } from '../queues/HandlerSpy.ts'
+import type { MessageTypeResolverConfig } from '../queues/MessageTypeResolver.ts'
 import type {
   MessageProcessingResult,
   TransactionObservabilityManager,
@@ -75,8 +76,53 @@ export type QueueConsumerDependencies = {
   transactionObservabilityManager: TransactionObservabilityManager
 }
 
+/**
+ * Common queue options for publishers and consumers.
+ *
+ * Message type resolution can be configured via either:
+ * - `messageTypeField` (legacy): simple field name at root of message data
+ * - `messageTypeResolver` (new): flexible configuration supporting field paths, constants, or custom functions
+ *
+ * If both are provided, `messageTypeResolver` takes precedence.
+ * At least one must be provided for routing to work (unless using a single handler).
+ */
 export type CommonQueueOptions = {
-  messageTypeField: string
+  /**
+   * Field name at the root of the message containing the message type.
+   * Must be defined as z.literal() in the schema for routing to work.
+   *
+   * @deprecated Use `messageTypeResolver` for new implementations. This field is kept for backwards compatibility.
+   * @example
+   * { messageTypeField: 'type' }  // extracts type from message.type
+   * { messageTypeField: 'detail-type' }  // for EventBridge events
+   */
+  messageTypeField?: string
+  /**
+   * Flexible configuration for resolving message types.
+   * Takes precedence over `messageTypeField` if both are provided.
+   *
+   * Supports three modes:
+   * - `{ messageTypePath: string }` - field name at root of message data (like messageTypeField)
+   * - `{ literal: string }` - constant type for all messages
+   * - `{ resolver: fn }` - custom function for complex scenarios (e.g., extracting from attributes)
+   *
+   * @example
+   * // Constant type - all messages treated as same type
+   * { messageTypeResolver: { literal: 'order.created' } }
+   *
+   * @example
+   * // Field path (equivalent to messageTypeField: 'type')
+   * { messageTypeResolver: { messageTypePath: 'type' } }
+   *
+   * @example
+   * // Custom resolver for Cloud Storage notifications via PubSub
+   * {
+   *   messageTypeResolver: {
+   *     resolver: ({ messageAttributes }) => messageAttributes?.eventType as string
+   *   }
+   * }
+   */
+  messageTypeResolver?: MessageTypeResolverConfig
   messageIdField?: string
   messageTimestampField?: string
   messageDeduplicationIdField?: string
