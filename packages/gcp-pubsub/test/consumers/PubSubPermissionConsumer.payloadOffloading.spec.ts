@@ -1,11 +1,12 @@
+import type { PubSub } from '@google-cloud/pubsub'
 import type { Storage } from '@google-cloud/storage'
 import type { PayloadStoreConfig } from '@message-queue-toolkit/core'
 import { GCSPayloadStore } from '@message-queue-toolkit/gcs-payload-store'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-
 import { PUBSUB_MESSAGE_MAX_SIZE } from '../../lib/pubsub/AbstractPubSubService.ts'
+import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '../../lib/utils/messageUtils.ts'
 import { PubSubPermissionPublisher } from '../publishers/PubSubPermissionPublisher.ts'
 import { deletePubSubTopicAndSubscription } from '../utils/cleanupPubSub.ts'
 import { assertBucket, emptyBucket } from '../utils/gcsUtils.ts'
@@ -207,5 +208,91 @@ describe('PubSubPermissionConsumer - Payload Offloading', () => {
         expect(consumer.addCounter).toBe(1)
       },
     )
+  })
+
+  describe('payload retrieval errors', () => {
+    const largeMessageSizeThreshold = PUBSUB_MESSAGE_MAX_SIZE
+    const gcsBucketName = 'test-bucket'
+
+    let diContainer: AwilixContainer<Dependencies>
+    let pubSubClient: PubSub
+    let gcsStorage: Storage
+    let payloadStoreConfig: PayloadStoreConfig
+    let consumer: PubSubPermissionConsumer
+
+    beforeAll(async () => {
+      diContainer = await registerDependencies({
+        permissionPublisher: asValue(() => undefined),
+        permissionConsumer: asValue(() => undefined),
+      })
+      gcsStorage = diContainer.cradle.gcsStorage
+      pubSubClient = diContainer.cradle.pubSubClient
+
+      await assertBucket(gcsStorage, gcsBucketName)
+      payloadStoreConfig = {
+        messageSizeThreshold: largeMessageSizeThreshold,
+        store: new GCSPayloadStore(diContainer.cradle, { bucketName: gcsBucketName }),
+        storeName: 'gcs',
+      }
+    })
+
+    beforeEach(async () => {
+      consumer = new PubSubPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          topic: { name: PubSubPermissionConsumer.TOPIC_NAME },
+          subscription: { name: PubSubPermissionConsumer.SUBSCRIPTION_NAME },
+        },
+        payloadStoreConfig,
+      })
+
+      await deletePubSubTopicAndSubscription(
+        pubSubClient,
+        PubSubPermissionConsumer.TOPIC_NAME,
+        PubSubPermissionConsumer.SUBSCRIPTION_NAME,
+      )
+
+      await consumer.start()
+    })
+
+    afterEach(async () => {
+      await consumer.close()
+    })
+
+    afterAll(async () => {
+      await emptyBucket(gcsStorage, gcsBucketName)
+
+      const { awilixManager } = diContainer.cradle
+      await awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('handles error when offloaded payload cannot be retrieved', { timeout: 10000 }, async () => {
+      // Create a message that looks like it has offloaded payload but the payload doesn't exist
+      const topic = pubSubClient.topic(PubSubPermissionConsumer.TOPIC_NAME)
+
+      const messageWithFakeOffload = {
+        id: 'fake-offload-1',
+        messageType: 'add',
+        timestamp: new Date().toISOString(),
+        // Reference to a non-existent GCS object
+        _payloadKey: 'non-existent-key-12345',
+      }
+
+      // Publish with the offload attribute to trigger retrieval
+      await topic.publishMessage({
+        data: Buffer.from(JSON.stringify(messageWithFakeOffload)),
+        attributes: {
+          [OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE]: '12345',
+        },
+      })
+
+      // Wait for the error to be tracked
+      const spyResult = await consumer.handlerSpy.waitForMessage({ id: 'fake-offload-1' }, 'error')
+
+      expect(spyResult.processingResult.status).toBe('error')
+      // @ts-expect-error field exists
+      expect(spyResult.processingResult.errorReason).toBe('invalidMessage')
+      expect(consumer.addCounter).toBe(0)
+    })
   })
 })
