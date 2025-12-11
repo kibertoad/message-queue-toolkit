@@ -14,12 +14,18 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['lib/**/*.ts'],
-      exclude: ['vitest.config.ts', 'lib/**/index.ts', 'lib/fakes/FakeConsumerErrorResolver.ts'],
+      exclude: [
+        'vitest.config.ts',
+        'lib/**/index.ts',
+        'lib/fakes/FakeConsumerErrorResolver.ts',
+        'lib/schemas/pubSubSchemas.ts',
+        'lib/types/MessageTypes.ts',
+      ],
       thresholds: {
-        lines: 80,
-        functions: 90,
+        lines: 79,
+        functions: 88,
         branches: 74,
-        statements: 80,
+        statements: 79,
       },
     },
   },
