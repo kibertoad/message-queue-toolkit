@@ -255,7 +255,7 @@ export abstract class AbstractPubSubConsumer<
       return
     }
 
-    await this.init()
+    await this.initWithRetry()
 
     if (!this.subscription) {
       throw new Error('Subscription not initialized after init()')
@@ -267,6 +267,62 @@ export abstract class AbstractPubSubConsumer<
     this.isConsuming = true
 
     this.setupSubscriptionEventHandlers()
+  }
+
+  /**
+   * Initializes the consumer with retry logic for transient errors.
+   *
+   * This handles eventual consistency issues that can occur after Terraform deployments
+   * where topics/subscriptions may not be immediately visible across all GCP endpoints.
+   *
+   * @param attempt - Current retry attempt number (1-based)
+   */
+  private async initWithRetry(attempt = 1): Promise<void> {
+    try {
+      await this.init()
+    } catch (error) {
+      // Check if we should retry
+      if (attempt >= this.subscriptionRetryOptions.maxRetries) {
+        this.logger.error({
+          msg: `Failed to initialize subscription after ${attempt} attempts`,
+          subscriptionName:
+            this.locatorConfig?.subscriptionName ?? this.creationConfig?.subscription?.name,
+          topicName: this.locatorConfig?.topicName ?? this.creationConfig?.topic.name,
+          error,
+        })
+        throw error
+      }
+
+      // Check if error is retryable (NOT_FOUND type errors from initPubSub)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const isRetryable =
+        errorMessage.includes('does not exist') ||
+        errorMessage.includes('NOT_FOUND') ||
+        errorMessage.includes('PERMISSION_DENIED')
+
+      if (!isRetryable) {
+        throw error
+      }
+
+      // Calculate delay with exponential backoff
+      const delay = Math.min(
+        this.subscriptionRetryOptions.baseRetryDelayMs * Math.pow(2, attempt - 1),
+        this.subscriptionRetryOptions.maxRetryDelayMs,
+      )
+
+      this.logger.warn({
+        msg: `Retryable error during initialization, attempt ${attempt}/${this.subscriptionRetryOptions.maxRetries}, waiting ${delay}ms`,
+        subscriptionName:
+          this.locatorConfig?.subscriptionName ?? this.creationConfig?.subscription?.name,
+        topicName: this.locatorConfig?.topicName ?? this.creationConfig?.topic.name,
+        errorMessage,
+        attempt,
+        delayMs: delay,
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, delay))
+      await this.initWithRetry(attempt + 1)
+    }
   }
 
   /**

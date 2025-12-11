@@ -33,7 +33,7 @@ describe('PubSubPermissionPublisher - Message Deduplication', () => {
   })
 
   async function cleanRedis() {
-    await redis.flushAll()
+    await redis.flushall()
   }
 
   describe('publisher deduplication', () => {

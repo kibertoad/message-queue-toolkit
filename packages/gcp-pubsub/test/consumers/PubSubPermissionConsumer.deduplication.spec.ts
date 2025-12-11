@@ -43,7 +43,7 @@ describe('PubSubPermissionConsumer - Deduplication', () => {
   })
 
   async function cleanRedis() {
-    await redis.flushAll()
+    await redis.flushall()
   }
 
   describe('consumer deduplication', () => {
