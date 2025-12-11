@@ -1498,9 +1498,24 @@ The consumer provides a higher-level error recovery mechanism that complements t
 2. **Subscription stream disconnections** may not automatically reconnect in all cases
 3. **Infrastructure changes** (e.g., after Terraform deployments) may require full subscription reinitialization
 
+#### Initialization Retry
+
+When calling `start()`, the consumer will automatically retry initialization if it encounters retryable errors. This is particularly useful when:
+
+- Using `locatorConfig` and the subscription doesn't exist yet due to eventual consistency
+- Services start in parallel and the subscription is being created by another process
+- Terraform deployments are still propagating
+
+The retry logic handles errors containing:
+- `does not exist` - Resource not yet visible
+- `NOT_FOUND` - gRPC error code 5
+- `PERMISSION_DENIED` - gRPC error code 7 (IAM propagation delay)
+
+#### Runtime Reconnection
+
 **Retryable Error Codes:**
 
-*Errors the consumer handles via reinitialization:*
+*Errors the consumer handles via reinitialization during runtime:*
 - `DEADLINE_EXCEEDED` (4): Request timeout that SDK retry couldn't resolve
 - `NOT_FOUND` (5): Subscription may not be propagated yet (eventual consistency)
 - `PERMISSION_DENIED` (7): IAM permissions may not be propagated yet (eventual consistency)
@@ -1522,6 +1537,8 @@ After Terraform deployments, GCP resources and IAM permissions can take several 
 
 **Configuration:**
 
+The same retry options apply to both initialization and runtime reconnection:
+
 ```typescript
 class MyConsumer extends AbstractPubSubConsumer<MyMessage, ExecutionContext> {
   constructor(dependencies: PubSubConsumerDependencies) {
@@ -1530,7 +1547,7 @@ class MyConsumer extends AbstractPubSubConsumer<MyMessage, ExecutionContext> {
       {
         // ... other options ...
 
-        // Optional: Configure subscription retry behavior
+        // Optional: Configure retry behavior for both init and runtime errors
         subscriptionRetryOptions: {
           maxRetries: 5,           // Maximum retry attempts (default: 5)
           baseRetryDelayMs: 1000,  // Base delay for exponential backoff (default: 1000ms)
