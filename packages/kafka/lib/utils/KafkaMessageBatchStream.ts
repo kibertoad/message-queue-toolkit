@@ -14,7 +14,7 @@ export type MessageBatch<TMessage> = { topic: string; partition: number; message
 
 export interface KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartition>
   extends Duplex {
-  // biome-ignore  lint/suspicious/noExplicitAny: compatible with Duplex definition
+  // biome-ignore lint/suspicious/noExplicitAny: compatible with Duplex definition
   on(event: string | symbol, listener: (...args: any[]) => void): this
   on(event: 'data', listener: (chunk: MessageBatch<TMessage>) => void): this
 
