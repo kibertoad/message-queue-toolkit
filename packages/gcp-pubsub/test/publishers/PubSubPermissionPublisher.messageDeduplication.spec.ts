@@ -33,10 +33,7 @@ describe('PubSubPermissionPublisher - Message Deduplication', () => {
   })
 
   async function cleanRedis() {
-    const keys = await redis.keys('*publisher*')
-    if (keys.length > 0) {
-      await redis.del(...keys)
-    }
+    await redis.flushAll()
   }
 
   describe('publisher deduplication', () => {
