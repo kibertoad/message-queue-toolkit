@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/gcp-pubsub",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "license": "MIT",
     "description": "Google Cloud Pub/Sub adapter for message-queue-toolkit",
     "maintainers": [
