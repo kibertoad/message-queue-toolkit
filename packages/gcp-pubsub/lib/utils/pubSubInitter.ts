@@ -188,13 +188,23 @@ export async function initPubSub(
   }
 }
 
+export type PubSubDeletionOptions = {
+  /**
+   * When true, only deletes the subscription without deleting the topic.
+   * Use this for consumers to avoid deleting shared topics.
+   * Default: false (deletes both subscription and topic)
+   */
+  deleteSubscriptionOnly?: boolean
+}
+
 /**
  * Deletes Pub/Sub resources (topics and subscriptions).
  *
  * Deletion behavior:
  * - Only deletes if deletionConfig.deleteIfExists is true and creationConfig is provided
  * - Checks forceDeleteInProduction flag to prevent accidental deletion in production environments
- * - Deletes subscription first (if exists), then topic
+ * - If deleteSubscriptionOnly is true, only the subscription is deleted (safe for consumers)
+ * - If deleteSubscriptionOnly is false (default), deletes subscription first, then topic
  * - If waitForConfirmation is true (default), polls to confirm resources are actually deleted
  *   using the core waitAndRetry utility (similar to SQS implementation)
  */
@@ -202,6 +212,7 @@ export async function deletePubSub(
   pubSubClient: PubSub,
   deletionConfig: DeletionConfig,
   creationConfig?: PubSubCreationConfig,
+  options?: PubSubDeletionOptions,
 ): Promise<void> {
   if (!deletionConfig.deleteIfExists || !creationConfig) {
     return
@@ -214,6 +225,7 @@ export async function deletePubSub(
   }
 
   const shouldWaitForConfirmation = deletionConfig.waitForConfirmation !== false
+  const deleteSubscriptionOnly = options?.deleteSubscriptionOnly ?? false
 
   // Delete subscription first (if it exists)
   if (creationConfig.subscription) {
@@ -240,6 +252,11 @@ export async function deletePubSub(
         )
       }
     }
+  }
+
+  // Skip topic deletion if deleteSubscriptionOnly is true (consumer context)
+  if (deleteSubscriptionOnly) {
+    return
   }
 
   // Delete topic

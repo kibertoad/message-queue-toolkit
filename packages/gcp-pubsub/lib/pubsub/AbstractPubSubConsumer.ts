@@ -150,7 +150,10 @@ export abstract class AbstractPubSubConsumer<
 
   public override async init(): Promise<void> {
     if (this.deletionConfig && this.creationConfig) {
-      await deletePubSub(this.pubSubClient, this.deletionConfig, this.creationConfig)
+      // Only delete subscription, not the topic (topic may be shared with other consumers)
+      await deletePubSub(this.pubSubClient, this.deletionConfig, this.creationConfig, {
+        deleteSubscriptionOnly: true,
+      })
     }
 
     const initResult = await initPubSub(

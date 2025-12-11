@@ -285,10 +285,13 @@ import { deletePubSub } from '@message-queue-toolkit/gcp-pubsub'
 
 **Deletion Behavior:**
 - Only deletes if both `deleteIfExists: true` and `creationConfig` are provided
-- Deletes subscription first, then topic (proper order)
+- **Consumers only delete subscriptions** (not topics) - topics may be shared with other consumers
+- **Publishers delete both topic and subscription** (when applicable)
 - Throws error if trying to delete in production without `forceDeleteInProduction: true`
 - `waitForConfirmation: true`: Polls to confirm deletion completed (recommended)
 - `waitForConfirmation: false`: Returns immediately after deletion request
+
+**Note:** In Pub/Sub, topics can have multiple subscriptions (1:N relationship). When `deleteIfExists` is used on a consumer, only the subscription is deleted to avoid breaking other consumers sharing the same topic.
 
 **Production Safety:**
 
