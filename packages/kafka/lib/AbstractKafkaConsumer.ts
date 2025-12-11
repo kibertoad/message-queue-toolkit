@@ -206,24 +206,18 @@ export abstract class AbstractKafkaConsumer<
     }
 
     if (this.options.batchProcessingEnabled && this.messageBatchStream) {
-      this.messageBatchStream.on('data', async (messageBatch) =>
-        this.consume(messageBatch.topic, messageBatch.messages),
-      )
-      this.messageBatchStream.on('error', (error) => this.handlerError(error))
+      this.handleSyncStream(this.messageBatchStream).catch((error) => this.handlerError(error))
     } else {
-      // biome-ignore lint/style/noNonNullAssertion: consumerStream is always created
-      const stream = this.consumerStream!
-
-      // we are not waiting for the stream to complete
-      // because init() must return promised void
-      this.handleSyncStream(stream).catch((error) => this.handlerError(error))
+      this.handleSyncStream(this.consumerStream).catch((error) => this.handlerError(error))
     }
 
     this.consumerStream.on('error', (error) => this.handlerError(error))
   }
 
   private async handleSyncStream(
-    stream: MessagesStream<string, object, string, string>,
+    stream:
+      | MessagesStream<string, object, string, string>
+      | KafkaMessageBatchStream<DeserializedMessage<SupportedMessageValues<TopicsConfig>>>,
   ): Promise<void> {
     for await (const message of stream) {
       await this.consume(
