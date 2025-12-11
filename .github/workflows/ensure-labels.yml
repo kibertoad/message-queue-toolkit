@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check one of required labels are set
-        uses: docker://agilepathway/label-checker:v1.6.65
+        uses: docker://agilepathway/pull-request-label-checker:v1.6.65
         with:
           one_of: major,minor,patch,skip-release
           repo_token: ${{ secrets.GITHUB_TOKEN }}

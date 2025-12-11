@@ -338,6 +338,72 @@ describe('pubSubInitter', () => {
       expect(topicExists).toBe(false)
       expect(subscriptionExists).toBe(false)
     })
+
+    it('only deletes subscription when deleteSubscriptionOnly is true', async () => {
+      process.env.NODE_ENV = 'development'
+      reloadConfig() // Reload config to pick up env change
+
+      const deletionConfig: DeletionConfig = {
+        deleteIfExists: true,
+      }
+
+      await deletePubSub(
+        pubSubClient,
+        deletionConfig,
+        {
+          topic: {
+            name: topicName,
+          },
+          subscription: {
+            name: subscriptionName,
+          },
+        },
+        { deleteSubscriptionOnly: true },
+      )
+
+      // Verify subscription is deleted but topic still exists
+      const topic = pubSubClient.topic(topicName)
+      const subscription = pubSubClient.subscription(subscriptionName)
+
+      const [topicExists] = await topic.exists()
+      const [subscriptionExists] = await subscription.exists()
+
+      expect(topicExists).toBe(true) // Topic should still exist
+      expect(subscriptionExists).toBe(false) // Subscription should be deleted
+    })
+
+    it('deletes both topic and subscription when deleteSubscriptionOnly is false (default)', async () => {
+      process.env.NODE_ENV = 'development'
+      reloadConfig() // Reload config to pick up env change
+
+      const deletionConfig: DeletionConfig = {
+        deleteIfExists: true,
+      }
+
+      await deletePubSub(
+        pubSubClient,
+        deletionConfig,
+        {
+          topic: {
+            name: topicName,
+          },
+          subscription: {
+            name: subscriptionName,
+          },
+        },
+        { deleteSubscriptionOnly: false },
+      )
+
+      // Verify both resources are deleted
+      const topic = pubSubClient.topic(topicName)
+      const subscription = pubSubClient.subscription(subscriptionName)
+
+      const [topicExists] = await topic.exists()
+      const [subscriptionExists] = await subscription.exists()
+
+      expect(topicExists).toBe(false)
+      expect(subscriptionExists).toBe(false)
+    })
   })
 
   describe('config validation', () => {
