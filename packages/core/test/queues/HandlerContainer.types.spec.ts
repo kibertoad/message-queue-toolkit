@@ -171,6 +171,24 @@ describe('HandlerContainer Types', () => {
       // The parameter type should be string
       expectTypeOf(container.resolveHandler).parameter(0).toBeString()
     })
+
+    it('resolveHandler accepts any string (runtime validation)', () => {
+      const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+        .addConfig(USER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }))
+        .build()
+
+      const container = new HandlerContainer({
+        messageHandlers: configs,
+        messageTypeField: 'type',
+      })
+
+      // Note: resolveHandler accepts any string at compile time.
+      // Type validation happens at runtime - unknown types throw an error.
+      // This is by design: the message type comes from resolveMessageType()
+      // which extracts it from actual validated messages.
+      expectTypeOf(container.resolveHandler).parameter(0).toBeString()
+      expectTypeOf(container.resolveHandler).parameter(0).not.toEqualTypeOf<'user.created'>()
+    })
   })
 
   describe('MessageTypeResolverConfig', () => {
