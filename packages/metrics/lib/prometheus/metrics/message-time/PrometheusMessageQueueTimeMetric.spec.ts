@@ -207,7 +207,7 @@ describe('PrometheusMessageQueueTimeMetric', () => {
         processingResult: { status: 'consumed' },
         message: message,
         queueName,
-        messageTimestamp: Date.now(),
+        messageTimestamp: timestamp,
         messageProcessingStartTimestamp: timestamp + 53,
         messageProcessingEndTimestamp: timestamp,
       })
