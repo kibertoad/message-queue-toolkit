@@ -784,7 +784,11 @@ Dead Letter Queues capture messages that cannot be processed after multiple atte
 The library provides `AbstractPubSubDlqConsumer`, a convenience class for consuming messages from a DLQ topic. Unlike regular consumers that route messages by type, DLQ consumers accept any message structure since dead-lettered messages can come from various failed processing scenarios.
 
 ```typescript
-import { AbstractPubSubDlqConsumer, type DlqMessage } from '@message-queue-toolkit/gcp-pubsub'
+import {
+  AbstractPubSubDlqConsumer,
+  type DlqMessage,
+  DLQ_MESSAGE_TYPE  // 'dlq.message' - the message type used for all DLQ messages
+} from '@message-queue-toolkit/gcp-pubsub'
 
 class MyDlqConsumer extends AbstractPubSubDlqConsumer<MyContext> {
   constructor(dependencies: PubSubConsumerDependencies, context: MyContext) {
@@ -820,7 +824,7 @@ await dlqConsumer.start()
 ```
 
 **Key differences from AbstractPubSubConsumer:**
-- Does NOT require `messageTypeField` (accepts all message types)
+- Uses a literal message type resolver (`DLQ_MESSAGE_TYPE = 'dlq.message'`) - all messages are treated as the same type
 - Uses a passthrough schema that accepts any message with an `id` field
 - Simplified handler configuration (single handler for all messages)
 - The `DlqMessage` type includes `id: string` and passes through all other fields

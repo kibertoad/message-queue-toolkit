@@ -20,7 +20,6 @@ Core library for message-queue-toolkit. Provides foundational abstractions, util
   - [AbstractPublisherManager](#abstractpublishermanager)
   - [DomainEventEmitter](#domaineventemitter)
 - [Utilities](#utilities)
-  - [NO_MESSAGE_TYPE_FIELD](#no_message_type_field)
   - [Error Classes](#error-classes)
   - [Message Deduplication](#message-deduplication)
   - [Payload Offloading](#payload-offloading)
@@ -462,6 +461,56 @@ const handlers = new MessageHandlerConfigBuilder<
   .build()
 ```
 
+#### Handler Configuration Options
+
+The third parameter to `addConfig` accepts these options:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `messageType` | `string` | Explicit message type for routing. Required when using custom resolver. |
+| `messageLogFormatter` | `(message) => unknown` | Custom formatter for logging |
+| `preHandlers` | `Prehandler[]` | Middleware functions run before the handler |
+| `preHandlerBarrier` | `BarrierCallback` | Barrier function for out-of-order message handling |
+
+#### Explicit Message Type
+
+When using a custom resolver function (`messageTypeResolver: { resolver: fn }`), the message type cannot be automatically extracted from schemas at registration time. You must provide an explicit `messageType` for each handler:
+
+```typescript
+const handlers = new MessageHandlerConfigBuilder<SupportedMessages, Context>()
+  .addConfig(
+    STORAGE_OBJECT_SCHEMA,
+    handleObjectCreated,
+    { messageType: 'storage.object.created' }  // Required for custom resolver
+  )
+  .addConfig(
+    STORAGE_DELETE_SCHEMA,
+    handleObjectDeleted,
+    { messageType: 'storage.object.deleted' }  // Required for custom resolver
+  )
+  .build()
+
+const container = new HandlerContainer({
+  messageHandlers: handlers,
+  messageTypeResolver: {
+    resolver: ({ messageAttributes }) => {
+      // Map external event types to your internal types
+      const eventType = messageAttributes?.eventType as string
+      if (eventType === 'OBJECT_FINALIZE') return 'storage.object.created'
+      if (eventType === 'OBJECT_DELETE') return 'storage.object.deleted'
+      throw new Error(`Unknown event type: ${eventType}`)
+    },
+  },
+})
+```
+
+**Priority for determining handler message type:**
+1. Explicit `messageType` in handler options (highest priority)
+2. Literal type from `messageTypeResolver: { literal: 'type' }`
+3. Extract from schema's literal field using `messageTypePath`
+
+If the message type cannot be determined, an error is thrown during container construction.
+
 ### HandlerContainer
 
 Routes messages to appropriate handlers based on message type:
@@ -523,25 +572,6 @@ await emitter.emit('user.created', { userId: 'user-123' })
 ```
 
 ## Utilities
-
-### NO_MESSAGE_TYPE_FIELD
-
-Use this constant when your consumer should accept all message types without routing:
-
-```typescript
-import { NO_MESSAGE_TYPE_FIELD } from '@message-queue-toolkit/core'
-
-// Consumer will use a single handler for all messages
-{
-  messageTypeField: NO_MESSAGE_TYPE_FIELD,
-  handlers: new MessageHandlerConfigBuilder()
-    .addConfig(PassthroughSchema, async (message) => {
-      // Handles any message type
-      return { result: 'success' }
-    })
-    .build(),
-}
-```
 
 ### Error Classes
 

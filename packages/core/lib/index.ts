@@ -61,7 +61,6 @@ export {
   HandlerContainer,
   MessageHandlerConfig,
   MessageHandlerConfigBuilder,
-  NO_MESSAGE_TYPE_FIELD,
   type PrehandlerResult,
 } from './queues/HandlerContainer.ts'
 export {

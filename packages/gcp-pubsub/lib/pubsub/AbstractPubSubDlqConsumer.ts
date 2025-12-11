@@ -1,5 +1,5 @@
 import type { Either } from '@lokalise/node-core'
-import { MessageHandlerConfigBuilder, NO_MESSAGE_TYPE_FIELD } from '@message-queue-toolkit/core'
+import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import { z } from 'zod/v4'
 import {
   AbstractPubSubConsumer,
@@ -7,6 +7,11 @@ import {
   type PubSubConsumerOptions,
 } from './AbstractPubSubConsumer.ts'
 import type { PubSubCreationConfig, PubSubQueueLocatorType } from './AbstractPubSubService.ts'
+
+/**
+ * Message type used for DLQ consumers. All DLQ messages are treated as this type.
+ */
+export const DLQ_MESSAGE_TYPE = 'dlq.message'
 
 /**
  * Base schema for DLQ messages.
@@ -31,7 +36,7 @@ export type DlqMessageHandler<ExecutionContext> = (
 
 /**
  * Options for AbstractPubSubDlqConsumer.
- * Omits messageTypeField and handlers since DLQ consumers handle all message types uniformly.
+ * Omits messageTypeField, messageTypeResolver, and handlers since DLQ consumers handle all message types uniformly.
  */
 export type PubSubDlqConsumerOptions<
   ExecutionContext,
@@ -45,7 +50,7 @@ export type PubSubDlqConsumerOptions<
     CreationConfigType,
     QueueLocatorType
   >,
-  'messageTypeField' | 'handlers'
+  'messageTypeField' | 'messageTypeResolver' | 'handlers'
 > & {
   /**
    * Handler function to process DLQ messages.
@@ -111,9 +116,8 @@ export abstract class AbstractPubSubDlqConsumer<
       dependencies,
       {
         ...restOptions,
-        // NO_MESSAGE_TYPE_FIELD ensures all messages use the default handler
-        // for both schema storage and lookup, allowing a single handler for any message type
-        messageTypeField: NO_MESSAGE_TYPE_FIELD,
+        // Use literal resolver - all DLQ messages are treated as the same type
+        messageTypeResolver: { literal: DLQ_MESSAGE_TYPE },
         handlers: new MessageHandlerConfigBuilder<DlqMessage, ExecutionContext>()
           .addConfig(DLQ_MESSAGE_SCHEMA, (message, context) => handler(message, context))
           .build(),
