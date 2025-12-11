@@ -43,14 +43,7 @@ describe('PubSubPermissionConsumer - Deduplication', () => {
   })
 
   async function cleanRedis() {
-    const keys = await redis.keys('*consumer*')
-    if (keys.length > 0) {
-      await redis.del(...keys)
-    }
-    const mutexKeys = await redis.keys('*mutex*')
-    if (mutexKeys.length > 0) {
-      await redis.del(...mutexKeys)
-    }
+    await redis.flushAll()
   }
 
   describe('consumer deduplication', () => {

@@ -12,27 +12,6 @@ describe('PubSubPermissionConsumer - Subscription Retry', () => {
   const TOPIC_NAME = 'user_permissions_retry_test'
   const SUBSCRIPTION_NAME = 'user_permissions_retry_test_sub'
 
-  // Unit tests that don't require infrastructure
-  describe('exponential backoff calculation', () => {
-    it('calculates correct delays for each attempt', () => {
-      // Test the exponential backoff formula: min(baseDelay * 2^(attempt-1), maxDelay)
-      const baseDelay = 1000
-      const maxDelay = 30000
-
-      const calculateDelay = (attempt: number) =>
-        Math.min(baseDelay * Math.pow(2, attempt - 1), maxDelay)
-
-      expect(calculateDelay(1)).toBe(1000) // 1000 * 2^0 = 1000
-      expect(calculateDelay(2)).toBe(2000) // 1000 * 2^1 = 2000
-      expect(calculateDelay(3)).toBe(4000) // 1000 * 2^2 = 4000
-      expect(calculateDelay(4)).toBe(8000) // 1000 * 2^3 = 8000
-      expect(calculateDelay(5)).toBe(16000) // 1000 * 2^4 = 16000
-      expect(calculateDelay(6)).toBe(30000) // 1000 * 2^5 = 32000, capped at 30000
-      expect(calculateDelay(10)).toBe(30000) // Any higher attempt is capped
-    })
-  })
-
-  // Integration tests that require PubSub emulator and Redis
   describe('subscriptionRetryOptions configuration', () => {
     let diContainer: AwilixContainer<Dependencies>
     let pubSubClient: PubSub
