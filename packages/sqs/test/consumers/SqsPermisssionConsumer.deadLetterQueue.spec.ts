@@ -29,6 +29,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
   let sqsClient: SQSClient
   let permissionPublisher: SqsPermissionPublisher
   let consumer: SqsPermissionConsumer | undefined
+  let dlqConsumer: Consumer | undefined
 
   beforeAll(async () => {
     diContainer = await registerDependencies()
@@ -43,6 +44,9 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
 
   afterEach(async () => {
     await consumer?.close()
+    dlqConsumer?.stop()
+    dlqConsumer = undefined
+    consumer = undefined
   })
 
   afterAll(async () => {
@@ -260,7 +264,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       await consumer.start()
 
       let dlqMessage: any
-      const dlqConsumer = Consumer.create({
+      dlqConsumer = Consumer.create({
         sqs: diContainer.cradle.sqsClient,
         queueUrl: consumer.dlqUrl,
         handleMessage: (message: SQSMessage) => {
@@ -351,7 +355,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       await consumer.start()
 
       let dlqMessage: any
-      const dlqConsumer = Consumer.create({
+      dlqConsumer = Consumer.create({
         sqs: diContainer.cradle.sqsClient,
         queueUrl: consumer.dlqUrl,
         handleMessage: (message: SQSMessage) => {
@@ -393,7 +397,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       await consumer.start()
 
       let dlqMessage: any
-      const dlqConsumer = Consumer.create({
+      dlqConsumer = Consumer.create({
         sqs: diContainer.cradle.sqsClient,
         queueUrl: consumer.dlqUrl,
         handleMessage: (message: SQSMessage) => {
@@ -423,8 +427,6 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
         timestamp: message.timestamp,
         _internalRetryLaterCount: 1,
       })
-
-      dlqConsumer.stop()
     })
 
     it('messages stuck on handler', async () => {
@@ -444,7 +446,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       await consumer.start()
 
       let dlqMessage: any
-      const dlqConsumer = Consumer.create({
+      dlqConsumer = Consumer.create({
         sqs: diContainer.cradle.sqsClient,
         queueUrl: consumer.dlqUrl,
         handleMessage: (message: SQSMessage) => {

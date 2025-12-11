@@ -5,7 +5,7 @@ import type { STSClient } from '@aws-sdk/client-sts'
 import { waitAndRetry } from '@lokalise/node-core'
 import type {
   OffloadedPayloadPointerPayload,
-  PayloadStoreConfig,
+  SinglePayloadStoreConfig,
 } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import {
@@ -28,7 +28,7 @@ import { SnsPermissionPublisher } from './SnsPermissionPublisher.ts'
 
 const queueName = 'payloadOffloadingTestQueue'
 
-describe('SnsPermissionPublisher', () => {
+describe('SnsPermissionPublisher - single-store payload offloading', () => {
   describe('publish', () => {
     const largeMessageSizeThreshold = 1024 // Messages larger than 1KB shall be offloaded
     const s3BucketName = 'payload-offloading-test-bucket'
@@ -39,7 +39,7 @@ describe('SnsPermissionPublisher', () => {
     let stsClient: STSClient
     let s3: S3
 
-    let payloadStoreConfig: PayloadStoreConfig
+    let payloadStoreConfig: SinglePayloadStoreConfig
     let publisher: SnsPermissionPublisher
     let consumer: Consumer
     let receivedSnsMessages: Message[]
@@ -60,6 +60,7 @@ describe('SnsPermissionPublisher', () => {
         store: new S3PayloadStore(diContainer.cradle, {
           bucketName: s3BucketName,
         }),
+        storeName: 's3',
       }
     })
 
@@ -133,22 +134,30 @@ describe('SnsPermissionPublisher', () => {
       )
       expect(snsMessageBodyParseResult.success).toBe(true)
 
-      const parsedSqsMessage = JSON.parse(snsMessageBodyParseResult.data!.Message)
-      expect(parsedSqsMessage).toMatchObject({
-        offloadedPayloadPointer: expect.any(String),
-        offloadedPayloadSize: expect.any(Number), //The actual size of the offloaded message is larger than JSON.stringify(message) because of the additional metadata (timestamp, retry count) that is added internally.
+      const parsedSnsMessage = JSON.parse(
+        snsMessageBodyParseResult.data!.Message,
+      ) as OffloadedPayloadPointerPayload
+
+      // Check that message contains new payloadRef format
+      expect(parsedSnsMessage.payloadRef).toBeDefined()
+      expect(parsedSnsMessage.payloadRef).toMatchObject({
+        id: expect.any(String),
+        store: 's3', // Matches the configured storeName
+        size: expect.any(Number),
       })
 
-      // Check that the published message had offloaded payload indicator.
+      // Check that legacy fields are also present for backward compatibility
+      expect(parsedSnsMessage.offloadedPayloadPointer).toBe(parsedSnsMessage.payloadRef!.id)
+      expect(parsedSnsMessage.offloadedPayloadSize).toBe(parsedSnsMessage.payloadRef!.size)
+
+      // Check that the published message had offloaded payload indicator
       const receivedMessageAttributes = snsMessageBodyParseResult.data!.MessageAttributes
       expect(receivedMessageAttributes).toBeDefined()
       expect(receivedMessageAttributes![OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE]).toBeDefined()
 
-      // Make sure the payload was offloaded to the S3 bucket.
-      const offloadedPayloadPointer = (parsedSqsMessage as OffloadedPayloadPointerPayload)
-        .offloadedPayloadPointer
+      // Make sure the payload was offloaded to the S3 bucket
       await expect(
-        getObjectContent(s3, s3BucketName, offloadedPayloadPointer),
+        getObjectContent(s3, s3BucketName, parsedSnsMessage.payloadRef!.id),
       ).resolves.toBeDefined()
     })
   })

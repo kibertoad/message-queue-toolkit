@@ -211,15 +211,26 @@ export abstract class AbstractKafkaConsumer<
       )
       this.messageBatchStream.on('error', (error) => this.handlerError(error))
     } else {
-      this.consumerStream.on('data', (message) =>
-        this.consume(
-          message.topic,
-          message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
-        ),
-      )
+      // biome-ignore lint/style/noNonNullAssertion: consumerStream is always created
+      const stream = this.consumerStream!
+
+      // we are not waiting for the stream to complete
+      // because init() must return promised void
+      this.handleSyncStream(stream).catch((error) => this.handlerError(error))
     }
 
     this.consumerStream.on('error', (error) => this.handlerError(error))
+  }
+
+  private async handleSyncStream(
+    stream: MessagesStream<string, object, string, string>,
+  ): Promise<void> {
+    for await (const message of stream) {
+      await this.consume(
+        message.topic,
+        message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
+      )
+    }
   }
 
   async close(): Promise<void> {
@@ -251,6 +262,7 @@ export abstract class AbstractKafkaConsumer<
     messageOrBatch: MessageOrBatch<SupportedMessageValues<TopicsConfig>>,
   ): Promise<void> {
     const messageProcessingStartTimestamp = Date.now()
+    this.logger.debug({ origin: this.constructor.name, topic }, 'Consuming message(s)')
 
     const handlerConfig = this.resolveHandler(topic)
 
@@ -264,12 +276,17 @@ export abstract class AbstractKafkaConsumer<
     )
 
     if (!validMessages.length) {
+      this.logger.debug({ origin: this.constructor.name, topic }, 'Received not valid message(s)')
       return this.commit(messageOrBatch)
+    } else {
+      this.logger.debug(
+        { origin: this.constructor.name, topic, validMessagesCount: validMessages.length },
+        'Received valid message(s) to process',
+      )
     }
 
     // biome-ignore lint/style/noNonNullAssertion: we check validMessages length above
     const firstMessage = validMessages[0]!
-
     const requestContext = this.getRequestContext(firstMessage)
 
     /* v8 ignore next */

@@ -1,5 +1,5 @@
 import type { S3 } from '@aws-sdk/client-s3'
-import type { PayloadStoreConfig } from '@message-queue-toolkit/core'
+import type { SinglePayloadStoreConfig } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import { deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
@@ -14,14 +14,14 @@ import { registerDependencies } from '../utils/testContext.ts'
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer.ts'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas.ts'
 
-describe('SnsSqsPermissionConsumer', () => {
+describe('SnsSqsPermissionConsumer - single-store payload offloading', () => {
   describe('consume', () => {
     const largeMessageSizeThreshold = SNS_MESSAGE_MAX_SIZE
     const s3BucketName = 'test-bucket'
 
     let diContainer: AwilixContainer<Dependencies>
     let s3: S3
-    let payloadStoreConfig: PayloadStoreConfig
+    let payloadStoreConfig: SinglePayloadStoreConfig
 
     let publisher: SnsPermissionPublisher
     let consumer: SnsSqsPermissionConsumer
@@ -39,6 +39,7 @@ describe('SnsSqsPermissionConsumer', () => {
         store: new S3PayloadStore(diContainer.cradle, {
           bucketName: s3BucketName,
         }),
+        storeName: 's3',
       }
     })
 
@@ -92,6 +93,6 @@ describe('SnsSqsPermissionConsumer', () => {
         'consumed',
       )
       expect(consumptionResult.message).toMatchObject(message)
-    })
+    }, 15000)
   })
 })

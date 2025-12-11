@@ -129,6 +129,43 @@ export class MessageHandlerConfigBuilder<
     this.configs = []
   }
 
+  /**
+   * Add a handler configuration for a specific message type.
+   * The schema is used for both routing (to match the message type) and validation (for the handler).
+   *
+   * The message type field (e.g., 'type' or 'detail-type') must be at the root level of the message
+   * and must be a literal value in the schema for routing to work.
+   *
+   * Example:
+   * ```typescript
+   * const USER_CREATED_SCHEMA = z.object({
+   *   type: z.literal('user.created'),
+   *   userId: z.string(),
+   *   email: z.string()
+   * })
+   *
+   * builder.addConfig(USER_CREATED_SCHEMA, async (message) => {
+   *   // message has type 'user.created', userId, and email
+   * })
+   * ```
+   *
+   * EventBridge example:
+   * ```typescript
+   * const USER_PRESENCE_SCHEMA = z.object({
+   *   'detail-type': z.literal('v2.users.{id}.presence'),
+   *   time: z.string(),
+   *   detail: z.object({
+   *     userId: z.string(),
+   *     presenceStatus: z.string()
+   *   })
+   * })
+   *
+   * builder.addConfig(USER_PRESENCE_SCHEMA, async (message) => {
+   *   // message is the full EventBridge envelope
+   *   const detail = message.detail  // Access nested payload directly
+   * })
+   * ```
+   */
   addConfig<MessagePayloadSchema extends MessagePayloadSchemas, const BarrierOutput>(
     schema: ZodSchema<MessagePayloadSchema> | CommonEventDefinition,
     handler: Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>,
@@ -138,8 +175,8 @@ export class MessageHandlerConfigBuilder<
       PrehandlerOutput,
       BarrierOutput
     >,
-  ) {
-    const resolvedSchema: ZodSchema<MessagePayloadSchema> = isCommonEventDefinition(schema)
+  ): this {
+    const payloadSchema = isCommonEventDefinition(schema)
       ? // @ts-ignore
         (schema.consumerSchema as ZodSchema<MessagePayloadSchema>)
       : schema
@@ -152,7 +189,7 @@ export class MessageHandlerConfigBuilder<
         PrehandlerOutput,
         BarrierOutput
       >(
-        resolvedSchema,
+        payloadSchema,
         // @ts-expect-error
         handler,
         options,
@@ -188,6 +225,15 @@ export type HandlerContainerOptions<
   messageTypeField: string
 }
 
+/**
+ * Use this constant as `messageTypeField` value when your consumer should accept
+ * all message types without routing by type. When used, a single handler will
+ * process all incoming messages regardless of their type field value.
+ */
+export const NO_MESSAGE_TYPE_FIELD = ''
+
+const DEFAULT_HANDLER_KEY = 'NO_MESSAGE_TYPE'
+
 export class HandlerContainer<
   MessagePayloadSchemas extends object,
   ExecutionContext,
@@ -206,17 +252,23 @@ export class HandlerContainer<
     this.messageHandlers = this.resolveHandlerMap(options.messageHandlers)
   }
 
+  /**
+   * Resolves a handler for the given message type.
+   * When messageTypeField is NO_MESSAGE_TYPE_FIELD (empty string), pass undefined as messageType
+   * to get the default handler.
+   */
   public resolveHandler<PrehandlerOutput = undefined, BarrierOutput = undefined>(
-    messageType: string,
+    messageType: string | undefined,
   ): MessageHandlerConfig<
     MessagePayloadSchemas,
     ExecutionContext,
     PrehandlerOutput,
     BarrierOutput
   > {
-    const handler = this.messageHandlers[messageType]
+    const handlerKey = messageType ?? DEFAULT_HANDLER_KEY
+    const handler = this.messageHandlers[handlerKey]
     if (!handler) {
-      throw new Error(`Unsupported message type: ${messageType}`)
+      throw new Error(`Unsupported message type: ${handlerKey}`)
     }
     // @ts-expect-error
     return handler
@@ -234,9 +286,15 @@ export class HandlerContainer<
   > {
     return supportedHandlers.reduce(
       (acc, entry) => {
-        // @ts-expect-error
-        const messageType = entry.schema.shape[this.messageTypeField].value
-        acc[messageType] = entry
+        // When messageTypeField is empty (NO_MESSAGE_TYPE_FIELD), use DEFAULT_HANDLER_KEY
+        // This allows a single handler to process all message types
+        let messageType: string | undefined
+        if (this.messageTypeField) {
+          // @ts-expect-error
+          messageType = entry.schema.shape[this.messageTypeField]?.value
+        }
+        const handlerKey = messageType ?? DEFAULT_HANDLER_KEY
+        acc[handlerKey] = entry
         return acc
       },
       {} as Record<

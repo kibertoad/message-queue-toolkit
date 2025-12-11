@@ -8,5 +8,12 @@
     ],
     "files": {
         "includes": ["**", "!.turbo", "!**/dist", "!**/coverage"]
+    },
+  "linter": {
+    "rules": {
+      "correctness": {
+        "noUnusedPrivateClassMembers": "off"
+      }
     }
+  }
 }

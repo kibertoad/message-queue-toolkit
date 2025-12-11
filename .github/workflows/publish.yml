@@ -1,0 +1,295 @@
+name: Publish to npm
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+jobs:
+  detect-changes:
+    if: github.event.pull_request.merged == true && (contains(github.event.pull_request.labels.*.name, 'patch') || contains(github.event.pull_request.labels.*.name, 'minor') || contains(github.event.pull_request.labels.*.name, 'major'))
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+      has_changes: ${{ steps.build-matrix.outputs.has_changes }}
+      bump: ${{ steps.version.outputs.bump }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Determine version bump
+        id: version
+        run: |
+          if ${{ contains(github.event.pull_request.labels.*.name, 'major') }}; then
+            echo "bump=major" >> $GITHUB_OUTPUT
+            echo "Version bump: major"
+          elif ${{ contains(github.event.pull_request.labels.*.name, 'minor') }}; then
+            echo "bump=minor" >> $GITHUB_OUTPUT
+            echo "Version bump: minor"
+          else
+            echo "bump=patch" >> $GITHUB_OUTPUT
+            echo "Version bump: patch"
+          fi
+
+      - name: Debug PR info
+        run: |
+          echo "PR base SHA: ${{ github.event.pull_request.base.sha }}"
+          echo "PR head SHA: ${{ github.event.pull_request.head.sha }}"
+          echo "Comparing changes between these commits..."
+          echo ""
+          echo "Files changed in PR:"
+          git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} || echo "git diff failed"
+
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          base: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          filters: |
+            pkg_core:
+              - 'packages/core/lib/**'
+              - 'packages/core/package.json'
+              - 'packages/core/README.md'
+            pkg_amqp:
+              - 'packages/amqp/lib/**'
+              - 'packages/amqp/package.json'
+              - 'packages/amqp/README.md'
+            pkg_sqs:
+              - 'packages/sqs/lib/**'
+              - 'packages/sqs/package.json'
+              - 'packages/sqs/README.md'
+            pkg_sns:
+              - 'packages/sns/lib/**'
+              - 'packages/sns/package.json'
+              - 'packages/sns/README.md'
+            pkg_kafka:
+              - 'packages/kafka/lib/**'
+              - 'packages/kafka/package.json'
+              - 'packages/kafka/README.md'
+            pkg_gcp_pubsub:
+              - 'packages/gcp-pubsub/lib/**'
+              - 'packages/gcp-pubsub/package.json'
+              - 'packages/gcp-pubsub/README.md'
+            pkg_gcs_payload_store:
+              - 'packages/gcs-payload-store/lib/**'
+              - 'packages/gcs-payload-store/package.json'
+              - 'packages/gcs-payload-store/README.md'
+            pkg_s3_payload_store:
+              - 'packages/s3-payload-store/lib/**'
+              - 'packages/s3-payload-store/package.json'
+              - 'packages/s3-payload-store/README.md'
+            pkg_metrics:
+              - 'packages/metrics/lib/**'
+              - 'packages/metrics/package.json'
+              - 'packages/metrics/README.md'
+            pkg_outbox_core:
+              - 'packages/outbox-core/lib/**'
+              - 'packages/outbox-core/package.json'
+              - 'packages/outbox-core/README.md'
+            pkg_redis_message_deduplication_store:
+              - 'packages/redis-message-deduplication-store/lib/**'
+              - 'packages/redis-message-deduplication-store/package.json'
+              - 'packages/redis-message-deduplication-store/README.md'
+            pkg_schemas:
+              - 'packages/schemas/lib/**'
+              - 'packages/schemas/package.json'
+              - 'packages/schemas/README.md'
+
+      - name: Build dynamic matrix
+        id: build-matrix
+        run: |
+          # Package mapping: filterKey -> name, npmName
+          declare -A PKG_NAMES=(
+            ["pkg_core"]="core"
+            ["pkg_amqp"]="amqp"
+            ["pkg_sqs"]="sqs"
+            ["pkg_sns"]="sns"
+            ["pkg_kafka"]="kafka"
+            ["pkg_gcp_pubsub"]="gcp-pubsub"
+            ["pkg_gcs_payload_store"]="gcs-payload-store"
+            ["pkg_s3_payload_store"]="s3-payload-store"
+            ["pkg_metrics"]="metrics"
+            ["pkg_outbox_core"]="outbox-core"
+            ["pkg_redis_message_deduplication_store"]="redis-message-deduplication-store"
+            ["pkg_schemas"]="schemas"
+          )
+
+          CHANGED='${{ steps.filter.outputs.changes }}'
+          echo "Changed filters: $CHANGED"
+
+          # Build matrix JSON array
+          MATRIX="["
+          FIRST=true
+
+          for key in "${!PKG_NAMES[@]}"; do
+            if echo "$CHANGED" | grep -q "\"$key\""; then
+              NAME="${PKG_NAMES[$key]}"
+              NPM_NAME="@message-queue-toolkit/${NAME}"
+
+              if [ "$FIRST" = true ]; then
+                FIRST=false
+              else
+                MATRIX+=","
+              fi
+
+              MATRIX+="{\"name\":\"${NAME}\",\"npmName\":\"${NPM_NAME}\"}"
+            fi
+          done
+
+          MATRIX+="]"
+
+          echo "Generated matrix: $MATRIX"
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+          if [ "$MATRIX" = "[]" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+  bump-versions:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          package-manager-cache: false
+
+      - name: Bump versions for changed packages
+        env:
+          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
+          BUMP: ${{ needs.detect-changes.outputs.bump }}
+        run: |
+          echo "Packages to bump: $MATRIX"
+          echo "Version bump type: $BUMP"
+
+          # Parse matrix JSON and bump each package
+          echo "$MATRIX" | jq -r '.[] | .name' | while read -r PKG_NAME; do
+            echo "Bumping version for $PKG_NAME..."
+            cd "packages/$PKG_NAME"
+            OLD_VERSION=$(node -p "require('./package.json').version")
+            npm version "$BUMP" --no-git-tag-version
+            NEW_VERSION=$(node -p "require('./package.json').version")
+            echo "  $OLD_VERSION -> $NEW_VERSION"
+            cd ../..
+          done
+
+      - name: Commit and push version changes
+        run: |
+          git add packages/*/package.json
+          if git diff --staged --quiet; then
+            echo "No version changes to commit"
+          else
+            git commit -m "chore: bump versions [skip ci]"
+            git push
+          fi
+
+  publish:
+    needs: [detect-changes, bump-versions]
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+
+    concurrency:
+      group: publish-${{ matrix.package.name }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+
+      - name: Get version
+        id: version
+        working-directory: packages/${{ matrix.package.name }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing ${{ matrix.package.npmName }}@$VERSION"
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      - name: Build package
+        run: npm run build -- --filter=${{ matrix.package.npmName }}
+
+      - name: Publish to npm
+        working-directory: packages/${{ matrix.package.name }}
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "### Published ${{ matrix.package.npmName }}@${{ steps.version.outputs.version }} :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View on npm](https://www.npmjs.com/package/${{ matrix.package.npmName }})" >> $GITHUB_STEP_SUMMARY
+
+  create-tags:
+    needs: [detect-changes, bump-versions, publish]
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create tags for published packages
+        env:
+          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
+        run: |
+          echo "$MATRIX" | jq -r '.[] | .name' | while read -r PKG_NAME; do
+            VERSION=$(node -p "require('./packages/$PKG_NAME/package.json').version")
+            TAG="@message-queue-toolkit/${PKG_NAME}@${VERSION}"
+            echo "Creating tag: $TAG"
+            git tag "$TAG" || echo "Tag $TAG already exists"
+          done
+
+      - name: Push tags
+        run: git push --tags

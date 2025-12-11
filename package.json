@@ -8,14 +8,14 @@
         "lint:fix": "turbo run lint:fix --continue",
         "test:ci": "turbo run test:coverage",
         "clean": "turbo run clean",
-        "docker:start": "docker compose up -d",
+        "docker:start": "docker compose up -d --quiet-pull --wait",
         "docker:stop": "docker compose down",
         "docker:start:ci": "turbo run docker:start",
         "docker:stop:ci": "turbo run docker:stop"
     },
     "dependencies": {},
     "devDependencies": {
-        "turbo": "^2.3.4"
+        "turbo": "^2.6.2"
     },
     "packageManager": "npm@10.7.0"
 }

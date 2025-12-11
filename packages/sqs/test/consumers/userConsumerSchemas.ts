@@ -14,6 +14,7 @@ export const PERMISSIONS_MESSAGE_SCHEMA = z.object({
 export const PERMISSIONS_ADD_MESSAGE_SCHEMA = z.object({
   id: z.string(),
   messageType: z.literal('add'),
+  userIds: z.string().optional(), // Optional field for FIFO MessageGroupId
   timestamp: z.string().optional(),
   metadata: z.record(z.string(), z.any()).optional(),
   deduplicationId: z.string().optional(),

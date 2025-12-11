@@ -1,0 +1,200 @@
+import { describe, expect, it } from 'vitest'
+import z from 'zod/v4'
+
+import {
+  HandlerContainer,
+  MessageHandlerConfig,
+  MessageHandlerConfigBuilder,
+} from '../../lib/queues/HandlerContainer.ts'
+
+// Test message types
+type UserMessage = {
+  type: 'user.created'
+  userId: string
+  email: string
+}
+
+type OrderMessage = {
+  type: 'order.placed'
+  orderId: string
+  amount: number
+}
+
+type SupportedMessages = UserMessage | OrderMessage
+
+// Test context
+type TestContext = {
+  processedMessages: unknown[]
+}
+
+// Test schemas
+const USER_MESSAGE_SCHEMA = z.object({
+  type: z.literal('user.created'),
+  userId: z.string(),
+  email: z.string(),
+})
+
+const ORDER_MESSAGE_SCHEMA = z.object({
+  type: z.literal('order.placed'),
+  orderId: z.string(),
+  amount: z.number(),
+})
+
+describe('MessageHandlerConfigBuilder', () => {
+  describe('2-param addConfig (backward compatible)', () => {
+    it('should build configs with schema used for both routing and validation', () => {
+      const builder = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+
+      const configs = builder
+        .addConfig(USER_MESSAGE_SCHEMA, (message, context) => {
+          context.processedMessages.push(message)
+          return Promise.resolve({ result: 'success' as const })
+        })
+        .addConfig(ORDER_MESSAGE_SCHEMA, (message, context) => {
+          context.processedMessages.push(message)
+          return Promise.resolve({ result: 'success' as const })
+        })
+        .build()
+
+      expect(configs).toHaveLength(2)
+      expect(configs[0]?.schema).toBe(USER_MESSAGE_SCHEMA)
+      expect(configs[1]?.schema).toBe(ORDER_MESSAGE_SCHEMA)
+    })
+
+    it('should build configs with options', () => {
+      const builder = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+
+      const messageLogFormatter = (message: UserMessage) => ({
+        userId: message.userId,
+      })
+
+      const configs = builder
+        .addConfig(
+          USER_MESSAGE_SCHEMA,
+          (message, context) => {
+            context.processedMessages.push(message)
+            return Promise.resolve({ result: 'success' as const })
+          },
+          {
+            messageLogFormatter,
+          },
+        )
+        .build()
+
+      expect(configs).toHaveLength(1)
+      expect(configs[0]?.messageLogFormatter).toBe(messageLogFormatter)
+    })
+  })
+
+  describe('MessageHandlerConfig', () => {
+    it('should create config with all properties', () => {
+      const handler = () => Promise.resolve({ result: 'success' as const })
+      const messageLogFormatter = (message: UserMessage) => ({ userId: message.userId })
+
+      const config = new MessageHandlerConfig(
+        USER_MESSAGE_SCHEMA,
+        handler,
+        {
+          messageLogFormatter,
+          preHandlers: [],
+        },
+        undefined,
+      )
+
+      expect(config.schema).toBe(USER_MESSAGE_SCHEMA)
+      expect(config.handler).toBe(handler)
+      expect(config.messageLogFormatter).toBe(messageLogFormatter)
+      expect(config.preHandlers).toEqual([])
+    })
+
+    it('should use default log formatter when not provided', () => {
+      const handler = () => Promise.resolve({ result: 'success' as const })
+
+      const config = new MessageHandlerConfig(USER_MESSAGE_SCHEMA, handler)
+
+      const testMessage: UserMessage = {
+        type: 'user.created',
+        userId: '123',
+        email: 'test@example.com',
+      }
+
+      expect(config.messageLogFormatter(testMessage)).toEqual(testMessage)
+    })
+  })
+})
+
+describe('HandlerContainer', () => {
+  describe('routing with 2-param configs (no envelope schema)', () => {
+    it('should route messages using payload schema', () => {
+      const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+        .addConfig(USER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }))
+        .addConfig(ORDER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }))
+        .build()
+
+      const container = new HandlerContainer({
+        messageHandlers: configs,
+        messageTypeField: 'type',
+      })
+
+      const userHandler = container.resolveHandler('user.created')
+      const orderHandler = container.resolveHandler('order.placed')
+
+      expect(userHandler.schema).toBe(USER_MESSAGE_SCHEMA)
+      expect(orderHandler.schema).toBe(ORDER_MESSAGE_SCHEMA)
+    })
+
+    it('should throw error for unsupported message type', () => {
+      const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+        .addConfig(USER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }))
+        .build()
+
+      const container = new HandlerContainer({
+        messageHandlers: configs,
+        messageTypeField: 'type',
+      })
+
+      expect(() => container.resolveHandler('unknown.type')).toThrow(
+        'Unsupported message type: unknown.type',
+      )
+    })
+  })
+
+  describe('handler execution', () => {
+    it('should execute handler with correct context', async () => {
+      const context: TestContext = {
+        processedMessages: [],
+      }
+
+      const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+        .addConfig(USER_MESSAGE_SCHEMA, (message, ctx) => {
+          ctx.processedMessages.push(message)
+          return Promise.resolve({ result: 'success' as const })
+        })
+        .build()
+
+      const container = new HandlerContainer({
+        messageHandlers: configs,
+        messageTypeField: 'type',
+      })
+
+      const handler = container.resolveHandler('user.created')
+
+      const testMessage: UserMessage = {
+        type: 'user.created',
+        userId: '123',
+        email: 'test@example.com',
+      }
+
+      const result = await handler.handler(
+        testMessage,
+        context,
+        { preHandlerOutput: undefined, barrierOutput: undefined },
+        undefined,
+      )
+
+      expect(result).toEqual({ result: 'success' })
+      expect(context.processedMessages).toHaveLength(1)
+      expect(context.processedMessages[0]).toEqual(testMessage)
+    })
+  })
+})
