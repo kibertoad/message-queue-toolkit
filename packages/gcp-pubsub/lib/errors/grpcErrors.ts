@@ -33,18 +33,29 @@ export type RetryableGrpcStatusCode = (typeof RETRYABLE_GRPC_STATUS_CODES)[numbe
 const RETRYABLE_CODES_SET = new Set<number>(RETRYABLE_GRPC_STATUS_CODES)
 
 /**
- * Type for errors with a numeric gRPC status code.
+ * Type for errors with a numeric gRPC status code and message.
  */
-export type GrpcError = Error & { code: number }
+export type GrpcError = {
+  code: number
+  message: string
+}
 
 /**
- * Checks if an error has a gRPC status code property.
+ * Checks if an error has gRPC error properties (code and message).
+ * Uses duck typing to avoid fragile instanceof checks.
  *
  * @param error - The error to check
- * @returns true if the error has a numeric `code` property
+ * @returns true if the error has numeric `code` and string `message` properties
  */
 export function isGrpcError(error: unknown): error is GrpcError {
-  return error instanceof Error && 'code' in error && typeof (error as GrpcError).code === 'number'
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    'message' in error &&
+    typeof (error as GrpcError).code === 'number' &&
+    typeof (error as GrpcError).message === 'string'
+  )
 }
 
 /**
