@@ -73,11 +73,23 @@ type UserCreated = z.infer<typeof UserCreatedSchema>
 
 ### Message Type Resolution
 
-The library supports flexible message type resolution through two configuration options:
+#### What is Message Type?
 
-#### Option 1: `messageTypeField` (Simple)
+The **message type** is a discriminator field that identifies what kind of event or command a message represents. It's used for:
 
-Use when the message type is a field at the root level of the message data:
+1. **Routing**: Directing messages to the appropriate handler based on their type
+2. **Schema validation**: Selecting the correct Zod schema to validate the message
+3. **Observability**: Tracking metrics and logs per message type
+
+In a typical event-driven architecture, a single queue or topic may receive multiple types of messages. For example, a `user-events` queue might receive `user.created`, `user.updated`, and `user.deleted` events. The message type tells the consumer which handler should process each message.
+
+#### Configuration Options
+
+The library supports two configuration approaches:
+
+##### Option 1: `messageTypeField` (Simple)
+
+Use when the message type is a field at the root level of the parsed message body:
 
 ```typescript
 {
@@ -85,75 +97,273 @@ Use when the message type is a field at the root level of the message data:
 }
 ```
 
-#### Option 2: `messageTypeResolver` (Flexible)
+##### Option 2: `messageTypeResolver` (Flexible)
 
-Use for more complex scenarios like extracting type from message attributes, nested fields, or when all messages are of the same type.
-
-**Literal Type (Constant)**
-
-When all messages in a queue/subscription are of the same type:
+Use for complex scenarios where the type needs to be extracted from message attributes, nested fields, requires transformation, or when all messages are of the same type.
 
 ```typescript
 import type { MessageTypeResolverConfig } from '@message-queue-toolkit/core'
 
-const config: MessageTypeResolverConfig = {
-  literal: 'order.created',  // All messages treated as this type
+// Literal: All messages treated as the same type
+const literalConfig: MessageTypeResolverConfig = {
+  literal: 'order.created',
 }
-```
 
-**Field Path**
-
-Equivalent to `messageTypeField`, extracts from a root-level field:
-
-```typescript
-const config: MessageTypeResolverConfig = {
-  messageTypePath: 'type',  // Same as messageTypeField: 'type'
+// Field path: Extract from a root-level field (equivalent to messageTypeField)
+const pathConfig: MessageTypeResolverConfig = {
+  messageTypePath: 'type',
 }
-```
 
-**Custom Resolver Function**
-
-For complex scenarios like Google Cloud Storage notifications via Pub/Sub where the event type is in message attributes:
-
-```typescript
-const config: MessageTypeResolverConfig = {
+// Custom resolver: Full flexibility
+const resolverConfig: MessageTypeResolverConfig = {
   resolver: ({ messageData, messageAttributes }) => {
-    // Extract from Pub/Sub message attributes
-    const eventType = messageAttributes?.eventType as string | undefined
-    if (!eventType) {
-      throw new Error('eventType attribute is required')
-    }
-
-    // Optionally map to internal event types
-    if (eventType === 'OBJECT_FINALIZE') return 'storage.object.created'
-    if (eventType === 'OBJECT_DELETE') return 'storage.object.deleted'
-    return eventType
-  },
-}
-```
-
-**CloudEvents Format**
-
-For CloudEvents binary mode where type might be in headers/attributes:
-
-```typescript
-const config: MessageTypeResolverConfig = {
-  resolver: ({ messageData, messageAttributes }) => {
-    // Check for CloudEvents binary mode (type in attributes)
-    if (messageAttributes?.['ce-type']) {
-      return messageAttributes['ce-type'] as string
-    }
-    // Fall back to type in message data
-    const data = messageData as { type?: string }
-    if (!data.type) {
-      throw new Error('Message type not found')
-    }
-    return data.type
+    // Your custom logic here
+    return 'resolved.type'
   },
 }
 ```
 
 **Important:** The resolver function must always return a valid string. If the type cannot be determined, either return a default type or throw an error with a descriptive message.
+
+#### Real-World Examples by Platform
+
+##### AWS SQS (Plain)
+
+When publishing your own events directly to SQS, you control the message format:
+
+```typescript
+// Message format you control
+{
+  "id": "msg-123",
+  "type": "order.created",  // Your type field
+  "timestamp": "2024-01-15T10:30:00Z",
+  "payload": {
+    "orderId": "order-456",
+    "amount": 99.99
+  }
+}
+
+// Configuration
+{
+  messageTypeField: 'type',
+}
+```
+
+##### AWS EventBridge → SQS
+
+EventBridge events have a specific structure with `detail-type`:
+
+```typescript
+// EventBridge event structure delivered to SQS
+{
+  "version": "0",
+  "id": "12345678-1234-1234-1234-123456789012",
+  "detail-type": "Order Created",  // EventBridge uses detail-type
+  "source": "com.myapp.orders",
+  "account": "123456789012",
+  "time": "2024-01-15T10:30:00Z",
+  "region": "us-east-1",
+  "detail": {
+    "orderId": "order-456",
+    "amount": 99.99
+  }
+}
+
+// Configuration
+{
+  messageTypeField: 'detail-type',
+}
+
+// Or with resolver for normalization
+{
+  messageTypeResolver: {
+    resolver: ({ messageData }) => {
+      const data = messageData as { 'detail-type'?: string; source?: string }
+      const detailType = data['detail-type']
+      if (!detailType) throw new Error('detail-type is required')
+      // Optionally normalize: "Order Created" → "order.created"
+      return detailType.toLowerCase().replace(/ /g, '.')
+    },
+  },
+}
+```
+
+##### AWS SNS → SQS
+
+SNS messages wrapped in SQS have the actual payload in the `Message` field (handled automatically by the library after unwrapping):
+
+```typescript
+// After SNS envelope unwrapping, you get your original message
+{
+  "id": "msg-123",
+  "type": "user.signup.completed",
+  "userId": "user-789",
+  "email": "user@example.com"
+}
+
+// Configuration
+{
+  messageTypeField: 'type',
+}
+```
+
+##### Apache Kafka
+
+Kafka typically uses topic-based routing, but you may still need message types within a topic:
+
+```typescript
+// Kafka message value (JSON)
+{
+  "eventType": "inventory.reserved",
+  "eventId": "evt-123",
+  "timestamp": 1705312200000,
+  "data": {
+    "sku": "PROD-001",
+    "quantity": 5
+  }
+}
+
+// Configuration
+{
+  messageTypeField: 'eventType',
+}
+
+// Or using Kafka headers (via custom resolver)
+{
+  messageTypeResolver: {
+    resolver: ({ messageData, messageAttributes }) => {
+      // Kafka headers are passed as messageAttributes
+      if (messageAttributes?.['ce_type']) {
+        return messageAttributes['ce_type'] as string  // CloudEvents header
+      }
+      const data = messageData as { eventType?: string }
+      if (!data.eventType) throw new Error('eventType required')
+      return data.eventType
+    },
+  },
+}
+```
+
+##### Google Cloud Pub/Sub (Your Own Events)
+
+When you control the message format in Pub/Sub:
+
+```typescript
+// Your message (base64-decoded from data field)
+{
+  "type": "payment.processed",
+  "paymentId": "pay-123",
+  "amount": 150.00,
+  "currency": "USD"
+}
+
+// Configuration
+{
+  messageTypeField: 'type',
+}
+```
+
+##### Google Cloud Pub/Sub (Cloud Storage Notifications)
+
+Cloud Storage notifications put the event type in message **attributes**, not the data payload:
+
+```typescript
+// Pub/Sub message structure for Cloud Storage notifications
+{
+  "data": "eyJraW5kIjoic3RvcmFnZSMgb2JqZWN0In0=",  // Base64-encoded object metadata
+  "attributes": {
+    "eventType": "OBJECT_FINALIZE",  // Type is HERE, not in data!
+    "bucketId": "my-bucket",
+    "objectId": "path/to/file.jpg",
+    "objectGeneration": "1705312200000"
+  },
+  "messageId": "123456789",
+  "publishTime": "2024-01-15T10:30:00Z"
+}
+
+// Configuration - must use resolver to access attributes
+{
+  messageTypeResolver: {
+    resolver: ({ messageAttributes }) => {
+      const eventType = messageAttributes?.eventType as string
+      if (!eventType) {
+        throw new Error('eventType attribute required for Cloud Storage notifications')
+      }
+      // Map GCS event types to your internal types
+      const typeMap: Record<string, string> = {
+        'OBJECT_FINALIZE': 'storage.object.created',
+        'OBJECT_DELETE': 'storage.object.deleted',
+        'OBJECT_ARCHIVE': 'storage.object.archived',
+        'OBJECT_METADATA_UPDATE': 'storage.object.metadataUpdated',
+      }
+      return typeMap[eventType] ?? eventType
+    },
+  },
+}
+```
+
+##### Google Cloud Pub/Sub (Eventarc / CloudEvents)
+
+Eventarc delivers events in CloudEvents format:
+
+```typescript
+// CloudEvents structured format
+{
+  "specversion": "1.0",
+  "type": "google.cloud.storage.object.v1.finalized",  // CloudEvents type
+  "source": "//storage.googleapis.com/projects/_/buckets/my-bucket",
+  "id": "1234567890",
+  "time": "2024-01-15T10:30:00Z",
+  "datacontenttype": "application/json",
+  "data": {
+    "bucket": "my-bucket",
+    "name": "path/to/file.jpg",
+    "contentType": "image/jpeg"
+  }
+}
+
+// Configuration
+{
+  messageTypeField: 'type',  // CloudEvents type is at root level
+}
+
+// Or with mapping to simpler types
+{
+  messageTypeResolver: {
+    resolver: ({ messageData }) => {
+      const data = messageData as { type?: string }
+      const ceType = data.type
+      if (!ceType) throw new Error('CloudEvents type required')
+      // Map verbose CloudEvents types to simpler names
+      if (ceType.includes('storage.object') && ceType.includes('finalized')) {
+        return 'storage.object.created'
+      }
+      if (ceType.includes('storage.object') && ceType.includes('deleted')) {
+        return 'storage.object.deleted'
+      }
+      return ceType
+    },
+  },
+}
+```
+
+##### Single-Type Queues (Any Platform)
+
+When a queue/subscription only ever receives one type of message, use `literal`:
+
+```typescript
+// Dedicated queue for order.created events only
+{
+  messageTypeResolver: {
+    literal: 'order.created',
+  },
+}
+```
+
+This is useful for:
+- Dedicated queues/subscriptions filtered to a single event type
+- Legacy systems where messages don't have a type field
+- Simple integrations where you know exactly what you're receiving
 
 ### Handler Configuration
 
