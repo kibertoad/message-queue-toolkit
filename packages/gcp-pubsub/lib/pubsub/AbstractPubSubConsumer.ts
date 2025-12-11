@@ -18,6 +18,7 @@ import {
   type QueueConsumerOptions,
   type TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
+import { isSubscriptionDoesNotExistError } from '../errors/SubscriptionDoesNotExistError.ts'
 import type { PubSubMessage } from '../types/MessageTypes.ts'
 import { hasOffloadedPayload } from '../utils/messageUtils.ts'
 import { deletePubSub, initPubSub } from '../utils/pubSubInitter.ts'
@@ -296,7 +297,7 @@ export abstract class AbstractPubSubConsumer<
       // Check if error is retryable (NOT_FOUND type errors from initPubSub)
       const errorMessage = error instanceof Error ? error.message : String(error)
       const isRetryable =
-        errorMessage.includes('does not exist') ||
+        isSubscriptionDoesNotExistError(error) ||
         errorMessage.includes('NOT_FOUND') ||
         errorMessage.includes('PERMISSION_DENIED')
 

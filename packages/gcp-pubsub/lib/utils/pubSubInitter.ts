@@ -1,6 +1,7 @@
 import type { PubSub, Subscription, Topic } from '@google-cloud/pubsub'
 import type { DeletionConfig } from '@message-queue-toolkit/core'
 import { isProduction, waitAndRetry } from '@message-queue-toolkit/core'
+import { SubscriptionDoesNotExistError } from '../errors/SubscriptionDoesNotExistError.ts'
 import type {
   PubSubCreationConfig,
   PubSubQueueLocatorType,
@@ -90,7 +91,7 @@ export async function initPubSub(
 
       const [subscriptionExists] = await subscription.exists()
       if (!subscriptionExists) {
-        throw new Error(`Subscription ${subscriptionName} does not exist`)
+        throw new SubscriptionDoesNotExistError(subscriptionName)
       }
     }
   } else if (creationConfig) {

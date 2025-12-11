@@ -1,4 +1,5 @@
 export * from './errors/PubSubConsumerErrorResolver.ts'
+export * from './errors/SubscriptionDoesNotExistError.ts'
 export * from './fakes/FakeConsumerErrorResolver.ts'
 export * from './fakes/TestPubSubPublisher.ts'
 export * from './pubsub/AbstractPubSubConsumer.ts'
