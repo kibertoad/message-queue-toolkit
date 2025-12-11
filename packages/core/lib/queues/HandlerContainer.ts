@@ -6,11 +6,11 @@ import type { ZodSchema } from 'zod/v4'
 import type { DoNotProcessMessageError } from '../errors/DoNotProcessError.ts'
 import type { RetryMessageLaterError } from '../errors/RetryMessageLaterError.ts'
 import {
-  type MessageTypeResolverConfig,
-  type MessageTypeResolverContext,
   extractMessageTypeFromSchema,
   isMessageTypeLiteralConfig,
   isMessageTypePathConfig,
+  type MessageTypeResolverConfig,
+  type MessageTypeResolverContext,
   resolveMessageType,
 } from './MessageTypeResolver.ts'
 

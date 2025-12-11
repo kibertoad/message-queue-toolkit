@@ -8,6 +8,7 @@ Core library for message-queue-toolkit. Provides foundational abstractions, util
 - [Overview](#overview)
 - [Core Concepts](#core-concepts)
   - [Message Schemas](#message-schemas)
+  - [Message Type Resolution](#message-type-resolution)
   - [Handler Configuration](#handler-configuration)
   - [Pre-handlers and Barriers](#pre-handlers-and-barriers)
   - [Handler Spies](#handler-spies)
@@ -52,7 +53,7 @@ The core package provides the foundational building blocks used by all protocol-
 
 Messages are validated using Zod schemas. The library uses configurable field names:
 
-- **`messageTypeField`** (required): Field containing the message type discriminator (must be `z.literal()` for routing)
+- **`messageTypeField`** or **`messageTypeResolver`**: Configuration for resolving the message type discriminator (see [Message Type Resolution](#message-type-resolution))
 - **`messageIdField`** (default: `'id'`): Field containing the message ID
 - **`messageTimestampField`** (default: `'timestamp'`): Field containing the timestamp
 
@@ -69,6 +70,90 @@ const UserCreatedSchema = z.object({
 
 type UserCreated = z.infer<typeof UserCreatedSchema>
 ```
+
+### Message Type Resolution
+
+The library supports flexible message type resolution through two configuration options:
+
+#### Option 1: `messageTypeField` (Simple)
+
+Use when the message type is a field at the root level of the message data:
+
+```typescript
+{
+  messageTypeField: 'type',  // Extracts type from message.type
+}
+```
+
+#### Option 2: `messageTypeResolver` (Flexible)
+
+Use for more complex scenarios like extracting type from message attributes, nested fields, or when all messages are of the same type.
+
+**Literal Type (Constant)**
+
+When all messages in a queue/subscription are of the same type:
+
+```typescript
+import type { MessageTypeResolverConfig } from '@message-queue-toolkit/core'
+
+const config: MessageTypeResolverConfig = {
+  literal: 'order.created',  // All messages treated as this type
+}
+```
+
+**Field Path**
+
+Equivalent to `messageTypeField`, extracts from a root-level field:
+
+```typescript
+const config: MessageTypeResolverConfig = {
+  messageTypePath: 'type',  // Same as messageTypeField: 'type'
+}
+```
+
+**Custom Resolver Function**
+
+For complex scenarios like Google Cloud Storage notifications via Pub/Sub where the event type is in message attributes:
+
+```typescript
+const config: MessageTypeResolverConfig = {
+  resolver: ({ messageData, messageAttributes }) => {
+    // Extract from Pub/Sub message attributes
+    const eventType = messageAttributes?.eventType as string | undefined
+    if (!eventType) {
+      throw new Error('eventType attribute is required')
+    }
+
+    // Optionally map to internal event types
+    if (eventType === 'OBJECT_FINALIZE') return 'storage.object.created'
+    if (eventType === 'OBJECT_DELETE') return 'storage.object.deleted'
+    return eventType
+  },
+}
+```
+
+**CloudEvents Format**
+
+For CloudEvents binary mode where type might be in headers/attributes:
+
+```typescript
+const config: MessageTypeResolverConfig = {
+  resolver: ({ messageData, messageAttributes }) => {
+    // Check for CloudEvents binary mode (type in attributes)
+    if (messageAttributes?.['ce-type']) {
+      return messageAttributes['ce-type'] as string
+    }
+    // Fall back to type in message data
+    const data = messageData as { type?: string }
+    if (!data.type) {
+      throw new Error('Message type not found')
+    }
+    return data.type
+  },
+}
+```
+
+**Important:** The resolver function must always return a valid string. If the type cannot be determined, either return a default type or throw an error with a descriptive message.
 
 ### Handler Configuration
 
@@ -327,6 +412,21 @@ type BarrierCallback<Message, Context, PrehandlerOutput, BarrierOutput> = (
 type BarrierResult<Output> =
   | { isPassing: true; output: Output }
   | { isPassing: false; output?: never }
+
+// Message type resolver context
+type MessageTypeResolverContext = {
+  messageData: unknown
+  messageAttributes?: Record<string, unknown>
+}
+
+// Message type resolver function
+type MessageTypeResolverFn = (context: MessageTypeResolverContext) => string
+
+// Message type resolver configuration
+type MessageTypeResolverConfig =
+  | { messageTypePath: string }  // Extract from field at root of message data
+  | { literal: string }          // Constant type for all messages
+  | { resolver: MessageTypeResolverFn }  // Custom resolver function
 ```
 
 ### Utility Functions

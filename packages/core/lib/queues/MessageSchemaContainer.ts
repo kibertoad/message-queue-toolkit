@@ -2,11 +2,11 @@ import type { Either } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema } from 'zod/v4'
 import {
-  type MessageTypeResolverConfig,
-  type MessageTypeResolverContext,
   extractMessageTypeFromSchema,
   isMessageTypeLiteralConfig,
   isMessageTypePathConfig,
+  type MessageTypeResolverConfig,
+  type MessageTypeResolverContext,
   resolveMessageType,
 } from './MessageTypeResolver.ts'
 
