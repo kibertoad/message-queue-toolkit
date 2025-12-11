@@ -1,3 +1,4 @@
+export * from './errors/grpcErrors.ts'
 export * from './errors/PubSubConsumerErrorResolver.ts'
 export * from './errors/SubscriptionDoesNotExistError.ts'
 export * from './fakes/FakeConsumerErrorResolver.ts'

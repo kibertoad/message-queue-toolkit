@@ -18,6 +18,7 @@ import {
   type QueueConsumerOptions,
   type TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
+import { isRetryableGrpcError } from '../errors/grpcErrors.ts'
 import { isSubscriptionDoesNotExistError } from '../errors/SubscriptionDoesNotExistError.ts'
 import type { PubSubMessage } from '../types/MessageTypes.ts'
 import { hasOffloadedPayload } from '../utils/messageUtils.ts'
@@ -30,38 +31,7 @@ import type {
 } from './AbstractPubSubService.ts'
 import { AbstractPubSubService } from './AbstractPubSubService.ts'
 
-const _ABORT_EARLY_EITHER: Either<'abort', never> = {
-  error: 'abort',
-}
 const DEFAULT_MAX_RETRY_DURATION = 4 * 24 * 60 * 60 // 4 days in seconds
-
-/**
- * gRPC status codes for which subscription operations should be retried.
- *
- * Includes both:
- * 1. GCP-documented retryable errors (DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED, INTERNAL, UNAVAILABLE)
- * 2. Eventual consistency errors common after Terraform deployments (NOT_FOUND, PERMISSION_DENIED)
- *
- * **Why PERMISSION_DENIED is included:**
- * After Terraform deployments, IAM permissions can take several minutes to propagate across
- * GCP's distributed infrastructure. During this window, the subscription may report
- * PERMISSION_DENIED even though permissions are correctly configured.
- *
- * **Why NOT_FOUND is included:**
- * Similar to PERMISSION_DENIED, newly created subscriptions may not be immediately visible
- * across all GCP endpoints due to eventual consistency.
- *
- * @see https://cloud.google.com/pubsub/docs/reference/error-codes
- * @see https://github.com/googleapis/nodejs-pubsub/issues/979
- */
-const RETRYABLE_SUBSCRIPTION_ERROR_CODES = [
-  4, // DEADLINE_EXCEEDED - Request timeout, may succeed on retry
-  5, // NOT_FOUND - Subscription may not be propagated yet (eventual consistency)
-  7, // PERMISSION_DENIED - IAM permissions may not be propagated yet (eventual consistency)
-  8, // RESOURCE_EXHAUSTED - Quota exceeded, retry with backoff
-  13, // INTERNAL - Server error, should be transient
-  14, // UNAVAILABLE - Service temporarily unable to process
-] as const
 
 /**
  * Default configuration for subscription error retry behavior.
@@ -294,14 +264,11 @@ export abstract class AbstractPubSubConsumer<
         throw error
       }
 
-      // Check if error is retryable (NOT_FOUND type errors from initPubSub)
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      const isRetryable =
-        isSubscriptionDoesNotExistError(error) ||
-        errorMessage.includes('NOT_FOUND') ||
-        errorMessage.includes('PERMISSION_DENIED')
+      // Check if error is retryable using gRPC status codes
+      const isRetryableSubscriptionError = isSubscriptionDoesNotExistError(error)
+      const isRetryableGrpc = isRetryableGrpcError(error)
 
-      if (!isRetryable) {
+      if (!isRetryableSubscriptionError && !isRetryableGrpc) {
         throw error
       }
 
@@ -316,7 +283,9 @@ export abstract class AbstractPubSubConsumer<
         subscriptionName:
           this.locatorConfig?.subscriptionName ?? this.creationConfig?.subscription?.name,
         topicName: this.locatorConfig?.topicName ?? this.creationConfig?.topic.name,
-        errorMessage,
+        errorCode: isRetryableGrpc ? error.code : undefined,
+        errorMessage:
+          isRetryableGrpc || isRetryableSubscriptionError ? error.message : String(error),
         attempt,
         delayMs: delay,
       })
@@ -375,20 +344,13 @@ export abstract class AbstractPubSubConsumer<
       return
     }
 
-    const errorCode = error.code
-
-    // Check if this is a retryable subscription error
-    if (
-      errorCode !== undefined &&
-      RETRYABLE_SUBSCRIPTION_ERROR_CODES.includes(
-        errorCode as (typeof RETRYABLE_SUBSCRIPTION_ERROR_CODES)[number],
-      )
-    ) {
+    // Check if this is a retryable subscription error using gRPC status codes
+    if (isRetryableGrpcError(error)) {
       this.logger.warn({
         msg: 'Retryable subscription error occurred, attempting to reinitialize',
         subscriptionName: this.subscriptionName,
         topicName: this.topicName,
-        errorCode,
+        errorCode: error.code,
         errorMessage: error.message,
       })
 
