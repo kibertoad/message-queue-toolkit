@@ -160,7 +160,7 @@ describe('HandlerContainer', () => {
   })
 
   describe('resolveMessageType', () => {
-    describe('with messageTypeField (legacy)', () => {
+    describe('with messageTypePath resolver', () => {
       it('should extract message type from the specified field', () => {
         const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
           .addConfig(USER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }))
@@ -280,7 +280,7 @@ describe('HandlerContainer', () => {
     })
 
     describe('with no configuration', () => {
-      it('should throw error when neither messageTypeField nor messageTypeResolver is configured', () => {
+      it('should throw error when messageTypeResolver is not configured', () => {
         const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
           .addConfig(
             USER_MESSAGE_SCHEMA,
