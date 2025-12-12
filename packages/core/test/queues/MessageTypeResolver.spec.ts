@@ -67,11 +67,37 @@ describe('MessageTypeResolver', () => {
         ).toBe('user.presence')
       })
 
-      it('should throw error when field is missing', () => {
+      it('should support nested paths with dot notation', () => {
+        const config = { messageTypePath: 'metadata.type' }
+
+        expect(
+          resolveMessageType(config, { messageData: { metadata: { type: 'nested.event' } } }),
+        ).toBe('nested.event')
+      })
+
+      it('should support deeply nested paths', () => {
+        const config = { messageTypePath: 'envelope.header.eventType' }
+
+        expect(
+          resolveMessageType(config, {
+            messageData: { envelope: { header: { eventType: 'deep.nested.event' } } },
+          }),
+        ).toBe('deep.nested.event')
+      })
+
+      it('should throw error when path is missing', () => {
         const config = { messageTypePath: 'type' }
 
         expect(() => resolveMessageType(config, { messageData: {} })).toThrow(
-          "Unable to resolve message type: field 'type' not found in message data",
+          "Unable to resolve message type: path 'type' not found in message data",
+        )
+      })
+
+      it('should throw error when nested path is missing', () => {
+        const config = { messageTypePath: 'metadata.type' }
+
+        expect(() => resolveMessageType(config, { messageData: { metadata: {} } })).toThrow(
+          "Unable to resolve message type: path 'metadata.type' not found in message data",
         )
       })
 
@@ -79,7 +105,7 @@ describe('MessageTypeResolver', () => {
         const config = { messageTypePath: 'type' }
 
         expect(() => resolveMessageType(config, { messageData: undefined })).toThrow(
-          "Unable to resolve message type: field 'type' not found in message data",
+          "Unable to resolve message type: path 'type' not found in message data",
         )
       })
 
@@ -87,7 +113,43 @@ describe('MessageTypeResolver', () => {
         const config = { messageTypePath: 'type' }
 
         expect(() => resolveMessageType(config, { messageData: null })).toThrow(
-          "Unable to resolve message type: field 'type' not found in message data",
+          "Unable to resolve message type: path 'type' not found in message data",
+        )
+      })
+
+      it('should throw error when value is a number', () => {
+        const config = { messageTypePath: 'type' }
+
+        expect(() => resolveMessageType(config, { messageData: { type: 123 } })).toThrow(
+          "Unable to resolve message type: path 'type' contains a non-string value (got number)",
+        )
+      })
+
+      it('should throw error when value is a boolean', () => {
+        const config = { messageTypePath: 'type' }
+
+        expect(() => resolveMessageType(config, { messageData: { type: true } })).toThrow(
+          "Unable to resolve message type: path 'type' contains a non-string value (got boolean)",
+        )
+      })
+
+      it('should throw error when value is an object', () => {
+        const config = { messageTypePath: 'type' }
+
+        expect(() =>
+          resolveMessageType(config, { messageData: { type: { nested: 'value' } } }),
+        ).toThrow(
+          "Unable to resolve message type: path 'type' contains a non-string value (got object)",
+        )
+      })
+
+      it('should throw error when nested path value is not a string', () => {
+        const config = { messageTypePath: 'metadata.type' }
+
+        expect(() =>
+          resolveMessageType(config, { messageData: { metadata: { type: 42 } } }),
+        ).toThrow(
+          "Unable to resolve message type: path 'metadata.type' contains a non-string value (got number)",
         )
       })
     })
@@ -207,6 +269,106 @@ describe('MessageTypeResolver', () => {
       }
 
       expect(extractMessageTypeFromSchema(schema, 'type')).toBeUndefined()
+    })
+
+    it('should extract literal value from nested path in schema shape', () => {
+      const schema = {
+        shape: {
+          metadata: {
+            shape: {
+              type: { value: 'nested.event' },
+            },
+          },
+        },
+      }
+
+      expect(extractMessageTypeFromSchema(schema, 'metadata.type')).toBe('nested.event')
+    })
+
+    it('should extract literal value from deeply nested path', () => {
+      const schema = {
+        shape: {
+          envelope: {
+            shape: {
+              header: {
+                shape: {
+                  eventType: { value: 'deep.nested.event' },
+                },
+              },
+            },
+          },
+        },
+      }
+
+      expect(extractMessageTypeFromSchema(schema, 'envelope.header.eventType')).toBe(
+        'deep.nested.event',
+      )
+    })
+
+    it('should return undefined when nested path does not exist', () => {
+      const schema = {
+        shape: {
+          metadata: {
+            shape: {},
+          },
+        },
+      }
+
+      expect(extractMessageTypeFromSchema(schema, 'metadata.type')).toBeUndefined()
+    })
+
+    it('should return undefined when intermediate path is not an object schema', () => {
+      const schema = {
+        shape: {
+          metadata: { value: 'string' }, // not a nested object
+        },
+      }
+
+      expect(extractMessageTypeFromSchema(schema, 'metadata.type')).toBeUndefined()
+    })
+
+    it('should return undefined when value is a number', () => {
+      const schema = {
+        shape: {
+          type: { value: 123 },
+        },
+      }
+
+      expect(extractMessageTypeFromSchema(schema, 'type')).toBeUndefined()
+    })
+
+    it('should return undefined when value is a boolean', () => {
+      const schema = {
+        shape: {
+          type: { value: true },
+        },
+      }
+
+      expect(extractMessageTypeFromSchema(schema, 'type')).toBeUndefined()
+    })
+
+    it('should return undefined when value is an object', () => {
+      const schema = {
+        shape: {
+          type: { value: { nested: 'value' } },
+        },
+      }
+
+      expect(extractMessageTypeFromSchema(schema, 'type')).toBeUndefined()
+    })
+
+    it('should return undefined when nested path value is not a string', () => {
+      const schema = {
+        shape: {
+          metadata: {
+            shape: {
+              type: { value: 42 },
+            },
+          },
+        },
+      }
+
+      expect(extractMessageTypeFromSchema(schema, 'metadata.type')).toBeUndefined()
     })
   })
 })

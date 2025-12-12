@@ -6,7 +6,7 @@
 
 - **`messageTypeField` option removed**: The deprecated `messageTypeField` option has been removed from all queue services. Use `messageTypeResolver` instead.
 
-- **`HandlerSpyParams.messageTypePath` removed**: The `messageTypePath` option in `HandlerSpyParams` has been removed. Message types are now passed explicitly when adding processed messages. This is handled internally by the library, so most users won't need to make changes.
+- **`HandlerSpy.addProcessedMessage` signature changed**: The `addProcessedMessage` method now requires a `messageType` parameter. This is an internal API change - if you're using `HandlerSpy` directly (outside of the built-in queue services), you'll need to update your calls. The library's queue services handle this automatically.
 
 ### Migration Steps
 
@@ -39,11 +39,17 @@ super(dependencies, {
 - **`NO_MESSAGE_TYPE_FIELD` constant removed**: The `NO_MESSAGE_TYPE_FIELD` constant has been removed from `@message-queue-toolkit/core`. Use `messageTypeResolver` with literal mode instead.
 
 - **New `messageTypeResolver` configuration**: A flexible configuration for message type resolution. Supports three modes:
-  - `{ messageTypePath: 'type' }` - extract type from a field at the root of the message
+  - `{ messageTypePath: 'type' }` - extract type from a field in the message (supports dot notation for nested paths like `'metadata.type'`)
   - `{ literal: 'my.message.type' }` - use a constant type for all messages
   - `{ resolver: ({ messageData, messageAttributes }) => 'resolved.type' }` - custom resolver function
 
+- **`MessageSchemaContainer` API changed**: The constructor now accepts `SchemaEntry` and `DefinitionEntry` objects instead of bare schemas. Each entry can include an optional `messageType` for explicit type mapping (required when using custom resolvers).
+
 - **Explicit `messageType` in handler configuration**: When using a custom resolver function, you must provide an explicit `messageType` in handler options since the type cannot be extracted from schemas at registration time.
+
+- **Custom resolver validation**: Custom resolver functions (`{ resolver: fn }`) cannot be used with multiple schemas in `MessageSchemaContainer`. This is because the resolver works at runtime, but at registration time the container needs to map schemas to types. Use `messageTypePath` for multiple schemas, or register only a single schema with a custom resolver.
+
+- **Improved error handling in `MessageSchemaContainer.resolveSchema`**: The method now properly catches resolver errors and returns them as `Either<Error, Schema>` instead of throwing. This ensures consistent error handling regardless of resolver configuration.
 
 ### Migration Steps
 

@@ -1928,6 +1928,50 @@ const exampleEvent = {
 } satisfies UserCreatedEvent
 ```
 
+#### Pre-built EventBridge Type Resolver
+
+Instead of manually configuring `{ messageTypePath: 'detail-type' }`, you can use the pre-built `EVENT_BRIDGE_TYPE_RESOLVER`:
+
+```typescript
+import {
+  EVENT_BRIDGE_TYPE_RESOLVER,
+  EVENT_BRIDGE_TIMESTAMP_FIELD,
+  createEventBridgeResolverWithMapping,
+} from '@message-queue-toolkit/sqs'
+
+// Simple usage - extracts from 'detail-type' field
+class EventBridgeConsumer extends AbstractSqsConsumer<EventBridgeEvent> {
+  constructor(deps: SQSConsumerDependencies) {
+    super(deps, {
+      messageTypeResolver: EVENT_BRIDGE_TYPE_RESOLVER,
+      messageTimestampField: EVENT_BRIDGE_TIMESTAMP_FIELD,  // 'time'
+      handlers: new MessageHandlerConfigBuilder()
+        .addConfig(schema, handler)
+        .build(),
+    })
+  }
+}
+
+// With type mapping - normalize EventBridge detail-types to internal types
+const resolver = createEventBridgeResolverWithMapping({
+  'Order Created': 'order.created',      // "Order Created" → "order.created"
+  'Order Updated': 'order.updated',
+  'Order Cancelled': 'order.cancelled',
+}, { fallbackToOriginal: true })  // Optional: pass through unmapped types
+
+class MappedEventBridgeConsumer extends AbstractSqsConsumer<EventBridgeEvent> {
+  constructor(deps: SQSConsumerDependencies) {
+    super(deps, {
+      messageTypeResolver: resolver,
+      messageTimestampField: EVENT_BRIDGE_TIMESTAMP_FIELD,
+      handlers: new MessageHandlerConfigBuilder()
+        .addConfig(schema, handler, { messageType: 'order.created' })
+        .build(),
+    })
+  }
+}
+```
+
 ### Custom Message Structures
 
 For other non-standard message formats, you can configure the field mappings:

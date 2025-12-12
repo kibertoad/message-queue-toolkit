@@ -160,7 +160,7 @@ describe('HandlerContainer', () => {
   })
 
   describe('resolveMessageType', () => {
-    describe('with messageTypeField (legacy)', () => {
+    describe('with messageTypePath resolver', () => {
       it('should extract message type from the specified field', () => {
         const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
           .addConfig(USER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }))
@@ -190,7 +190,7 @@ describe('HandlerContainer', () => {
         })
 
         expect(() => container.resolveMessageType({ userId: '1' })).toThrow(
-          "Unable to resolve message type: field 'type' not found in message data",
+          "Unable to resolve message type: path 'type' not found in message data",
         )
       })
     })
@@ -280,7 +280,7 @@ describe('HandlerContainer', () => {
     })
 
     describe('with no configuration', () => {
-      it('should throw error when neither messageTypeField nor messageTypeResolver is configured', () => {
+      it('should throw error when messageTypeResolver is not configured', () => {
         const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
           .addConfig(
             USER_MESSAGE_SCHEMA,
@@ -311,9 +311,9 @@ describe('HandlerContainer', () => {
               messageHandlers: configs,
             }),
         ).toThrow(
-          'Unable to determine message type for handler. ' +
-            'Either provide messageType in handler options, use a literal resolver, ' +
-            'or ensure the schema has a literal type field matching messageTypePath.',
+          'Unable to determine message type for handler at registration time. ' +
+            'Either provide explicit messageType in handler options (required for custom resolver functions), ' +
+            'use a literal resolver, or ensure the schema has a literal type field matching messageTypePath.',
         )
       })
 

@@ -8,11 +8,11 @@ import {
   stringValueSerializer,
 } from '@lokalise/node-core'
 import type { MakeRequired } from '@lokalise/universal-ts-utils/node'
-import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import {
   MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA,
   type MessageDeduplicationOptions,
 } from '@message-queue-toolkit/schemas'
+import { getProperty, setProperty } from 'dot-prop'
 import type { ZodSchema, ZodType } from 'zod/v4'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors.ts'
 import {
@@ -177,10 +177,17 @@ export abstract class AbstractQueueService<
     handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
     messageTypeResolver?: MessageTypeResolverConfig
   }) {
-    const messageSchemas = options.handlers.map((entry) => entry.schema)
-    const messageDefinitions: CommonEventDefinition[] = options.handlers
-      .map((entry) => entry.definition)
-      .filter((entry) => entry !== undefined)
+    const messageSchemas = options.handlers.map((entry) => ({
+      schema: entry.schema,
+      messageType: entry.messageType,
+    }))
+    const messageDefinitions = options.handlers
+      .filter((entry) => entry.definition !== undefined)
+      .map((entry) => ({
+        // biome-ignore lint/style/noNonNullAssertion: filtered above
+        definition: entry.definition!,
+        messageType: entry.messageType,
+      }))
 
     return new MessageSchemaContainer<MessagePayloadSchemas>({
       messageTypeResolver: options.messageTypeResolver,
@@ -193,7 +200,7 @@ export abstract class AbstractQueueService<
     messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
     messageTypeResolver?: MessageTypeResolverConfig
   }) {
-    const messageSchemas = options.messageSchemas
+    const messageSchemas = options.messageSchemas.map((schema) => ({ schema }))
 
     return new MessageSchemaContainer<MessagePayloadSchemas>({
       messageTypeResolver: options.messageTypeResolver,
@@ -674,11 +681,13 @@ export abstract class AbstractQueueService<
       [this.messageDeduplicationOptionsField]: message[this.messageDeduplicationOptionsField],
     }
 
-    // Preserve message type field if using messageTypePath resolver
+    // Preserve message type field if using messageTypePath resolver (supports nested paths)
     if (this.messageTypeResolver && isMessageTypePathConfig(this.messageTypeResolver)) {
       const messageTypePath = this.messageTypeResolver.messageTypePath
-      // @ts-expect-error
-      result[messageTypePath] = message[messageTypePath]
+      const typeValue = getProperty(message, messageTypePath)
+      if (typeValue !== undefined) {
+        setProperty(result, messageTypePath, typeValue)
+      }
     }
 
     return result
