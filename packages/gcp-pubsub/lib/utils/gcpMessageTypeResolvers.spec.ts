@@ -2,10 +2,18 @@ import { resolveMessageType } from '@message-queue-toolkit/core'
 import { describe, expect, it } from 'vitest'
 
 import {
+  BIGQUERY_TRANSFER_EVENT_TYPE_ATTRIBUTE,
+  BIGQUERY_TRANSFER_EVENT_TYPES,
+  BIGQUERY_TRANSFER_NORMALIZED_TYPE_RESOLVER,
+  BIGQUERY_TRANSFER_TYPE_RESOLVER,
   CLOUD_EVENTS_BINARY_MODE_TYPE_RESOLVER,
   CLOUD_EVENTS_TYPE_ATTRIBUTE,
+  CLOUD_SCHEDULER_FUNCTION_TARGET_ATTRIBUTE,
+  CLOUD_SCHEDULER_JOB_TYPE_ATTRIBUTE,
   createAttributeResolver,
   createAttributeResolverWithMapping,
+  createCloudSchedulerResolver,
+  createCloudSchedulerResolverWithMapping,
   GCS_EVENT_TYPE_ATTRIBUTE,
   GCS_EVENT_TYPES,
   GCS_NOTIFICATION_RAW_TYPE_RESOLVER,
@@ -196,6 +204,161 @@ describe('gcpMessageTypeResolvers', () => {
       })
 
       expect(result).toBe('OBJECT_FINALIZE')
+    })
+  })
+
+  describe('BIGQUERY_TRANSFER_TYPE_RESOLVER', () => {
+    it('extracts event type from BigQuery Data Transfer notifications', () => {
+      const result = resolveMessageType(BIGQUERY_TRANSFER_TYPE_RESOLVER, {
+        messageData: {
+          name: 'projects/123/locations/us/transferConfigs/456/runs/789',
+          state: 'SUCCEEDED',
+        },
+        messageAttributes: {
+          [BIGQUERY_TRANSFER_EVENT_TYPE_ATTRIBUTE]:
+            BIGQUERY_TRANSFER_EVENT_TYPES.TRANSFER_RUN_FINISHED,
+          payloadFormat: 'JSON_API_V1',
+        },
+      })
+
+      expect(result).toBe('TRANSFER_RUN_FINISHED')
+    })
+
+    it('throws when eventType attribute is missing', () => {
+      expect(() =>
+        resolveMessageType(BIGQUERY_TRANSFER_TYPE_RESOLVER, {
+          messageData: { name: 'projects/123/runs/456', state: 'SUCCEEDED' },
+          messageAttributes: { payloadFormat: 'JSON_API_V1' },
+        }),
+      ).toThrow(`attribute '${BIGQUERY_TRANSFER_EVENT_TYPE_ATTRIBUTE}' not found`)
+    })
+  })
+
+  describe('BIGQUERY_TRANSFER_NORMALIZED_TYPE_RESOLVER', () => {
+    it('maps TRANSFER_RUN_FINISHED to normalized type', () => {
+      const result = resolveMessageType(BIGQUERY_TRANSFER_NORMALIZED_TYPE_RESOLVER, {
+        messageData: { name: 'projects/123/runs/456', state: 'SUCCEEDED' },
+        messageAttributes: {
+          [BIGQUERY_TRANSFER_EVENT_TYPE_ATTRIBUTE]:
+            BIGQUERY_TRANSFER_EVENT_TYPES.TRANSFER_RUN_FINISHED,
+        },
+      })
+
+      expect(result).toBe('bigquery.transfer.finished')
+    })
+
+    it('falls back to original type for unknown events', () => {
+      const result = resolveMessageType(BIGQUERY_TRANSFER_NORMALIZED_TYPE_RESOLVER, {
+        messageData: { name: 'projects/123/runs/456' },
+        messageAttributes: {
+          [BIGQUERY_TRANSFER_EVENT_TYPE_ATTRIBUTE]: 'UNKNOWN_BIGQUERY_EVENT',
+        },
+      })
+
+      expect(result).toBe('UNKNOWN_BIGQUERY_EVENT')
+    })
+  })
+
+  describe('createCloudSchedulerResolver', () => {
+    it('creates resolver using default jobType attribute', () => {
+      const resolver = createCloudSchedulerResolver()
+
+      const result = resolveMessageType(resolver, {
+        messageData: { task: 'generate-report' },
+        messageAttributes: {
+          [CLOUD_SCHEDULER_JOB_TYPE_ATTRIBUTE]: 'daily-report',
+        },
+      })
+
+      expect(result).toBe('daily-report')
+    })
+
+    it('creates resolver using custom attribute name', () => {
+      const resolver = createCloudSchedulerResolver(CLOUD_SCHEDULER_FUNCTION_TARGET_ATTRIBUTE)
+
+      const result = resolveMessageType(resolver, {
+        messageData: { task: 'cleanup' },
+        messageAttributes: {
+          [CLOUD_SCHEDULER_FUNCTION_TARGET_ATTRIBUTE]: 'weekly-cleanup',
+        },
+      })
+
+      expect(result).toBe('weekly-cleanup')
+    })
+
+    it('throws when attribute is missing', () => {
+      const resolver = createCloudSchedulerResolver()
+
+      expect(() =>
+        resolveMessageType(resolver, {
+          messageData: { task: 'generate-report' },
+          messageAttributes: {},
+        }),
+      ).toThrow(`attribute '${CLOUD_SCHEDULER_JOB_TYPE_ATTRIBUTE}' not found`)
+    })
+  })
+
+  describe('createCloudSchedulerResolverWithMapping', () => {
+    it('maps job types to internal message types', () => {
+      const resolver = createCloudSchedulerResolverWithMapping({
+        'daily-report': 'scheduler.report.daily',
+        'weekly-cleanup': 'scheduler.cleanup.weekly',
+      })
+
+      const result = resolveMessageType(resolver, {
+        messageData: {},
+        messageAttributes: {
+          [CLOUD_SCHEDULER_JOB_TYPE_ATTRIBUTE]: 'daily-report',
+        },
+      })
+
+      expect(result).toBe('scheduler.report.daily')
+    })
+
+    it('uses custom attribute name', () => {
+      const resolver = createCloudSchedulerResolverWithMapping(
+        { 'process-orders': 'scheduler.orders.process' },
+        'taskType',
+      )
+
+      const result = resolveMessageType(resolver, {
+        messageData: {},
+        messageAttributes: { taskType: 'process-orders' },
+      })
+
+      expect(result).toBe('scheduler.orders.process')
+    })
+
+    it('throws when value is not mapped and fallback is disabled', () => {
+      const resolver = createCloudSchedulerResolverWithMapping({
+        'daily-report': 'scheduler.report.daily',
+      })
+
+      expect(() =>
+        resolveMessageType(resolver, {
+          messageData: {},
+          messageAttributes: {
+            [CLOUD_SCHEDULER_JOB_TYPE_ATTRIBUTE]: 'unknown-job',
+          },
+        }),
+      ).toThrow("'unknown-job' is not mapped")
+    })
+
+    it('falls back to original value when fallbackToOriginal is true', () => {
+      const resolver = createCloudSchedulerResolverWithMapping(
+        { 'daily-report': 'scheduler.report.daily' },
+        CLOUD_SCHEDULER_JOB_TYPE_ATTRIBUTE,
+        { fallbackToOriginal: true },
+      )
+
+      const result = resolveMessageType(resolver, {
+        messageData: {},
+        messageAttributes: {
+          [CLOUD_SCHEDULER_JOB_TYPE_ATTRIBUTE]: 'unmapped-job',
+        },
+      })
+
+      expect(result).toBe('unmapped-job')
     })
   })
 })

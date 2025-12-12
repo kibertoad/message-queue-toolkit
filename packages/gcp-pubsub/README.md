@@ -681,6 +681,93 @@ import { GCS_NOTIFICATION_RAW_TYPE_RESOLVER } from '@message-queue-toolkit/gcp-p
 | `OBJECT_ARCHIVE` | `gcs.object.archived` |
 | `OBJECT_METADATA_UPDATE` | `gcs.object.metadataUpdated` |
 
+#### BigQuery Data Transfer Service Notifications
+
+For BigQuery Data Transfer Service notifications, the event type is in the `eventType` attribute:
+
+```typescript
+import {
+  BIGQUERY_TRANSFER_TYPE_RESOLVER,
+  BIGQUERY_TRANSFER_NORMALIZED_TYPE_RESOLVER,
+  BIGQUERY_TRANSFER_EVENT_TYPES,
+  MessageHandlerConfigBuilder,
+} from '@message-queue-toolkit/gcp-pubsub'
+
+// With raw event types
+class BigQueryTransferConsumer extends AbstractPubSubConsumer<TransferRun, Context> {
+  constructor(deps: PubSubConsumerDependencies) {
+    super(
+      deps,
+      {
+        messageTypeResolver: BIGQUERY_TRANSFER_TYPE_RESOLVER,
+        handlers: new MessageHandlerConfigBuilder<TransferRun, Context>()
+          .addConfig(transferRunSchema, handler, { messageType: 'TRANSFER_RUN_FINISHED' })
+          .build(),
+        // ...
+      },
+      context,
+    )
+  }
+}
+
+// With normalized types (TRANSFER_RUN_FINISHED → bigquery.transfer.finished)
+{
+  messageTypeResolver: BIGQUERY_TRANSFER_NORMALIZED_TYPE_RESOLVER,
+  handlers: new MessageHandlerConfigBuilder()
+    .addConfig(schema, handler, { messageType: 'bigquery.transfer.finished' })
+    .build(),
+}
+```
+
+**BigQuery Data Transfer Event Type Mappings (with `BIGQUERY_TRANSFER_NORMALIZED_TYPE_RESOLVER`):**
+| BigQuery Event Type | Normalized Type |
+|---------------------|-----------------|
+| `TRANSFER_RUN_FINISHED` | `bigquery.transfer.finished` |
+
+#### Cloud Scheduler Messages
+
+Cloud Scheduler does NOT have a standard message type convention - users define their own attributes when creating scheduler jobs. The library provides helpers to create resolvers for your chosen attribute patterns:
+
+```typescript
+import {
+  createCloudSchedulerResolver,
+  createCloudSchedulerResolverWithMapping,
+  CLOUD_SCHEDULER_JOB_TYPE_ATTRIBUTE,
+  MessageHandlerConfigBuilder,
+} from '@message-queue-toolkit/gcp-pubsub'
+
+// Using the default 'jobType' attribute
+// gcloud scheduler jobs create pubsub my-job --attributes jobType=daily-report
+class SchedulerConsumer extends AbstractPubSubConsumer<SchedulerMessage, Context> {
+  constructor(deps: PubSubConsumerDependencies) {
+    super(
+      deps,
+      {
+        messageTypeResolver: createCloudSchedulerResolver(), // Uses 'jobType' attribute
+        handlers: new MessageHandlerConfigBuilder<SchedulerMessage, Context>()
+          .addConfig(dailyReportSchema, handler, { messageType: 'daily-report' })
+          .addConfig(weeklyCleanupSchema, handler, { messageType: 'weekly-cleanup' })
+          .build(),
+        // ...
+      },
+      context,
+    )
+  }
+}
+
+// Using a custom attribute name
+{
+  messageTypeResolver: createCloudSchedulerResolver('functionTarget'),
+}
+
+// With type mapping
+const resolver = createCloudSchedulerResolverWithMapping({
+  'daily-report': 'scheduler.report.daily',
+  'weekly-cleanup': 'scheduler.cleanup.weekly',
+  'monthly-billing': 'scheduler.billing.monthly',
+})
+```
+
 #### Custom Attribute Resolvers
 
 For other attribute-based type resolution, create your own resolver:

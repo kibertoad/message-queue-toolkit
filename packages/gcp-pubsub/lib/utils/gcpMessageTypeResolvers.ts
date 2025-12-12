@@ -241,3 +241,200 @@ export const GCS_NOTIFICATION_TYPE_RESOLVER: MessageTypeResolverConfig =
  */
 export const GCS_NOTIFICATION_RAW_TYPE_RESOLVER: MessageTypeResolverConfig =
   createAttributeResolver(GCS_EVENT_TYPE_ATTRIBUTE)
+
+// ============================================================================
+// BigQuery Data Transfer Service
+// ============================================================================
+
+/**
+ * BigQuery Data Transfer Service event type attribute name.
+ * @see https://cloud.google.com/bigquery/docs/transfer-run-notifications
+ */
+export const BIGQUERY_TRANSFER_EVENT_TYPE_ATTRIBUTE = 'eventType'
+
+/**
+ * BigQuery Data Transfer Service payload format attribute name.
+ * @see https://cloud.google.com/bigquery/docs/transfer-run-notifications
+ */
+export const BIGQUERY_TRANSFER_PAYLOAD_FORMAT_ATTRIBUTE = 'payloadFormat'
+
+/**
+ * Standard BigQuery Data Transfer Service event types.
+ * Currently, `TRANSFER_RUN_FINISHED` is the only event type.
+ * @see https://cloud.google.com/bigquery/docs/transfer-run-notifications
+ */
+export const BIGQUERY_TRANSFER_EVENT_TYPES = {
+  TRANSFER_RUN_FINISHED: 'TRANSFER_RUN_FINISHED',
+} as const
+
+/**
+ * Standard BigQuery Data Transfer Service payload formats.
+ * Currently, `JSON_API_V1` is the only payload format.
+ * @see https://cloud.google.com/bigquery/docs/transfer-run-notifications
+ */
+export const BIGQUERY_TRANSFER_PAYLOAD_FORMATS = {
+  JSON_API_V1: 'JSON_API_V1',
+} as const
+
+/**
+ * Pre-built resolver for BigQuery Data Transfer Service notifications.
+ *
+ * Extracts the event type from the `eventType` message attribute.
+ * BigQuery Data Transfer Service sends notifications when transfer runs reach
+ * terminal states (SUCCEEDED, FAILED, CANCELLED).
+ *
+ * @see https://cloud.google.com/bigquery/docs/transfer-run-notifications
+ *
+ * @example
+ * ```typescript
+ * class BigQueryTransferConsumer extends AbstractPubSubConsumer {
+ *   constructor(deps: PubSubConsumerDependencies) {
+ *     super(deps, {
+ *       messageTypeResolver: BIGQUERY_TRANSFER_TYPE_RESOLVER,
+ *       handlers: new MessageHandlerConfigBuilder()
+ *         .addConfig(transferRunSchema, handler, { messageType: 'TRANSFER_RUN_FINISHED' })
+ *         .build(),
+ *     }, context)
+ *   }
+ * }
+ * ```
+ */
+export const BIGQUERY_TRANSFER_TYPE_RESOLVER: MessageTypeResolverConfig = createAttributeResolver(
+  BIGQUERY_TRANSFER_EVENT_TYPE_ATTRIBUTE,
+)
+
+/**
+ * Pre-built resolver for BigQuery Data Transfer Service notifications with normalized types.
+ *
+ * Maps the raw event type to a normalized internal type:
+ * - `TRANSFER_RUN_FINISHED` → `bigquery.transfer.finished`
+ *
+ * @see https://cloud.google.com/bigquery/docs/transfer-run-notifications
+ *
+ * @example
+ * ```typescript
+ * class BigQueryTransferConsumer extends AbstractPubSubConsumer {
+ *   constructor(deps: PubSubConsumerDependencies) {
+ *     super(deps, {
+ *       messageTypeResolver: BIGQUERY_TRANSFER_NORMALIZED_TYPE_RESOLVER,
+ *       handlers: new MessageHandlerConfigBuilder()
+ *         .addConfig(transferRunSchema, handler, { messageType: 'bigquery.transfer.finished' })
+ *         .build(),
+ *     }, context)
+ *   }
+ * }
+ * ```
+ */
+export const BIGQUERY_TRANSFER_NORMALIZED_TYPE_RESOLVER: MessageTypeResolverConfig =
+  createAttributeResolverWithMapping(
+    BIGQUERY_TRANSFER_EVENT_TYPE_ATTRIBUTE,
+    {
+      [BIGQUERY_TRANSFER_EVENT_TYPES.TRANSFER_RUN_FINISHED]: 'bigquery.transfer.finished',
+    },
+    { fallbackToOriginal: true },
+  )
+
+// ============================================================================
+// Cloud Scheduler
+// ============================================================================
+
+/**
+ * Common attribute name for Cloud Scheduler job type.
+ * This is a convention, not a standard - Cloud Scheduler allows any attribute names.
+ *
+ * @example
+ * ```typescript
+ * // When creating a Cloud Scheduler job via gcloud:
+ * // gcloud scheduler jobs create pubsub my-job \
+ * //   --schedule "0 9 * * *" \
+ * //   --topic my-topic \
+ * //   --message-body "{}" \
+ * //   --attributes jobType=daily-report
+ * ```
+ */
+export const CLOUD_SCHEDULER_JOB_TYPE_ATTRIBUTE = 'jobType'
+
+/**
+ * Alternative common attribute name for Cloud Scheduler function target.
+ * This is a convention used when routing to different Cloud Functions.
+ */
+export const CLOUD_SCHEDULER_FUNCTION_TARGET_ATTRIBUTE = 'functionTarget'
+
+/**
+ * Creates a resolver for Cloud Scheduler messages using a custom attribute.
+ *
+ * Cloud Scheduler does NOT have a standard message type convention - users define
+ * their own attributes when creating scheduler jobs. This helper creates a resolver
+ * for your chosen attribute name.
+ *
+ * @param attributeName - The attribute name you use for message type (default: 'jobType')
+ * @returns MessageTypeResolverConfig for use in consumer options
+ *
+ * @see https://cloud.google.com/scheduler/docs/creating
+ *
+ * @example
+ * ```typescript
+ * // Using the default 'jobType' attribute
+ * class SchedulerConsumer extends AbstractPubSubConsumer {
+ *   constructor(deps: PubSubConsumerDependencies) {
+ *     super(deps, {
+ *       messageTypeResolver: createCloudSchedulerResolver(),
+ *       handlers: new MessageHandlerConfigBuilder()
+ *         .addConfig(dailyReportSchema, handler, { messageType: 'daily-report' })
+ *         .addConfig(weeklyCleanupSchema, handler, { messageType: 'weekly-cleanup' })
+ *         .build(),
+ *     }, context)
+ *   }
+ * }
+ *
+ * // Using a custom attribute name
+ * {
+ *   messageTypeResolver: createCloudSchedulerResolver('functionTarget'),
+ * }
+ * ```
+ */
+export function createCloudSchedulerResolver(
+  attributeName: string = CLOUD_SCHEDULER_JOB_TYPE_ATTRIBUTE,
+): MessageTypeResolverConfig {
+  return createAttributeResolver(attributeName)
+}
+
+/**
+ * Creates a resolver for Cloud Scheduler messages with type mapping.
+ *
+ * Use this when you want to normalize Cloud Scheduler job types to internal
+ * message type names.
+ *
+ * @param typeMap - Map of scheduler job types to internal message types
+ * @param attributeName - The attribute name you use for message type (default: 'jobType')
+ * @param options - Optional configuration
+ * @param options.fallbackToOriginal - If true, unmapped types are passed through (default: false)
+ * @returns MessageTypeResolverConfig for use in consumer options
+ *
+ * @example
+ * ```typescript
+ * const resolver = createCloudSchedulerResolverWithMapping({
+ *   'daily-report': 'scheduler.report.daily',
+ *   'weekly-cleanup': 'scheduler.cleanup.weekly',
+ *   'monthly-billing': 'scheduler.billing.monthly',
+ * })
+ *
+ * class SchedulerConsumer extends AbstractPubSubConsumer {
+ *   constructor(deps: PubSubConsumerDependencies) {
+ *     super(deps, {
+ *       messageTypeResolver: resolver,
+ *       handlers: new MessageHandlerConfigBuilder()
+ *         .addConfig(dailyReportSchema, handler, { messageType: 'scheduler.report.daily' })
+ *         .build(),
+ *     }, context)
+ *   }
+ * }
+ * ```
+ */
+export function createCloudSchedulerResolverWithMapping(
+  typeMap: Record<string, string>,
+  attributeName: string = CLOUD_SCHEDULER_JOB_TYPE_ATTRIBUTE,
+  options?: { fallbackToOriginal?: boolean },
+): MessageTypeResolverConfig {
+  return createAttributeResolverWithMapping(attributeName, typeMap, options)
+}
