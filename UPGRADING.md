@@ -1,13 +1,45 @@
 # Upgrading Guide
 
+## Upgrading </br> `core` `25.x.x` -> `26.0.0` </br> `sqs` `xx.x.x` -> `xx.0.0` </br> `sns` `xx.x.x` -> `xx.0.0` </br> `amqp` `xx.x.x` -> `xx.0.0` </br> `gcp-pubsub` `2.x.x` -> `3.0.0`
+
+### Description of Breaking Changes
+
+- **`messageTypeField` option removed**: The deprecated `messageTypeField` option has been removed from all queue services. Use `messageTypeResolver` instead.
+
+- **`HandlerSpyParams.messageTypePath` removed**: The `messageTypePath` option in `HandlerSpyParams` has been removed. Message types are now passed explicitly when adding processed messages. This is handled internally by the library, so most users won't need to make changes.
+
+### Migration Steps
+
+#### Replacing `messageTypeField` with `messageTypeResolver`
+
+Replace `messageTypeField: 'fieldName'` with `messageTypeResolver: { messageTypePath: 'fieldName' }`:
+
+```typescript
+// Before
+super(dependencies, {
+  messageTypeField: 'type',
+  handlers: new MessageHandlerConfigBuilder()
+    .addConfig(schema, handler)
+    .build(),
+})
+
+// After
+super(dependencies, {
+  messageTypeResolver: { messageTypePath: 'type' },
+  handlers: new MessageHandlerConfigBuilder()
+    .addConfig(schema, handler)
+    .build(),
+})
+```
+
 ## Upgrading </br> `core` `24.x.x` -> `25.0.0` </br> `gcp-pubsub` `1.x.x` -> `2.0.0`
 
 ### Description of Breaking Changes
 
 - **`NO_MESSAGE_TYPE_FIELD` constant removed**: The `NO_MESSAGE_TYPE_FIELD` constant has been removed from `@message-queue-toolkit/core`. Use `messageTypeResolver` with literal mode instead.
 
-- **New `messageTypeResolver` configuration**: A flexible alternative to `messageTypeField` for message type resolution. Supports three modes:
-  - `{ messageTypePath: 'type' }` - extract type from a field (equivalent to `messageTypeField`)
+- **New `messageTypeResolver` configuration**: A flexible configuration for message type resolution. Supports three modes:
+  - `{ messageTypePath: 'type' }` - extract type from a field at the root of the message
   - `{ literal: 'my.message.type' }` - use a constant type for all messages
   - `{ resolver: ({ messageData, messageAttributes }) => 'resolved.type' }` - custom resolver function
 

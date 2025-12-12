@@ -64,11 +64,13 @@ export {
   type PrehandlerResult,
 } from './queues/HandlerContainer.ts'
 export {
+  ANY_MESSAGE_TYPE,
   HandlerSpy,
   type HandlerSpyParams,
   type PublicHandlerSpy,
   resolveHandlerSpy,
   type SpyResultInput,
+  TYPE_NOT_RESOLVED,
 } from './queues/HandlerSpy.ts'
 export type { MessageSchemaContainerOptions } from './queues/MessageSchemaContainer.ts'
 export { MessageSchemaContainer } from './queues/MessageSchemaContainer.ts'

@@ -52,7 +52,7 @@ The core package provides the foundational building blocks used by all protocol-
 
 Messages are validated using Zod schemas. The library uses configurable field names:
 
-- **`messageTypeField`** or **`messageTypeResolver`**: Configuration for resolving the message type discriminator (see [Message Type Resolution](#message-type-resolution))
+- **`messageTypeResolver`**: Configuration for resolving the message type discriminator (see [Message Type Resolution](#message-type-resolution))
 - **`messageIdField`** (default: `'id'`): Field containing the message ID
 - **`messageTimestampField`** (default: `'timestamp'`): Field containing the timestamp
 
@@ -84,36 +84,35 @@ In a typical event-driven architecture, a single queue or topic may receive mult
 
 #### Configuration Options
 
-The library supports two configuration approaches:
+The `messageTypeResolver` configuration supports three modes:
 
-##### Option 1: `messageTypeField` (Simple)
+##### Mode 1: Field Path (Simple)
 
 Use when the message type is a field at the root level of the parsed message body:
 
 ```typescript
 {
-  messageTypeField: 'type',  // Extracts type from message.type
+  messageTypeResolver: { messageTypePath: 'type' },  // Extracts type from message.type
 }
 ```
 
-##### Option 2: `messageTypeResolver` (Flexible)
+##### Mode 2: Literal (Constant)
 
-Use for complex scenarios where the type needs to be extracted from message attributes, nested fields, requires transformation, or when all messages are of the same type.
+Use when all messages are of the same type:
+
+```typescript
+{
+  messageTypeResolver: { literal: 'order.created' },  // All messages treated as this type
+}
+```
+
+##### Mode 3: Custom Resolver (Flexible)
+
+Use for complex scenarios where the type needs to be extracted from message attributes, nested fields, or requires transformation:
 
 ```typescript
 import type { MessageTypeResolverConfig } from '@message-queue-toolkit/core'
 
-// Literal: All messages treated as the same type
-const literalConfig: MessageTypeResolverConfig = {
-  literal: 'order.created',
-}
-
-// Field path: Extract from a root-level field (equivalent to messageTypeField)
-const pathConfig: MessageTypeResolverConfig = {
-  messageTypePath: 'type',
-}
-
-// Custom resolver: Full flexibility
 const resolverConfig: MessageTypeResolverConfig = {
   resolver: ({ messageData, messageAttributes }) => {
     // Your custom logic here
@@ -144,7 +143,7 @@ When publishing your own events directly to SQS, you control the message format:
 
 // Configuration
 {
-  messageTypeField: 'type',
+  messageTypeResolver: { messageTypePath: 'type' },
 }
 ```
 
@@ -170,7 +169,7 @@ EventBridge events have a specific structure with `detail-type`:
 
 // Configuration
 {
-  messageTypeField: 'detail-type',
+  messageTypeResolver: { messageTypePath: 'detail-type' },
 }
 
 // Or with resolver for normalization
@@ -202,7 +201,7 @@ SNS messages wrapped in SQS have the actual payload in the `Message` field (hand
 
 // Configuration
 {
-  messageTypeField: 'type',
+  messageTypeResolver: { messageTypePath: 'type' },
 }
 ```
 
@@ -224,7 +223,7 @@ Kafka typically uses topic-based routing, but you may still need message types w
 
 // Configuration
 {
-  messageTypeField: 'eventType',
+  messageTypeResolver: { messageTypePath: 'eventType' },
 }
 
 // Or using Kafka headers (via custom resolver)
@@ -258,7 +257,7 @@ When you control the message format in Pub/Sub:
 
 // Configuration
 {
-  messageTypeField: 'type',
+  messageTypeResolver: { messageTypePath: 'type' },
 }
 ```
 
@@ -323,7 +322,7 @@ Eventarc delivers events in CloudEvents format:
 
 // Configuration
 {
-  messageTypeField: 'type',  // CloudEvents type is at root level
+  messageTypeResolver: { messageTypePath: 'type' },  // CloudEvents type is at root level
 }
 
 // Or with mapping to simpler types
@@ -520,7 +519,7 @@ import { HandlerContainer } from '@message-queue-toolkit/core'
 
 const container = new HandlerContainer({
   messageHandlers: handlers,
-  messageTypeField: 'type',
+  messageTypeResolver: { messageTypePath: 'type' },
 })
 
 const handler = container.resolveHandler(message.type)
@@ -535,7 +534,7 @@ import { MessageSchemaContainer } from '@message-queue-toolkit/core'
 
 const container = new MessageSchemaContainer({
   messageSchemas: [Schema1, Schema2],
-  messageTypeField: 'type',
+  messageTypeResolver: { messageTypePath: 'type' },
 })
 
 const schema = container.resolveSchema(message.type)

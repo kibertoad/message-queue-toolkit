@@ -133,7 +133,7 @@ describe('HandlerContainer', () => {
 
       const container = new HandlerContainer({
         messageHandlers: configs,
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
       })
 
       const userHandler = container.resolveHandler('user.created')
@@ -150,7 +150,7 @@ describe('HandlerContainer', () => {
 
       const container = new HandlerContainer({
         messageHandlers: configs,
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
       })
 
       expect(() => container.resolveHandler('unknown.type')).toThrow(
@@ -168,7 +168,7 @@ describe('HandlerContainer', () => {
 
         const container = new HandlerContainer({
           messageHandlers: configs,
-          messageTypeField: 'type',
+          messageTypeResolver: { messageTypePath: 'type' },
         })
 
         const messageType = container.resolveMessageType({
@@ -186,7 +186,7 @@ describe('HandlerContainer', () => {
 
         const container = new HandlerContainer({
           messageHandlers: configs,
-          messageTypeField: 'type',
+          messageTypeResolver: { messageTypePath: 'type' },
         })
 
         expect(() => container.resolveMessageType({ userId: '1' })).toThrow(
@@ -295,7 +295,7 @@ describe('HandlerContainer', () => {
 
         // Handler is registered but runtime resolution fails
         expect(() => container.resolveMessageType({ type: 'user.created' })).toThrow(
-          'Unable to resolve message type: neither messageTypeField nor messageTypeResolver is configured',
+          'Unable to resolve message type: messageTypeResolver is not configured',
         )
       })
 
@@ -348,7 +348,7 @@ describe('HandlerContainer', () => {
 
         const container = new HandlerContainer({
           messageHandlers: configs,
-          messageTypeField: 'type',
+          messageTypeResolver: { messageTypePath: 'type' },
         })
 
         // Handler is registered under 'custom.type', not 'user.created'
@@ -411,7 +411,7 @@ describe('HandlerContainer', () => {
 
       const container = new HandlerContainer({
         messageHandlers: configs,
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
       })
 
       const handler = container.resolveHandler('user.created')

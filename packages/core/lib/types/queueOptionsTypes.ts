@@ -22,9 +22,10 @@ export type ProcessedMessageMetadata<MessagePayloadSchemas extends object = obje
    */
   messageId: string
   /**
-   * Message type accessed by `messageTypeField`
+   * Message type resolved by `messageTypeResolver`.
+   * May be undefined if messageTypeResolver is not configured.
    */
-  messageType: string
+  messageType?: string
 
   /**
    * Processing result status
@@ -79,40 +80,25 @@ export type QueueConsumerDependencies = {
 /**
  * Common queue options for publishers and consumers.
  *
- * Message type resolution can be configured via either:
- * - `messageTypeField` (legacy): simple field name at root of message data
- * - `messageTypeResolver` (new): flexible configuration supporting field paths, constants, or custom functions
- *
- * If both are provided, `messageTypeResolver` takes precedence.
+ * Message type resolution is configured via `messageTypeResolver`.
  * At least one must be provided for routing to work (unless using a single handler).
  */
 export type CommonQueueOptions = {
   /**
-   * Field name at the root of the message containing the message type.
-   * Must be defined as z.literal() in the schema for routing to work.
-   *
-   * @deprecated Use `messageTypeResolver` for new implementations. This field is kept for backwards compatibility.
-   * @example
-   * { messageTypeField: 'type' }  // extracts type from message.type
-   * { messageTypeField: 'detail-type' }  // for EventBridge events
-   */
-  messageTypeField?: string
-  /**
-   * Flexible configuration for resolving message types.
-   * Takes precedence over `messageTypeField` if both are provided.
+   * Configuration for resolving message types.
    *
    * Supports three modes:
-   * - `{ messageTypePath: string }` - field name at root of message data (like messageTypeField)
+   * - `{ messageTypePath: string }` - field name at the root of the message
    * - `{ literal: string }` - constant type for all messages
    * - `{ resolver: fn }` - custom function for complex scenarios (e.g., extracting from attributes)
    *
    * @example
-   * // Constant type - all messages treated as same type
-   * { messageTypeResolver: { literal: 'order.created' } }
+   * // Field path - extracts type from message.type
+   * { messageTypeResolver: { messageTypePath: 'type' } }
    *
    * @example
-   * // Field path (equivalent to messageTypeField: 'type')
-   * { messageTypeResolver: { messageTypePath: 'type' } }
+   * // Constant type - all messages treated as same type
+   * { messageTypeResolver: { literal: 'order.created' } }
    *
    * @example
    * // Custom resolver for Cloud Storage notifications via PubSub

@@ -13,6 +13,7 @@ import {
   type MessageProcessingResult,
   type PublicHandlerSpy,
   resolveHandlerSpy,
+  TYPE_NOT_RESOLVED,
 } from '@message-queue-toolkit/core'
 import type { BaseOptions } from '@platformatic/kafka'
 import type {
@@ -91,7 +92,12 @@ export abstract class AbstractKafkaService<
     const { message, processingResult } = params
     const messageId = this.resolveMessageId(message.value)
 
-    this._handlerSpy?.addProcessedMessage({ message: message.value, processingResult }, messageId)
+    // Kafka doesn't have unified message type resolution yet, use TYPE_NOT_RESOLVED
+    this._handlerSpy?.addProcessedMessage(
+      { message: message.value, processingResult },
+      messageId,
+      TYPE_NOT_RESOLVED,
+    )
 
     if (this.options.logMessages) {
       this.logger.debug(

@@ -41,7 +41,7 @@ describe('SnsPublisherManager', () => {
       newPublisherOptions: {
         handlerSpy: true,
         messageIdField: 'id',
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
         creationConfig: {
           updateAttributesIfExists: true,
         },

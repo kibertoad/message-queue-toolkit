@@ -14,12 +14,7 @@ export type MessageSchemaContainerOptions<MessagePayloadSchemas extends object> 
   messageDefinitions: readonly CommonEventDefinition[]
   messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
   /**
-   * @deprecated Use messageTypeResolver instead for new implementations
-   */
-  messageTypeField?: string
-  /**
-   * New flexible message type resolver configuration.
-   * Takes precedence over messageTypeField if both are provided.
+   * Configuration for resolving message types.
    */
   messageTypeResolver?: MessageTypeResolverConfig
 }
@@ -31,15 +26,9 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
 
   private readonly messageSchemas: Record<string | symbol, ZodSchema<MessagePayloadSchemas>>
   private readonly messageTypeResolver?: MessageTypeResolverConfig
-  /**
-   * @deprecated Kept for backwards compatibility, use messageTypeResolver
-   */
-  private readonly messageTypeField?: string
 
   constructor(options: MessageSchemaContainerOptions<MessagePayloadSchemas>) {
-    // New resolver takes precedence, but fall back to legacy field
     this.messageTypeResolver = options.messageTypeResolver
-    this.messageTypeField = options.messageTypeField
     this.messageSchemas = this.resolveMap(options.messageSchemas)
     this.messageDefinitions = this.resolveMap(options.messageDefinitions ?? [])
   }
@@ -81,12 +70,6 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
       return resolveMessageType(this.messageTypeResolver, context)
     }
 
-    // Legacy behavior: extract from messageTypeField
-    if (this.messageTypeField) {
-      const data = messageData as Record<string, unknown> | undefined
-      return data?.[this.messageTypeField] as string | undefined
-    }
-
     return undefined
   }
 
@@ -95,14 +78,11 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
    * Returns undefined for literal or custom resolver modes.
    */
   private getMessageTypePathForSchema(): string | undefined {
-    if (this.messageTypeResolver) {
-      if (isMessageTypePathConfig(this.messageTypeResolver)) {
-        return this.messageTypeResolver.messageTypePath
-      }
-      // For literal or custom resolver, we don't extract type from schema
-      return undefined
+    if (this.messageTypeResolver && isMessageTypePathConfig(this.messageTypeResolver)) {
+      return this.messageTypeResolver.messageTypePath
     }
-    return this.messageTypeField
+    // For literal or custom resolver, we don't extract type from schema
+    return undefined
   }
 
   /**

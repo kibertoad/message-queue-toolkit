@@ -161,7 +161,7 @@ describe('SqsEventBridgeConsumer', () => {
             deletionConfig: {
               deleteIfExists: true,
             },
-            messageTypeField: 'detail-type',
+            messageTypeResolver: { messageTypePath: 'detail-type' },
             messageIdField: 'id',
             messageTimestampField: 'time',
             handlerSpy: true,

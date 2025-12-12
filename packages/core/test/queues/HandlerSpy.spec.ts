@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { HandlerSpy, isHandlerSpy } from '../../lib/queues/HandlerSpy.ts'
+import { HandlerSpy, isHandlerSpy, TYPE_NOT_RESOLVED } from '../../lib/queues/HandlerSpy.ts'
 
 type Message = {
   id: string
@@ -87,10 +87,14 @@ describe('HandlerSpy', () => {
     it('Remove stored events', () => {
       const spy = new HandlerSpy<Message>()
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE_2,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE_2,
+        },
+        undefined,
+        'test.type',
+      )
 
       spy.clear()
 
@@ -103,15 +107,23 @@ describe('HandlerSpy', () => {
     it('Finds previously consumed event', async () => {
       const spy = new HandlerSpy<Message>()
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE_2,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE_2,
+        },
+        undefined,
+        'test.type',
+      )
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE,
+        },
+        undefined,
+        'test.type',
+      )
 
       const message = await spy.waitForMessage({
         status: 'done',
@@ -123,15 +135,23 @@ describe('HandlerSpy', () => {
     it('Finds previously consumed event with type narrowing', async () => {
       const spy = new HandlerSpy<Message | MessageB>()
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE_2B,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE_2B,
+        },
+        undefined,
+        'test.type',
+      )
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGEB,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGEB,
+        },
+        undefined,
+        'test.type',
+      )
 
       const message = await spy.waitForMessage<MessageB>({
         status2: 'done',
@@ -143,10 +163,14 @@ describe('HandlerSpy', () => {
     it('Finds previously consumed event with a deep match', async () => {
       const spy = new HandlerSpy<Message>()
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE_3,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE_3,
+        },
+        undefined,
+        'test.type',
+      )
 
       const message = await spy.waitForMessage({
         payload: {
@@ -160,15 +184,23 @@ describe('HandlerSpy', () => {
     it('Finds previously consumed event with a deep partial match', async () => {
       const spy = new HandlerSpy<Message>()
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE_3,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE_3,
+        },
+        undefined,
+        'test.type',
+      )
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE_4,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE_4,
+        },
+        undefined,
+        'test.type',
+      )
 
       const message = await spy.waitForMessage({
         payload: {
@@ -193,10 +225,14 @@ describe('HandlerSpy', () => {
         },
       }
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message,
+        },
+        undefined,
+        'test.type',
+      )
 
       const messageResult = await spy.waitForMessage({
         payload: {
@@ -212,15 +248,23 @@ describe('HandlerSpy', () => {
     it('Finds previously consumed event with an array match in order', async () => {
       const spy = new HandlerSpy<Message>()
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE_5A,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE_5A,
+        },
+        undefined,
+        'test.type',
+      )
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE_5B,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE_5B,
+        },
+        undefined,
+        'test.type',
+      )
 
       const message = await spy.waitForMessage({
         payload: {
@@ -236,15 +280,23 @@ describe('HandlerSpy', () => {
     it('Finds multiple previously consumed events', async () => {
       const spy = new HandlerSpy<Message>()
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'retryLater' },
-        message: TEST_MESSAGE,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'retryLater' },
+          message: TEST_MESSAGE,
+        },
+        undefined,
+        'test.type',
+      )
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE,
+        },
+        undefined,
+        'test.type',
+      )
 
       const message = await spy.waitForMessage(
         {
@@ -267,19 +319,27 @@ describe('HandlerSpy', () => {
     it('Waits for an message to be consumed', async () => {
       const spy = new HandlerSpy<Message>()
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE_2,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE_2,
+        },
+        undefined,
+        'test.type',
+      )
 
       const spyPromise = spy.waitForMessage({
         status: 'done',
       })
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE,
+        },
+        undefined,
+        'test.type',
+      )
 
       const message = await spyPromise
 
@@ -291,17 +351,25 @@ describe('HandlerSpy', () => {
     it('Waits for an message to be consumed by id', async () => {
       const spy = new HandlerSpy<Message>()
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE_2,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE_2,
+        },
+        undefined,
+        'test.type',
+      )
 
       const spyPromise = spy.waitForMessageWithId(TEST_MESSAGE.id)
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE,
+        },
+        undefined,
+        'test.type',
+      )
 
       const message = await spyPromise
 
@@ -313,15 +381,23 @@ describe('HandlerSpy', () => {
         messageIdField: 'id2',
       })
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGE_2B,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGE_2B,
+        },
+        undefined,
+        'test.type',
+      )
 
-      spy.addProcessedMessage({
-        processingResult: { status: 'consumed' },
-        message: TEST_MESSAGEB,
-      })
+      spy.addProcessedMessage(
+        {
+          processingResult: { status: 'consumed' },
+          message: TEST_MESSAGEB,
+        },
+        undefined,
+        'test.type',
+      )
 
       const message = await spy.waitForMessageWithId<MessageB>(TEST_MESSAGEB.id2)
 
@@ -337,6 +413,7 @@ describe('HandlerSpy', () => {
           message: null,
         },
         'abc',
+        TYPE_NOT_RESOLVED,
       )
 
       const messageResult = await spy.waitForMessageWithId('abc')

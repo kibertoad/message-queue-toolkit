@@ -238,7 +238,7 @@ class LargeMessagePublisher extends AbstractSqsPublisher<MyMessage> {
         queue: { QueueName: 'large-messages' },
       },
       messageSchemas: [MY_MESSAGE_SCHEMA],
-      messageTypeField: 'type',
+      messageTypeResolver: { messageTypePath: 'type' },
       payloadStoreConfig: {
         store: new GCSPayloadStore(
           { gcsStorage: storage },
@@ -267,7 +267,7 @@ class PubSubLargeMessagePublisher extends AbstractPubSubPublisher<MyMessage> {
         topic: { name: 'large-events' },
       },
       messageSchemas: [MY_MESSAGE_SCHEMA],
-      messageTypeField: 'type',
+      messageTypeResolver: { messageTypePath: 'type' },
       payloadStoreConfig: {
         store: new GCSPayloadStore(
           { gcsStorage: storage },

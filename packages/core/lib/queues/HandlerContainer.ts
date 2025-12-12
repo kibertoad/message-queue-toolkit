@@ -243,12 +243,7 @@ export type HandlerContainerOptions<
 > = {
   messageHandlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
   /**
-   * @deprecated Use messageTypeResolver instead for new implementations
-   */
-  messageTypeField?: string
-  /**
-   * New flexible message type resolver configuration.
-   * Takes precedence over messageTypeField if both are provided.
+   * Configuration for resolving message types.
    */
   messageTypeResolver?: MessageTypeResolverConfig
 }
@@ -263,16 +258,11 @@ export class HandlerContainer<
     MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
   >
   private readonly messageTypeResolver?: MessageTypeResolverConfig
-  /**
-   * @deprecated Kept for backwards compatibility
-   */
-  private readonly messageTypeField?: string
 
   constructor(
     options: HandlerContainerOptions<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>,
   ) {
     this.messageTypeResolver = options.messageTypeResolver
-    this.messageTypeField = options.messageTypeField
     this.messageHandlers = this.resolveHandlerMap(options.messageHandlers)
   }
 
@@ -312,21 +302,7 @@ export class HandlerContainer<
       return resolveMessageType(this.messageTypeResolver, context)
     }
 
-    // Legacy behavior: messageTypeField is configured
-    if (this.messageTypeField) {
-      const data = messageData as Record<string, unknown> | undefined
-      const messageType = data?.[this.messageTypeField] as string | undefined
-      if (messageType === undefined) {
-        throw new Error(
-          `Unable to resolve message type: field '${this.messageTypeField}' not found in message data`,
-        )
-      }
-      return messageType
-    }
-
-    throw new Error(
-      'Unable to resolve message type: neither messageTypeField nor messageTypeResolver is configured',
-    )
+    throw new Error('Unable to resolve message type: messageTypeResolver is not configured')
   }
 
   /**
@@ -334,14 +310,11 @@ export class HandlerContainer<
    * Returns undefined for literal or custom resolver modes.
    */
   private getMessageTypePathForSchema(): string | undefined {
-    if (this.messageTypeResolver) {
-      if (isMessageTypePathConfig(this.messageTypeResolver)) {
-        return this.messageTypeResolver.messageTypePath
-      }
-      // For literal or custom resolver, we don't extract type from schema
-      return undefined
+    if (this.messageTypeResolver && isMessageTypePathConfig(this.messageTypeResolver)) {
+      return this.messageTypeResolver.messageTypePath
     }
-    return this.messageTypeField
+    // For literal or custom resolver, we don't extract type from schema
+    return undefined
   }
 
   /**

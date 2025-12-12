@@ -48,7 +48,7 @@ export class AmqpPermissionPublisher extends AbstractAmqpQueuePublisher<Supporte
           }),
       logMessages: options.logMessages ?? true,
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
-      messageTypeField: 'messageType',
+      messageTypeResolver: { messageTypePath: 'messageType' },
     })
   }
 }

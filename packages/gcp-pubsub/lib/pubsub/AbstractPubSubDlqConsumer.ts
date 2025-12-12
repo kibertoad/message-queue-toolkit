@@ -36,7 +36,7 @@ export type DlqMessageHandler<ExecutionContext> = (
 
 /**
  * Options for AbstractPubSubDlqConsumer.
- * Omits messageTypeField, messageTypeResolver, and handlers since DLQ consumers handle all message types uniformly.
+ * Omits messageTypeResolver and handlers since DLQ consumers handle all message types uniformly.
  */
 export type PubSubDlqConsumerOptions<
   ExecutionContext,
@@ -50,7 +50,7 @@ export type PubSubDlqConsumerOptions<
     CreationConfigType,
     QueueLocatorType
   >,
-  'messageTypeField' | 'messageTypeResolver' | 'handlers'
+  'messageTypeResolver' | 'handlers'
 > & {
   /**
    * Handler function to process DLQ messages.
@@ -67,7 +67,7 @@ export type PubSubDlqConsumerOptions<
  * any message structure since DLQ messages can come from various failed processing scenarios.
  *
  * Key differences from AbstractPubSubConsumer:
- * - Does NOT use messageTypeField routing (accepts all message types)
+ * - Does NOT use messageTypeResolver routing (accepts all message types)
  * - Uses a passthrough schema that accepts any message with an 'id' field
  * - Simplified handler configuration (single handler for all messages)
  *

@@ -144,7 +144,6 @@ export abstract class AbstractPubSubConsumer<
     this._messageSchemaContainer = this.resolveConsumerMessageSchemaContainer(options)
     this.handlerContainer = new HandlerContainer({
       messageHandlers: options.handlers,
-      messageTypeField: options.messageTypeField,
       messageTypeResolver: options.messageTypeResolver,
     })
   }

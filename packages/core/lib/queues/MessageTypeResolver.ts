@@ -47,9 +47,8 @@ export type MessageTypeResolverFn = (context: MessageTypeResolverContext) => str
  *
  * Three modes are supported:
  *
- * 1. **Field path** (string): Extract type from a field at the root of message data.
- *    This is equivalent to the legacy `messageTypeField` behavior.
- *    @example { messageTypePath: 'type' } // equivalent to messageTypeField: 'type'
+ * 1. **Field path** (string): Extract type from a field at the root of the message.
+ *    @example { messageTypePath: 'type' } // extracts type from message.type
  *    @example { messageTypePath: 'detail-type' } // for EventBridge events
  *
  * 2. **Constant type** (object with `literal`): All messages are treated as the same type.
@@ -98,8 +97,7 @@ export type MessageTypeResolverFn = (context: MessageTypeResolverContext) => str
 export type MessageTypeResolverConfig =
   | {
       /**
-       * Field name at the root of message data containing the message type.
-       * This is equivalent to the legacy `messageTypeField` behavior.
+       * Field name at the root of the message containing the message type.
        */
       messageTypePath: string
     }

@@ -152,7 +152,7 @@ export async function registerDependencies(
             isLazyInitEnabled: true,
             handlerSpy: true,
             messageIdField: 'id',
-            messageTypeField: 'type',
+            messageTypeResolver: { messageTypePath: 'type' },
           },
         })
       },
@@ -173,7 +173,7 @@ export async function registerDependencies(
             isLazyInitEnabled: false,
             handlerSpy: true,
             messageIdField: 'id',
-            messageTypeField: 'type',
+            messageTypeResolver: { messageTypePath: 'type' },
           },
         })
       },
@@ -193,7 +193,7 @@ export async function registerDependencies(
           newPublisherOptions: {
             handlerSpy: true,
             messageIdField: 'id',
-            messageTypeField: 'type',
+            messageTypeResolver: { messageTypePath: 'type' },
           },
         })
       },

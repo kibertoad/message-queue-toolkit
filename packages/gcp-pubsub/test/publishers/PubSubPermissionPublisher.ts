@@ -45,7 +45,7 @@ export class PubSubPermissionPublisher extends AbstractPubSubPublisher<Supported
     super(dependencies, {
       ...options,
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
-      messageTypeField: 'messageType',
+      messageTypeResolver: { messageTypePath: 'messageType' },
       handlerSpy: true,
     })
   }

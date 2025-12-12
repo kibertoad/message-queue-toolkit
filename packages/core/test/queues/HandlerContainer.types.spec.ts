@@ -132,12 +132,6 @@ describe('HandlerContainer Types', () => {
         MessageTypeResolverConfig | undefined
       >()
     })
-
-    it('should accept messageTypeField for legacy support', () => {
-      type Options = HandlerContainerOptions<SupportedMessages, TestContext>
-
-      expectTypeOf<Options['messageTypeField']>().toEqualTypeOf<string | undefined>()
-    })
   })
 
   describe('HandlerContainer', () => {
@@ -148,7 +142,7 @@ describe('HandlerContainer Types', () => {
 
       const container = new HandlerContainer({
         messageHandlers: configs,
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
       })
 
       const result = container.resolveMessageType({ type: 'user.created' })
@@ -162,7 +156,7 @@ describe('HandlerContainer Types', () => {
 
       const container = new HandlerContainer({
         messageHandlers: configs,
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
       })
 
       // This should compile - string is required
@@ -179,7 +173,7 @@ describe('HandlerContainer Types', () => {
 
       const container = new HandlerContainer({
         messageHandlers: configs,
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
       })
 
       // Note: resolveHandler accepts any string at compile time.

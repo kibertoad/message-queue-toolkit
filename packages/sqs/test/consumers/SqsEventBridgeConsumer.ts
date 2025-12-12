@@ -25,7 +25,7 @@ export type EventBridgeTestContext = {
  * EventBridge consumer demonstrating non-standard event format support.
  *
  * Key configurations:
- * - messageTypeField: 'detail-type' (instead of default 'type')
+ * - messageTypeResolver: { messageTypePath: 'detail-type' } (instead of default 'type')
  * - messageTimestampField: 'time' (instead of default 'timestamp')
  *
  * How it works:
@@ -53,7 +53,7 @@ export class SqsEventBridgeConsumer extends AbstractSqsConsumer<
         },
 
         // EventBridge-specific field mappings
-        messageTypeField: 'detail-type', // EventBridge uses 'detail-type' instead of 'type'
+        messageTypeResolver: { messageTypePath: 'detail-type' }, // EventBridge uses 'detail-type' instead of 'type'
         messageIdField: 'id', // Standard field, same as default
         messageTimestampField: 'time', // EventBridge uses 'time' instead of 'timestamp'
 
