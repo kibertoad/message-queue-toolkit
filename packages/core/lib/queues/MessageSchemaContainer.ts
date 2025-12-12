@@ -46,19 +46,28 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
     message: Record<string, any>,
     attributes?: Record<string, unknown>,
   ): Either<Error, ZodSchema<MessagePayloadSchemas>> {
-    let messageType: string | undefined
+    // If no resolver configured, use the single default schema
+    if (!this.messageTypeResolver) {
+      const schema = this.messageSchemas[DEFAULT_SCHEMA_KEY]
+      if (!schema) {
+        return {
+          error: new Error('No messageTypeResolver configured and no default schema available'),
+        }
+      }
+      return { result: schema }
+    }
+
+    let messageType: string
     try {
       messageType = this.resolveMessageTypeFromData(message, attributes)
     } catch (e) {
       return { error: e instanceof Error ? e : new Error(String(e)) }
     }
 
-    const schema = this.messageSchemas[messageType ?? DEFAULT_SCHEMA_KEY]
+    const schema = this.messageSchemas[messageType]
     if (!schema) {
       return {
-        error: new Error(
-          `Unsupported message type: ${messageType ?? DEFAULT_SCHEMA_KEY.toString()}`,
-        ),
+        error: new Error(`Unsupported message type: ${messageType}`),
       }
     }
     return { result: schema }
@@ -66,17 +75,16 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
 
   /**
    * Resolves message type from message data and optional attributes.
+   * Only called when messageTypeResolver is configured.
    */
   private resolveMessageTypeFromData(
     messageData: unknown,
     messageAttributes?: Record<string, unknown>,
-  ): string | undefined {
-    if (this.messageTypeResolver) {
-      const context: MessageTypeResolverContext = { messageData, messageAttributes }
-      return resolveMessageType(this.messageTypeResolver, context)
-    }
-
-    return undefined
+  ): string {
+    // This method is only called after checking messageTypeResolver exists in resolveSchema
+    const resolver = this.messageTypeResolver as MessageTypeResolverConfig
+    const context: MessageTypeResolverContext = { messageData, messageAttributes }
+    return resolveMessageType(resolver, context)
   }
 
   /**
@@ -101,24 +109,21 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
     return undefined
   }
 
-  private resolveMap<T extends CommonEventDefinition | ZodSchema<MessagePayloadSchemas>>(
-    array: readonly T[],
-  ): Record<string | symbol, T> {
-    const result: Record<string | symbol, T> = {}
+  /**
+   * Validates that multiple schemas can be properly mapped at registration time.
+   */
+  private validateMultipleSchemas(schemaCount: number): void {
+    if (schemaCount <= 1) return
 
-    const literalType = this.getLiteralMessageType()
-    const messageTypePath = this.getMessageTypePathForSchema()
-
-    // Validate: custom resolver function cannot be used with multiple schemas.
-    // The resolver works fine for runtime type resolution (when messages arrive),
-    // but at registration time we need to map each schema to its message type.
-    // With a custom resolver, we can't know what types it will return until runtime,
-    // so we can't build the type→schema lookup map for multiple schemas.
-    if (
-      this.messageTypeResolver &&
-      isMessageTypeResolverFnConfig(this.messageTypeResolver) &&
-      array.length > 1
-    ) {
+    if (!this.messageTypeResolver) {
+      throw new Error(
+        'Multiple schemas require messageTypeResolver to be configured. ' +
+          'Use messageTypePath config (to extract types from schema literals) or literal config.',
+      )
+    }
+    // Custom resolver function cannot be used with multiple schemas because
+    // we can't know what types it will return until runtime.
+    if (isMessageTypeResolverFnConfig(this.messageTypeResolver)) {
       throw new Error(
         'Custom resolver function cannot be used with multiple schemas. ' +
           'The resolver works for runtime type resolution, but at registration time ' +
@@ -126,6 +131,17 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
           'Use messageTypePath config (to extract types from schema literals) or register only a single schema.',
       )
     }
+  }
+
+  private resolveMap<T extends CommonEventDefinition | ZodSchema<MessagePayloadSchemas>>(
+    array: readonly T[],
+  ): Record<string | symbol, T> {
+    const result: Record<string | symbol, T> = {}
+
+    this.validateMultipleSchemas(array.length)
+
+    const literalType = this.getLiteralMessageType()
+    const messageTypePath = this.getMessageTypePathForSchema()
 
     for (const item of array) {
       let type: string | undefined
@@ -141,8 +157,7 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
             : // @ts-expect-error - ZodSchema has shape property at runtime
               extractMessageTypeFromSchema(item, messageTypePath)
       }
-      // For custom resolver without field path, we can't extract from schema
-      // All schemas will use DEFAULT_SCHEMA_KEY
+      // For single schema without resolver, use DEFAULT_SCHEMA_KEY
 
       const key = type ?? DEFAULT_SCHEMA_KEY
       if (result[key]) throw new Error(`Duplicate schema for type: ${key.toString()}`)
