@@ -38,6 +38,11 @@ export {
 export { deleteSqs, updateQueueAttributes } from './utils/sqsInitter.ts'
 export { deserializeSQSMessage } from './utils/sqsMessageDeserializer.ts'
 export {
+  createEventBridgeResolverWithMapping,
+  EVENT_BRIDGE_DETAIL_TYPE_FIELD,
+  EVENT_BRIDGE_TYPE_RESOLVER,
+} from './utils/sqsMessageTypeResolvers.ts'
+export {
   assertQueue,
   calculateOutgoingMessageSize,
   deleteQueue,

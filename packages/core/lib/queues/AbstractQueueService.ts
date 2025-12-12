@@ -12,6 +12,7 @@ import {
   MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA,
   type MessageDeduplicationOptions,
 } from '@message-queue-toolkit/schemas'
+import { getProperty, setProperty } from 'dot-prop'
 import type { ZodSchema, ZodType } from 'zod/v4'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors.ts'
 import {
@@ -680,11 +681,13 @@ export abstract class AbstractQueueService<
       [this.messageDeduplicationOptionsField]: message[this.messageDeduplicationOptionsField],
     }
 
-    // Preserve message type field if using messageTypePath resolver
+    // Preserve message type field if using messageTypePath resolver (supports nested paths)
     if (this.messageTypeResolver && isMessageTypePathConfig(this.messageTypeResolver)) {
       const messageTypePath = this.messageTypeResolver.messageTypePath
-      // @ts-expect-error
-      result[messageTypePath] = message[messageTypePath]
+      const typeValue = getProperty(message, messageTypePath)
+      if (typeValue !== undefined) {
+        setProperty(result, messageTypePath, typeValue)
+      }
     }
 
     return result
