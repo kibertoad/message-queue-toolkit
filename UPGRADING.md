@@ -39,9 +39,11 @@ super(dependencies, {
 - **`NO_MESSAGE_TYPE_FIELD` constant removed**: The `NO_MESSAGE_TYPE_FIELD` constant has been removed from `@message-queue-toolkit/core`. Use `messageTypeResolver` with literal mode instead.
 
 - **New `messageTypeResolver` configuration**: A flexible configuration for message type resolution. Supports three modes:
-  - `{ messageTypePath: 'type' }` - extract type from a field at the root of the message
+  - `{ messageTypePath: 'type' }` - extract type from a field in the message (supports dot notation for nested paths like `'metadata.type'`)
   - `{ literal: 'my.message.type' }` - use a constant type for all messages
   - `{ resolver: ({ messageData, messageAttributes }) => 'resolved.type' }` - custom resolver function
+
+- **`MessageSchemaContainer` API changed**: The constructor now accepts `SchemaEntry` and `DefinitionEntry` objects instead of bare schemas. Each entry can include an optional `messageType` for explicit type mapping (required when using custom resolvers).
 
 - **Explicit `messageType` in handler configuration**: When using a custom resolver function, you must provide an explicit `messageType` in handler options since the type cannot be extracted from schemas at registration time.
 

@@ -88,11 +88,16 @@ The `messageTypeResolver` configuration supports three modes:
 
 ##### Mode 1: Field Path (Simple)
 
-Use when the message type is a field at the root level of the parsed message body:
+Use when the message type is a field in the parsed message body. Supports dot notation for nested paths:
 
 ```typescript
 {
-  messageTypeResolver: { messageTypePath: 'type' },  // Extracts type from message.type
+  messageTypeResolver: { messageTypePath: 'type' },  // Extracts from message.type
+}
+
+// Nested path example
+{
+  messageTypeResolver: { messageTypePath: 'metadata.eventType' },  // Extracts from message.metadata.eventType
 }
 ```
 
