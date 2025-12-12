@@ -45,6 +45,10 @@ super(dependencies, {
 
 - **Explicit `messageType` in handler configuration**: When using a custom resolver function, you must provide an explicit `messageType` in handler options since the type cannot be extracted from schemas at registration time.
 
+- **Custom resolver validation**: Custom resolver functions (`{ resolver: fn }`) cannot be used with multiple schemas in `MessageSchemaContainer`. This is because the resolver works at runtime, but at registration time the container needs to map schemas to types. Use `messageTypePath` for multiple schemas, or register only a single schema with a custom resolver.
+
+- **Improved error handling in `MessageSchemaContainer.resolveSchema`**: The method now properly catches resolver errors and returns them as `Either<Error, Schema>` instead of throwing. This ensures consistent error handling regardless of resolver configuration.
+
 ### Migration Steps
 
 #### If using `NO_MESSAGE_TYPE_FIELD`
