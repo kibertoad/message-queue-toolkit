@@ -1,3 +1,4 @@
+import type { MessageDeduplicationConfig } from '@message-queue-toolkit/core'
 import type { PubSubMessageOptions } from '../../lib/pubsub/AbstractPubSubPublisher.ts'
 import { AbstractPubSubPublisher } from '../../lib/pubsub/AbstractPubSubPublisher.ts'
 import type { PubSubDependencies } from '../../lib/pubsub/AbstractPubSubService.ts'
@@ -27,6 +28,7 @@ type PubSubPermissionPublisherOptions = {
   }
   payloadStoreConfig?: any
   enablePublisherDeduplication?: boolean
+  messageDeduplicationConfig?: MessageDeduplicationConfig
 }
 
 export class PubSubPermissionPublisher extends AbstractPubSubPublisher<SupportedMessages> {
@@ -47,6 +49,7 @@ export class PubSubPermissionPublisher extends AbstractPubSubPublisher<Supported
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
       messageTypeResolver: { messageTypePath: 'messageType' },
       handlerSpy: true,
+      messageDeduplicationIdField: 'id',
     })
   }
 

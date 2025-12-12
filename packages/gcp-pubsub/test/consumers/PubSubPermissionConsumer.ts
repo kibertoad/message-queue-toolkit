@@ -31,6 +31,8 @@ type PubSubPermissionConsumerOptions = Pick<
   | 'payloadStoreConfig'
   | 'messageDeduplicationConfig'
   | 'enableConsumerDeduplication'
+  | 'subscriptionRetryOptions'
+  | 'messageDeduplicationIdField'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
