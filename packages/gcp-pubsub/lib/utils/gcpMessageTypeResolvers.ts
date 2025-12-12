@@ -23,6 +23,30 @@ export const CLOUD_EVENTS_ATTRIBUTE_PREFIX = 'ce-'
 export const CLOUD_EVENTS_TYPE_ATTRIBUTE = 'ce-type'
 
 /**
+ * CloudEvents time attribute name in Pub/Sub binary content mode.
+ * Example: `ce-time: "2024-01-15T10:30:00Z"`
+ * Note: This is in message attributes, not the message body.
+ */
+export const CLOUD_EVENTS_TIME_ATTRIBUTE = 'ce-time'
+
+/**
+ * CloudEvents timestamp field name in structured content mode.
+ * CloudEvents structured mode uses 'time' instead of 'timestamp' in the message body.
+ * Use this constant for `messageTimestampField` configuration when consuming
+ * CloudEvents in structured format.
+ *
+ * @example
+ * ```typescript
+ * // For CloudEvents in structured content mode (type in message body)
+ * {
+ *   messageTypeResolver: { messageTypePath: 'type' },
+ *   messageTimestampField: CLOUD_EVENTS_TIMESTAMP_FIELD,
+ * }
+ * ```
+ */
+export const CLOUD_EVENTS_TIMESTAMP_FIELD = 'time'
+
+/**
  * Cloud Storage notification event type attribute.
  * @see https://cloud.google.com/storage/docs/pubsub-notifications
  */

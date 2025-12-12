@@ -590,6 +590,121 @@ await publisher.publish({
 - ✅ Gradual migration from legacy systems
 - ✅ Works with all features (retry, deduplication, offloading)
 
+### Pre-built Message Type Resolvers
+
+The library provides pre-built resolvers for common GCP patterns where the message type is stored in message attributes rather than the message body.
+
+#### CloudEvents Binary Mode
+
+For CloudEvents delivered in Pub/Sub binary content mode, the event type is stored in the `ce-type` attribute and the timestamp in the `ce-time` attribute:
+
+```typescript
+import {
+  CLOUD_EVENTS_BINARY_MODE_TYPE_RESOLVER,
+  CLOUD_EVENTS_TIME_ATTRIBUTE,
+  MessageHandlerConfigBuilder,
+} from '@message-queue-toolkit/gcp-pubsub'
+
+class CloudEventsConsumer extends AbstractPubSubConsumer<CloudEvent, Context> {
+  constructor(deps: PubSubConsumerDependencies) {
+    super(
+      deps,
+      {
+        messageTypeResolver: CLOUD_EVENTS_BINARY_MODE_TYPE_RESOLVER,
+        // Note: For binary mode, timestamp is in ce-time attribute (not message body)
+        // You may need custom handling if you want to extract it from attributes
+        handlers: new MessageHandlerConfigBuilder<CloudEvent, Context>()
+          .addConfig(schema, handler, { messageType: 'com.example.order.created' })
+          .build(),
+        // ...
+      },
+      context,
+    )
+  }
+}
+
+// For CloudEvents in structured content mode (type in message body),
+// use messageTimestampField with the CLOUD_EVENTS_TIMESTAMP_FIELD constant:
+import { CLOUD_EVENTS_TIMESTAMP_FIELD } from '@message-queue-toolkit/gcp-pubsub'
+
+{
+  messageTypeResolver: { messageTypePath: 'type' },
+  messageTimestampField: CLOUD_EVENTS_TIMESTAMP_FIELD, // 'time'
+}
+```
+
+#### Google Cloud Storage Notifications
+
+For Cloud Storage notifications, the event type is in the `eventType` attribute. Use `GCS_NOTIFICATION_TYPE_RESOLVER` for normalized types or `GCS_NOTIFICATION_RAW_TYPE_RESOLVER` for raw GCS types:
+
+```typescript
+import {
+  GCS_NOTIFICATION_TYPE_RESOLVER,
+  GCS_EVENT_TYPES,
+  MessageHandlerConfigBuilder,
+} from '@message-queue-toolkit/gcp-pubsub'
+
+// With normalized types (OBJECT_FINALIZE → gcs.object.finalized)
+class GcsNotificationConsumer extends AbstractPubSubConsumer<GcsNotification, Context> {
+  constructor(deps: PubSubConsumerDependencies) {
+    super(
+      deps,
+      {
+        messageTypeResolver: GCS_NOTIFICATION_TYPE_RESOLVER,
+        handlers: new MessageHandlerConfigBuilder<GcsNotification, Context>()
+          .addConfig(objectFinalizedSchema, handler, { messageType: 'gcs.object.finalized' })
+          .addConfig(objectDeletedSchema, handler, { messageType: 'gcs.object.deleted' })
+          .build(),
+        // ...
+      },
+      context,
+    )
+  }
+}
+
+// With raw GCS types
+import { GCS_NOTIFICATION_RAW_TYPE_RESOLVER } from '@message-queue-toolkit/gcp-pubsub'
+
+{
+  messageTypeResolver: GCS_NOTIFICATION_RAW_TYPE_RESOLVER,
+  handlers: new MessageHandlerConfigBuilder()
+    .addConfig(schema, handler, { messageType: 'OBJECT_FINALIZE' })
+    .build(),
+}
+```
+
+**GCS Event Type Mappings (with `GCS_NOTIFICATION_TYPE_RESOLVER`):**
+| GCS Event Type | Normalized Type |
+|---------------|-----------------|
+| `OBJECT_FINALIZE` | `gcs.object.finalized` |
+| `OBJECT_DELETE` | `gcs.object.deleted` |
+| `OBJECT_ARCHIVE` | `gcs.object.archived` |
+| `OBJECT_METADATA_UPDATE` | `gcs.object.metadataUpdated` |
+
+#### Custom Attribute Resolvers
+
+For other attribute-based type resolution, create your own resolver:
+
+```typescript
+import {
+  createAttributeResolver,
+  createAttributeResolverWithMapping,
+} from '@message-queue-toolkit/gcp-pubsub'
+
+// Simple attribute extraction
+const resolver = createAttributeResolver('myEventType')
+
+// With type mapping
+const resolverWithMapping = createAttributeResolverWithMapping(
+  'eventType',
+  {
+    'EVENT_A': 'internal.event.a',
+    'EVENT_B': 'internal.event.b',
+  },
+  { fallbackToOriginal: true }, // Optional: pass through unmapped types
+)
+```
+
 ### Payload Offloading
 
 For messages larger than 10 MB, store the payload externally (e.g., Google Cloud Storage):

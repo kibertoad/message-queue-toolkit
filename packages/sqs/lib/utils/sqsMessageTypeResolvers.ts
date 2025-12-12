@@ -14,6 +14,21 @@ import type { MessageTypeResolverConfig } from '@message-queue-toolkit/core'
 export const EVENT_BRIDGE_DETAIL_TYPE_FIELD = 'detail-type'
 
 /**
+ * EventBridge timestamp field name.
+ * EventBridge events use 'time' instead of the default 'timestamp' field.
+ * Use this constant for `messageTimestampField` configuration.
+ *
+ * @example
+ * ```typescript
+ * {
+ *   messageTypeResolver: EVENT_BRIDGE_TYPE_RESOLVER,
+ *   messageTimestampField: EVENT_BRIDGE_TIMESTAMP_FIELD,
+ * }
+ * ```
+ */
+export const EVENT_BRIDGE_TIMESTAMP_FIELD = 'time'
+
+/**
  * Pre-built resolver for AWS EventBridge events delivered to SQS.
  *
  * EventBridge events have a specific envelope structure where the event type
