@@ -165,16 +165,18 @@ export function resolveMessageType(
   }
 
   if (isMessageTypePathConfig(config)) {
-    const messageType = getProperty(context.messageData, config.messageTypePath) as
-      | string
-      | undefined
-      | null
-    if (messageType === undefined || messageType === null) {
+    const rawMessageType = getProperty(context.messageData, config.messageTypePath)
+    if (rawMessageType === undefined || rawMessageType === null) {
       throw new Error(
         `Unable to resolve message type: path '${config.messageTypePath}' not found in message data`,
       )
     }
-    return messageType
+    if (typeof rawMessageType !== 'string') {
+      throw new Error(
+        `Unable to resolve message type: path '${config.messageTypePath}' contains a non-string value (got ${typeof rawMessageType})`,
+      )
+    }
+    return rawMessageType
   }
 
   // Custom resolver function - must return a string (user handles errors/defaults)
@@ -218,5 +220,9 @@ export function extractMessageTypeFromSchema(
     return undefined
   }
 
-  return current.value as string | undefined
+  const value = current.value
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  return value
 }
