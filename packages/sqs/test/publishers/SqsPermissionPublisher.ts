@@ -49,7 +49,7 @@ export class SqsPermissionPublisher extends AbstractSqsPublisher<SupportedMessag
       },
       handlerSpy: true,
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
-      messageTypeField: 'messageType',
+      messageTypeResolver: { messageTypePath: 'messageType' },
       payloadStoreConfig: options?.payloadStoreConfig,
       messageDeduplicationConfig: options?.messageDeduplicationConfig,
       enablePublisherDeduplication: options?.enablePublisherDeduplication,

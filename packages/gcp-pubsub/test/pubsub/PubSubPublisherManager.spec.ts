@@ -64,7 +64,7 @@ describe('PubSubPublisherManager', () => {
         }),
         newPublisherOptions: {
           handlerSpy: true,
-          messageTypeField: 'type',
+          messageTypeResolver: { messageTypePath: 'type' },
           logMessages: false,
         },
       },
@@ -208,7 +208,7 @@ describe('PubSubPublisherManager', () => {
           },
         },
         handlerSpy: true,
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
         messageSchemas: [injectedSchema.consumerSchema],
       })
 

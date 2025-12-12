@@ -86,7 +86,7 @@ Consumers receive and process messages from SQS queues. They handle:
 ### Message Schemas
 
 Messages are validated using Zod schemas. Each message must have:
-- A unique message type field (discriminator for routing) - configurable via `messageTypeField` (required)
+- A unique message type field (discriminator for routing) - configurable via `messageTypeResolver` (required)
 - A message ID field (for tracking and deduplication) - configurable via `messageIdField` (default: `'id'`)
 - A timestamp field (added automatically if missing) - configurable via `messageTimestampField` (default: `'timestamp'`)
 
@@ -133,7 +133,7 @@ class UserEventsPublisher extends AbstractSqsPublisher<SupportedMessages> {
       },
       {
         messageSchemas: [UserCreatedSchema, UserUpdatedSchema],
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         creationConfig: {
           queue: {
             QueueName: 'user-events-queue',
@@ -193,7 +193,7 @@ class UserEventsConsumer extends AbstractSqsConsumer<
         },
       },
       {
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         handlers: new MessageHandlerConfigBuilder<SupportedMessages, ExecutionContext>()
           .addConfig(
             UserCreatedSchema,
@@ -247,7 +247,7 @@ class UserEventsFifoPublisher extends AbstractSqsPublisher<SupportedMessages> {
       },
       {
         messageSchemas: [UserCreatedSchema, UserUpdatedSchema],
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         fifoQueue: true, // Enable FIFO mode
 
         // Option 1: Use a field from the message as MessageGroupId
@@ -327,7 +327,7 @@ class UserEventsFifoConsumer extends AbstractSqsConsumer<
       },
       {
         fifoQueue: true, // Enable FIFO mode
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         handlers: new MessageHandlerConfigBuilder<SupportedMessages, ExecutionContext>()
           .addConfig(UserCreatedSchema, handleUserCreated)
           .addConfig(UserUpdatedSchema, handleUserUpdated)
@@ -426,7 +426,7 @@ When using `locatorConfig`, you connect to an existing queue without creating it
 {
   // Required - Message Schema Configuration
   messageSchemas: [Schema1, Schema2],  // Array of Zod schemas
-  messageTypeField: 'messageType',     // Field containing message type discriminator
+  messageTypeResolver: { messageTypePath: 'messageType' },     // Field containing message type discriminator
 
   // Queue Configuration (one of these required)
   creationConfig: { /* ... */ },       // Create queue if doesn't exist
@@ -474,7 +474,7 @@ When using `locatorConfig`, you connect to an existing queue without creating it
 {
   // Required - Message Handling Configuration
   handlers: MessageHandlerConfigBuilder.build(), // Message handlers configuration
-  messageTypeField: 'messageType',               // Field containing message type discriminator
+  messageTypeResolver: { messageTypePath: 'messageType' },               // Field containing message type discriminator
 
   // Queue Configuration (one of these required)
   creationConfig: { /* ... */ },
@@ -567,7 +567,7 @@ class OrderPublisher extends AbstractSqsPublisher<CustomMessage> {
 
         // Map library's internal fields to your custom fields
         messageIdField: 'messageId',                    // Default: 'id'
-        messageTypeField: 'eventType',                  // Required
+        messageTypeResolver: { messageTypePath: 'eventType' },                  // Required
         messageTimestampField: 'createdAt',             // Default: 'timestamp'
         messageDeduplicationIdField: 'txId',            // Default: 'deduplicationId'
         messageDeduplicationOptionsField: 'txOptions',  // Default: 'deduplicationOptions'
@@ -792,7 +792,7 @@ await publisher.publish({
 
 ### Message Handlers
 
-Handlers process messages based on their type. Messages are routed to the appropriate handler using the discriminator field (configurable via `messageTypeField`):
+Handlers process messages based on their type. Messages are routed to the appropriate handler using the discriminator field (configurable via `messageTypeResolver`):
 
 ```typescript
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
@@ -1741,7 +1741,7 @@ class EventBridgeConsumer extends AbstractSqsConsumer<UserPresenceEvent, Executi
       },
 
       // Configure field mappings for EventBridge
-      messageTypeField: 'detail-type',     // EventBridge uses 'detail-type'
+      messageTypeResolver: { messageTypePath: 'detail-type' },     // EventBridge uses 'detail-type'
       messageIdField: 'id',                // Standard, same as default
       messageTimestampField: 'time',       // EventBridge uses 'time'
 
@@ -1813,7 +1813,7 @@ class MultiEventConsumer extends AbstractSqsConsumer<SupportedEventBridgeEvents,
     super(dependencies, {
       creationConfig: { queue: { QueueName: 'multi-event-queue' } },
 
-      messageTypeField: 'detail-type',
+      messageTypeResolver: { messageTypePath: 'detail-type' },
       messageTimestampField: 'time',
 
       handlers: new MessageHandlerConfigBuilder<SupportedEventBridgeEvents, ExecutionContext>()
@@ -1878,7 +1878,7 @@ class UserEventConsumer extends AbstractSqsConsumer<UserCreatedEvent> {
       },
 
       // EventBridge field mappings
-      messageTypeField: 'detail-type',
+      messageTypeResolver: { messageTypePath: 'detail-type' },
       messageTimestampField: 'time',
 
       handlers: new MessageHandlerConfigBuilder<UserCreatedEvent>()
@@ -1952,7 +1952,7 @@ class CustomConsumer extends AbstractSqsConsumer<CustomMessage> {
       creationConfig: { queue: { QueueName: 'custom-queue' } },
 
       // Map your custom field names
-      messageTypeField: 'eventType',        // Instead of 'type'
+      messageTypeResolver: { messageTypePath: 'eventType' },        // Instead of 'type'
       messageIdField: 'correlationId',      // Instead of 'id'
       messageTimestampField: 'occurredAt',  // Instead of 'timestamp'
 
@@ -1971,7 +1971,7 @@ class CustomConsumer extends AbstractSqsConsumer<CustomMessage> {
 
 **Configuration Options:**
 
-- `messageTypeField` (required) - Field name containing the message type for routing
+- `messageTypeResolver` (required) - Configuration containing the message type for routing
 - `messageIdField` (optional, default: `'id'`) - Field name containing the message ID
 - `messageTimestampField` (optional, default: `'timestamp'`) - Field name containing the timestamp
 

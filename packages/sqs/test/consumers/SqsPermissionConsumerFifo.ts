@@ -120,7 +120,7 @@ export class SqsPermissionConsumerFifo extends AbstractSqsConsumer<
           deleteIfExists: true,
         },
         deadLetterQueue: options.deadLetterQueue,
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         handlerSpy: true,
         consumerOverrides: options.consumerOverrides ?? {
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately

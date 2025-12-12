@@ -41,7 +41,7 @@ export class FakeTopicConsumer extends AbstractAmqpTopicConsumer<
           deleteIfExists: true,
         },
         handlerSpy: true,
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
         handlers: new MessageHandlerConfigBuilder<PublisherBaseMessageType, unknown>()
           .addConfig(eventDefinition.consumerSchema, () => {
             this.messageCounter++

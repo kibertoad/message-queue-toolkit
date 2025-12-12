@@ -1,5 +1,105 @@
 # Upgrading Guide
 
+## Upgrading </br> `core` `25.x.x` -> `26.0.0` </br> `sqs` `xx.x.x` -> `xx.0.0` </br> `sns` `xx.x.x` -> `xx.0.0` </br> `amqp` `xx.x.x` -> `xx.0.0` </br> `gcp-pubsub` `2.x.x` -> `3.0.0`
+
+### Description of Breaking Changes
+
+- **`messageTypeField` option removed**: The deprecated `messageTypeField` option has been removed from all queue services. Use `messageTypeResolver` instead.
+
+- **`HandlerSpyParams.messageTypePath` removed**: The `messageTypePath` option in `HandlerSpyParams` has been removed. Message types are now passed explicitly when adding processed messages. This is handled internally by the library, so most users won't need to make changes.
+
+### Migration Steps
+
+#### Replacing `messageTypeField` with `messageTypeResolver`
+
+Replace `messageTypeField: 'fieldName'` with `messageTypeResolver: { messageTypePath: 'fieldName' }`:
+
+```typescript
+// Before
+super(dependencies, {
+  messageTypeField: 'type',
+  handlers: new MessageHandlerConfigBuilder()
+    .addConfig(schema, handler)
+    .build(),
+})
+
+// After
+super(dependencies, {
+  messageTypeResolver: { messageTypePath: 'type' },
+  handlers: new MessageHandlerConfigBuilder()
+    .addConfig(schema, handler)
+    .build(),
+})
+```
+
+## Upgrading </br> `core` `24.x.x` -> `25.0.0` </br> `gcp-pubsub` `1.x.x` -> `2.0.0`
+
+### Description of Breaking Changes
+
+- **`NO_MESSAGE_TYPE_FIELD` constant removed**: The `NO_MESSAGE_TYPE_FIELD` constant has been removed from `@message-queue-toolkit/core`. Use `messageTypeResolver` with literal mode instead.
+
+- **New `messageTypeResolver` configuration**: A flexible configuration for message type resolution. Supports three modes:
+  - `{ messageTypePath: 'type' }` - extract type from a field at the root of the message
+  - `{ literal: 'my.message.type' }` - use a constant type for all messages
+  - `{ resolver: ({ messageData, messageAttributes }) => 'resolved.type' }` - custom resolver function
+
+- **Explicit `messageType` in handler configuration**: When using a custom resolver function, you must provide an explicit `messageType` in handler options since the type cannot be extracted from schemas at registration time.
+
+### Migration Steps
+
+#### If using `NO_MESSAGE_TYPE_FIELD`
+
+Replace `messageTypeField: NO_MESSAGE_TYPE_FIELD` with `messageTypeResolver: { literal: 'your.message.type' }`:
+
+```typescript
+// Before
+import { NO_MESSAGE_TYPE_FIELD } from '@message-queue-toolkit/core'
+
+super(dependencies, {
+  messageTypeField: NO_MESSAGE_TYPE_FIELD,
+  handlers: new MessageHandlerConfigBuilder()
+    .addConfig(schema, handler)
+    .build(),
+})
+
+// After
+super(dependencies, {
+  messageTypeResolver: { literal: 'your.message.type' },
+  handlers: new MessageHandlerConfigBuilder()
+    .addConfig(schema, handler, { messageType: 'your.message.type' })
+    .build(),
+})
+```
+
+#### If using custom resolver function
+
+When using `messageTypeResolver: { resolver: fn }`, provide explicit `messageType` in handler options:
+
+```typescript
+super(dependencies, {
+  messageTypeResolver: {
+    resolver: ({ messageAttributes }) => {
+      // Map external event types to internal types
+      const eventType = messageAttributes?.eventType as string
+      if (eventType === 'OBJECT_FINALIZE') return 'storage.object.created'
+      throw new Error(`Unknown event type: ${eventType}`)
+    },
+  },
+  handlers: new MessageHandlerConfigBuilder()
+    .addConfig(ObjectSchema, handler, { messageType: 'storage.object.created' })
+    .build(),
+})
+```
+
+#### GCP Pub/Sub DLQ Consumer
+
+The `AbstractPubSubDlqConsumer` now uses `DLQ_MESSAGE_TYPE` constant internally. If you import this constant, update your import:
+
+```typescript
+import { DLQ_MESSAGE_TYPE } from '@message-queue-toolkit/gcp-pubsub'
+// DLQ_MESSAGE_TYPE = 'dlq.message'
+```
+
 ## Upgrading </br> `core` `19.0.0` -> `20.0.0` </br> `sqs` `19.0.0` -> `20.0.0` </br> `sns` `20.0.0` -> `21.0.0` </br> `amqp` `18.0.0` -> `19.0.0` </br> `metrics` `2.0.0` -> `3.0.0`
 
 ### Description of Breaking Changes

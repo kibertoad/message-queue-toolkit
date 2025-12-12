@@ -114,7 +114,7 @@ Consumers receive and process messages from Pub/Sub subscriptions. They handle:
 ### Message Schemas
 
 Messages are validated using Zod schemas. Each message must have:
-- A unique message type field (discriminator for routing) - configurable via `messageTypeField` (required)
+- A unique message type field (discriminator for routing) - configurable via `messageTypeResolver` (required)
 - A message ID field (for tracking and deduplication) - configurable via `messageIdField` (default: `'id'`)
 - A timestamp field (added automatically if missing) - configurable via `messageTimestampField` (default: `'timestamp'`)
 
@@ -163,7 +163,7 @@ class UserEventPublisher extends AbstractPubSubPublisher<UserEvent> {
           },
         },
         messageSchemas: [UserEventSchema],
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         logMessages: true,
       }
     )
@@ -211,7 +211,7 @@ class UserEventConsumer extends AbstractPubSubConsumer<UserEvent, ExecutionConte
             },
           },
         },
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         handlers: new MessageHandlerConfigBuilder<UserEvent, ExecutionContext>()
           .addConfig(
             UserEventSchema,
@@ -412,7 +412,7 @@ When using `locatorConfig`, you connect to existing resources without creating t
 {
   // Required - Message Schema Configuration
   messageSchemas: [Schema1, Schema2],  // Array of Zod schemas
-  messageTypeField: 'messageType',     // Field containing message type discriminator
+  messageTypeResolver: { messageTypePath: 'messageType' },     // Field containing message type discriminator
 
   // Topic Configuration (one of these required)
   creationConfig: {
@@ -459,7 +459,7 @@ When using `locatorConfig`, you connect to existing resources without creating t
 {
   // Required - Message Handling Configuration
   handlers: MessageHandlerConfigBuilder.build(), // Message handlers configuration
-  messageTypeField: 'messageType',               // Field containing message type discriminator
+  messageTypeResolver: { messageTypePath: 'messageType' },               // Field containing message type discriminator
 
   // Topic and Subscription Configuration (one of these required)
   creationConfig: {
@@ -560,7 +560,7 @@ class OrderPublisher extends AbstractPubSubPublisher<CustomMessage> {
 
         // Map library's internal fields to your custom fields
         messageIdField: 'messageId',                    // Default: 'id'
-        messageTypeField: 'eventType',                  // Required
+        messageTypeResolver: { messageTypePath: 'eventType' },                  // Required
         messageTimestampField: 'createdAt',             // Default: 'timestamp'
         messageDeduplicationIdField: 'txId',            // Default: 'deduplicationId'
         messageDeduplicationOptionsField: 'txOptions',  // Default: 'deduplicationOptions'
@@ -613,7 +613,7 @@ class LargeMessagePublisher extends AbstractPubSubPublisher<MyMessage> {
         topic: { name: 'large-messages' },
       },
       messageSchemas: [MyMessageSchema],
-      messageTypeField: 'type',
+      messageTypeResolver: { messageTypePath: 'type' },
       payloadStoreConfig: {
         store: payloadStore,
         messageSizeThreshold: PUBSUB_MESSAGE_MAX_SIZE, // 10 MB
@@ -784,7 +784,11 @@ Dead Letter Queues capture messages that cannot be processed after multiple atte
 The library provides `AbstractPubSubDlqConsumer`, a convenience class for consuming messages from a DLQ topic. Unlike regular consumers that route messages by type, DLQ consumers accept any message structure since dead-lettered messages can come from various failed processing scenarios.
 
 ```typescript
-import { AbstractPubSubDlqConsumer, type DlqMessage } from '@message-queue-toolkit/gcp-pubsub'
+import {
+  AbstractPubSubDlqConsumer,
+  type DlqMessage,
+  DLQ_MESSAGE_TYPE  // 'dlq.message' - the message type used for all DLQ messages
+} from '@message-queue-toolkit/gcp-pubsub'
 
 class MyDlqConsumer extends AbstractPubSubDlqConsumer<MyContext> {
   constructor(dependencies: PubSubConsumerDependencies, context: MyContext) {
@@ -820,7 +824,7 @@ await dlqConsumer.start()
 ```
 
 **Key differences from AbstractPubSubConsumer:**
-- Does NOT require `messageTypeField` (accepts all message types)
+- Uses a literal message type resolver (`DLQ_MESSAGE_TYPE = 'dlq.message'`) - all messages are treated as the same type
 - Uses a passthrough schema that accepts any message with an `id` field
 - Simplified handler configuration (single handler for all messages)
 - The `DlqMessage` type includes `id: string` and passes through all other fields
@@ -914,7 +918,7 @@ await publisher.publish(message, {
 
 ### Message Handlers
 
-Handlers process messages based on their type. Messages are routed to the appropriate handler using the discriminator field (configurable via `messageTypeField`):
+Handlers process messages based on their type. Messages are routed to the appropriate handler using the discriminator field (configurable via `messageTypeResolver`):
 
 ```typescript
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
@@ -1748,7 +1752,7 @@ it('publishes message', async () => {
 
 **Constructor Options:**
 - `messageSchemas`: Array of Zod schemas for messages
-- `messageTypeField`: Field name containing message type
+- `messageTypeResolver`: Configuration for resolving message type
 - `creationConfig` / `locatorConfig`: Topic configuration
 - `logMessages`: Enable message logging
 - `payloadStoreConfig`: Payload offloading configuration
@@ -1769,7 +1773,7 @@ it('publishes message', async () => {
 
 **Constructor Options:**
 - `handlers`: Message handler configuration
-- `messageTypeField`: Field name containing message type
+- `messageTypeResolver`: Configuration for resolving message type
 - `creationConfig` / `locatorConfig`: Topic + subscription configuration
 - `logMessages`: Enable message logging
 - `payloadStoreConfig`: Payload retrieval configuration

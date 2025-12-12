@@ -27,7 +27,7 @@ export class UserConsumer extends AbstractSnsSqsConsumer<SupportedMessages, Exec
           .addConfig(UserEvents.created, userCreatedHandler, {})
           .addConfig(UserEvents.updated, userUpdatedHandler, {})
           .build(),
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
         // Consumer creates its own queue
         creationConfig: {
           queue: {

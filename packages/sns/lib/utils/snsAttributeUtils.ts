@@ -46,11 +46,11 @@ export function generateTopicSubscriptionPolicy(params: TopicSubscriptionPolicyP
 export function generateFilterAttributes(
   // biome-ignore lint/suspicious/noExplicitAny: Expected
   messageSchemas: ZodSchema<any>[],
-  messageTypeField: string,
+  messageTypePath: string,
 ) {
   const messageTypes = messageSchemas.map((schema) => {
     // @ts-expect-error
-    return schema.shape[messageTypeField].value as string
+    return schema.shape[messageTypePath].value as string
   })
 
   return {

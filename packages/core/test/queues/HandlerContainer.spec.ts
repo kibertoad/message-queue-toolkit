@@ -133,7 +133,7 @@ describe('HandlerContainer', () => {
 
       const container = new HandlerContainer({
         messageHandlers: configs,
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
       })
 
       const userHandler = container.resolveHandler('user.created')
@@ -150,12 +150,249 @@ describe('HandlerContainer', () => {
 
       const container = new HandlerContainer({
         messageHandlers: configs,
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
       })
 
       expect(() => container.resolveHandler('unknown.type')).toThrow(
         'Unsupported message type: unknown.type',
       )
+    })
+  })
+
+  describe('resolveMessageType', () => {
+    describe('with messageTypeField (legacy)', () => {
+      it('should extract message type from the specified field', () => {
+        const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+          .addConfig(USER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }))
+          .build()
+
+        const container = new HandlerContainer({
+          messageHandlers: configs,
+          messageTypeResolver: { messageTypePath: 'type' },
+        })
+
+        const messageType = container.resolveMessageType({
+          type: 'user.created',
+          userId: '1',
+          email: 'test@test.com',
+        })
+        expect(messageType).toBe('user.created')
+      })
+
+      it('should throw error when field is missing', () => {
+        const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+          .addConfig(USER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }))
+          .build()
+
+        const container = new HandlerContainer({
+          messageHandlers: configs,
+          messageTypeResolver: { messageTypePath: 'type' },
+        })
+
+        expect(() => container.resolveMessageType({ userId: '1' })).toThrow(
+          "Unable to resolve message type: field 'type' not found in message data",
+        )
+      })
+    })
+
+    describe('with messageTypeResolver', () => {
+      it('should use literal resolver', () => {
+        const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+          .addConfig(USER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }))
+          .build()
+
+        const container = new HandlerContainer({
+          messageHandlers: configs,
+          messageTypeResolver: { literal: 'user.created' },
+        })
+
+        const messageType = container.resolveMessageType({})
+        expect(messageType).toBe('user.created')
+      })
+
+      it('should use messageTypePath resolver', () => {
+        const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+          .addConfig(USER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }))
+          .build()
+
+        const container = new HandlerContainer({
+          messageHandlers: configs,
+          messageTypeResolver: { messageTypePath: 'type' },
+        })
+
+        const messageType = container.resolveMessageType({ type: 'user.created' })
+        expect(messageType).toBe('user.created')
+      })
+
+      it('should use custom resolver function', () => {
+        const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+          .addConfig(
+            USER_MESSAGE_SCHEMA,
+            () => Promise.resolve({ result: 'success' as const }),
+            { messageType: 'user.created' }, // Required when using custom resolver
+          )
+          .build()
+
+        const container = new HandlerContainer({
+          messageHandlers: configs,
+          messageTypeResolver: {
+            resolver: ({ messageAttributes }) => {
+              const eventType = messageAttributes?.eventType as string
+              if (!eventType) throw new Error('eventType required')
+              return eventType === 'USER_CREATED' ? 'user.created' : eventType
+            },
+          },
+        })
+
+        const messageType = container.resolveMessageType({}, { eventType: 'USER_CREATED' })
+        expect(messageType).toBe('user.created')
+      })
+
+      it('should pass messageAttributes to custom resolver', () => {
+        const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+          .addConfig(
+            USER_MESSAGE_SCHEMA,
+            () => Promise.resolve({ result: 'success' as const }),
+            { messageType: 'user.created' }, // Required when using custom resolver
+          )
+          .build()
+
+        const container = new HandlerContainer({
+          messageHandlers: configs,
+          messageTypeResolver: {
+            resolver: ({ messageData, messageAttributes }) => {
+              // Prefer attributes over data
+              if (messageAttributes?.type) {
+                return messageAttributes.type as string
+              }
+              const data = messageData as { type?: string }
+              if (!data.type) throw new Error('type required')
+              return data.type
+            },
+          },
+        })
+
+        // From attributes
+        expect(container.resolveMessageType({}, { type: 'user.created' })).toBe('user.created')
+        // From data when no attributes
+        expect(container.resolveMessageType({ type: 'user.created' })).toBe('user.created')
+      })
+    })
+
+    describe('with no configuration', () => {
+      it('should throw error when neither messageTypeField nor messageTypeResolver is configured', () => {
+        const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+          .addConfig(
+            USER_MESSAGE_SCHEMA,
+            () => Promise.resolve({ result: 'success' as const }),
+            { messageType: 'user.created' }, // Explicit type to allow handler registration
+          )
+          .build()
+
+        const container = new HandlerContainer({
+          messageHandlers: configs,
+        })
+
+        // Handler is registered but runtime resolution fails
+        expect(() => container.resolveMessageType({ type: 'user.created' })).toThrow(
+          'Unable to resolve message type: messageTypeResolver is not configured',
+        )
+      })
+
+      it('should throw error during registration if message type cannot be determined', () => {
+        const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+          .addConfig(USER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }))
+          .build()
+
+        // Without messageTypePath, literal resolver, or explicit messageType, registration should fail
+        expect(
+          () =>
+            new HandlerContainer({
+              messageHandlers: configs,
+            }),
+        ).toThrow(
+          'Unable to determine message type for handler. ' +
+            'Either provide messageType in handler options, use a literal resolver, ' +
+            'or ensure the schema has a literal type field matching messageTypePath.',
+        )
+      })
+
+      it('should throw error for duplicate message types', () => {
+        const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+          .addConfig(USER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }), {
+            messageType: 'duplicate.type',
+          })
+          .addConfig(ORDER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }), {
+            messageType: 'duplicate.type',
+          })
+          .build()
+
+        expect(
+          () =>
+            new HandlerContainer({
+              messageHandlers: configs,
+            }),
+        ).toThrow('Duplicate handler for message type: duplicate.type')
+      })
+    })
+
+    describe('with explicit messageType in handler options', () => {
+      it('should use explicit messageType over schema extraction', () => {
+        const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+          .addConfig(
+            USER_MESSAGE_SCHEMA,
+            () => Promise.resolve({ result: 'success' as const }),
+            { messageType: 'custom.type' }, // Override schema-derived type
+          )
+          .build()
+
+        const container = new HandlerContainer({
+          messageHandlers: configs,
+          messageTypeResolver: { messageTypePath: 'type' },
+        })
+
+        // Handler is registered under 'custom.type', not 'user.created'
+        expect(() => container.resolveHandler('user.created')).toThrow(
+          'Unsupported message type: user.created',
+        )
+        const handler = container.resolveHandler('custom.type')
+        expect(handler.schema).toBe(USER_MESSAGE_SCHEMA)
+      })
+
+      it('should support multiple handlers with explicit types', () => {
+        const configs = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
+          .addConfig(USER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }), {
+            messageType: 'storage.object.created',
+          })
+          .addConfig(ORDER_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }), {
+            messageType: 'storage.object.deleted',
+          })
+          .build()
+
+        const container = new HandlerContainer({
+          messageHandlers: configs,
+          messageTypeResolver: {
+            resolver: ({ messageAttributes }) => {
+              const eventType = messageAttributes?.eventType as string
+              if (eventType === 'OBJECT_FINALIZE') return 'storage.object.created'
+              if (eventType === 'OBJECT_DELETE') return 'storage.object.deleted'
+              throw new Error(`Unknown event type: ${eventType}`)
+            },
+          },
+        })
+
+        // Verify handlers are correctly registered
+        expect(container.resolveHandler('storage.object.created').schema).toBe(USER_MESSAGE_SCHEMA)
+        expect(container.resolveHandler('storage.object.deleted').schema).toBe(ORDER_MESSAGE_SCHEMA)
+
+        // Verify runtime resolution works with the resolver
+        expect(container.resolveMessageType({}, { eventType: 'OBJECT_FINALIZE' })).toBe(
+          'storage.object.created',
+        )
+        expect(container.resolveMessageType({}, { eventType: 'OBJECT_DELETE' })).toBe(
+          'storage.object.deleted',
+        )
+      })
     })
   })
 
@@ -174,7 +411,7 @@ describe('HandlerContainer', () => {
 
       const container = new HandlerContainer({
         messageHandlers: configs,
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
       })
 
       const handler = container.resolveHandler('user.created')

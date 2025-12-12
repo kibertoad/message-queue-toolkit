@@ -144,7 +144,7 @@ export abstract class AbstractPubSubConsumer<
     this._messageSchemaContainer = this.resolveConsumerMessageSchemaContainer(options)
     this.handlerContainer = new HandlerContainer({
       messageHandlers: options.handlers,
-      messageTypeField: options.messageTypeField,
+      messageTypeResolver: options.messageTypeResolver,
     })
   }
 
@@ -282,7 +282,10 @@ export abstract class AbstractPubSubConsumer<
         messagePayload = retrievalResult.result
       }
 
-      const resolveSchemaResult = this.resolveSchema(messagePayload as MessagePayloadType)
+      const resolveSchemaResult = this.resolveSchema(
+        messagePayload as MessagePayloadType,
+        message.attributes as Record<string, unknown>,
+      )
       if (resolveSchemaResult.error) {
         this.handleMessageProcessed({
           message: messagePayload as MessagePayloadType,
@@ -352,8 +355,28 @@ export abstract class AbstractPubSubConsumer<
 
       const releaseLock = acquireLockResult.result
 
-      // @ts-expect-error
-      const messageType = validatedMessage[this.messageTypeField]
+      // Resolve message type using the new resolver (with attributes) or legacy field
+      let messageType: string
+      try {
+        messageType = this.handlerContainer.resolveMessageType(
+          validatedMessage,
+          message.attributes as Record<string, unknown>,
+        )
+      } catch (resolveError) {
+        await releaseLock.release()
+        this.handleError(resolveError)
+        this.handleMessageProcessed({
+          message: validatedMessage,
+          processingResult: {
+            status: 'error',
+            errorReason: 'invalidMessage',
+          },
+          messageProcessingStartTimestamp,
+          queueName: this.subscriptionName ?? this.topicName,
+        })
+        this.handleTerminalError(message, 'invalidMessage')
+        return
+      }
 
       try {
         // Process message
@@ -447,8 +470,11 @@ export abstract class AbstractPubSubConsumer<
     }
   }
 
-  protected override resolveSchema(messagePayload: MessagePayloadType) {
-    return this._messageSchemaContainer.resolveSchema(messagePayload)
+  protected override resolveSchema(
+    messagePayload: MessagePayloadType,
+    messageAttributes?: Record<string, unknown>,
+  ) {
+    return this._messageSchemaContainer.resolveSchema(messagePayload, messageAttributes)
   }
 
   protected override processMessage(

@@ -104,7 +104,7 @@ export abstract class AbstractAmqpConsumer<
       ExecutionContext,
       PrehandlerOutput
     >({
-      messageTypeField: this.messageTypeField,
+      messageTypeResolver: this.messageTypeResolver,
       messageHandlers: options.handlers,
     })
     this.executionContext = executionContext
@@ -151,12 +151,8 @@ export abstract class AbstractAmqpConsumer<
       }
       const { originalMessage, parsedMessage } = deserializedMessage.result
 
-      // @ts-expect-error
-      const messageType = parsedMessage[this.messageTypeField]
-      const transactionSpanId = `queue_${this.queueName}:${
-        // @ts-expect-error
-        parsedMessage[this.messageTypeField]
-      }`
+      const messageType = this.resolveMessageTypeFromMessage(parsedMessage) ?? 'unknown'
+      const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
       // @ts-expect-error
       const uniqueTransactionKey = parsedMessage[this.messageIdField]

@@ -136,7 +136,7 @@ describe('SnsPublisherManager', () => {
           },
         },
         handlerSpy: true,
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
         messageSchemas: [TestEvents.created.publisherSchema],
       })
 

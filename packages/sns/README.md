@@ -94,7 +94,7 @@ Publisher → SNS Topic → [Subscriptions] → SQS Queues → Consumers
 ### Message Schemas
 
 Messages use the same schema requirements as SQS. Each message must have:
-- A unique message type field (discriminator for routing) - configurable via `messageTypeField` (required)
+- A unique message type field (discriminator for routing) - configurable via `messageTypeResolver` (required)
 - A message ID field (for tracking and deduplication) - configurable via `messageIdField` (default: `'id'`)
 - A timestamp field (added automatically if missing) - configurable via `messageTimestampField` (default: `'timestamp'`)
 
@@ -143,7 +143,7 @@ class UserEventsPublisher extends AbstractSnsPublisher<SupportedMessages> {
       },
       {
         messageSchemas: [UserCreatedSchema, UserUpdatedSchema],
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         creationConfig: {
           topic: {
             Name: 'user-events-topic',
@@ -214,7 +214,7 @@ class UserEventsConsumer extends AbstractSnsSqsConsumer<
         },
       },
       {
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         handlers: new MessageHandlerConfigBuilder<SupportedMessages, ExecutionContext>()
           .addConfig(
             UserCreatedSchema,
@@ -287,7 +287,7 @@ class UserEventsFifoPublisher extends AbstractSnsPublisher<SupportedMessages> {
       },
       {
         messageSchemas: [UserCreatedSchema, UserUpdatedSchema],
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         fifoTopic: true, // Enable FIFO mode
 
         // Option 1: Use a field from the message as MessageGroupId
@@ -374,7 +374,7 @@ class UserEventsFifoConsumer extends AbstractSnsSqsConsumer<
       },
       {
         fifoQueue: true, // Enable FIFO mode for SQS queue
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         handlers: new MessageHandlerConfigBuilder<SupportedMessages, ExecutionContext>()
           .addConfig(UserCreatedSchema, handleUserCreated)
           .addConfig(UserUpdatedSchema, handleUserUpdated)
@@ -495,7 +495,7 @@ When using `locatorConfig`, you connect to an existing topic without creating it
 {
   // Required - Message Schema Configuration
   messageSchemas: [Schema1, Schema2],  // Array of Zod schemas
-  messageTypeField: 'messageType',     // Field containing message type discriminator
+  messageTypeResolver: { messageTypePath: 'messageType' },     // Field containing message type discriminator
 
   // Topic Configuration (one of these required)
   creationConfig: { /* ... */ },       // Create topic if doesn't exist
@@ -541,7 +541,7 @@ SNS consumers use the same options as SQS consumers, plus SNS-specific subscript
 
   // Required - Message Handling Configuration
   handlers: MessageHandlerConfigBuilder.build(),
-  messageTypeField: 'messageType',
+  messageTypeResolver: { messageTypePath: 'messageType' },
 
   // Topic & Queue Configuration
   creationConfig: {

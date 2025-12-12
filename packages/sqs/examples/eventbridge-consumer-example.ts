@@ -109,7 +109,7 @@ class EventBridgeConsumer extends AbstractSqsConsumer<SupportedEvents, EventBrid
         // ======================================================================
 
         // EventBridge uses 'detail-type' instead of 'type'
-        messageTypeField: 'detail-type',
+        messageTypeResolver: { messageTypePath: 'detail-type' },
 
         // EventBridge uses 'id' for message ID (same as default)
         messageIdField: 'id',

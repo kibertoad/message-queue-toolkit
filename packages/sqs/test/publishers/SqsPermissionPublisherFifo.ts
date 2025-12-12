@@ -40,7 +40,7 @@ export class SqsPermissionPublisherFifo extends AbstractSqsPublisher<SupportedMe
       },
       handlerSpy: true,
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
-      messageTypeField: 'messageType',
+      messageTypeResolver: { messageTypePath: 'messageType' },
       messageGroupIdField: options?.messageGroupIdField,
       defaultMessageGroupId: options?.defaultMessageGroupId,
       payloadStoreConfig: options?.payloadStoreConfig,

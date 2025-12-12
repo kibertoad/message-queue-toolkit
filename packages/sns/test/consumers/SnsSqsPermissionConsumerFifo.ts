@@ -165,7 +165,7 @@ export class SnsSqsPermissionConsumerFifo extends AbstractSnsSqsConsumer<
               },
             }),
         fifoQueue: true,
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         subscriptionConfig: {
           updateAttributesIfExists: false,
         },

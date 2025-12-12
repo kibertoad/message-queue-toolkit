@@ -69,8 +69,8 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
       const parsedMessage = messageSchemaResult.result.parse(message)
 
       if (this.logMessages) {
-        // @ts-expect-error
-        const resolvedLogMessage = this.resolveMessageLog(message, message[this.messageTypeField])
+        const messageType = this.resolveMessageTypeFromMessage(message) ?? 'unknown'
+        const resolvedLogMessage = this.resolveMessageLog(message, messageType)
         this.logMessage(resolvedLogMessage)
       }
 
@@ -111,8 +111,7 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
         details: {
           publisher: this.constructor.name,
           topicName: this.topicName,
-          // @ts-expect-error
-          messageType: message[this.messageTypeField] ?? 'unknown',
+          messageType: this.resolveMessageTypeFromMessage(message) ?? 'unknown',
         },
         cause: err,
       })

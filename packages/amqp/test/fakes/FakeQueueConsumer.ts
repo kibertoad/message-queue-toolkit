@@ -25,7 +25,7 @@ export class FakeQueueConsumer extends AbstractAmqpQueueConsumer<
           deleteIfExists: true,
         },
         handlerSpy: true,
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
         handlers: new MessageHandlerConfigBuilder<PublisherBaseMessageType, unknown>()
           .addConfig(eventDefinition.consumerSchema, () => Promise.resolve({ result: 'success' }))
           .build(),

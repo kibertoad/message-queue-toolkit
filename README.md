@@ -30,7 +30,11 @@ They implement the following public methods:
     * `options`, composed by
         * `messageSchemas` – the `zod` schemas for all supported messages;
         * `messageTimestampField` - which field in the message contains the message creation date (by default it is `timestamp`). This field needs to be a `Date` object or ISO-8601 date string, if your message doesn't contain it the library will add one automatically to avoid infinite loops on consumer;
-        * `messageTypeField` - which field in the message describes the type of a message. This field needs to be defined as `z.literal` in the schema and is used for resolving the correct schema for validation. **Note:** It is not supported for Kafka publisher
+        * `messageTypeResolver` - configuration for resolving the message type. This field needs to be defined as `z.literal` in the schema and is used for resolving the correct schema for validation. Supports three modes:
+            * `{ messageTypePath: 'type' }` - extract type from a field at the root of the message
+            * `{ literal: 'my.message.type' }` - use a constant type for all messages
+            * `{ resolver: ({ messageData, messageAttributes }) => 'resolved.type' }` - custom resolver function
+          **Note:** It is not supported for Kafka publisher. See `@message-queue-toolkit/core` README for detailed documentation and examples.
         * `locatorConfig` - configuration for resolving existing queue and/or topic. Should not be specified together with the `creationConfig`.
         * `creationConfig` - configuration for queue and/or topic to create, if one does not exist. Should not be specified together with the `locatorConfig`;
         * `policyConfig` - SQS only - configuration for queue access policies (see [SQS Policy Configuration](#sqs-policy-configuration) for more information);
@@ -94,7 +98,7 @@ Multi-schema consumers support multiple message types via handler configs. They 
     * `dependencies` – a set of dependencies depending on the protocol;
     * `options`, composed by
         * `handlers` – configuration for handling each of the supported message types. See "Multi-schema handler definition" for more details;
-        * `messageTypeField` - which field in the message describes the type of a message. This field needs to be defined as `z.literal` in the schema and is used for routing the message to the correct handler; **Note:** It is not supported for Kafka consumer
+        * `messageTypeResolver` - configuration for resolving the message type. This field needs to be defined as `z.literal` in the schema and is used for routing the message to the correct handler. See Publishers section above for details. **Note:** It is not supported for Kafka consumer.
         * `messageTimestampField` - which field in the message contains the message creation date (by default it is `timestamp`). This field needs to be a `Date` object or an ISO-8601 date string;
         * `maxRetryDuration` - how long (in seconds) the message should be retried due to the `retryLater` result before marking it as consumed (and sending to DLQ, if one is configured). This is used to avoid infinite loops. Default is 4 days;
         * `queueName`; (for SNS publishers this is a misnomer which actually refers to a topic name)

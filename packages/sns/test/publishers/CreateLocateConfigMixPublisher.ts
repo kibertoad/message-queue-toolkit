@@ -24,7 +24,7 @@ export class CreateLocateConfigMixPublisher extends AbstractSnsPublisher<Support
       },
       messageSchemas: [TestEvents.created.consumerSchema, TestEvents.updated.consumerSchema],
       handlerSpy: true,
-      messageTypeField: 'type',
+      messageTypeResolver: { messageTypePath: 'type' },
     })
   }
 }

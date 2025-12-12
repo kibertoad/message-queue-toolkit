@@ -36,7 +36,7 @@ export class CreateLocateConfigMixConsumer extends AbstractSnsSqsConsumer<
           .addConfig(TestEvents.created, entityCreatedHandler, {})
           .addConfig(TestEvents.updated, entityUpdatedHandler, {})
           .build(),
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
         creationConfig: {
           queue: {
             QueueName: CreateLocateConfigMixConsumer.CONSUMED_QUEUE_NAME,
