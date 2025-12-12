@@ -533,11 +533,17 @@ Manages Zod schemas and validates messages:
 import { MessageSchemaContainer } from '@message-queue-toolkit/core'
 
 const container = new MessageSchemaContainer({
-  messageSchemas: [Schema1, Schema2],
+  messageSchemas: [{ schema: Schema1 }, { schema: Schema2 }],
+  messageDefinitions: [],
   messageTypeResolver: { messageTypePath: 'type' },
 })
 
-const schema = container.resolveSchema(message.type)
+const result = container.resolveSchema(message)
+if ('error' in result) {
+  // Handle error
+} else {
+  const schema = result.result
+}
 ```
 
 ### AbstractPublisherManager

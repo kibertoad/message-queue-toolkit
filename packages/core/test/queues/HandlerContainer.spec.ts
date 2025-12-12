@@ -190,7 +190,7 @@ describe('HandlerContainer', () => {
         })
 
         expect(() => container.resolveMessageType({ userId: '1' })).toThrow(
-          "Unable to resolve message type: field 'type' not found in message data",
+          "Unable to resolve message type: path 'type' not found in message data",
         )
       })
     })

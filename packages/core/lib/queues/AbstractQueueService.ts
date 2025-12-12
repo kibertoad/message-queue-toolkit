@@ -8,7 +8,6 @@ import {
   stringValueSerializer,
 } from '@lokalise/node-core'
 import type { MakeRequired } from '@lokalise/universal-ts-utils/node'
-import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import {
   MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA,
   type MessageDeduplicationOptions,
@@ -177,10 +176,17 @@ export abstract class AbstractQueueService<
     handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
     messageTypeResolver?: MessageTypeResolverConfig
   }) {
-    const messageSchemas = options.handlers.map((entry) => entry.schema)
-    const messageDefinitions: CommonEventDefinition[] = options.handlers
-      .map((entry) => entry.definition)
-      .filter((entry) => entry !== undefined)
+    const messageSchemas = options.handlers.map((entry) => ({
+      schema: entry.schema,
+      messageType: entry.messageType,
+    }))
+    const messageDefinitions = options.handlers
+      .filter((entry) => entry.definition !== undefined)
+      .map((entry) => ({
+        // biome-ignore lint/style/noNonNullAssertion: filtered above
+        definition: entry.definition!,
+        messageType: entry.messageType,
+      }))
 
     return new MessageSchemaContainer<MessagePayloadSchemas>({
       messageTypeResolver: options.messageTypeResolver,
@@ -193,7 +199,7 @@ export abstract class AbstractQueueService<
     messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
     messageTypeResolver?: MessageTypeResolverConfig
   }) {
-    const messageSchemas = options.messageSchemas
+    const messageSchemas = options.messageSchemas.map((schema) => ({ schema }))
 
     return new MessageSchemaContainer<MessagePayloadSchemas>({
       messageTypeResolver: options.messageTypeResolver,

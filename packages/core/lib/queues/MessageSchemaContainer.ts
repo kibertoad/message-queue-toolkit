@@ -11,9 +11,27 @@ import {
   resolveMessageType,
 } from './MessageTypeResolver.ts'
 
+export type SchemaEntry<MessagePayloadSchemas extends object> = {
+  schema: ZodSchema<MessagePayloadSchemas>
+  /**
+   * Explicit message type for this schema.
+   * Required when using a custom resolver function.
+   */
+  messageType?: string
+}
+
+export type DefinitionEntry = {
+  definition: CommonEventDefinition
+  /**
+   * Explicit message type for this definition.
+   * Required when using a custom resolver function.
+   */
+  messageType?: string
+}
+
 export type MessageSchemaContainerOptions<MessagePayloadSchemas extends object> = {
-  messageDefinitions: readonly CommonEventDefinition[]
-  messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
+  messageDefinitions: readonly DefinitionEntry[]
+  messageSchemas: readonly SchemaEntry<MessagePayloadSchemas>[]
   /**
    * Configuration for resolving message types.
    */
@@ -30,8 +48,8 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
 
   constructor(options: MessageSchemaContainerOptions<MessagePayloadSchemas>) {
     this.messageTypeResolver = options.messageTypeResolver
-    this.messageSchemas = this.resolveMap(options.messageSchemas)
-    this.messageDefinitions = this.resolveMap(options.messageDefinitions ?? [])
+    this.messageSchemas = this.resolveSchemaMap(options.messageSchemas)
+    this.messageDefinitions = this.resolveDefinitionMap(options.messageDefinitions ?? [])
   }
 
   /**
@@ -133,36 +151,72 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
     }
   }
 
-  private resolveMap<T extends CommonEventDefinition | ZodSchema<MessagePayloadSchemas>>(
-    array: readonly T[],
-  ): Record<string | symbol, T> {
-    const result: Record<string | symbol, T> = {}
+  private resolveSchemaMap(
+    entries: readonly SchemaEntry<MessagePayloadSchemas>[],
+  ): Record<string | symbol, ZodSchema<MessagePayloadSchemas>> {
+    const result: Record<string | symbol, ZodSchema<MessagePayloadSchemas>> = {}
 
-    this.validateMultipleSchemas(array.length)
+    this.validateMultipleSchemas(entries.length)
 
     const literalType = this.getLiteralMessageType()
     const messageTypePath = this.getMessageTypePathForSchema()
 
-    for (const item of array) {
+    for (const entry of entries) {
       let type: string | undefined
 
-      // If literal type is configured, use it for all schemas
-      if (literalType) {
-        type = literalType
-      } else if (messageTypePath) {
-        // Extract type from schema shape using the field path
-        type =
-          'publisherSchema' in item
-            ? extractMessageTypeFromSchema(item.publisherSchema, messageTypePath)
-            : // @ts-expect-error - ZodSchema has shape property at runtime
-              extractMessageTypeFromSchema(item, messageTypePath)
+      // Priority 1: Explicit messageType on the entry
+      if (entry.messageType) {
+        type = entry.messageType
       }
-      // For single schema without resolver, use DEFAULT_SCHEMA_KEY
+      // Priority 2: Literal type from resolver config (same for all schemas)
+      else if (literalType) {
+        type = literalType
+      }
+      // Priority 3: Extract type from schema shape using the field path
+      else if (messageTypePath) {
+        // @ts-expect-error - ZodSchema has shape property at runtime
+        type = extractMessageTypeFromSchema(entry.schema, messageTypePath)
+      }
+      // If no type extracted, use DEFAULT_SCHEMA_KEY (single schema fallback)
 
       const key = type ?? DEFAULT_SCHEMA_KEY
       if (result[key]) throw new Error(`Duplicate schema for type: ${key.toString()}`)
 
-      result[key] = item
+      result[key] = entry.schema
+    }
+
+    return result
+  }
+
+  private resolveDefinitionMap(
+    entries: readonly DefinitionEntry[],
+  ): Record<string | symbol, CommonEventDefinition> {
+    const result: Record<string | symbol, CommonEventDefinition> = {}
+
+    const literalType = this.getLiteralMessageType()
+    const messageTypePath = this.getMessageTypePathForSchema()
+
+    for (const entry of entries) {
+      let type: string | undefined
+
+      // Priority 1: Explicit messageType on the entry
+      if (entry.messageType) {
+        type = entry.messageType
+      }
+      // Priority 2: Literal type from resolver config (same for all definitions)
+      else if (literalType) {
+        type = literalType
+      }
+      // Priority 3: Extract type from definition's publisherSchema using the field path
+      else if (messageTypePath) {
+        type = extractMessageTypeFromSchema(entry.definition.publisherSchema, messageTypePath)
+      }
+      // If no type extracted, use DEFAULT_SCHEMA_KEY (single definition fallback)
+
+      const key = type ?? DEFAULT_SCHEMA_KEY
+      if (result[key]) throw new Error(`Duplicate definition for type: ${key.toString()}`)
+
+      result[key] = entry.definition
     }
 
     return result

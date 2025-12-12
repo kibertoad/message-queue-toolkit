@@ -45,7 +45,7 @@ export abstract class AbstractKafkaPublisher<
     this.schemaContainers = {}
     for (const { topic, schema } of topicsConfig) {
       this.schemaContainers[topic] = new MessageSchemaContainer({
-        messageSchemas: [schema],
+        messageSchemas: [{ schema }],
         messageDefinitions: [],
       })
     }

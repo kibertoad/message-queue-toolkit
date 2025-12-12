@@ -1,3 +1,5 @@
+import { getProperty } from 'dot-prop'
+
 /**
  * Context passed to a custom message type resolver function.
  * Contains both the parsed message data and any message-level attributes/metadata.
@@ -47,16 +49,18 @@ export type MessageTypeResolverFn = (context: MessageTypeResolverContext) => str
  *
  * Three modes are supported:
  *
- * 1. **Field path** (string): Extract type from a field at the root of the message.
- *    @example { messageTypePath: 'type' } // extracts type from message.type
+ * 1. **Field path** (string): Extract type from a field in the message using dot notation.
+ *    Supports nested paths like 'metadata.type' or 'detail.eventType'.
+ *    @example { messageTypePath: 'type' } // extracts from message.type
  *    @example { messageTypePath: 'detail-type' } // for EventBridge events
+ *    @example { messageTypePath: 'metadata.eventType' } // nested path
  *
  * 2. **Constant type** (object with `literal`): All messages are treated as the same type.
  *    Useful when a subscription/queue only receives one type of message.
  *    @example { literal: 'order.created' }
  *
  * 3. **Custom resolver** (object with `resolver`): Full flexibility via callback function.
- *    Use when type needs to be extracted from attributes, nested fields, or requires transformation.
+ *    Use when type needs to be extracted from attributes or requires transformation.
  *    @example
  *    {
  *      resolver: ({ messageAttributes }) => messageAttributes?.eventType as string
@@ -97,7 +101,8 @@ export type MessageTypeResolverFn = (context: MessageTypeResolverContext) => str
 export type MessageTypeResolverConfig =
   | {
       /**
-       * Field name at the root of the message containing the message type.
+       * Path to the field containing the message type.
+       * Supports dot notation for nested paths (e.g., 'metadata.type', 'detail.eventType').
        */
       messageTypePath: string
     }
@@ -160,11 +165,13 @@ export function resolveMessageType(
   }
 
   if (isMessageTypePathConfig(config)) {
-    const data = context.messageData as Record<string, unknown> | undefined
-    const messageType = data?.[config.messageTypePath] as string | undefined
-    if (messageType === undefined) {
+    const messageType = getProperty(context.messageData, config.messageTypePath) as
+      | string
+      | undefined
+      | null
+    if (messageType === undefined || messageType === null) {
       throw new Error(
-        `Unable to resolve message type: field '${config.messageTypePath}' not found in message data`,
+        `Unable to resolve message type: path '${config.messageTypePath}' not found in message data`,
       )
     }
     return messageType
@@ -177,9 +184,10 @@ export function resolveMessageType(
 /**
  * Extracts message type from schema definition using the field path.
  * Used during handler/schema registration to build the routing map.
+ * Supports dot notation for nested paths (e.g., 'metadata.type').
  *
  * @param schema - Zod schema with shape property
- * @param messageTypePath - Field name containing the type literal
+ * @param messageTypePath - Path to the field containing the type literal (supports dot notation)
  * @returns The literal type value from the schema, or undefined if field doesn't exist or isn't a literal
  */
 export function extractMessageTypeFromSchema(
@@ -191,15 +199,24 @@ export function extractMessageTypeFromSchema(
     return undefined
   }
 
-  const field = schema.shape?.[messageTypePath]
-  if (!field) {
+  const pathParts = messageTypePath.split('.')
+  // biome-ignore lint/suspicious/noExplicitAny: Schema shape can be any
+  let current: any = schema
+
+  for (const part of pathParts) {
+    if (!current?.shape) {
+      return undefined
+    }
+    current = current.shape[part]
+    if (!current) {
+      return undefined
+    }
+  }
+
+  // Check if the final field has a literal value (z.literal() creates a field with .value)
+  if (!('value' in current)) {
     return undefined
   }
 
-  // Check if the field has a literal value (z.literal() creates a field with .value)
-  if (!('value' in field)) {
-    return undefined
-  }
-
-  return field.value as string | undefined
+  return current.value as string | undefined
 }

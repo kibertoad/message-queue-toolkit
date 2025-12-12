@@ -72,7 +72,11 @@ export {
   type SpyResultInput,
   TYPE_NOT_RESOLVED,
 } from './queues/HandlerSpy.ts'
-export type { MessageSchemaContainerOptions } from './queues/MessageSchemaContainer.ts'
+export type {
+  DefinitionEntry,
+  MessageSchemaContainerOptions,
+  SchemaEntry,
+} from './queues/MessageSchemaContainer.ts'
 export { MessageSchemaContainer } from './queues/MessageSchemaContainer.ts'
 export type {
   MessageTypeResolverConfig,
