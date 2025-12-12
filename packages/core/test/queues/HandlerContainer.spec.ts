@@ -311,9 +311,9 @@ describe('HandlerContainer', () => {
               messageHandlers: configs,
             }),
         ).toThrow(
-          'Unable to determine message type for handler. ' +
-            'Either provide messageType in handler options, use a literal resolver, ' +
-            'or ensure the schema has a literal type field matching messageTypePath.',
+          'Unable to determine message type for handler at registration time. ' +
+            'Either provide explicit messageType in handler options (required for custom resolver functions), ' +
+            'use a literal resolver, or ensure the schema has a literal type field matching messageTypePath.',
         )
       })
 

@@ -5,6 +5,7 @@ import {
   extractMessageTypeFromSchema,
   isMessageTypeLiteralConfig,
   isMessageTypePathConfig,
+  isMessageTypeResolverFnConfig,
   type MessageTypeResolverConfig,
   type MessageTypeResolverContext,
   resolveMessageType,
@@ -45,7 +46,12 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
     message: Record<string, any>,
     attributes?: Record<string, unknown>,
   ): Either<Error, ZodSchema<MessagePayloadSchemas>> {
-    const messageType = this.resolveMessageTypeFromData(message, attributes)
+    let messageType: string | undefined
+    try {
+      messageType = this.resolveMessageTypeFromData(message, attributes)
+    } catch (e) {
+      return { error: e instanceof Error ? e : new Error(String(e)) }
+    }
 
     const schema = this.messageSchemas[messageType ?? DEFAULT_SCHEMA_KEY]
     if (!schema) {
@@ -102,6 +108,24 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
 
     const literalType = this.getLiteralMessageType()
     const messageTypePath = this.getMessageTypePathForSchema()
+
+    // Validate: custom resolver function cannot be used with multiple schemas.
+    // The resolver works fine for runtime type resolution (when messages arrive),
+    // but at registration time we need to map each schema to its message type.
+    // With a custom resolver, we can't know what types it will return until runtime,
+    // so we can't build the type→schema lookup map for multiple schemas.
+    if (
+      this.messageTypeResolver &&
+      isMessageTypeResolverFnConfig(this.messageTypeResolver) &&
+      array.length > 1
+    ) {
+      throw new Error(
+        'Custom resolver function cannot be used with multiple schemas. ' +
+          'The resolver works for runtime type resolution, but at registration time ' +
+          'we cannot determine which schema corresponds to which type. ' +
+          'Use messageTypePath config (to extract types from schema literals) or register only a single schema.',
+      )
+    }
 
     for (const item of array) {
       let type: string | undefined

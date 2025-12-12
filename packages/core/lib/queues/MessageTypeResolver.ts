@@ -180,7 +180,7 @@ export function resolveMessageType(
  *
  * @param schema - Zod schema with shape property
  * @param messageTypePath - Field name containing the type literal
- * @returns The literal type value from the schema, or undefined
+ * @returns The literal type value from the schema, or undefined if field doesn't exist or isn't a literal
  */
 export function extractMessageTypeFromSchema(
   // biome-ignore lint/suspicious/noExplicitAny: Schema shape can be any
@@ -190,5 +190,16 @@ export function extractMessageTypeFromSchema(
   if (!messageTypePath) {
     return undefined
   }
-  return schema.shape?.[messageTypePath]?.value as string | undefined
+
+  const field = schema.shape?.[messageTypePath]
+  if (!field) {
+    return undefined
+  }
+
+  // Check if the field has a literal value (z.literal() creates a field with .value)
+  if (!('value' in field)) {
+    return undefined
+  }
+
+  return field.value as string | undefined
 }
