@@ -1,16 +1,16 @@
 import { reloadConfig } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { TEST_AMQP_CONFIG } from '../../test/utils/testAmqpConfig.ts'
 import type { Dependencies } from '../../test/utils/testContext.ts'
 import { registerDependencies } from '../../test/utils/testContext.ts'
-import { TEST_AMQP_CONFIG } from '../../test/utils/testAmqpConfig.ts'
 import {
   checkExchangeExists,
   deleteAmqpQueue,
   ensureAmqpQueue,
   ensureAmqpTopicSubscription,
   ensureExchange,
-} from './AmqpQueueUtils.ts'
+} from './amqpQueueUtils.ts'
 
 describe('AmqpQueueUtils', () => {
   let diContainer: AwilixContainer<Dependencies>
@@ -82,9 +82,9 @@ describe('AmqpQueueUtils', () => {
     it('throws when exchange does not exist', async () => {
       const connection = await diContainer.cradle.amqpConnectionManager.getConnection()
 
-      await expect(
-        checkExchangeExists(connection, { exchange: 'non-existent' }),
-      ).rejects.toThrow('Exchange non-existent does not exist.')
+      await expect(checkExchangeExists(connection, { exchange: 'non-existent' })).rejects.toThrow(
+        'Exchange non-existent does not exist.',
+      )
     })
 
     it('does not throw when exchange exists', async () => {
@@ -135,7 +135,11 @@ describe('AmqpQueueUtils', () => {
 
       await channel.assertQueue('queue-to-keep')
 
-      await deleteAmqpQueue(channel, { deleteIfExists: false }, { queueName: 'queue-to-keep', queueOptions: {} })
+      await deleteAmqpQueue(
+        channel,
+        { deleteIfExists: false },
+        { queueName: 'queue-to-keep', queueOptions: {} },
+      )
 
       // Queue should still exist
       await expect(channel.checkQueue('queue-to-keep')).resolves.not.toThrow()
@@ -154,7 +158,11 @@ describe('AmqpQueueUtils', () => {
 
       try {
         await expect(
-          deleteAmqpQueue(channel, { deleteIfExists: true }, { queueName: 'test-queue', queueOptions: {} }),
+          deleteAmqpQueue(
+            channel,
+            { deleteIfExists: true },
+            { queueName: 'test-queue', queueOptions: {} },
+          ),
         ).rejects.toThrow('You are running autodeletion in production')
       } finally {
         vi.unstubAllEnvs()

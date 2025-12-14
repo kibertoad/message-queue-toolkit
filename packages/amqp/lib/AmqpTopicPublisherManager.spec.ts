@@ -98,7 +98,7 @@ describe('AmqpTopicPublisherManager', () => {
       )
     })
 
-    it('throws when publishing to unknown exchange', async () => {
+    it('throws when publishing to unknown exchange', () => {
       const { topicPublisherManager } = diContainer.cradle
 
       expect(() =>

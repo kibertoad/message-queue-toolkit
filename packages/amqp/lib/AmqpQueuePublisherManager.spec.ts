@@ -133,7 +133,7 @@ describe('AmqpQueuePublisherManager', () => {
       )
     })
 
-    it('throws when publishing to unknown queue', async () => {
+    it('throws when publishing to unknown queue', () => {
       const { queuePublisherManager } = diContainer.cradle
 
       expect(() =>
