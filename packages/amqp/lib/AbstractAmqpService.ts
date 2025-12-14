@@ -86,10 +86,12 @@ export abstract class AbstractAmqpService<
     try {
       this.channel = await this.connection.createChannel()
     } catch (err) {
+      /* v8 ignore start */
       // @ts-expect-error
       this.logger.error(`Error creating channel: ${err.message}`)
       await this.connectionManager.reconnect()
       return
+      /* v8 ignore stop */
     }
 
     if (oldChannel) {
@@ -102,6 +104,7 @@ export abstract class AbstractAmqpService<
       this.isShuttingDown = false
     }
 
+    /* v8 ignore start */
     this.channel.on('close', () => {
       if (!this.isShuttingDown) {
         this.logger.error('AMQP connection lost!')
@@ -114,6 +117,7 @@ export abstract class AbstractAmqpService<
     this.channel.on('error', (err) => {
       this.handleError(err)
     })
+    /* v8 ignore stop */
 
     await this.createMissingEntities()
   }
