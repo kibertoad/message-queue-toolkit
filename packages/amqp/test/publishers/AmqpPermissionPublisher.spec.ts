@@ -123,7 +123,6 @@ describe('PermissionPublisher', () => {
       expect(() => newPublisher.preHandlerBarrier()).toThrow('Not implemented for publisher')
       // @ts-expect-error accessing protected method for coverage
       expect(() => newPublisher.resolveNextFunction()).toThrow('Not implemented for publisher')
-      // @ts-expect-error accessing protected method for coverage
       expect(() => newPublisher.processMessage()).toThrow('Not implemented for publisher')
 
       await newPublisher.close()
