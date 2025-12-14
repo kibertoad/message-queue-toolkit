@@ -26,17 +26,21 @@ export async function resolveAmqpConnection(config: AmqpConfig): Promise<Channel
       const connection = await connect(url)
       return connection
     } catch (_e) {
+      /* v8 ignore start */
       globalLogger.error(
         `Failed to connect to AMQP broker at ${config.hostname}:${config.port}. Retrying in ${
           retryTime / 1000
         } seconds...`,
       )
+      /* v8 ignore stop */
     }
+    /* v8 ignore start */
     await setTimeout(retryTime)
     counter++
 
     if (counter > MAX_RETRY_ATTEMPTS) {
       throw new Error('Failed to resolve AMQP connection')
     }
+    /* v8 ignore stop */
   }
 }

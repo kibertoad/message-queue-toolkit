@@ -98,6 +98,36 @@ describe('PermissionPublisher', () => {
       await expect(() => newPublisher.init()).rejects.toThrow(/does not exist/)
     })
 
+    it('throws an error when neither locator nor creation config provides queueName', () => {
+      expect(
+        () =>
+          new AmqpPermissionPublisher(diContainer.cradle, {
+            // @ts-expect-error intentionally passing invalid config
+            locatorConfig: {},
+            // @ts-expect-error intentionally passing invalid config
+            creationConfig: {},
+          }),
+      ).toThrow('Either locatorConfig or creationConfig must provide queueName')
+    })
+
+    it('abstract methods not implemented for publisher throw errors', async () => {
+      const newPublisher = new AmqpPermissionPublisher(diContainer.cradle)
+      await newPublisher.init()
+
+      // Test that abstract methods throw "Not implemented for publisher" errors
+      // @ts-expect-error accessing protected method for coverage
+      expect(() => newPublisher.resolveMessage()).toThrow('Not implemented for publisher')
+      // @ts-expect-error accessing protected method for coverage
+      expect(() => newPublisher.processPrehandlers()).toThrow('Not implemented for publisher')
+      // @ts-expect-error accessing protected method for coverage
+      expect(() => newPublisher.preHandlerBarrier()).toThrow('Not implemented for publisher')
+      // @ts-expect-error accessing protected method for coverage
+      expect(() => newPublisher.resolveNextFunction()).toThrow('Not implemented for publisher')
+      expect(() => newPublisher.processMessage()).toThrow('Not implemented for publisher')
+
+      await newPublisher.close()
+    })
+
     it('does not create a new queue when queue locator is passed', async () => {
       await channel.assertQueue(AmqpPermissionPublisher.QUEUE_NAME)
 

@@ -27,6 +27,7 @@ export class AmqpConnectionManager {
 
   private async createConnection(): Promise<ChannelModel> {
     const connection = await resolveAmqpConnection(this.config)
+    /* v8 ignore start */
     connection.on('error', (err) => {
       this.logger.error(`AmqpConnectionManager: Connection error: ${err.message}`)
       this.connection = undefined
@@ -42,6 +43,7 @@ export class AmqpConnectionManager {
         }
       }
     })
+    /* v8 ignore stop */
 
     const promises: Promise<unknown>[] = []
 

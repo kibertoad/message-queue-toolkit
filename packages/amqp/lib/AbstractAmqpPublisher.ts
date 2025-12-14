@@ -82,6 +82,7 @@ export abstract class AbstractAmqpPublisher<
           this.publish(message, options)
         })
         .catch((err) => {
+          /* v8 ignore next */
           this.handleError(err)
         })
       return
@@ -140,7 +141,7 @@ export abstract class AbstractAmqpPublisher<
     return this.messageSchemaContainer.resolveSchema(message)
   }
 
-  /* c8 ignore start */
+  /* v8 ignore start */
   protected resolveMessage(): Either<
     MessageInvalidFormatError | MessageValidationError,
     ResolvedMessage
@@ -148,7 +149,6 @@ export abstract class AbstractAmqpPublisher<
     throw new Error('Not implemented for publisher')
   }
 
-  /* c8 ignore start */
   protected override processPrehandlers(): Promise<unknown> {
     throw new Error('Not implemented for publisher')
   }
@@ -161,13 +161,13 @@ export abstract class AbstractAmqpPublisher<
     throw new Error('Not implemented for publisher')
   }
 
+  override processMessage(): Promise<Either<'retryLater', 'success'>> {
+    throw new Error('Not implemented for publisher')
+  }
+  /* v8 ignore stop */
+
   override async close(): Promise<void> {
     this.initPromise = undefined
     await super.close()
   }
-
-  override processMessage(): Promise<Either<'retryLater', 'success'>> {
-    throw new Error('Not implemented for publisher')
-  }
-  /* c8 ignore stop */
 }
