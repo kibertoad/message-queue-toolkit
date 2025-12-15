@@ -220,33 +220,42 @@ jobs:
           fi
 
       # Finalize outputs - consolidates all outputs with proper fallbacks
-      # This avoids GitHub Actions expression brittleness with empty strings
+      # Uses environment variables to preserve JSON quoting
       - name: Finalize outputs
         id: finalize
+        env:
+          BUILD_MATRIX: ${{ steps.build-matrix.outputs.matrix }}
+          BUILD_HAS_CHANGES: ${{ steps.build-matrix.outputs.has_changes }}
+          DEFAULT_MATRIX: ${{ steps.defaults.outputs.matrix }}
+          DEFAULT_HAS_CHANGES: ${{ steps.defaults.outputs.has_changes }}
+          VERSION_BUMP: ${{ steps.version.outputs.bump }}
+          DEFAULT_BUMP: ${{ steps.defaults.outputs.bump }}
+          PR_SHOULD_PUBLISH: ${{ steps.pr-info.outputs.should_publish }}
+          DEFAULT_SHOULD_PUBLISH: ${{ steps.defaults.outputs.should_publish }}
         run: |
           # Use build-matrix outputs if available, otherwise defaults
-          if [ -n "${{ steps.build-matrix.outputs.matrix }}" ]; then
-            echo "matrix=${{ steps.build-matrix.outputs.matrix }}" >> $GITHUB_OUTPUT
+          if [ -n "$BUILD_MATRIX" ]; then
+            echo "matrix=$BUILD_MATRIX" >> $GITHUB_OUTPUT
           else
-            echo "matrix=${{ steps.defaults.outputs.matrix }}" >> $GITHUB_OUTPUT
+            echo "matrix=$DEFAULT_MATRIX" >> $GITHUB_OUTPUT
           fi
 
-          if [ -n "${{ steps.build-matrix.outputs.has_changes }}" ]; then
-            echo "has_changes=${{ steps.build-matrix.outputs.has_changes }}" >> $GITHUB_OUTPUT
+          if [ -n "$BUILD_HAS_CHANGES" ]; then
+            echo "has_changes=$BUILD_HAS_CHANGES" >> $GITHUB_OUTPUT
           else
-            echo "has_changes=${{ steps.defaults.outputs.has_changes }}" >> $GITHUB_OUTPUT
+            echo "has_changes=$DEFAULT_HAS_CHANGES" >> $GITHUB_OUTPUT
           fi
 
-          if [ -n "${{ steps.version.outputs.bump }}" ]; then
-            echo "bump=${{ steps.version.outputs.bump }}" >> $GITHUB_OUTPUT
+          if [ -n "$VERSION_BUMP" ]; then
+            echo "bump=$VERSION_BUMP" >> $GITHUB_OUTPUT
           else
-            echo "bump=${{ steps.defaults.outputs.bump }}" >> $GITHUB_OUTPUT
+            echo "bump=$DEFAULT_BUMP" >> $GITHUB_OUTPUT
           fi
 
-          if [ -n "${{ steps.pr-info.outputs.should_publish }}" ]; then
-            echo "should_publish=${{ steps.pr-info.outputs.should_publish }}" >> $GITHUB_OUTPUT
+          if [ -n "$PR_SHOULD_PUBLISH" ]; then
+            echo "should_publish=$PR_SHOULD_PUBLISH" >> $GITHUB_OUTPUT
           else
-            echo "should_publish=${{ steps.defaults.outputs.should_publish }}" >> $GITHUB_OUTPUT
+            echo "should_publish=$DEFAULT_SHOULD_PUBLISH" >> $GITHUB_OUTPUT
           fi
 
   # Single job that bumps, publishes, and pushes tags/commits at the end
