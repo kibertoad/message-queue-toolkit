@@ -1,5 +1,5 @@
 # Kafka
-
+ 
 This library provides utilities for implementing Kafka consumers and publishers.
 While following the same patterns as other message broker implementations,
 Kafka's unique characteristics require some specific adaptations in the publisher and consumer definitions.
