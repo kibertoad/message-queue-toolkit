@@ -228,10 +228,12 @@ export abstract class AbstractKafkaConsumer<
     stream: KafkaMessageBatchStream<DeserializedMessage<SupportedMessageValues<TopicsConfig>>>,
   ): Promise<void> {
     for await (const messageBatch of stream) {
+      this.consumerStream?.pause()
       await this.consume(
         messageBatch.topic,
         messageBatch.messages as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
       )
+      this.consumerStream?.resume()
     }
   }
 
