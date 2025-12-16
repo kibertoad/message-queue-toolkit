@@ -432,9 +432,8 @@ export abstract class AbstractKafkaConsumer<
 
   private commit(messageOrBatch: MessageOrBatch<SupportedMessageValues<TopicsConfig>>) {
     if (Array.isArray(messageOrBatch)) {
-      if (messageOrBatch.length === 0) {
-        return Promise.resolve()
-      }
+      if (messageOrBatch.length === 0) return Promise.resolve()
+
       // biome-ignore lint/style/noNonNullAssertion: we check the length above
       return this.commitMessage(messageOrBatch[messageOrBatch.length - 1]!)
     } else {
@@ -443,13 +442,18 @@ export abstract class AbstractKafkaConsumer<
   }
 
   private async commitMessage(message: DeserializedMessage<SupportedMessageValues<TopicsConfig>>) {
+    const logDetails = {
+      topic: message.topic,
+      offset: message.offset,
+      timestamp: message.timestamp,
+    }
+    this.logger.debug(logDetails, 'Trying to commit message')
+
     try {
-      this.logger.debug(
-        { topic: message.topic, offset: message.offset, timestamp: message.timestamp },
-        'Trying to commit message',
-      )
       await message.commit()
+      this.logger.debug(logDetails, 'Message committed successfully')
     } catch (error) {
+      this.logger.debug(logDetails, 'Message commit failed')
       if (error instanceof ResponseError) return this.handleResponseErrorOnCommit(error)
       throw error
     }
