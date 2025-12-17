@@ -42,7 +42,7 @@ export class SnsPermissionPublisherFifo extends AbstractSnsPublisher<SupportedMe
       payloadStoreConfig: options?.payloadStoreConfig,
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA_FIFO, PERMISSIONS_REMOVE_MESSAGE_SCHEMA_FIFO],
       handlerSpy: true,
-      messageTypeField: 'messageType',
+      messageTypeResolver: { messageTypePath: 'messageType' },
       messageDeduplicationConfig: options?.messageDeduplicationConfig,
       enablePublisherDeduplication: options?.enablePublisherDeduplication,
       messageDeduplicationIdField: 'deduplicationId',

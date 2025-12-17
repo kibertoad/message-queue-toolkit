@@ -42,7 +42,7 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<SupportedTypes>
       payloadStoreConfig: options?.payloadStoreConfig,
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
       handlerSpy: true,
-      messageTypeField: 'messageType',
+      messageTypeResolver: { messageTypePath: 'messageType' },
       messageDeduplicationConfig: options?.messageDeduplicationConfig,
       enablePublisherDeduplication: options?.enablePublisherDeduplication,
       messageDeduplicationIdField: 'deduplicationId',

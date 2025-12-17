@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/sqs",
-    "version": "23.1.0",
+    "version": "24.0.0",
     "private": false,
     "license": "MIT",
     "description": "SQS adapter for message-queue-toolkit",
@@ -28,12 +28,12 @@
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^14.2.0",
-        "sqs-consumer": "^14.0.0"
+        "@lokalise/node-core": "^14.6.1",
+        "sqs-consumer": "^14.1.0"
     },
     "peerDependencies": {
         "@aws-sdk/client-sqs": "^3.632.0",
-        "@message-queue-toolkit/core": ">=24.0.0",
+        "@message-queue-toolkit/core": ">=25.0.0",
         "zod": ">=3.25.76 <5.0.0"
     },
     "devDependencies": {
@@ -46,15 +46,15 @@
         "@message-queue-toolkit/redis-message-deduplication-store": "*",
         "@message-queue-toolkit/s3-payload-store": "*",
         "@message-queue-toolkit/schemas": "*",
-        "@types/node": "^24.0.3",
+        "@types/node": "^25.0.2",
         "@vitest/coverage-v8": "^3.2.4",
         "awilix": "^12.0.5",
         "awilix-manager": "^6.1.0",
         "rimraf": "^6.0.1",
         "ioredis": "^5.6.1",
-        "typescript": "^5.9.2",
+        "typescript": "^5.9.3",
         "vitest": "^3.2.4",
-        "zod": "^4.0.17"
+        "zod": "^4.1.13"
     },
     "homepage": "https://github.com/kibertoad/message-queue-toolkit",
     "repository": {

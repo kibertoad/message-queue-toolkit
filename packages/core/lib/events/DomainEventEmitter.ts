@@ -180,6 +180,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
           processingResult: { status: 'consumed' },
         },
         event.id,
+        event.type,
       )
     })
     this.inProgressBackgroundHandlerByEventId.set(event.id, bgPromise)

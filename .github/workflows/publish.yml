@@ -1,32 +1,99 @@
 name: Publish to npm
 
 on:
-  pull_request:
-    types:
-      - closed
+  push:
     branches:
       - main
 
+# Prevent overlapping releases if multiple PRs merge close together
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
 jobs:
   detect-changes:
-    if: github.event.pull_request.merged == true && (contains(github.event.pull_request.labels.*.name, 'patch') || contains(github.event.pull_request.labels.*.name, 'minor') || contains(github.event.pull_request.labels.*.name, 'major'))
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
-      matrix: ${{ steps.build-matrix.outputs.matrix }}
-      has_changes: ${{ steps.build-matrix.outputs.has_changes }}
-      bump: ${{ steps.version.outputs.bump }}
+      matrix: ${{ steps.finalize.outputs.matrix }}
+      has_changes: ${{ steps.finalize.outputs.has_changes }}
+      bump: ${{ steps.finalize.outputs.bump }}
+      should_publish: ${{ steps.finalize.outputs.should_publish }}
     steps:
+      - name: Set default outputs
+        id: defaults
+        run: |
+          echo "matrix=[]" >> $GITHUB_OUTPUT
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+          echo "bump=patch" >> $GITHUB_OUTPUT
+          echo "should_publish=false" >> $GITHUB_OUTPUT
+
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
+      - name: Check if should skip
+        id: skip-check
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          # Only skip our own version bump commits (exact match)
+          if echo "$COMMIT_MSG" | grep -qE '^chore: bump versions \[skip ci\]$'; then
+            echo "Skipping: this is a version bump commit"
+            echo "should_skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get PR info from merge commit
+        id: pr-info
+        if: steps.skip-check.outputs.should_skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Use GitHub API to find PR associated with this commit
+          # This works for both merge commits and squash merges
+          PR_DATA=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" \
+            --jq '.[0] | {number, labels: [.labels[].name]}' 2>/dev/null || echo '{}')
+
+          PR_NUMBER=$(echo "$PR_DATA" | jq -r '.number // empty')
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No PR found for this commit"
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Found PR #$PR_NUMBER"
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+          # Get labels from the API response
+          LABELS=$(echo "$PR_DATA" | jq -r '.labels | join(" ")')
+          echo "PR labels: $LABELS"
+          echo "labels=$LABELS" >> $GITHUB_OUTPUT
+
+          # Check if PR has version bump labels
+          if echo "$LABELS" | grep -qE '\b(patch|minor|major)\b'; then
+            echo "should_publish=true" >> $GITHUB_OUTPUT
+          else
+            echo "No version bump label found (patch/minor/major)"
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Determine version bump
         id: version
+        if: steps.skip-check.outputs.should_skip != 'true' && steps.pr-info.outputs.should_publish == 'true'
+        env:
+          LABELS: ${{ steps.pr-info.outputs.labels }}
         run: |
-          if ${{ contains(github.event.pull_request.labels.*.name, 'major') }}; then
+          if echo "$LABELS" | grep -qE '\bmajor\b'; then
             echo "bump=major" >> $GITHUB_OUTPUT
             echo "Version bump: major"
-          elif ${{ contains(github.event.pull_request.labels.*.name, 'minor') }}; then
+          elif echo "$LABELS" | grep -qE '\bminor\b'; then
             echo "bump=minor" >> $GITHUB_OUTPUT
             echo "Version bump: minor"
           else
@@ -34,20 +101,21 @@ jobs:
             echo "Version bump: patch"
           fi
 
-      - name: Debug PR info
+      - name: Debug commit info
+        if: steps.skip-check.outputs.should_skip != 'true' && steps.pr-info.outputs.should_publish == 'true'
         run: |
-          echo "PR base SHA: ${{ github.event.pull_request.base.sha }}"
-          echo "PR head SHA: ${{ github.event.pull_request.head.sha }}"
-          echo "Comparing changes between these commits..."
-          echo ""
-          echo "Files changed in PR:"
-          git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} || echo "git diff failed"
+          echo "Commit SHA: ${{ github.sha }}"
+          echo "Previous SHA: ${{ github.event.before }}"
+          echo "PR Number: ${{ steps.pr-info.outputs.pr_number }}"
+          echo "Files changed:"
+          git diff --name-only ${{ github.event.before }}..${{ github.sha }} || echo "git diff failed"
 
       - id: filter
+        if: steps.skip-check.outputs.should_skip != 'true' && steps.pr-info.outputs.should_publish == 'true'
         uses: dorny/paths-filter@v3
         with:
-          base: ${{ github.event.pull_request.base.sha }}
-          ref: ${{ github.event.pull_request.head.sha }}
+          base: ${{ github.event.before }}
+          ref: ${{ github.sha }}
           filters: |
             pkg_core:
               - 'packages/core/lib/**'
@@ -100,6 +168,7 @@ jobs:
 
       - name: Build dynamic matrix
         id: build-matrix
+        if: steps.skip-check.outputs.should_skip != 'true' && steps.pr-info.outputs.should_publish == 'true'
         run: |
           # Package mapping: filterKey -> name, npmName
           declare -A PKG_NAMES=(
@@ -150,82 +219,67 @@ jobs:
             echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
 
-  bump-versions:
+      # Finalize outputs - consolidates all outputs with proper fallbacks
+      # Uses environment variables to preserve JSON quoting
+      - name: Finalize outputs
+        id: finalize
+        env:
+          BUILD_MATRIX: ${{ steps.build-matrix.outputs.matrix }}
+          BUILD_HAS_CHANGES: ${{ steps.build-matrix.outputs.has_changes }}
+          DEFAULT_MATRIX: ${{ steps.defaults.outputs.matrix }}
+          DEFAULT_HAS_CHANGES: ${{ steps.defaults.outputs.has_changes }}
+          VERSION_BUMP: ${{ steps.version.outputs.bump }}
+          DEFAULT_BUMP: ${{ steps.defaults.outputs.bump }}
+          PR_SHOULD_PUBLISH: ${{ steps.pr-info.outputs.should_publish }}
+          DEFAULT_SHOULD_PUBLISH: ${{ steps.defaults.outputs.should_publish }}
+        run: |
+          # Use build-matrix outputs if available, otherwise defaults
+          if [ -n "$BUILD_MATRIX" ]; then
+            echo "matrix=$BUILD_MATRIX" >> $GITHUB_OUTPUT
+          else
+            echo "matrix=$DEFAULT_MATRIX" >> $GITHUB_OUTPUT
+          fi
+
+          if [ -n "$BUILD_HAS_CHANGES" ]; then
+            echo "has_changes=$BUILD_HAS_CHANGES" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=$DEFAULT_HAS_CHANGES" >> $GITHUB_OUTPUT
+          fi
+
+          if [ -n "$VERSION_BUMP" ]; then
+            echo "bump=$VERSION_BUMP" >> $GITHUB_OUTPUT
+          else
+            echo "bump=$DEFAULT_BUMP" >> $GITHUB_OUTPUT
+          fi
+
+          if [ -n "$PR_SHOULD_PUBLISH" ]; then
+            echo "should_publish=$PR_SHOULD_PUBLISH" >> $GITHUB_OUTPUT
+          else
+            echo "should_publish=$DEFAULT_SHOULD_PUBLISH" >> $GITHUB_OUTPUT
+          fi
+
+  # Single job that bumps, publishes, and pushes tags/commits at the end
+  # This avoids the "checkout wrong commit" problem of multi-job workflows
+  release:
     needs: detect-changes
-    if: needs.detect-changes.outputs.has_changes == 'true'
+    if: needs.detect-changes.outputs.should_publish == 'true' && needs.detect-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
+          persist-credentials: true
 
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24.x
-          package-manager-cache: false
-
-      - name: Bump versions for changed packages
-        env:
-          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
-          BUMP: ${{ needs.detect-changes.outputs.bump }}
-        run: |
-          echo "Packages to bump: $MATRIX"
-          echo "Version bump type: $BUMP"
-
-          # Parse matrix JSON and bump each package
-          echo "$MATRIX" | jq -r '.[] | .name' | while read -r PKG_NAME; do
-            echo "Bumping version for $PKG_NAME..."
-            cd "packages/$PKG_NAME"
-            OLD_VERSION=$(node -p "require('./package.json').version")
-            npm version "$BUMP" --no-git-tag-version
-            NEW_VERSION=$(node -p "require('./package.json').version")
-            echo "  $OLD_VERSION -> $NEW_VERSION"
-            cd ../..
-          done
-
-      - name: Commit and push version changes
-        run: |
-          git add packages/*/package.json
-          if git diff --staged --quiet; then
-            echo "No version changes to commit"
-          else
-            git commit -m "chore: bump versions [skip ci]"
-            git push
-          fi
-
-  publish:
-    needs: [detect-changes, bump-versions]
-    if: needs.detect-changes.outputs.has_changes == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        package: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
-
-    concurrency:
-      group: publish-${{ matrix.package.name }}
-      cancel-in-progress: false
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-        with:
-          ref: main
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -234,62 +288,144 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false
 
-      - name: Get version
-        id: version
-        working-directory: packages/${{ matrix.package.name }}
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Publishing ${{ matrix.package.npmName }}@$VERSION"
-
       - name: Install dependencies
         run: npm install --ignore-scripts
 
-      - name: Build package
-        run: npm run build -- --filter=${{ matrix.package.npmName }}
+      - name: Bump versions for changed packages
+        id: bump
+        env:
+          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
+          BUMP: ${{ needs.detect-changes.outputs.bump }}
+        run: |
+          echo "Packages to bump: $MATRIX"
+          echo "Version bump type: $BUMP"
 
-      - name: Publish to npm
-        working-directory: packages/${{ matrix.package.name }}
-        run: npm publish --provenance --access public
+          # Collect version info for later steps
+          VERSIONS_JSON="{"
+          FIRST=true
+
+          # Parse matrix JSON and bump each package
+          for PKG_NAME in $(echo "$MATRIX" | jq -r '.[] | .name'); do
+            echo "Bumping version for $PKG_NAME..."
+            cd "packages/$PKG_NAME"
+            OLD_VERSION=$(node -p "require('./package.json').version")
+            npm version "$BUMP" --no-git-tag-version
+            NEW_VERSION=$(node -p "require('./package.json').version")
+            echo "  $OLD_VERSION -> $NEW_VERSION"
+
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+            else
+              VERSIONS_JSON+=","
+            fi
+            VERSIONS_JSON+="\"$PKG_NAME\":\"$NEW_VERSION\""
+
+            cd ../..
+          done
+
+          VERSIONS_JSON+="}"
+          echo "versions=$VERSIONS_JSON" >> $GITHUB_OUTPUT
+
+      - name: Build all packages
+        env:
+          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
+        run: |
+          for NPM_NAME in $(echo "$MATRIX" | jq -r '.[] | .npmName'); do
+            echo "Building $NPM_NAME..."
+            npm run build -- --filter="$NPM_NAME"
+          done
+
+      - name: Publish packages to npm
+        id: publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Summary
+          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
         run: |
-          echo "### Published ${{ matrix.package.npmName }}@${{ steps.version.outputs.version }} :rocket:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "[View on npm](https://www.npmjs.com/package/${{ matrix.package.npmName }})" >> $GITHUB_STEP_SUMMARY
+          PUBLISHED=""
+          SKIPPED=""
 
-  create-tags:
-    needs: [detect-changes, bump-versions, publish]
-    if: needs.detect-changes.outputs.has_changes == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+          for PKG_NAME in $(echo "$MATRIX" | jq -r '.[] | .name'); do
+            cd "packages/$PKG_NAME"
 
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
+            # Read actual name and version from package.json for accuracy
+            NPM_NAME=$(node -p "require('./package.json').name")
+            VERSION=$(node -p "require('./package.json').version")
 
-      - name: Configure Git
+            # Check if this version is already published (idempotent)
+            if npm view "$NPM_NAME@$VERSION" version >/dev/null 2>&1; then
+              echo "Skipping $NPM_NAME@$VERSION - already published"
+              SKIPPED+="$NPM_NAME@$VERSION "
+            else
+              echo "Publishing $NPM_NAME@$VERSION..."
+              npm publish --provenance --access public
+              PUBLISHED+="$NPM_NAME@$VERSION "
+            fi
+
+            cd ../..
+          done
+
+          echo "published=$PUBLISHED" >> $GITHUB_OUTPUT
+          echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+
+      - name: Commit version bumps
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packages/*/package.json
+          if git diff --staged --quiet; then
+            echo "No version changes to commit"
+          else
+            git commit -m "chore: bump versions [skip ci]"
+          fi
 
       - name: Create tags for published packages
         env:
           MATRIX: ${{ needs.detect-changes.outputs.matrix }}
         run: |
-          echo "$MATRIX" | jq -r '.[] | .name' | while read -r PKG_NAME; do
+          for PKG_NAME in $(echo "$MATRIX" | jq -r '.[] | .name'); do
+            # Read actual name from package.json for accurate tag
+            NPM_NAME=$(node -p "require('./packages/$PKG_NAME/package.json').name")
             VERSION=$(node -p "require('./packages/$PKG_NAME/package.json').version")
-            TAG="@message-queue-toolkit/${PKG_NAME}@${VERSION}"
-            echo "Creating tag: $TAG"
-            git tag "$TAG" || echo "Tag $TAG already exists"
+            TAG="${NPM_NAME}@${VERSION}"
+
+            # Check if tag already exists (could indicate re-run or version issue)
+            if git rev-parse "$TAG" >/dev/null 2>&1; then
+              echo "Warning: Tag already exists: $TAG (skipping)"
+            else
+              echo "Creating tag: $TAG"
+              git tag "$TAG"
+            fi
           done
 
-      - name: Push tags
-        run: git push --tags
+      - name: Push commits and tags
+        run: |
+          git push
+          git push --tags
+
+      - name: Summary
+        env:
+          PUBLISHED: ${{ steps.publish.outputs.published }}
+          SKIPPED: ${{ steps.publish.outputs.skipped }}
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "$PUBLISHED" ]; then
+            echo "### Published packages" >> $GITHUB_STEP_SUMMARY
+            for PKG in $PUBLISHED; do
+              # URL-encode the @ symbol for npm links
+              NPM_URL_NAME=$(echo "$PKG" | sed 's/@/%40/g' | sed 's/@/%40/')
+              echo "- [$PKG](https://www.npmjs.com/package/${NPM_URL_NAME%@*})" >> $GITHUB_STEP_SUMMARY
+            done
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ -n "$SKIPPED" ]; then
+            echo "### Skipped (already published)" >> $GITHUB_STEP_SUMMARY
+            for PKG in $SKIPPED; do
+              echo "- $PKG" >> $GITHUB_STEP_SUMMARY
+            done
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ -z "$PUBLISHED" ] && [ -z "$SKIPPED" ]; then
+            echo "No packages were published or skipped." >> $GITHUB_STEP_SUMMARY
+          fi

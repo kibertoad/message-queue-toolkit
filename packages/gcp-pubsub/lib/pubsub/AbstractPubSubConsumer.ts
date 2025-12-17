@@ -1,4 +1,4 @@
-import type { Either, ErrorResolver } from '@lokalise/node-core'
+import { type Either, type ErrorResolver, isError } from '@lokalise/node-core'
 import type {
   MessageInvalidFormatError,
   MessageValidationError,
@@ -18,6 +18,8 @@ import {
   type QueueConsumerOptions,
   type TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
+import { isRetryableGrpcError } from '../errors/grpcErrors.ts'
+import { isSubscriptionDoesNotExistError } from '../errors/SubscriptionDoesNotExistError.ts'
 import type { PubSubMessage } from '../types/MessageTypes.ts'
 import { hasOffloadedPayload } from '../utils/messageUtils.ts'
 import { deletePubSub, initPubSub } from '../utils/pubSubInitter.ts'
@@ -29,10 +31,40 @@ import type {
 } from './AbstractPubSubService.ts'
 import { AbstractPubSubService } from './AbstractPubSubService.ts'
 
-const _ABORT_EARLY_EITHER: Either<'abort', never> = {
-  error: 'abort',
-}
 const DEFAULT_MAX_RETRY_DURATION = 4 * 24 * 60 * 60 // 4 days in seconds
+
+/**
+ * Default configuration for subscription error retry behavior.
+ */
+const DEFAULT_SUBSCRIPTION_RETRY_OPTIONS = {
+  maxRetries: 5,
+  baseRetryDelayMs: 1000,
+  maxRetryDelayMs: 30000,
+} as const
+
+/**
+ * Configuration options for subscription-level error retry behavior.
+ * This handles transient errors that occur at the subscription level
+ * (e.g., NOT_FOUND, PERMISSION_DENIED after Terraform deployments).
+ */
+export type SubscriptionRetryOptions = {
+  /**
+   * Maximum number of retry attempts before giving up.
+   * @default 5
+   */
+  maxRetries?: number
+  /**
+   * Base delay in milliseconds for exponential backoff.
+   * Actual delay = min(baseRetryDelayMs * 2^attempt, maxRetryDelayMs)
+   * @default 1000
+   */
+  baseRetryDelayMs?: number
+  /**
+   * Maximum delay in milliseconds between retries.
+   * @default 30000
+   */
+  maxRetryDelayMs?: number
+}
 
 export type PubSubDeadLetterQueueOptions = {
   deadLetterPolicy: {
@@ -76,6 +108,12 @@ export type PubSubConsumerOptions<
       maxMilliseconds?: number
     }
   }
+  /**
+   * Configuration for subscription-level error retry behavior.
+   * Handles transient errors like NOT_FOUND and PERMISSION_DENIED
+   * that can occur after Terraform deployments due to GCP's eventual consistency.
+   */
+  subscriptionRetryOptions?: SubscriptionRetryOptions
 }
 
 export abstract class AbstractPubSubConsumer<
@@ -118,14 +156,36 @@ export abstract class AbstractPubSubConsumer<
   >
   private readonly deadLetterQueueOptions?: PubSubDeadLetterQueueOptions
   private readonly isDeduplicationEnabled: boolean
+  private readonly subscriptionRetryOptions: Required<SubscriptionRetryOptions>
   private maxRetryDuration: number
   private isConsuming = false
+  private isReinitializing = false
+  private _fatalError: Error | null = null
 
   protected readonly errorResolver: ErrorResolver
   protected readonly executionContext: ExecutionContext
 
   public dlqTopicName?: string
   public readonly _messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
+
+  /**
+   * Returns the fatal error that caused the consumer to stop, or null if healthy.
+   * Use this in health checks to detect permanent subscription failures.
+   *
+   * @example
+   * ```typescript
+   * app.get('/health', (req, res) => {
+   *   const error = consumer.fatalError
+   *   if (error) {
+   *     return res.status(503).json({ status: 'unhealthy', error: error.message })
+   *   }
+   *   return res.status(200).json({ status: 'healthy' })
+   * })
+   * ```
+   */
+  public get fatalError(): Error | null {
+    return this._fatalError
+  }
 
   protected constructor(
     dependencies: PubSubConsumerDependencies,
@@ -140,17 +200,31 @@ export abstract class AbstractPubSubConsumer<
     this.maxRetryDuration = options.maxRetryDuration ?? DEFAULT_MAX_RETRY_DURATION
     this.executionContext = executionContext
     this.isDeduplicationEnabled = !!options.enableConsumerDeduplication
+    this.subscriptionRetryOptions = {
+      maxRetries:
+        options.subscriptionRetryOptions?.maxRetries ??
+        DEFAULT_SUBSCRIPTION_RETRY_OPTIONS.maxRetries,
+      baseRetryDelayMs:
+        options.subscriptionRetryOptions?.baseRetryDelayMs ??
+        DEFAULT_SUBSCRIPTION_RETRY_OPTIONS.baseRetryDelayMs,
+      maxRetryDelayMs:
+        options.subscriptionRetryOptions?.maxRetryDelayMs ??
+        DEFAULT_SUBSCRIPTION_RETRY_OPTIONS.maxRetryDelayMs,
+    }
 
     this._messageSchemaContainer = this.resolveConsumerMessageSchemaContainer(options)
     this.handlerContainer = new HandlerContainer({
       messageHandlers: options.handlers,
-      messageTypeField: options.messageTypeField,
+      messageTypeResolver: options.messageTypeResolver,
     })
   }
 
   public override async init(): Promise<void> {
     if (this.deletionConfig && this.creationConfig) {
-      await deletePubSub(this.pubSubClient, this.deletionConfig, this.creationConfig)
+      // Only delete subscription, not the topic (topic may be shared with other consumers)
+      await deletePubSub(this.pubSubClient, this.deletionConfig, this.creationConfig, {
+        deleteSubscriptionOnly: true,
+      })
     }
 
     const initResult = await initPubSub(
@@ -175,7 +249,7 @@ export abstract class AbstractPubSubConsumer<
       return
     }
 
-    await this.init()
+    await this.initWithRetry()
 
     if (!this.subscription) {
       throw new Error('Subscription not initialized after init()')
@@ -186,14 +260,86 @@ export abstract class AbstractPubSubConsumer<
 
     this.isConsuming = true
 
+    this.setupSubscriptionEventHandlers()
+  }
+
+  /**
+   * Initializes the consumer with retry logic for transient errors.
+   *
+   * This handles eventual consistency issues that can occur after Terraform deployments
+   * where topics/subscriptions may not be immediately visible across all GCP endpoints.
+   *
+   * @param attempt - Current retry attempt number (1-based)
+   */
+  private async initWithRetry(attempt = 1): Promise<void> {
+    try {
+      await this.init()
+    } catch (error) {
+      // Check if we should retry
+      if (attempt >= this.subscriptionRetryOptions.maxRetries) {
+        this.logger.error({
+          msg: `Failed to initialize subscription after ${attempt} attempts`,
+          subscriptionName:
+            this.locatorConfig?.subscriptionName ?? this.creationConfig?.subscription?.name,
+          topicName: this.locatorConfig?.topicName ?? this.creationConfig?.topic.name,
+          error,
+        })
+        throw error
+      }
+
+      // Check if error is retryable using gRPC status codes
+      const isRetryableSubscriptionError = isSubscriptionDoesNotExistError(error)
+      const isRetryableGrpc = isRetryableGrpcError(error)
+
+      if (!isRetryableSubscriptionError && !isRetryableGrpc) {
+        throw error
+      }
+
+      // Calculate delay with exponential backoff
+      const delay = Math.min(
+        this.subscriptionRetryOptions.baseRetryDelayMs * Math.pow(2, attempt - 1),
+        this.subscriptionRetryOptions.maxRetryDelayMs,
+      )
+
+      this.logger.warn({
+        msg: `Retryable error during initialization, attempt ${attempt}/${this.subscriptionRetryOptions.maxRetries}, waiting ${delay}ms`,
+        subscriptionName:
+          this.locatorConfig?.subscriptionName ?? this.creationConfig?.subscription?.name,
+        topicName: this.locatorConfig?.topicName ?? this.creationConfig?.topic.name,
+        errorCode: isRetryableGrpc ? error.code : undefined,
+        errorMessage:
+          isRetryableGrpc || isRetryableSubscriptionError ? error.message : String(error),
+        attempt,
+        delayMs: delay,
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, delay))
+      await this.initWithRetry(attempt + 1)
+    }
+  }
+
+  /**
+   * Sets up event handlers for the subscription.
+   * Extracted to allow reattachment after reinitialization.
+   */
+  private setupSubscriptionEventHandlers(): void {
+    if (!this.subscription) {
+      return
+    }
+
     // Configure message handler
     this.subscription.on('message', async (message: PubSubMessage) => {
       await this.handleMessage(message)
     })
 
-    // Configure error handler
-    this.subscription.on('error', (error) => {
-      this.handleError(error)
+    // Configure error handler with retry logic for transient errors
+    this.subscription.on('error', (error: Error & { code?: number }) => {
+      this.handleSubscriptionError(error)
+    })
+
+    // Configure close handler to detect unexpected disconnections
+    this.subscription.on('close', () => {
+      this.handleSubscriptionClose()
     })
 
     // Configure flow control if provided
@@ -203,6 +349,191 @@ export abstract class AbstractPubSubConsumer<
         // @ts-expect-error - flowControl is available
         flowControl: this.consumerOverrides.flowControl,
       })
+    }
+  }
+
+  /**
+   * Handles subscription-level errors.
+   *
+   * For retryable errors (NOT_FOUND, PERMISSION_DENIED), attempts to reinitialize
+   * the subscription with exponential backoff. These errors commonly occur after
+   * Terraform deployments due to GCP's eventual consistency.
+   *
+   * @see https://cloud.google.com/pubsub/docs/reference/error-codes
+   */
+  private handleSubscriptionError(error: Error & { code?: number }): void {
+    // Don't handle errors during shutdown
+    if (!this.isConsuming) {
+      return
+    }
+
+    // Check if this is a retryable subscription error using gRPC status codes
+    if (isRetryableGrpcError(error)) {
+      this.logger.warn({
+        msg: 'Retryable subscription error occurred, attempting to reinitialize',
+        subscriptionName: this.subscriptionName,
+        topicName: this.topicName,
+        errorCode: error.code,
+        errorMessage: error.message,
+      })
+
+      // Trigger reinitialization with retry
+      this.reinitializeWithRetry(1).catch((reinitError) => {
+        // Mark consumer as failed - this will be visible via fatalError getter for health checks
+        this._fatalError = isError(reinitError) ? reinitError : new Error(String(reinitError))
+        this.isConsuming = false
+        this.handleError(reinitError)
+      })
+    } else {
+      // Non-retryable error - log and report
+      this.handleError(error)
+    }
+  }
+
+  /**
+   * Handles unexpected subscription close events.
+   *
+   * If the subscription closes while we're still supposed to be consuming,
+   * attempts to reinitialize. This can happen due to:
+   * - Network issues
+   * - GCP service restarts
+   * - Subscription deletion/recreation
+   */
+  private handleSubscriptionClose(): void {
+    this.logger.info({
+      msg: 'PubSub subscription closed',
+      subscriptionName: this.subscriptionName,
+      topicName: this.topicName,
+      isConsuming: this.isConsuming,
+    })
+
+    // If we're still supposed to be consuming, try to reinitialize
+    if (this.isConsuming && !this.isReinitializing) {
+      this.logger.warn({
+        msg: 'Subscription closed unexpectedly while consuming, attempting to reinitialize',
+        subscriptionName: this.subscriptionName,
+        topicName: this.topicName,
+      })
+
+      this.reinitializeWithRetry(1).catch((reinitError) => {
+        // Mark consumer as failed - this will be visible via fatalError getter for health checks
+        this._fatalError = isError(reinitError) ? reinitError : new Error(String(reinitError))
+        this.isConsuming = false
+        this.handleError(reinitError)
+      })
+    }
+  }
+
+  /**
+   * Reinitializes the subscription with exponential backoff retry.
+   *
+   * This method:
+   * 1. Closes the existing subscription (if any)
+   * 2. Waits with exponential backoff
+   * 3. Reinitializes the subscription
+   * 4. Reattaches event handlers
+   *
+   * Uses an iterative loop to keep isReinitializing true for the entire
+   * retry sequence, preventing concurrent callers from starting their own
+   * reinitialization attempts.
+   *
+   * @param startAttempt - Starting retry attempt number (1-based)
+   */
+  private async reinitializeWithRetry(startAttempt: number): Promise<void> {
+    // Prevent concurrent reinitializations
+    if (this.isReinitializing) {
+      this.logger.debug({
+        msg: 'Reinitialization already in progress, skipping',
+        subscriptionName: this.subscriptionName,
+      })
+      return
+    }
+
+    this.isReinitializing = true
+
+    try {
+      for (
+        let attempt = startAttempt;
+        attempt <= this.subscriptionRetryOptions.maxRetries;
+        attempt++
+      ) {
+        // Calculate delay with exponential backoff
+        const delay = Math.min(
+          this.subscriptionRetryOptions.baseRetryDelayMs * Math.pow(2, attempt - 1),
+          this.subscriptionRetryOptions.maxRetryDelayMs,
+        )
+
+        this.logger.info({
+          msg: `Reinitialization attempt ${attempt}/${this.subscriptionRetryOptions.maxRetries}, waiting ${delay}ms`,
+          subscriptionName: this.subscriptionName,
+          topicName: this.topicName,
+          attempt,
+          delayMs: delay,
+        })
+
+        // Wait before retry
+        await new Promise((resolve) => setTimeout(resolve, delay))
+
+        // Don't continue if we've been stopped during the wait
+        if (!this.isConsuming) {
+          this.logger.info({
+            msg: 'Consumer stopped during reinitialization wait, aborting',
+            subscriptionName: this.subscriptionName,
+          })
+          return
+        }
+
+        try {
+          // Close existing subscription to remove old event handlers
+          if (this.subscription) {
+            try {
+              this.subscription.removeAllListeners()
+              await this.subscription.close()
+            } catch {
+              // Ignore close errors - subscription may already be closed
+            }
+          }
+
+          // Reinitialize
+          await this.init()
+
+          if (!this.subscription) {
+            throw new Error('Subscription not initialized after init()')
+          }
+
+          // Wait for subscription to be ready
+          await this.waitForSubscriptionReady()
+
+          // Reattach event handlers
+          this.setupSubscriptionEventHandlers()
+
+          this.logger.info({
+            msg: 'Successfully reinitialized subscription',
+            subscriptionName: this.subscriptionName,
+            topicName: this.topicName,
+            attempt,
+          })
+
+          // Success - exit the retry loop
+          return
+        } catch (error) {
+          this.logger.warn({
+            msg: `Reinitialization attempt ${attempt} failed, will retry`,
+            subscriptionName: this.subscriptionName,
+            topicName: this.topicName,
+            attempt,
+            error,
+          })
+          // Continue to next iteration
+        }
+      }
+
+      // All retries exhausted - throw error to be handled by caller's catch block
+      throw new Error(
+        `Failed to reinitialize subscription ${this.subscriptionName} after ${this.subscriptionRetryOptions.maxRetries} attempts`,
+      )
+    } finally {
+      this.isReinitializing = false
     }
   }
 
@@ -227,6 +558,8 @@ export abstract class AbstractPubSubConsumer<
   public override async close(): Promise<void> {
     this.isConsuming = false
     if (this.subscription) {
+      // Remove listeners first to prevent close handler from triggering reinitialization
+      this.subscription.removeAllListeners()
       await this.subscription.close()
     }
     await super.close()
@@ -279,7 +612,10 @@ export abstract class AbstractPubSubConsumer<
         messagePayload = retrievalResult.result
       }
 
-      const resolveSchemaResult = this.resolveSchema(messagePayload as MessagePayloadType)
+      const resolveSchemaResult = this.resolveSchema(
+        messagePayload as MessagePayloadType,
+        message.attributes as Record<string, unknown>,
+      )
       if (resolveSchemaResult.error) {
         this.handleMessageProcessed({
           message: messagePayload as MessagePayloadType,
@@ -349,8 +685,28 @@ export abstract class AbstractPubSubConsumer<
 
       const releaseLock = acquireLockResult.result
 
-      // @ts-expect-error
-      const messageType = validatedMessage[this.messageTypeField]
+      // Resolve message type using the new resolver (with attributes) or legacy field
+      let messageType: string
+      try {
+        messageType = this.handlerContainer.resolveMessageType(
+          validatedMessage,
+          message.attributes as Record<string, unknown>,
+        )
+      } catch (resolveError) {
+        await releaseLock.release()
+        this.handleError(resolveError)
+        this.handleMessageProcessed({
+          message: validatedMessage,
+          processingResult: {
+            status: 'error',
+            errorReason: 'invalidMessage',
+          },
+          messageProcessingStartTimestamp,
+          queueName: this.subscriptionName ?? this.topicName,
+        })
+        this.handleTerminalError(message, 'invalidMessage')
+        return
+      }
 
       try {
         // Process message
@@ -383,6 +739,7 @@ export abstract class AbstractPubSubConsumer<
         }
 
         // Success
+        await this.deduplicateMessage(validatedMessage, DeduplicationRequesterEnum.Consumer)
         this.handleMessageProcessed({
           message: validatedMessage,
           processingResult: { status: 'consumed' },
@@ -444,8 +801,11 @@ export abstract class AbstractPubSubConsumer<
     }
   }
 
-  protected override resolveSchema(messagePayload: MessagePayloadType) {
-    return this._messageSchemaContainer.resolveSchema(messagePayload)
+  protected override resolveSchema(
+    messagePayload: MessagePayloadType,
+    messageAttributes?: Record<string, unknown>,
+  ) {
+    return this._messageSchemaContainer.resolveSchema(messagePayload, messageAttributes)
   }
 
   protected override processMessage(

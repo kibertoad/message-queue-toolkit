@@ -1,6 +1,7 @@
 import type { S3 } from '@aws-sdk/client-s3'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { SinglePayloadStoreConfig } from '@message-queue-toolkit/core'
+import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import {
   assertQueue,
@@ -10,7 +11,10 @@ import {
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import z from 'zod/v4'
 
+import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer.ts'
+import { AbstractSqsPublisher } from '../../lib/sqs/AbstractSqsPublisher.ts'
 import { SQS_MESSAGE_MAX_SIZE } from '../../lib/sqs/AbstractSqsService.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
 import { assertBucket, emptyBucket, putObjectContent, waitForS3Objects } from '../utils/s3Utils.ts'
@@ -249,6 +253,155 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
       expect(consumptionResult.message).toMatchObject(originalMessage)
 
       await testConsumer.close(true)
+    })
+  })
+})
+
+describe('SqsPermissionConsumer - nested messageTypePath with payload offloading', () => {
+  /**
+   * Tests that nested messageTypePath (e.g., 'metadata.type') is correctly preserved
+   * when payload is offloaded. The type field at nested path should be maintained
+   * in the pointer message so routing still works correctly.
+   */
+  describe('consume with nested type path', () => {
+    const largeMessageSizeThreshold = SQS_MESSAGE_MAX_SIZE
+    const s3BucketName = 'test-bucket-nested-path'
+    const TEST_QUEUE_NAME = 'nested_type_path_offloading_test'
+
+    let diContainer: AwilixContainer<Dependencies>
+    let s3: S3
+
+    beforeAll(async () => {
+      diContainer = await registerDependencies({
+        permissionPublisher: asValue(() => undefined),
+        permissionConsumer: asValue(() => undefined),
+      })
+      s3 = diContainer.cradle.s3
+
+      await assertBucket(s3, s3BucketName)
+    })
+
+    afterAll(async () => {
+      await emptyBucket(s3, s3BucketName)
+
+      const { awilixManager } = diContainer.cradle
+      await awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('preserves nested messageTypePath when offloading payload', async () => {
+      const { sqsClient } = diContainer.cradle
+      await deleteQueue(sqsClient, TEST_QUEUE_NAME)
+
+      const payloadStoreConfig: SinglePayloadStoreConfig = {
+        messageSizeThreshold: largeMessageSizeThreshold,
+        store: new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketName }),
+        storeName: 's3',
+      }
+
+      // Schema with nested type path at 'metadata.type'
+      const nestedTypeSchema = z.object({
+        id: z.string(),
+        metadata: z.object({
+          type: z.literal('nested.event'),
+          largeField: z.string().optional(),
+        }),
+        timestamp: z.string().optional(),
+      })
+
+      type NestedTypeMessage = z.output<typeof nestedTypeSchema>
+      type ExecutionContext = Record<string, never>
+
+      // Create publisher with nested messageTypePath
+      class NestedPathPublisher extends AbstractSqsPublisher<NestedTypeMessage> {
+        constructor(deps: Dependencies) {
+          super(deps, {
+            creationConfig: {
+              queue: { QueueName: TEST_QUEUE_NAME },
+            },
+            messageSchemas: [nestedTypeSchema],
+            messageTypeResolver: { messageTypePath: 'metadata.type' },
+            handlerSpy: true,
+            payloadStoreConfig,
+            deletionConfig: { deleteIfExists: true },
+          })
+        }
+      }
+
+      let receivedMessage: NestedTypeMessage | null = null
+
+      // Initialize publisher first to create queue
+      const publisher = new NestedPathPublisher(diContainer.cradle)
+      await publisher.init()
+
+      // Create large message with nested type
+      const message: NestedTypeMessage = {
+        id: 'nested-path-test-1',
+        metadata: {
+          type: 'nested.event',
+          largeField: 'x'.repeat(largeMessageSizeThreshold),
+        },
+      }
+      expect(JSON.stringify(message).length).toBeGreaterThan(largeMessageSizeThreshold)
+
+      // Publish - should offload to S3 but preserve metadata.type
+      await publisher.publish(message)
+      await publisher.handlerSpy.waitForMessageWithId(message.id, 'published')
+
+      // Create consumer pointing to the queue
+      // @ts-expect-error - accessing protected property for test
+      const queueUrl = publisher.queueUrl
+
+      class NestedPathConsumer extends AbstractSqsConsumer<NestedTypeMessage, ExecutionContext> {
+        constructor(deps: Dependencies) {
+          super(
+            deps,
+            {
+              locatorConfig: { queueUrl },
+              messageTypeResolver: { messageTypePath: 'metadata.type' },
+              handlerSpy: true,
+              payloadStoreConfig,
+              deletionConfig: { deleteIfExists: false },
+              consumerOverrides: { terminateVisibilityTimeout: true },
+              handlers: new MessageHandlerConfigBuilder<NestedTypeMessage, ExecutionContext>()
+                .addConfig(nestedTypeSchema, (msg) => {
+                  receivedMessage = msg
+                  return Promise.resolve({ result: 'success' })
+                })
+                .build(),
+            },
+            {},
+          )
+        }
+      }
+
+      const consumer = new NestedPathConsumer(diContainer.cradle)
+      await consumer.start()
+
+      // Wait for message to be consumed
+      const consumptionResult = await consumer.handlerSpy.waitForMessageWithId(
+        message.id,
+        'consumed',
+      )
+
+      // Verify the message was consumed correctly with nested type preserved
+      expect(consumptionResult.message).toMatchObject({
+        id: 'nested-path-test-1',
+        metadata: {
+          type: 'nested.event',
+          largeField: 'x'.repeat(largeMessageSizeThreshold),
+        },
+      })
+      expect(receivedMessage).toMatchObject({
+        id: 'nested-path-test-1',
+        metadata: {
+          type: 'nested.event',
+        },
+      })
+
+      // Clean up
+      await consumer.close(true)
+      await publisher.close()
     })
   })
 })

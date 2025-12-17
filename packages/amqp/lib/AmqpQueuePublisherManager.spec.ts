@@ -124,5 +124,26 @@ describe('AmqpQueuePublisherManager', () => {
         }),
       ).toThrow(/Error while publishing to AMQP Cannot read properties of undefined/)
     })
+
+    it('throws when deprecated publish method is called', () => {
+      const { queuePublisherManager } = diContainer.cradle
+
+      expect(() => queuePublisherManager.publish()).toThrow(
+        'Please use `publishSync` method for AMQP publisher managers',
+      )
+    })
+
+    it('throws when publishing to unknown queue', () => {
+      const { queuePublisherManager } = diContainer.cradle
+
+      expect(() =>
+        queuePublisherManager.publishSync('unknown-queue' as any, {
+          type: 'entity.updated',
+          payload: {
+            updatedData: 'msg',
+          },
+        }),
+      ).toThrow('No publisher for queue unknown-queue')
+    })
   })
 })

@@ -33,6 +33,7 @@ Google Cloud Pub/Sub implementation for the message-queue-toolkit. Provides a ro
   - [Consumer Flow Control](#consumer-flow-control)
   - [Multiple Message Types](#multiple-message-types)
 - [Error Handling](#error-handling)
+  - [Subscription-Level Error Handling](#subscription-level-error-handling)
 - [Testing](#testing)
   - [TestPubSubPublisher](#testpubsubpublisher)
   - [Integration Tests with Emulator](#integration-tests-with-emulator)
@@ -114,7 +115,7 @@ Consumers receive and process messages from Pub/Sub subscriptions. They handle:
 ### Message Schemas
 
 Messages are validated using Zod schemas. Each message must have:
-- A unique message type field (discriminator for routing) - configurable via `messageTypeField` (required)
+- A unique message type field (discriminator for routing) - configurable via `messageTypeResolver` (required)
 - A message ID field (for tracking and deduplication) - configurable via `messageIdField` (default: `'id'`)
 - A timestamp field (added automatically if missing) - configurable via `messageTimestampField` (default: `'timestamp'`)
 
@@ -163,7 +164,7 @@ class UserEventPublisher extends AbstractPubSubPublisher<UserEvent> {
           },
         },
         messageSchemas: [UserEventSchema],
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         logMessages: true,
       }
     )
@@ -211,7 +212,7 @@ class UserEventConsumer extends AbstractPubSubConsumer<UserEvent, ExecutionConte
             },
           },
         },
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         handlers: new MessageHandlerConfigBuilder<UserEvent, ExecutionContext>()
           .addConfig(
             UserEventSchema,
@@ -285,10 +286,13 @@ import { deletePubSub } from '@message-queue-toolkit/gcp-pubsub'
 
 **Deletion Behavior:**
 - Only deletes if both `deleteIfExists: true` and `creationConfig` are provided
-- Deletes subscription first, then topic (proper order)
+- **Consumers only delete subscriptions** (not topics) - topics may be shared with other consumers
+- **Publishers delete both topic and subscription** (when applicable)
 - Throws error if trying to delete in production without `forceDeleteInProduction: true`
 - `waitForConfirmation: true`: Polls to confirm deletion completed (recommended)
 - `waitForConfirmation: false`: Returns immediately after deletion request
+
+**Note:** In Pub/Sub, topics can have multiple subscriptions (1:N relationship). When `deleteIfExists` is used on a consumer, only the subscription is deleted to avoid breaking other consumers sharing the same topic.
 
 **Production Safety:**
 
@@ -409,7 +413,7 @@ When using `locatorConfig`, you connect to existing resources without creating t
 {
   // Required - Message Schema Configuration
   messageSchemas: [Schema1, Schema2],  // Array of Zod schemas
-  messageTypeField: 'messageType',     // Field containing message type discriminator
+  messageTypeResolver: { messageTypePath: 'messageType' },     // Field containing message type discriminator
 
   // Topic Configuration (one of these required)
   creationConfig: {
@@ -456,7 +460,7 @@ When using `locatorConfig`, you connect to existing resources without creating t
 {
   // Required - Message Handling Configuration
   handlers: MessageHandlerConfigBuilder.build(), // Message handlers configuration
-  messageTypeField: 'messageType',               // Field containing message type discriminator
+  messageTypeResolver: { messageTypePath: 'messageType' },               // Field containing message type discriminator
 
   // Topic and Subscription Configuration (one of these required)
   creationConfig: {
@@ -557,7 +561,7 @@ class OrderPublisher extends AbstractPubSubPublisher<CustomMessage> {
 
         // Map library's internal fields to your custom fields
         messageIdField: 'messageId',                    // Default: 'id'
-        messageTypeField: 'eventType',                  // Required
+        messageTypeResolver: { messageTypePath: 'eventType' },                  // Required
         messageTimestampField: 'createdAt',             // Default: 'timestamp'
         messageDeduplicationIdField: 'txId',            // Default: 'deduplicationId'
         messageDeduplicationOptionsField: 'txOptions',  // Default: 'deduplicationOptions'
@@ -587,6 +591,121 @@ await publisher.publish({
 - ✅ Gradual migration from legacy systems
 - ✅ Works with all features (retry, deduplication, offloading)
 
+### Pre-built Message Type Resolvers
+
+The library provides pre-built resolvers for common GCP patterns where the message type is stored in message attributes rather than the message body.
+
+#### CloudEvents Binary Mode
+
+For CloudEvents delivered in Pub/Sub binary content mode, the event type is stored in the `ce-type` attribute and the timestamp in the `ce-time` attribute:
+
+```typescript
+import {
+  CLOUD_EVENTS_BINARY_MODE_TYPE_RESOLVER,
+  CLOUD_EVENTS_TIME_ATTRIBUTE,
+  MessageHandlerConfigBuilder,
+} from '@message-queue-toolkit/gcp-pubsub'
+
+class CloudEventsConsumer extends AbstractPubSubConsumer<CloudEvent, Context> {
+  constructor(deps: PubSubConsumerDependencies) {
+    super(
+      deps,
+      {
+        messageTypeResolver: CLOUD_EVENTS_BINARY_MODE_TYPE_RESOLVER,
+        // Note: For binary mode, timestamp is in ce-time attribute (not message body)
+        // You may need custom handling if you want to extract it from attributes
+        handlers: new MessageHandlerConfigBuilder<CloudEvent, Context>()
+          .addConfig(schema, handler, { messageType: 'com.example.order.created' })
+          .build(),
+        // ...
+      },
+      context,
+    )
+  }
+}
+
+// For CloudEvents in structured content mode (type in message body),
+// use messageTimestampField with the CLOUD_EVENTS_TIMESTAMP_FIELD constant:
+import { CLOUD_EVENTS_TIMESTAMP_FIELD } from '@message-queue-toolkit/gcp-pubsub'
+
+{
+  messageTypeResolver: { messageTypePath: 'type' },
+  messageTimestampField: CLOUD_EVENTS_TIMESTAMP_FIELD, // 'time'
+}
+```
+
+#### Google Cloud Storage Notifications
+
+For Cloud Storage notifications, the event type is in the `eventType` attribute. Use `GCS_NOTIFICATION_TYPE_RESOLVER` for normalized types or `GCS_NOTIFICATION_RAW_TYPE_RESOLVER` for raw GCS types:
+
+```typescript
+import {
+  GCS_NOTIFICATION_TYPE_RESOLVER,
+  GCS_EVENT_TYPES,
+  MessageHandlerConfigBuilder,
+} from '@message-queue-toolkit/gcp-pubsub'
+
+// With normalized types (OBJECT_FINALIZE → gcs.object.finalized)
+class GcsNotificationConsumer extends AbstractPubSubConsumer<GcsNotification, Context> {
+  constructor(deps: PubSubConsumerDependencies) {
+    super(
+      deps,
+      {
+        messageTypeResolver: GCS_NOTIFICATION_TYPE_RESOLVER,
+        handlers: new MessageHandlerConfigBuilder<GcsNotification, Context>()
+          .addConfig(objectFinalizedSchema, handler, { messageType: 'gcs.object.finalized' })
+          .addConfig(objectDeletedSchema, handler, { messageType: 'gcs.object.deleted' })
+          .build(),
+        // ...
+      },
+      context,
+    )
+  }
+}
+
+// With raw GCS types
+import { GCS_NOTIFICATION_RAW_TYPE_RESOLVER } from '@message-queue-toolkit/gcp-pubsub'
+
+{
+  messageTypeResolver: GCS_NOTIFICATION_RAW_TYPE_RESOLVER,
+  handlers: new MessageHandlerConfigBuilder()
+    .addConfig(schema, handler, { messageType: 'OBJECT_FINALIZE' })
+    .build(),
+}
+```
+
+**GCS Event Type Mappings (with `GCS_NOTIFICATION_TYPE_RESOLVER`):**
+| GCS Event Type | Normalized Type |
+|---------------|-----------------|
+| `OBJECT_FINALIZE` | `gcs.object.finalized` |
+| `OBJECT_DELETE` | `gcs.object.deleted` |
+| `OBJECT_ARCHIVE` | `gcs.object.archived` |
+| `OBJECT_METADATA_UPDATE` | `gcs.object.metadataUpdated` |
+
+#### Custom Attribute Resolvers
+
+For other attribute-based type resolution, create your own resolver:
+
+```typescript
+import {
+  createAttributeResolver,
+  createAttributeResolverWithMapping,
+} from '@message-queue-toolkit/gcp-pubsub'
+
+// Simple attribute extraction
+const resolver = createAttributeResolver('myEventType')
+
+// With type mapping
+const resolverWithMapping = createAttributeResolverWithMapping(
+  'eventType',
+  {
+    'EVENT_A': 'internal.event.a',
+    'EVENT_B': 'internal.event.b',
+  },
+  { fallbackToOriginal: true }, // Optional: pass through unmapped types
+)
+```
+
 ### Payload Offloading
 
 For messages larger than 10 MB, store the payload externally (e.g., Google Cloud Storage):
@@ -610,7 +729,7 @@ class LargeMessagePublisher extends AbstractPubSubPublisher<MyMessage> {
         topic: { name: 'large-messages' },
       },
       messageSchemas: [MyMessageSchema],
-      messageTypeField: 'type',
+      messageTypeResolver: { messageTypePath: 'type' },
       payloadStoreConfig: {
         store: payloadStore,
         messageSizeThreshold: PUBSUB_MESSAGE_MAX_SIZE, // 10 MB
@@ -781,7 +900,11 @@ Dead Letter Queues capture messages that cannot be processed after multiple atte
 The library provides `AbstractPubSubDlqConsumer`, a convenience class for consuming messages from a DLQ topic. Unlike regular consumers that route messages by type, DLQ consumers accept any message structure since dead-lettered messages can come from various failed processing scenarios.
 
 ```typescript
-import { AbstractPubSubDlqConsumer, type DlqMessage } from '@message-queue-toolkit/gcp-pubsub'
+import {
+  AbstractPubSubDlqConsumer,
+  type DlqMessage,
+  DLQ_MESSAGE_TYPE  // 'dlq.message' - the message type used for all DLQ messages
+} from '@message-queue-toolkit/gcp-pubsub'
 
 class MyDlqConsumer extends AbstractPubSubDlqConsumer<MyContext> {
   constructor(dependencies: PubSubConsumerDependencies, context: MyContext) {
@@ -817,7 +940,7 @@ await dlqConsumer.start()
 ```
 
 **Key differences from AbstractPubSubConsumer:**
-- Does NOT require `messageTypeField` (accepts all message types)
+- Uses a literal message type resolver (`DLQ_MESSAGE_TYPE = 'dlq.message'`) - all messages are treated as the same type
 - Uses a passthrough schema that accepts any message with an `id` field
 - Simplified handler configuration (single handler for all messages)
 - The `DlqMessage` type includes `id: string` and passes through all other fields
@@ -911,7 +1034,7 @@ await publisher.publish(message, {
 
 ### Message Handlers
 
-Handlers process messages based on their type. Messages are routed to the appropriate handler using the discriminator field (configurable via `messageTypeField`):
+Handlers process messages based on their type. Messages are routed to the appropriate handler using the discriminator field (configurable via `messageTypeResolver`):
 
 ```typescript
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
@@ -1490,6 +1613,116 @@ When a message cannot be processed (invalid format, schema validation failure, h
 
 **Best Practice:** Always configure a DLQ in production to capture and analyze failed messages.
 
+### Subscription-Level Error Handling
+
+The consumer provides a higher-level error recovery mechanism that complements the SDK's built-in gRPC retry logic. While the `@google-cloud/pubsub` SDK automatically retries some transient errors at the gRPC level, there are scenarios where the SDK does not recover automatically:
+
+1. **Eventual consistency errors** (`NOT_FOUND`, `PERMISSION_DENIED`) are not in the SDK's default retry codes
+2. **Subscription stream disconnections** may not automatically reconnect in all cases
+3. **Infrastructure changes** (e.g., after Terraform deployments) may require full subscription reinitialization
+
+#### Initialization Retry
+
+When calling `start()`, the consumer will automatically retry initialization if it encounters retryable errors. This is particularly useful when:
+
+- Using `locatorConfig` and the subscription doesn't exist yet due to eventual consistency
+- Services start in parallel and the subscription is being created by another process
+- Terraform deployments are still propagating
+
+The retry logic handles errors containing:
+- `does not exist` - Resource not yet visible
+- `NOT_FOUND` - gRPC error code 5
+- `PERMISSION_DENIED` - gRPC error code 7 (IAM propagation delay)
+
+#### Runtime Reconnection
+
+**Retryable Error Codes:**
+
+*Errors the consumer handles via reinitialization during runtime:*
+- `DEADLINE_EXCEEDED` (4): Request timeout that SDK retry couldn't resolve
+- `NOT_FOUND` (5): Subscription may not be propagated yet (eventual consistency)
+- `PERMISSION_DENIED` (7): IAM permissions may not be propagated yet (eventual consistency)
+- `RESOURCE_EXHAUSTED` (8): Quota exceeded, retry with backoff
+- `INTERNAL` (13): Server error, should be transient
+- `UNAVAILABLE` (14): Service temporarily unable to process
+
+When these errors reach the `subscription.on('error')` handler (meaning SDK's built-in retry couldn't resolve them), the consumer will:
+1. Log a warning with error details
+2. Close the existing subscription and remove event listeners
+3. Reinitialize the subscription with exponential backoff
+4. Reattach event handlers and continue consuming
+
+**Why `NOT_FOUND` and `PERMISSION_DENIED`?**
+
+After Terraform deployments, GCP resources and IAM permissions can take several minutes to propagate across GCP's distributed infrastructure. During this window, the subscription may report these errors even though the configuration is correct. The consumer retries with exponential backoff to handle this eventual consistency.
+
+**Note:** For most transient errors, the SDK's built-in retry will handle recovery automatically. The consumer's reinitialization logic is a safety net for cases where SDK retry is exhausted or not applicable.
+
+**Configuration:**
+
+The same retry options apply to both initialization and runtime reconnection:
+
+```typescript
+class MyConsumer extends AbstractPubSubConsumer<MyMessage, ExecutionContext> {
+  constructor(dependencies: PubSubConsumerDependencies) {
+    super(
+      dependencies,
+      {
+        // ... other options ...
+
+        // Optional: Configure retry behavior for both init and runtime errors
+        subscriptionRetryOptions: {
+          maxRetries: 5,           // Maximum retry attempts (default: 5)
+          baseRetryDelayMs: 1000,  // Base delay for exponential backoff (default: 1000ms)
+          maxRetryDelayMs: 30000,  // Maximum delay between retries (default: 30000ms)
+        },
+      },
+      executionContext,
+    )
+  }
+}
+```
+
+**Exponential Backoff Formula:**
+```text
+delay = min(baseRetryDelayMs * 2^(attempt-1), maxRetryDelayMs)
+```
+
+With default settings, delays are: 1s, 2s, 4s, 8s, 16s (capped at 30s).
+
+**Unexpected Subscription Closure:**
+
+The consumer also handles unexpected subscription closures (e.g., network issues, GCP service restarts). If the subscription closes while the consumer is still supposed to be consuming, it will automatically attempt reinitialization.
+
+**Health Check Integration:**
+
+If all retry attempts are exhausted, the consumer enters a failed state. You can detect this via the `fatalError` getter for health check integration:
+
+```typescript
+// In your health check endpoint
+app.get('/health', (req, res) => {
+  const error = consumer.fatalError
+  if (error) {
+    return res.status(503).json({
+      status: 'unhealthy',
+      error: error.message,
+    })
+  }
+  return res.status(200).json({ status: 'healthy' })
+})
+```
+
+The `fatalError` property returns:
+- `null` when the consumer is healthy
+- `Error` when the consumer has permanently failed (e.g., after exhausting all retry attempts)
+
+This allows your application to properly report unhealthy status to orchestration systems (Kubernetes, etc.) and trigger appropriate remediation (pod restart, alerting, etc.).
+
+**References:**
+- [GCP Pub/Sub Error Codes](https://cloud.google.com/pubsub/docs/reference/error-codes)
+- [GCP Pub/Sub Troubleshooting](https://cloud.google.com/pubsub/docs/troubleshooting)
+- [Node.js Pub/Sub Subscription Reconnection Issues](https://github.com/googleapis/nodejs-pubsub/issues/979)
+
 ### Error Resolver
 
 ```typescript
@@ -1745,7 +1978,7 @@ it('publishes message', async () => {
 
 **Constructor Options:**
 - `messageSchemas`: Array of Zod schemas for messages
-- `messageTypeField`: Field name containing message type
+- `messageTypeResolver`: Configuration for resolving message type
 - `creationConfig` / `locatorConfig`: Topic configuration
 - `logMessages`: Enable message logging
 - `payloadStoreConfig`: Payload offloading configuration
@@ -1766,7 +1999,7 @@ it('publishes message', async () => {
 
 **Constructor Options:**
 - `handlers`: Message handler configuration
-- `messageTypeField`: Field name containing message type
+- `messageTypeResolver`: Configuration for resolving message type
 - `creationConfig` / `locatorConfig`: Topic + subscription configuration
 - `logMessages`: Enable message logging
 - `payloadStoreConfig`: Payload retrieval configuration
@@ -1775,12 +2008,16 @@ it('publishes message', async () => {
 - `deadLetterQueue`: DLQ configuration
 - `maxRetryDuration`: Max retry time in seconds
 - `consumerOverrides`: Flow control settings
+- `subscriptionRetryOptions`: Retry configuration for subscription errors (see [Subscription-Level Error Handling](#subscription-level-error-handling))
 
 **Methods:**
 - `init()`: Initialize consumer (create/locate resources)
 - `start()`: Start consuming messages
 - `close()`: Stop consumer and close connections
 - `handlerSpy`: Access spy for testing
+
+**Properties:**
+- `fatalError`: Returns `Error` if consumer has permanently failed, `null` otherwise (for health checks)
 
 ## Best Practices
 

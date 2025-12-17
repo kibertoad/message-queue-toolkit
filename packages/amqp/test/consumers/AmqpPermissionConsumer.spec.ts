@@ -419,6 +419,35 @@ describe('AmqpPermissionConsumer', () => {
       expect((consumerErrorResolver.errors[0] as Error).message).toContain('Unexpected token')
     })
 
+    it('handles message with empty body', async () => {
+      const initialAddCounter = consumer.addCounter
+
+      // Send an empty buffer which should be rejected since it cannot be parsed
+      channel.sendToQueue(AmqpPermissionConsumer.QUEUE_NAME, Buffer.from(''))
+
+      // Wait a bit for the consumer to process the message
+      await new Promise((resolve) => setTimeout(resolve, 200))
+
+      // The consumer should have processed nothing since message is invalid
+      expect(consumer.addCounter).toBe(initialAddCounter)
+    })
+
+    it('handles message without id field', async () => {
+      // Send a valid JSON message without the id field to test tryToExtractId returning abort
+      channel.sendToQueue(
+        AmqpPermissionConsumer.QUEUE_NAME,
+        objectToBuffer({
+          messageType: 'add',
+          // No id field
+        }),
+      )
+
+      await waitAndRetry(() => consumerErrorResolver.errors.length > 0)
+
+      // The message should be rejected due to schema validation (id is required)
+      expect(consumerErrorResolver.errors.length).toBeGreaterThan(0)
+    })
+
     it('Processes messages', async () => {
       publisher.publish({
         id: '10',

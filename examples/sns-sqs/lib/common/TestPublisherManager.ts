@@ -29,7 +29,7 @@ export const publisherManager = new SnsPublisherManager<
     newPublisherOptions: {
       handlerSpy: true,
       messageIdField: 'id',
-      messageTypeField: 'type',
+      messageTypeResolver: { messageTypePath: 'type' },
       deletionConfig: {
         deleteIfExists: isTest, // only enable this in tests
         // and ensure that the owning side is doing the deletion.

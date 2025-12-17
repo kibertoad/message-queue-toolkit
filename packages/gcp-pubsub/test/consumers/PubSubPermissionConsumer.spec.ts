@@ -263,4 +263,62 @@ describe('PubSubPermissionConsumer', () => {
       })
     })
   })
+
+  describe('logMessages option', () => {
+    let diContainer: AwilixContainer<Dependencies>
+    let pubSubClient: PubSub
+
+    beforeAll(async () => {
+      diContainer = await registerDependencies({
+        permissionConsumer: asValue(() => undefined),
+        permissionPublisher: asValue(() => undefined),
+      })
+      pubSubClient = diContainer.cradle.pubSubClient
+    })
+
+    afterAll(async () => {
+      await diContainer.cradle.awilixManager.executeDispose()
+      await diContainer.dispose()
+    })
+
+    it('logs messages when logMessages is enabled', { timeout: 10000 }, async () => {
+      const consumer = new PubSubPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          topic: { name: 'log_messages_test' },
+          subscription: { name: 'log_messages_test_sub' },
+        },
+        logMessages: true,
+      })
+      const publisher = new PubSubPermissionPublisher(diContainer.cradle, {
+        creationConfig: {
+          topic: { name: 'log_messages_test' },
+        },
+      })
+
+      await deletePubSubTopicAndSubscription(
+        pubSubClient,
+        'log_messages_test',
+        'log_messages_test_sub',
+      )
+      await consumer.start()
+      await publisher.init()
+
+      const message = {
+        id: 'log-test-1',
+        messageType: 'add' as const,
+        timestamp: new Date().toISOString(),
+        userIds: ['user1'],
+      }
+
+      await publisher.publish(message)
+      await consumer.handlerSpy.waitForMessageWithId('log-test-1', 'consumed')
+
+      // The message should be logged (we can't easily verify log output, but we verify
+      // that the code path with logMessages=true doesn't crash)
+      expect(consumer.addCounter).toBe(1)
+
+      await consumer.close()
+      await publisher.close()
+    })
+  })
 })

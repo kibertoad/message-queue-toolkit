@@ -40,7 +40,7 @@
         "@lokalise/tsconfig": "^3.0.0",
         "@message-queue-toolkit/core": "*",
         "@message-queue-toolkit/schemas": "*",
-        "@types/node": "^24.0.3",
+        "@types/node": "^25.0.2",
         "@vitest/coverage-v8": "^3.2.4",
         "rimraf": "^6.0.1",
         "typescript": "^5.9.2",

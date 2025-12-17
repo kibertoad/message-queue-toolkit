@@ -36,7 +36,7 @@ export class FakeConsumer<T extends PublisherBaseMessageType> extends AbstractSn
         subscriptionConfig: {
           updateAttributesIfExists: true,
         },
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
         handlerSpy: true,
       },
       dependencies,

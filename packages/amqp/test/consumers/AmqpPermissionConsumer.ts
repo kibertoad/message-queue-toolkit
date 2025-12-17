@@ -75,7 +75,7 @@ export class AmqpPermissionConsumer extends AbstractAmqpQueueConsumer<
         deadLetterQueue: options?.deadLetterQueue,
         logMessages: options?.logMessages,
         handlerSpy: true,
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         deletionConfig: { deleteIfExists: true },
         maxRetryDuration: options?.maxRetryDuration,
         handlers: new MessageHandlerConfigBuilder<

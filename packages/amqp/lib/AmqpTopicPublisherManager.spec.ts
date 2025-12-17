@@ -89,5 +89,26 @@ describe('AmqpTopicPublisherManager', () => {
       expect(fakeConsumer2.messageCounter).toEqual(1)
       expect(fakeConsumer3.messageCounter).toEqual(0)
     })
+
+    it('throws when deprecated publish method is called', () => {
+      const { topicPublisherManager } = diContainer.cradle
+
+      expect(() => topicPublisherManager.publish()).toThrow(
+        'Please use `publishSync` method for AMQP publisher managers',
+      )
+    })
+
+    it('throws when publishing to unknown exchange', () => {
+      const { topicPublisherManager } = diContainer.cradle
+
+      expect(() =>
+        topicPublisherManager.publishSync('unknown-exchange' as any, {
+          type: 'entity.updated',
+          payload: {
+            updatedData: 'msg',
+          },
+        }),
+      ).toThrow('No publisher for exchange unknown-exchange')
+    })
   })
 })

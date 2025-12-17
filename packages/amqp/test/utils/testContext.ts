@@ -1,4 +1,9 @@
-import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
+import {
+  type CommonLogger,
+  type ErrorReporter,
+  type ErrorResolver,
+  globalLogger,
+} from '@lokalise/node-core'
 import type {
   MessageMetricsManager,
   TransactionObservabilityManager,
@@ -11,7 +16,6 @@ import {
 import type { NameAndRegistrationPair } from 'awilix'
 import { asClass, asFunction, createContainer, Lifetime } from 'awilix'
 import { AwilixManager } from 'awilix-manager'
-import pino from 'pino'
 import { z } from 'zod/v4'
 import { AmqpConnectionManager } from '../../lib/AmqpConnectionManager.ts'
 import type { AmqpAwareEventDefinition } from '../../lib/AmqpQueuePublisherManager.ts'
@@ -83,7 +87,7 @@ export const TestEvents = {
 export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
 export type TestEventPublishPayloadsType = z.output<TestEventsType[number]['publisherSchema']>
 
-const TestLogger: CommonLogger = pino()
+const TestLogger: CommonLogger = globalLogger
 
 export async function registerDependencies(
   config: AmqpConfig,
@@ -152,7 +156,7 @@ export async function registerDependencies(
             isLazyInitEnabled: true,
             handlerSpy: true,
             messageIdField: 'id',
-            messageTypeField: 'type',
+            messageTypeResolver: { messageTypePath: 'type' },
           },
         })
       },
@@ -173,7 +177,7 @@ export async function registerDependencies(
             isLazyInitEnabled: false,
             handlerSpy: true,
             messageIdField: 'id',
-            messageTypeField: 'type',
+            messageTypeResolver: { messageTypePath: 'type' },
           },
         })
       },
@@ -193,7 +197,7 @@ export async function registerDependencies(
           newPublisherOptions: {
             handlerSpy: true,
             messageIdField: 'id',
-            messageTypeField: 'type',
+            messageTypeResolver: { messageTypePath: 'type' },
           },
         })
       },

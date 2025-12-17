@@ -229,7 +229,7 @@ export abstract class AbstractSqsConsumer<
       ExecutionContext,
       PrehandlerOutput
     >({
-      messageTypeField: this.messageTypeField,
+      messageTypeResolver: this.messageTypeResolver,
       messageHandlers: options.handlers,
     })
     this.isDeduplicationEnabled = !!options.enableConsumerDeduplication
@@ -378,9 +378,7 @@ export abstract class AbstractSqsConsumer<
           return message
         }
 
-        // @ts-expect-error
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        const messageType = parsedMessage[this.messageTypeField]
+        const messageType = this.resolveMessageTypeFromMessage(parsedMessage) ?? 'unknown'
         const transactionSpanId = `queue_${this.queueName}:${messageType}`
 
         // @ts-expect-error
@@ -527,8 +525,7 @@ export abstract class AbstractSqsConsumer<
     messageProcessingStartTimestamp: number,
   ): Promise<void> {
     // Extract message type for barrier rechecks
-    // @ts-expect-error
-    const messageType = parsedMessage[this.messageTypeField] as string
+    const messageType = this.resolveMessageTypeFromMessage(parsedMessage) ?? 'unknown'
 
     // Sleep and periodically recheck barrier until maxRetryDuration is exceeded
     while (this.shouldBeRetried(originalMessage, this.maxRetryDuration)) {

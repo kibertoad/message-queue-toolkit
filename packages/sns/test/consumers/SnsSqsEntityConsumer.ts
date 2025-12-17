@@ -79,7 +79,7 @@ export class SnsSqsEntityConsumer extends AbstractSnsSqsConsumer<
                 topic: { Name: SnsSqsEntityConsumer.SUBSCRIBED_TOPIC_NAME },
               },
             }),
-        messageTypeField: 'type',
+        messageTypeResolver: { messageTypePath: 'type' },
         subscriptionConfig: {
           updateAttributesIfExists: false,
         },

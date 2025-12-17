@@ -8,11 +8,11 @@ import {
   stringValueSerializer,
 } from '@lokalise/node-core'
 import type { MakeRequired } from '@lokalise/universal-ts-utils/node'
-import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import {
   MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA,
   type MessageDeduplicationOptions,
 } from '@message-queue-toolkit/schemas'
+import { getProperty, setProperty } from 'dot-prop'
 import type { ZodSchema, ZodType } from 'zod/v4'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors.ts'
 import {
@@ -59,8 +59,14 @@ import type {
   PrehandlerResult,
 } from './HandlerContainer.ts'
 import type { HandlerSpy, PublicHandlerSpy } from './HandlerSpy.ts'
-import { resolveHandlerSpy } from './HandlerSpy.ts'
+import { resolveHandlerSpy, TYPE_NOT_RESOLVED } from './HandlerSpy.ts'
 import { MessageSchemaContainer } from './MessageSchemaContainer.ts'
+import {
+  isMessageTypePathConfig,
+  type MessageTypeResolverConfig,
+  type MessageTypeResolverContext,
+  resolveMessageType,
+} from './MessageTypeResolver.ts'
 
 export type Deserializer<MessagePayloadType extends object> = (
   message: unknown,
@@ -111,7 +117,10 @@ export abstract class AbstractQueueService<
   protected readonly errorReporter: ErrorReporter
   public readonly logger: CommonLogger
   protected readonly messageIdField: string
-  protected readonly messageTypeField: string
+  /**
+   * Configuration for resolving message types.
+   */
+  protected readonly messageTypeResolver?: MessageTypeResolverConfig
   protected readonly logMessages: boolean
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
@@ -143,7 +152,7 @@ export abstract class AbstractQueueService<
     this.messageMetricsManager = messageMetricsManager
 
     this.messageIdField = options.messageIdField ?? 'id'
-    this.messageTypeField = options.messageTypeField
+    this.messageTypeResolver = options.messageTypeResolver
     this.messageTimestampField = options.messageTimestampField ?? 'timestamp'
     this.messageDeduplicationIdField = options.messageDeduplicationIdField ?? 'deduplicationId'
     this.messageDeduplicationOptionsField =
@@ -166,15 +175,22 @@ export abstract class AbstractQueueService<
 
   protected resolveConsumerMessageSchemaContainer(options: {
     handlers: MessageHandlerConfig<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>[]
-    messageTypeField: string
+    messageTypeResolver?: MessageTypeResolverConfig
   }) {
-    const messageSchemas = options.handlers.map((entry) => entry.schema)
-    const messageDefinitions: CommonEventDefinition[] = options.handlers
-      .map((entry) => entry.definition)
-      .filter((entry) => entry !== undefined)
+    const messageSchemas = options.handlers.map((entry) => ({
+      schema: entry.schema,
+      messageType: entry.messageType,
+    }))
+    const messageDefinitions = options.handlers
+      .filter((entry) => entry.definition !== undefined)
+      .map((entry) => ({
+        // biome-ignore lint/style/noNonNullAssertion: filtered above
+        definition: entry.definition!,
+        messageType: entry.messageType,
+      }))
 
     return new MessageSchemaContainer<MessagePayloadSchemas>({
-      messageTypeField: options.messageTypeField,
+      messageTypeResolver: options.messageTypeResolver,
       messageSchemas,
       messageDefinitions,
     })
@@ -182,15 +198,34 @@ export abstract class AbstractQueueService<
 
   protected resolvePublisherMessageSchemaContainer(options: {
     messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
-    messageTypeField: string
+    messageTypeResolver?: MessageTypeResolverConfig
   }) {
-    const messageSchemas = options.messageSchemas
+    const messageSchemas = options.messageSchemas.map((schema) => ({ schema }))
 
     return new MessageSchemaContainer<MessagePayloadSchemas>({
-      messageTypeField: options.messageTypeField,
+      messageTypeResolver: options.messageTypeResolver,
       messageSchemas,
       messageDefinitions: [],
     })
+  }
+
+  /**
+   * Resolves message type from message data and optional attributes using messageTypeResolver.
+   *
+   * @param messageData - The parsed message data
+   * @param messageAttributes - Optional message-level attributes (e.g., PubSub attributes)
+   * @returns The resolved message type, or undefined if not configured
+   */
+  protected resolveMessageTypeFromMessage(
+    messageData: unknown,
+    messageAttributes?: Record<string, unknown>,
+  ): string | undefined {
+    if (this.messageTypeResolver) {
+      const context: MessageTypeResolverContext = { messageData, messageAttributes }
+      return resolveMessageType(this.messageTypeResolver, context)
+    }
+
+    return undefined
   }
 
   protected abstract resolveSchema(
@@ -236,12 +271,17 @@ export abstract class AbstractQueueService<
     const { message, processingResult, messageId } = params
     const messageProcessingEndTimestamp = Date.now()
 
+    // Resolve message type once and pass to spy for consistent type resolution
+    const messageType = message
+      ? (this.resolveMessageTypeFromMessage(message) ?? TYPE_NOT_RESOLVED)
+      : TYPE_NOT_RESOLVED
     this._handlerSpy?.addProcessedMessage(
       {
         message,
         processingResult,
       },
       messageId,
+      messageType,
     )
 
     const debugLoggingEnabled = this.logMessages && this.logger.isLevelEnabled('debug')
@@ -278,11 +318,7 @@ export abstract class AbstractQueueService<
     const resolvedMessageId: string | undefined = message?.[this.messageIdField] ?? messageId
 
     const messageTimestamp = message ? this.tryToExtractTimestamp(message)?.getTime() : undefined
-    const messageType =
-      message && this.messageTypeField in message
-        ? // @ts-ignore
-          message[this.messageTypeField]
-        : undefined
+    const messageType = message ? this.resolveMessageTypeFromMessage(message) : undefined
     const messageDeduplicationId =
       message && this.messageDeduplicationIdField in message
         ? // @ts-ignore
@@ -625,7 +661,7 @@ export abstract class AbstractQueueService<
     }
 
     // Return message with both new and legacy formats for backward compatibility
-    return {
+    const result: OffloadedPayloadPointerPayload = {
       // Extended payload reference format
       payloadRef: {
         id: payloadId,
@@ -638,14 +674,23 @@ export abstract class AbstractQueueService<
       // @ts-expect-error
       [this.messageIdField]: message[this.messageIdField],
       // @ts-expect-error
-      [this.messageTypeField]: message[this.messageTypeField],
-      // @ts-expect-error
       [this.messageTimestampField]: message[this.messageTimestampField],
       // @ts-expect-error
       [this.messageDeduplicationIdField]: message[this.messageDeduplicationIdField],
       // @ts-expect-error
       [this.messageDeduplicationOptionsField]: message[this.messageDeduplicationOptionsField],
     }
+
+    // Preserve message type field if using messageTypePath resolver (supports nested paths)
+    if (this.messageTypeResolver && isMessageTypePathConfig(this.messageTypeResolver)) {
+      const messageTypePath = this.messageTypeResolver.messageTypePath
+      const typeValue = getProperty(message, messageTypePath)
+      if (typeValue !== undefined) {
+        setProperty(result, messageTypePath, typeValue)
+      }
+    }
+
+    return result
   }
 
   /**

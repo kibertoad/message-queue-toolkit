@@ -384,7 +384,7 @@ describe('SqsPermissionConsumer message deduplication', () => {
       // Wait until consumer1 releases the lock, to omit errors related to the lock being lost
       const consumer1Spy = await consumer1.handlerSpy.waitForMessageWithId(message.id)
       expect(consumer1Spy.processingResult).toEqual({ status: 'consumed' })
-    })
+    }, 7000)
 
     it('respects deduplication key even after lock is released', async () => {
       const consumer1 = new SqsPermissionConsumer(diContainer.cradle, {

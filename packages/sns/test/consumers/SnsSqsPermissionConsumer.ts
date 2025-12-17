@@ -161,7 +161,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
                 topic: { Name: SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME },
               },
             }),
-        messageTypeField: 'messageType',
+        messageTypeResolver: { messageTypePath: 'messageType' },
         subscriptionConfig: {
           updateAttributesIfExists: false,
         },

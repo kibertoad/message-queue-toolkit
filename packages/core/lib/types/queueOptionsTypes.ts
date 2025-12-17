@@ -4,6 +4,7 @@ import type { MessageDeduplicationConfig } from '../message-deduplication/messag
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes.ts'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer.ts'
 import type { HandlerSpy, HandlerSpyParams } from '../queues/HandlerSpy.ts'
+import type { MessageTypeResolverConfig } from '../queues/MessageTypeResolver.ts'
 import type {
   MessageProcessingResult,
   TransactionObservabilityManager,
@@ -21,9 +22,10 @@ export type ProcessedMessageMetadata<MessagePayloadSchemas extends object = obje
    */
   messageId: string
   /**
-   * Message type accessed by `messageTypeField`
+   * Message type resolved by `messageTypeResolver`.
+   * May be undefined if messageTypeResolver is not configured.
    */
-  messageType: string
+  messageType?: string
 
   /**
    * Processing result status
@@ -75,8 +77,38 @@ export type QueueConsumerDependencies = {
   transactionObservabilityManager: TransactionObservabilityManager
 }
 
+/**
+ * Common queue options for publishers and consumers.
+ *
+ * Message type resolution is configured via `messageTypeResolver`.
+ * At least one must be provided for routing to work (unless using a single handler).
+ */
 export type CommonQueueOptions = {
-  messageTypeField: string
+  /**
+   * Configuration for resolving message types.
+   *
+   * Supports three modes:
+   * - `{ messageTypePath: string }` - field name at the root of the message
+   * - `{ literal: string }` - constant type for all messages
+   * - `{ resolver: fn }` - custom function for complex scenarios (e.g., extracting from attributes)
+   *
+   * @example
+   * // Field path - extracts type from message.type
+   * { messageTypeResolver: { messageTypePath: 'type' } }
+   *
+   * @example
+   * // Constant type - all messages treated as same type
+   * { messageTypeResolver: { literal: 'order.created' } }
+   *
+   * @example
+   * // Custom resolver for Cloud Storage notifications via PubSub
+   * {
+   *   messageTypeResolver: {
+   *     resolver: ({ messageAttributes }) => messageAttributes?.eventType as string
+   *   }
+   * }
+   */
+  messageTypeResolver?: MessageTypeResolverConfig
   messageIdField?: string
   messageTimestampField?: string
   messageDeduplicationIdField?: string
