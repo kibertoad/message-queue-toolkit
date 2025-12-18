@@ -204,7 +204,7 @@ describe('DomainEventEmitter', () => {
       expect(emitResult.message).toEqual({
         id: expect.any(String),
         metadata: {
-          correlationId: createdEventPayload.metadata.correlationId!,
+          correlationId: createdEventPayload.metadata!.correlationId!,
           originatedFrom: 'service',
           producedBy: undefined,
           schemaVersion: '1',
