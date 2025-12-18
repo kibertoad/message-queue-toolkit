@@ -64,7 +64,7 @@ describe('TestSqsPublisher', () => {
       consumer.stop()
 
       expect(receivedMessages).toHaveLength(1)
-      const body = JSON.parse(receivedMessages[0]!.Body!)
+      const body = JSON.parse(receivedMessages[0]?.Body!)
       expect(body).toEqual({
         totally: 'arbitrary',
         data: { nested: true },
@@ -95,7 +95,7 @@ describe('TestSqsPublisher', () => {
       consumer.stop()
 
       expect(receivedMessages).toHaveLength(1)
-      const body = JSON.parse(receivedMessages[0]!.Body!)
+      const body = JSON.parse(receivedMessages[0]?.Body!)
       expect(body).toEqual({ incomplete: 'message' })
     })
 
@@ -133,7 +133,7 @@ describe('TestSqsPublisher', () => {
       consumer.stop()
 
       expect(receivedMessages).toHaveLength(1)
-      const body = JSON.parse(receivedMessages[0]!.Body!)
+      const body = JSON.parse(receivedMessages[0]?.Body!)
       expect(body).toEqual(complexMessage)
     })
   })
@@ -160,7 +160,7 @@ describe('TestSqsPublisher', () => {
       consumer.stop()
 
       expect(receivedMessages).toHaveLength(1)
-      const body = JSON.parse(receivedMessages[0]!.Body!)
+      const body = JSON.parse(receivedMessages[0]?.Body!)
       expect(body).toEqual({ test: 'queueName' })
     })
   })
@@ -193,7 +193,7 @@ describe('TestSqsPublisher', () => {
       sqsConsumer.stop()
 
       expect(receivedMessages).toHaveLength(1)
-      const body = JSON.parse(receivedMessages[0]!.Body!)
+      const body = JSON.parse(receivedMessages[0]?.Body!)
       expect(body).toEqual({ test: 'consumer' })
 
       await consumer.close()
@@ -240,7 +240,7 @@ describe('TestSqsPublisher', () => {
       consumer.stop()
 
       expect(receivedMessages).toHaveLength(1)
-      const body = JSON.parse(receivedMessages[0]!.Body!)
+      const body = JSON.parse(receivedMessages[0]?.Body!)
       expect(body).toEqual({ test: 'publisher' })
     })
 
@@ -292,7 +292,7 @@ describe('TestSqsPublisher', () => {
       consumer.stop()
 
       expect(receivedMessages).toHaveLength(1)
-      const body = JSON.parse(receivedMessages[0]!.Body!)
+      const body = JSON.parse(receivedMessages[0]?.Body!)
       expect(body).toEqual({ test: 'fifo-message' })
     })
   })

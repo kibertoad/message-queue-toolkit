@@ -869,6 +869,9 @@ export abstract class AbstractPubSubConsumer<
       return null
     }
     const handler = this.handlerContainer.resolveHandler(processedMessageMetadata.messageType)
+    if (!handler.messageLogFormatter) {
+      return null
+    }
     return handler.messageLogFormatter(processedMessageMetadata.message)
   }
 

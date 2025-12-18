@@ -106,7 +106,7 @@ describe('SqsPermissionPublisher - payload offloading', () => {
 
       // Check that the published message's body is a pointer to the offloaded payload.
       expect(receivedSqsMessages.length).toBe(1)
-      const parsedReceivedMessageBody = JSON.parse(receivedSqsMessages[0].Body!)
+      const parsedReceivedMessageBody = JSON.parse(receivedSqsMessages[0]!.Body!)
 
       // Check that message contains both new payloadRef format and legacy format for backward compatibility
       expect(parsedReceivedMessageBody).toMatchObject({

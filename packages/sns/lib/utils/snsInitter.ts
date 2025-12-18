@@ -111,7 +111,7 @@ export async function initSnsSqs(
     queueName = splitUrl[splitUrl.length - 1]!
   } else {
     // biome-ignore lint/style/noNonNullAssertion: It's ok
-    queueName = creationConfig!.queue.QueueName!
+    queueName = creationConfig?.queue.QueueName!
   }
 
   return {
