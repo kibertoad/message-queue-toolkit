@@ -512,6 +512,9 @@ describe('SqsPermissionConsumer', () => {
           messageProcessingStartTimestamp: expect.any(Number),
           messageProcessingEndTimestamp: expect.any(Number),
           queueName: SqsPermissionConsumer.QUEUE_NAME,
+          messageMetadata: {
+            schemaVersions: '1.0.0',
+          },
           message: expect.objectContaining({
             id: '1',
             messageType: 'add',
