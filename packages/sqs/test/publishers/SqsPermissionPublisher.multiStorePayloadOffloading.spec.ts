@@ -113,7 +113,7 @@ describe('SqsPermissionPublisher - multi-store payload offloading', () => {
 
       expect(receivedSqsMessages.length).toBe(1)
       const parsedReceivedMessageBody = JSON.parse(
-        receivedSqsMessages[0].Body!,
+        receivedSqsMessages[0]!.Body!,
       ) as OffloadedPayloadPointerPayload
 
       // Check that message contains new payloadRef with correct store name
