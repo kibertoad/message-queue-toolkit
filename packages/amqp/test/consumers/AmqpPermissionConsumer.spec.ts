@@ -405,7 +405,7 @@ describe('AmqpPermissionConsumer', () => {
       await waitAndRetry(() => errorReporterSpy.mock.calls.length > 0)
 
       expect(errorReporterSpy.mock.calls).toHaveLength(1)
-      expect(errorReporterSpy.mock.calls[0]?.[0]?.error).toMatchObject({
+      expect(errorReporterSpy.mock.calls[0]![0]!.error).toMatchObject({
         message: 'Unsupported message type: bad',
       })
     })
