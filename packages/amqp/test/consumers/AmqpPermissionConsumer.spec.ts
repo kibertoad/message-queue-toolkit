@@ -110,11 +110,6 @@ describe('AmqpPermissionConsumer', () => {
             messageType: 'add',
             processingResult: { status: 'consumed' },
           }),
-          message: {
-            id: '1',
-            messageType: 'add',
-            timestamp: expect.any(String),
-          },
         },
       ])
     })

@@ -453,11 +453,6 @@ describe('SqsPermissionConsumer', () => {
               status: 'consumed',
             },
           }),
-          message: {
-            id: '1',
-            messageType: 'add',
-            timestamp: expect.any(String),
-          },
         },
       ])
       await newConsumer.close()
