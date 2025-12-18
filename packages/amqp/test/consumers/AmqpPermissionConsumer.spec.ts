@@ -168,6 +168,7 @@ describe('AmqpPermissionConsumer', () => {
             id: '1',
             messageType: 'add',
           }),
+          messageMetadata: undefined,
         },
       ])
     })
