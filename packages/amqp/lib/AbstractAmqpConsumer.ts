@@ -6,13 +6,13 @@ import type {
   ParseMessageResult,
   PreHandlingOutputs,
   Prehandler,
+  ProcessedMessageMetadata,
   QueueConsumer,
   QueueConsumerOptions,
   TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
 import { HandlerContainer, isMessageError, parseMessage } from '@message-queue-toolkit/core'
 import type { ChannelModel, Message } from 'amqplib'
-
 import type {
   AMQPConsumerDependencies,
   AMQPQueueCreationConfig,
@@ -157,10 +157,6 @@ export abstract class AbstractAmqpConsumer<
       // @ts-expect-error
       const uniqueTransactionKey = parsedMessage[this.messageIdField]
       this.transactionObservabilityManager?.start(transactionSpanId, uniqueTransactionKey)
-      if (this.logMessages) {
-        const resolvedLogMessage = this.resolveMessageLog(parsedMessage, messageType)
-        this.logMessage(resolvedLogMessage)
-      }
       this.internalProcessMessage(parsedMessage, messageType)
         .then((result) => {
           if (result.result === 'success') {
@@ -267,9 +263,17 @@ export abstract class AbstractAmqpConsumer<
     return this._messageSchemaContainer.resolveSchema(message)
   }
 
-  protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
-    const handler = this.handlerContainer.resolveHandler(messageType)
-    return handler.messageLogFormatter(message)
+  protected override resolveMessageLog(
+    processedMessageMetadata: ProcessedMessageMetadata<MessagePayloadType>,
+  ): unknown | null {
+    if (!processedMessageMetadata.message || !processedMessageMetadata.messageType) {
+      return null
+    }
+    const handler = this.handlerContainer.resolveHandler(processedMessageMetadata.messageType)
+    if (!handler.messageLogFormatter) {
+      return null
+    }
+    return handler.messageLogFormatter(processedMessageMetadata.message)
   }
 
   // eslint-disable-next-line max-params

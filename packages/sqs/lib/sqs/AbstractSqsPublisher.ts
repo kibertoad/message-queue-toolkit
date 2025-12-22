@@ -117,12 +117,6 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       const messageProcessingStartTimestamp = Date.now()
       const parsedMessage = messageSchemaResult.result.parse(message)
 
-      if (this.logMessages) {
-        const messageType = this.resolveMessageTypeFromMessage(message) ?? 'unknown'
-        const resolvedLogMessage = this.resolveMessageLog(message, messageType)
-        this.logMessage(resolvedLogMessage)
-      }
-
       message = this.updateInternalProperties(message)
 
       // Resolve FIFO options from original message BEFORE offloading
