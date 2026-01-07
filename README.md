@@ -286,6 +286,7 @@ const consumer = new MySnsSqsConsumer(dependencies, {
 | `pollingIntervalMs` | `number` | `5000` | Interval between availability checks (ms) |
 | `timeoutMs` | `number \| NO_TIMEOUT` | - (required) | Maximum wait time before throwing `StartupResourcePollingTimeoutError`. Use `NO_TIMEOUT` to poll indefinitely |
 | `throwOnTimeout` | `boolean` | `true` | When `true`, throws error on timeout. When `false`, reports error via errorReporter, resets timeout counter, and continues polling |
+| `nonBlocking` | `boolean` | `false` | When `true`, `init()` returns immediately if resource is not available, and polling continues in the background. A callback is invoked when the resource becomes available |
 
 ### Environment-Specific Configuration
 
@@ -335,6 +336,19 @@ import { NO_TIMEOUT } from '@message-queue-toolkit/core'
       enabled: true,
       pollingIntervalMs: 10000,
       timeoutMs: 10 * 60 * 1000, // 10 minutes
+    }
+  }
+}
+
+// Non-blocking mode - service starts immediately, polling continues in background
+// Useful when you want the service to be available even if dependencies are not ready
+{
+  locatorConfig: {
+    queueUrl: '...',
+    startupResourcePolling: {
+      enabled: true,
+      timeoutMs: 5 * 60 * 1000,
+      nonBlocking: true,  // init() resolves immediately
     }
   }
 }

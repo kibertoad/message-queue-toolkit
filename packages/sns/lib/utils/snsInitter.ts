@@ -47,7 +47,13 @@ export async function initSnsSqs(
   creationConfig?: SNSCreationConfig & SQSCreationConfig,
   subscriptionConfig?: SNSSubscriptionOptions,
   extraParams?: InitSnsSqsExtraParams,
-): Promise<{ subscriptionArn: string; topicArn: string; queueUrl: string; queueName: string }> {
+): Promise<{
+  subscriptionArn: string
+  topicArn: string
+  queueUrl: string
+  queueName: string
+  resourcesReady: boolean
+}> {
   if (!locatorConfig?.subscriptionArn) {
     if (!creationConfig?.topic && !locatorConfig?.topicArn && !locatorConfig?.topicName) {
       throw new Error(
@@ -303,6 +309,61 @@ export async function deleteSns(
   await deleteTopic(snsClient, stsClient, creationConfig.topic.Name)
 }
 
+async function initSnsWithLocator(
+  snsClient: SNSClient,
+  stsClient: STSClient,
+  locatorConfig: SNSTopicLocatorType,
+  extraParams?: InitSnsExtraParams,
+) {
+  if (!locatorConfig.topicArn && !locatorConfig.topicName) {
+    throw new Error(
+      'When locatorConfig for the topic is specified, either topicArn or topicName must be specified',
+    )
+  }
+
+  const topicArn =
+    locatorConfig.topicArn ?? (await buildTopicArn(stsClient, locatorConfig.topicName ?? ''))
+
+  const startupResourcePolling = locatorConfig.startupResourcePolling
+
+  // If startup resource polling is enabled, poll for topic to become available
+  if (isStartupResourcePollingEnabled(startupResourcePolling)) {
+    const nonBlocking = startupResourcePolling.nonBlocking === true
+
+    const topicResult = await waitForResource({
+      config: startupResourcePolling,
+      resourceName: `SNS topic ${topicArn}`,
+      logger: extraParams?.logger,
+      errorReporter: extraParams?.errorReporter,
+      onResourceAvailable: () => {
+        if (nonBlocking) {
+          extraParams?.onTopicReady?.({ topicArn })
+        }
+      },
+      checkFn: async () => {
+        const result = await getTopicAttributes(snsClient, topicArn)
+        if (result.error === 'not_found') {
+          return { isAvailable: false }
+        }
+        return { isAvailable: true, result: result.result }
+      },
+    })
+
+    // In non-blocking mode, return early if topic wasn't immediately available
+    if (nonBlocking && topicResult === undefined) {
+      return { topicArn, resourcesReady: false }
+    }
+  } else {
+    // Original behavior: check once and fail immediately if not found
+    const checkResult = await getTopicAttributes(snsClient, topicArn)
+    if (checkResult.error === 'not_found') {
+      throw new Error(`Topic with topicArn ${topicArn} does not exist.`)
+    }
+  }
+
+  return { topicArn, resourcesReady: true }
+}
+
 export async function initSns(
   snsClient: SNSClient,
   stsClient: STSClient,
@@ -311,53 +372,7 @@ export async function initSns(
   extraParams?: InitSnsExtraParams,
 ) {
   if (locatorConfig) {
-    if (!locatorConfig.topicArn && !locatorConfig.topicName) {
-      throw new Error(
-        'When locatorConfig for the topic is specified, either topicArn or topicName must be specified',
-      )
-    }
-
-    const topicArn =
-      locatorConfig.topicArn ?? (await buildTopicArn(stsClient, locatorConfig.topicName ?? ''))
-
-    const startupResourcePolling = locatorConfig.startupResourcePolling
-
-    // If startup resource polling is enabled, poll for topic to become available
-    if (isStartupResourcePollingEnabled(startupResourcePolling)) {
-      const nonBlocking = startupResourcePolling.nonBlocking === true
-
-      const topicResult = await waitForResource({
-        config: startupResourcePolling,
-        resourceName: `SNS topic ${topicArn}`,
-        logger: extraParams?.logger,
-        errorReporter: extraParams?.errorReporter,
-        onResourceAvailable: () => {
-          if (nonBlocking) {
-            extraParams?.onTopicReady?.({ topicArn })
-          }
-        },
-        checkFn: async () => {
-          const result = await getTopicAttributes(snsClient, topicArn)
-          if (result.error === 'not_found') {
-            return { isAvailable: false }
-          }
-          return { isAvailable: true, result: result.result }
-        },
-      })
-
-      // In non-blocking mode, return early if topic wasn't immediately available
-      if (nonBlocking && topicResult === undefined) {
-        return { topicArn, resourcesReady: false }
-      }
-    } else {
-      // Original behavior: check once and fail immediately if not found
-      const checkResult = await getTopicAttributes(snsClient, topicArn)
-      if (checkResult.error === 'not_found') {
-        throw new Error(`Topic with topicArn ${topicArn} does not exist.`)
-      }
-    }
-
-    return { topicArn, resourcesReady: true }
+    return initSnsWithLocator(snsClient, stsClient, locatorConfig, extraParams)
   }
 
   // create new topic if it does not exist

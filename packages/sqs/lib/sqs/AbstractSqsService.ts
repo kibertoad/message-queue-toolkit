@@ -95,8 +95,7 @@ export abstract class AbstractSqsService<
   protected queueName: string
   // @ts-expect-error
   protected queueUrl: string
-  // @ts-expect-error
-  protected queueArn: string
+  protected queueArn: string | undefined
   protected readonly isFifoQueue: boolean
 
   constructor(dependencies: DependenciesType, options: SQSOptionsType) {
