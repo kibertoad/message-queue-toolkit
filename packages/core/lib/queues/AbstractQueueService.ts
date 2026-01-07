@@ -345,7 +345,7 @@ export abstract class AbstractQueueService<
     const messageDeduplicationId =
       message && this.messageDeduplicationIdField in message
         ? // @ts-expect-error
-          message[this.messageDeduplicationId]
+          message[this.messageDeduplicationIdField]
         : undefined
     const messageMetadata =
       message && this.messageMetadataField in message
