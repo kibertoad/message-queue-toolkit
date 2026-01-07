@@ -1,3 +1,4 @@
+import { setTimeout } from 'node:timers/promises'
 import type { CommonLogger } from '@lokalise/node-core'
 import type { ResourceAvailabilityConfig } from '../types/queueOptionsTypes.ts'
 
@@ -150,7 +151,7 @@ export async function waitForResource<T>(options: WaitForResourceOptions<T>): Pr
     }
 
     // Wait before next attempt
-    await new Promise((resolve) => setTimeout(resolve, pollingIntervalMs))
+    await setTimeout(pollingIntervalMs)
   }
 }
 
