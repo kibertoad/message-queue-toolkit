@@ -344,12 +344,12 @@ export abstract class AbstractQueueService<
     const messageType = message ? this.resolveMessageTypeFromMessage(message) : undefined
     const messageDeduplicationId =
       message && this.messageDeduplicationIdField in message
-        ? // @ts-ignore
+        ? // @ts-expect-error
           message[this.messageDeduplicationId]
         : undefined
     const messageMetadata =
       message && this.messageMetadataField in message
-        ? // @ts-ignore
+        ? // @ts-expect-error
           message[this.messageMetadataField]
         : undefined
 

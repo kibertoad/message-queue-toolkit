@@ -66,7 +66,7 @@ export type ProcessedMessageMetadata<MessagePayloadSchemas extends object = obje
   /**
    * Message metadata (see ConsumerMessageMetadataType)
    */
-  messageMetadata?: Record<string, any>
+  messageMetadata?: Record<string, unknown>
 }
 
 export interface MessageMetricsManager<MessagePayloadSchemas extends object = object> {
