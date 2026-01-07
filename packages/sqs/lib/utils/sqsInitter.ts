@@ -2,7 +2,11 @@ import type { QueueAttributeName, SQSClient } from '@aws-sdk/client-sqs'
 import { SetQueueAttributesCommand, TagQueueCommand } from '@aws-sdk/client-sqs'
 import type { CommonLogger } from '@lokalise/node-core'
 import type { DeletionConfig, ResourceAvailabilityConfig } from '@message-queue-toolkit/core'
-import { isProduction, isResourceAvailabilityWaitingEnabled, waitForResource } from '@message-queue-toolkit/core'
+import {
+  isProduction,
+  isResourceAvailabilityWaitingEnabled,
+  waitForResource,
+} from '@message-queue-toolkit/core'
 
 import type { SQSCreationConfig, SQSQueueLocatorType } from '../sqs/AbstractSqsService.ts'
 

@@ -2,8 +2,16 @@ import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import type { Either } from '@lokalise/node-core'
-import type { DeletionConfig, ExtraParams, ResourceAvailabilityConfig } from '@message-queue-toolkit/core'
-import { isProduction, isResourceAvailabilityWaitingEnabled, waitForResource } from '@message-queue-toolkit/core'
+import type {
+  DeletionConfig,
+  ExtraParams,
+  ResourceAvailabilityConfig,
+} from '@message-queue-toolkit/core'
+import {
+  isProduction,
+  isResourceAvailabilityWaitingEnabled,
+  waitForResource,
+} from '@message-queue-toolkit/core'
 import {
   deleteQueue,
   getQueueAttributes,
