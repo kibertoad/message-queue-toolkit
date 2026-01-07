@@ -3,7 +3,11 @@ import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import type { Either } from '@lokalise/node-core'
 import type { DeletionConfig, ExtraParams } from '@message-queue-toolkit/core'
-import { isProduction } from '@message-queue-toolkit/core'
+import {
+  isProduction,
+  isStartupResourcePollingEnabled,
+  waitForResource,
+} from '@message-queue-toolkit/core'
 import {
   deleteQueue,
   getQueueAttributes,
@@ -18,6 +22,22 @@ import { subscribeToTopic } from './snsSubscriber.ts'
 import { assertTopic, deleteSubscription, deleteTopic, getTopicAttributes } from './snsUtils.ts'
 import { buildTopicArn } from './stsUtils.ts'
 
+export type InitSnsSqsExtraParams = ExtraParams & {
+  /**
+   * Callback invoked when resources become available in non-blocking mode.
+   * Only called when startupResourcePolling.nonBlocking is true and resources were not immediately available.
+   */
+  onResourcesReady?: (result: { topicArn: string; queueUrl: string }) => void
+}
+
+export type InitSnsExtraParams = ExtraParams & {
+  /**
+   * Callback invoked when topic becomes available in non-blocking mode.
+   * Only called when startupResourcePolling.nonBlocking is true and topic was not immediately available.
+   */
+  onTopicReady?: (result: { topicArn: string }) => void
+}
+
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixme
 export async function initSnsSqs(
   sqsClient: SQSClient,
@@ -26,8 +46,14 @@ export async function initSnsSqs(
   locatorConfig?: SNSSQSQueueLocatorType,
   creationConfig?: SNSCreationConfig & SQSCreationConfig,
   subscriptionConfig?: SNSSubscriptionOptions,
-  extraParams?: ExtraParams,
-): Promise<{ subscriptionArn: string; topicArn: string; queueUrl: string; queueName: string }> {
+  extraParams?: InitSnsSqsExtraParams,
+): Promise<{
+  subscriptionArn: string
+  topicArn: string
+  queueUrl: string
+  queueName: string
+  resourcesReady: boolean
+}> {
   if (!locatorConfig?.subscriptionArn) {
     if (!creationConfig?.topic && !locatorConfig?.topicArn && !locatorConfig?.topicName) {
       throw new Error(
@@ -80,28 +106,161 @@ export async function initSnsSqs(
       topicArn,
       queueName: creationConfig.queue.QueueName,
       queueUrl,
+      resourcesReady: true,
     }
   }
 
   const queueUrl = await resolveQueueUrlFromLocatorConfig(sqsClient, locatorConfig)
 
-  const checkPromises: Promise<Either<'not_found', unknown>>[] = []
   // Check for existing resources, using the locators
   const subscriptionTopicArn =
     locatorConfig.topicArn ?? (await buildTopicArn(stsClient, locatorConfig.topicName ?? ''))
-  const topicPromise = getTopicAttributes(snsClient, subscriptionTopicArn)
-  checkPromises.push(topicPromise)
 
-  const queuePromise = getQueueAttributes(sqsClient, queueUrl)
-  checkPromises.push(queuePromise)
+  const startupResourcePolling = locatorConfig.startupResourcePolling
 
-  const [topicCheckResult, queueCheckResult] = await Promise.all(checkPromises)
+  // If startup resource polling is enabled, poll for resources to become available
+  if (isStartupResourcePollingEnabled(startupResourcePolling)) {
+    const nonBlocking = startupResourcePolling.nonBlocking === true
 
-  if (queueCheckResult?.error === 'not_found') {
-    throw new Error(`Queue with queueUrl ${queueUrl} does not exist.`)
-  }
-  if (topicCheckResult?.error === 'not_found') {
-    throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
+    // Track availability for non-blocking mode coordination
+    let topicAvailable = false
+    let queueAvailable = false
+
+    const notifyIfBothReady = () => {
+      if (nonBlocking && topicAvailable && queueAvailable) {
+        extraParams?.onResourcesReady?.({ topicArn: subscriptionTopicArn, queueUrl })
+      }
+    }
+
+    // Wait for topic to become available
+    const topicResult = await waitForResource({
+      config: startupResourcePolling,
+      resourceName: `SNS topic ${subscriptionTopicArn}`,
+      logger: extraParams?.logger,
+      errorReporter: extraParams?.errorReporter,
+      onResourceAvailable: () => {
+        topicAvailable = true
+        notifyIfBothReady()
+      },
+      checkFn: async () => {
+        const result = await getTopicAttributes(snsClient, subscriptionTopicArn)
+        if (result.error === 'not_found') {
+          return { isAvailable: false }
+        }
+        return { isAvailable: true, result: result.result }
+      },
+    })
+
+    // If topic was immediately available, mark it
+    if (topicResult !== undefined) {
+      topicAvailable = true
+    }
+
+    // If non-blocking and topic wasn't immediately available, return early
+    // Background polling will continue and call notifyIfBothReady when topic is available
+    if (nonBlocking && topicResult === undefined) {
+      const splitUrl = queueUrl.split('/')
+      // biome-ignore lint/style/noNonNullAssertion: It's ok
+      const queueName = splitUrl[splitUrl.length - 1]!
+
+      // Also start polling for queue in background so we can notify when both are ready
+      waitForResource({
+        config: startupResourcePolling,
+        resourceName: `SQS queue ${queueUrl}`,
+        logger: extraParams?.logger,
+        errorReporter: extraParams?.errorReporter,
+        onResourceAvailable: () => {
+          queueAvailable = true
+          notifyIfBothReady()
+        },
+        checkFn: async () => {
+          const result = await getQueueAttributes(sqsClient, queueUrl)
+          if (result.error === 'not_found') {
+            return { isAvailable: false }
+          }
+          return { isAvailable: true, result: result.result }
+        },
+      })
+        .then((result) => {
+          // If queue was immediately available, waitForResource returns the result
+          // but doesn't call onResourceAvailable, so we handle it here
+          if (result !== undefined) {
+            queueAvailable = true
+            notifyIfBothReady()
+          }
+        })
+        .catch((error) => {
+          extraParams?.logger?.error({
+            message: 'Background polling for SQS queue failed',
+            queueUrl,
+            error,
+          })
+        })
+
+      return {
+        subscriptionArn: locatorConfig.subscriptionArn,
+        topicArn: subscriptionTopicArn,
+        queueUrl,
+        queueName,
+        resourcesReady: false,
+      }
+    }
+
+    // Wait for queue to become available
+    const queueResult = await waitForResource({
+      config: startupResourcePolling,
+      resourceName: `SQS queue ${queueUrl}`,
+      logger: extraParams?.logger,
+      errorReporter: extraParams?.errorReporter,
+      onResourceAvailable: () => {
+        queueAvailable = true
+        notifyIfBothReady()
+      },
+      checkFn: async () => {
+        const result = await getQueueAttributes(sqsClient, queueUrl)
+        if (result.error === 'not_found') {
+          return { isAvailable: false }
+        }
+        return { isAvailable: true, result: result.result }
+      },
+    })
+
+    // If queue was immediately available, mark it
+    if (queueResult !== undefined) {
+      queueAvailable = true
+    }
+
+    // If non-blocking and queue wasn't immediately available, return early
+    if (nonBlocking && queueResult === undefined) {
+      const splitUrl = queueUrl.split('/')
+      // biome-ignore lint/style/noNonNullAssertion: It's ok
+      const queueName = splitUrl[splitUrl.length - 1]!
+
+      return {
+        subscriptionArn: locatorConfig.subscriptionArn,
+        topicArn: subscriptionTopicArn,
+        queueUrl,
+        queueName,
+        resourcesReady: false,
+      }
+    }
+  } else {
+    // Original behavior: check resources once and fail immediately if not found
+    const checkPromises: Promise<Either<'not_found', unknown>>[] = []
+    const topicPromise = getTopicAttributes(snsClient, subscriptionTopicArn)
+    checkPromises.push(topicPromise)
+
+    const queuePromise = getQueueAttributes(sqsClient, queueUrl)
+    checkPromises.push(queuePromise)
+
+    const [topicCheckResult, queueCheckResult] = await Promise.all(checkPromises)
+
+    if (queueCheckResult?.error === 'not_found') {
+      throw new Error(`Queue with queueUrl ${queueUrl} does not exist.`)
+    }
+    if (topicCheckResult?.error === 'not_found') {
+      throw new Error(`Topic with topicArn ${subscriptionTopicArn} does not exist.`)
+    }
   }
 
   let queueName: string
@@ -119,6 +278,7 @@ export async function initSnsSqs(
     topicArn: subscriptionTopicArn,
     queueUrl,
     queueName,
+    resourcesReady: true,
   }
 }
 
@@ -200,28 +360,70 @@ export async function deleteSns(
   await deleteTopic(snsClient, stsClient, creationConfig.topic.Name)
 }
 
+async function initSnsWithLocator(
+  snsClient: SNSClient,
+  stsClient: STSClient,
+  locatorConfig: SNSTopicLocatorType,
+  extraParams?: InitSnsExtraParams,
+) {
+  if (!locatorConfig.topicArn && !locatorConfig.topicName) {
+    throw new Error(
+      'When locatorConfig for the topic is specified, either topicArn or topicName must be specified',
+    )
+  }
+
+  const topicArn =
+    locatorConfig.topicArn ?? (await buildTopicArn(stsClient, locatorConfig.topicName ?? ''))
+
+  const startupResourcePolling = locatorConfig.startupResourcePolling
+
+  // If startup resource polling is enabled, poll for topic to become available
+  if (isStartupResourcePollingEnabled(startupResourcePolling)) {
+    const nonBlocking = startupResourcePolling.nonBlocking === true
+
+    const topicResult = await waitForResource({
+      config: startupResourcePolling,
+      resourceName: `SNS topic ${topicArn}`,
+      logger: extraParams?.logger,
+      errorReporter: extraParams?.errorReporter,
+      onResourceAvailable: () => {
+        if (nonBlocking) {
+          extraParams?.onTopicReady?.({ topicArn })
+        }
+      },
+      checkFn: async () => {
+        const result = await getTopicAttributes(snsClient, topicArn)
+        if (result.error === 'not_found') {
+          return { isAvailable: false }
+        }
+        return { isAvailable: true, result: result.result }
+      },
+    })
+
+    // In non-blocking mode, return early if topic wasn't immediately available
+    if (nonBlocking && topicResult === undefined) {
+      return { topicArn, resourcesReady: false }
+    }
+  } else {
+    // Original behavior: check once and fail immediately if not found
+    const checkResult = await getTopicAttributes(snsClient, topicArn)
+    if (checkResult.error === 'not_found') {
+      throw new Error(`Topic with topicArn ${topicArn} does not exist.`)
+    }
+  }
+
+  return { topicArn, resourcesReady: true }
+}
+
 export async function initSns(
   snsClient: SNSClient,
   stsClient: STSClient,
   locatorConfig?: SNSTopicLocatorType,
   creationConfig?: SNSCreationConfig,
+  extraParams?: InitSnsExtraParams,
 ) {
   if (locatorConfig) {
-    if (!locatorConfig.topicArn && !locatorConfig.topicName) {
-      throw new Error(
-        'When locatorConfig for the topic is specified, either topicArn or topicName must be specified',
-      )
-    }
-
-    const topicArn =
-      locatorConfig.topicArn ?? (await buildTopicArn(stsClient, locatorConfig.topicName ?? ''))
-
-    const checkResult = await getTopicAttributes(snsClient, topicArn)
-    if (checkResult.error === 'not_found') {
-      throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
-    }
-
-    return { topicArn }
+    return initSnsWithLocator(snsClient, stsClient, locatorConfig, extraParams)
   }
 
   // create new topic if it does not exist
@@ -237,5 +439,5 @@ export async function initSns(
     forceTagUpdate: creationConfig.forceTagUpdate,
   })
 
-  return { topicArn }
+  return { topicArn, resourcesReady: true }
 }
