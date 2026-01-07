@@ -22,9 +22,21 @@ import { subscribeToTopic } from './snsSubscriber.ts'
 import { assertTopic, deleteSubscription, deleteTopic, getTopicAttributes } from './snsUtils.ts'
 import { buildTopicArn } from './stsUtils.ts'
 
-export type InitSnsSqsExtraParams = ExtraParams
+export type InitSnsSqsExtraParams = ExtraParams & {
+  /**
+   * Callback invoked when resources become available in non-blocking mode.
+   * Only called when startupResourcePolling.nonBlocking is true and resources were not immediately available.
+   */
+  onResourcesReady?: (result: { topicArn: string; queueUrl: string }) => void
+}
 
-export type InitSnsExtraParams = ExtraParams
+export type InitSnsExtraParams = ExtraParams & {
+  /**
+   * Callback invoked when topic becomes available in non-blocking mode.
+   * Only called when startupResourcePolling.nonBlocking is true and topic was not immediately available.
+   */
+  onTopicReady?: (result: { topicArn: string }) => void
+}
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixme
 export async function initSnsSqs(
@@ -88,6 +100,7 @@ export async function initSnsSqs(
       topicArn,
       queueName: creationConfig.queue.QueueName,
       queueUrl,
+      resourcesReady: true,
     }
   }
 
@@ -101,11 +114,20 @@ export async function initSnsSqs(
 
   // If startup resource polling is enabled, poll for resources to become available
   if (isStartupResourcePollingEnabled(startupResourcePolling)) {
+    const nonBlocking = startupResourcePolling.nonBlocking === true
+
     // Wait for topic to become available
-    await waitForResource({
+    const topicResult = await waitForResource({
       config: startupResourcePolling,
       resourceName: `SNS topic ${subscriptionTopicArn}`,
       logger: extraParams?.logger,
+      errorReporter: extraParams?.errorReporter,
+      onResourceAvailable: () => {
+        // In non-blocking mode, when topic becomes available, notify caller
+        if (nonBlocking) {
+          extraParams?.onResourcesReady?.({ topicArn: subscriptionTopicArn, queueUrl })
+        }
+      },
       checkFn: async () => {
         const result = await getTopicAttributes(snsClient, subscriptionTopicArn)
         if (result.error === 'not_found') {
@@ -115,11 +137,33 @@ export async function initSnsSqs(
       },
     })
 
+    // If non-blocking and topic wasn't immediately available, return early
+    if (nonBlocking && topicResult === undefined) {
+      const splitUrl = queueUrl.split('/')
+      // biome-ignore lint/style/noNonNullAssertion: It's ok
+      const queueName = splitUrl[splitUrl.length - 1]!
+
+      return {
+        subscriptionArn: locatorConfig.subscriptionArn,
+        topicArn: subscriptionTopicArn,
+        queueUrl,
+        queueName,
+        resourcesReady: false,
+      }
+    }
+
     // Wait for queue to become available
-    await waitForResource({
+    const queueResult = await waitForResource({
       config: startupResourcePolling,
       resourceName: `SQS queue ${queueUrl}`,
       logger: extraParams?.logger,
+      errorReporter: extraParams?.errorReporter,
+      onResourceAvailable: () => {
+        // In non-blocking mode, when queue becomes available, notify caller
+        if (nonBlocking) {
+          extraParams?.onResourcesReady?.({ topicArn: subscriptionTopicArn, queueUrl })
+        }
+      },
       checkFn: async () => {
         const result = await getQueueAttributes(sqsClient, queueUrl)
         if (result.error === 'not_found') {
@@ -128,6 +172,21 @@ export async function initSnsSqs(
         return { isAvailable: true, result: result.result }
       },
     })
+
+    // If non-blocking and queue wasn't immediately available, return early
+    if (nonBlocking && queueResult === undefined) {
+      const splitUrl = queueUrl.split('/')
+      // biome-ignore lint/style/noNonNullAssertion: It's ok
+      const queueName = splitUrl[splitUrl.length - 1]!
+
+      return {
+        subscriptionArn: locatorConfig.subscriptionArn,
+        topicArn: subscriptionTopicArn,
+        queueUrl,
+        queueName,
+        resourcesReady: false,
+      }
+    }
   } else {
     // Original behavior: check resources once and fail immediately if not found
     const checkPromises: Promise<Either<'not_found', unknown>>[] = []
@@ -162,6 +221,7 @@ export async function initSnsSqs(
     topicArn: subscriptionTopicArn,
     queueUrl,
     queueName,
+    resourcesReady: true,
   }
 }
 
@@ -264,10 +324,18 @@ export async function initSns(
 
     // If startup resource polling is enabled, poll for topic to become available
     if (isStartupResourcePollingEnabled(startupResourcePolling)) {
-      await waitForResource({
+      const nonBlocking = startupResourcePolling.nonBlocking === true
+
+      const topicResult = await waitForResource({
         config: startupResourcePolling,
         resourceName: `SNS topic ${topicArn}`,
         logger: extraParams?.logger,
+        errorReporter: extraParams?.errorReporter,
+        onResourceAvailable: () => {
+          if (nonBlocking) {
+            extraParams?.onTopicReady?.({ topicArn })
+          }
+        },
         checkFn: async () => {
           const result = await getTopicAttributes(snsClient, topicArn)
           if (result.error === 'not_found') {
@@ -276,6 +344,11 @@ export async function initSns(
           return { isAvailable: true, result: result.result }
         },
       })
+
+      // In non-blocking mode, return early if topic wasn't immediately available
+      if (nonBlocking && topicResult === undefined) {
+        return { topicArn, resourcesReady: false }
+      }
     } else {
       // Original behavior: check once and fail immediately if not found
       const checkResult = await getTopicAttributes(snsClient, topicArn)
@@ -284,7 +357,7 @@ export async function initSns(
       }
     }
 
-    return { topicArn }
+    return { topicArn, resourcesReady: true }
   }
 
   // create new topic if it does not exist
@@ -300,5 +373,5 @@ export async function initSns(
     forceTagUpdate: creationConfig.forceTagUpdate,
   })
 
-  return { topicArn }
+  return { topicArn, resourcesReady: true }
 }

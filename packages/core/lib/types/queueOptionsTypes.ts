@@ -213,6 +213,28 @@ export type StartupResourcePollingConfig = {
    * Default: 5000 (5 seconds)
    */
   pollingIntervalMs?: number
+
+  /**
+   * Whether to throw an error when timeout is reached.
+   * - `true` (default): Throws `StartupResourcePollingTimeoutError` when timeout is reached
+   * - `false`: Reports the error via errorReporter, resets the timeout counter, and continues polling
+   *
+   * Use `false` when you want to be notified about prolonged unavailability but don't want to fail.
+   * Default: true
+   */
+  throwOnTimeout?: boolean
+
+  /**
+   * Whether to run polling in non-blocking mode.
+   * - `false` (default): init() waits for the resource to become available before resolving
+   * - `true`: If resource is not immediately available, init() resolves immediately and
+   *   polling continues in the background. When the resource becomes available,
+   *   the `onResourceAvailable` callback is invoked.
+   *
+   * Use `true` when you want the service to start quickly without waiting for dependencies.
+   * Default: false
+   */
+  nonBlocking?: boolean
 }
 
 /**

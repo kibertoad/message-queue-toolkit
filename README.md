@@ -285,19 +285,33 @@ const consumer = new MySnsSqsConsumer(dependencies, {
 | `enabled` | `boolean` | - | Must be set to `true` to enable polling |
 | `pollingIntervalMs` | `number` | `5000` | Interval between availability checks (ms) |
 | `timeoutMs` | `number \| NO_TIMEOUT` | - (required) | Maximum wait time before throwing `StartupResourcePollingTimeoutError`. Use `NO_TIMEOUT` to poll indefinitely |
+| `throwOnTimeout` | `boolean` | `true` | When `true`, throws error on timeout. When `false`, reports error via errorReporter, resets timeout counter, and continues polling |
 
 ### Environment-Specific Configuration
 
 ```typescript
 import { NO_TIMEOUT } from '@message-queue-toolkit/core'
 
-// Production - with timeout
+// Production - with timeout (throws error when timeout reached)
 {
   locatorConfig: {
     queueUrl: '...',
     startupResourcePolling: {
       enabled: true,
       timeoutMs: 5 * 60 * 1000, // 5 minutes
+    }
+  }
+}
+
+// Production - report timeout but keep trying
+// Useful when you want visibility into prolonged unavailability without failing
+{
+  locatorConfig: {
+    queueUrl: '...',
+    startupResourcePolling: {
+      enabled: true,
+      timeoutMs: 5 * 60 * 1000, // Report every 5 minutes
+      throwOnTimeout: false,    // Don't throw, just report and continue
     }
   }
 }
