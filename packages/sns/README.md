@@ -160,8 +160,8 @@ class UserEventsPublisher extends AbstractSnsPublisher<SupportedMessages> {
 // Use the publisher
 const snsClient = new SNSClient({ region: 'us-east-1' })
 const stsClient = new STSClient({ region: 'us-east-1' })
-const publisher = new UserEventsPublisher(snsClient, stsClient)
 
+const publisher = new UserEventsPublisher(snsClient, stsClient)
 await publisher.init()
 
 // Publish to the topic - all subscribers will receive this message
