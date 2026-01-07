@@ -2,8 +2,8 @@ import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import type { Either } from '@lokalise/node-core'
-import type { DeletionConfig, ExtraParams } from '@message-queue-toolkit/core'
-import { isProduction } from '@message-queue-toolkit/core'
+import type { DeletionConfig, ExtraParams, ResourceAvailabilityConfig } from '@message-queue-toolkit/core'
+import { isProduction, isResourceAvailabilityWaitingEnabled, waitForResource } from '@message-queue-toolkit/core'
 import {
   deleteQueue,
   getQueueAttributes,
@@ -18,6 +18,14 @@ import { subscribeToTopic } from './snsSubscriber.ts'
 import { assertTopic, deleteSubscription, deleteTopic, getTopicAttributes } from './snsUtils.ts'
 import { buildTopicArn } from './stsUtils.ts'
 
+export type InitSnsSqsExtraParams = ExtraParams & {
+  resourceAvailabilityConfig?: ResourceAvailabilityConfig
+}
+
+export type InitSnsExtraParams = ExtraParams & {
+  resourceAvailabilityConfig?: ResourceAvailabilityConfig
+}
+
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixme
 export async function initSnsSqs(
   sqsClient: SQSClient,
@@ -26,7 +34,7 @@ export async function initSnsSqs(
   locatorConfig?: SNSSQSQueueLocatorType,
   creationConfig?: SNSCreationConfig & SQSCreationConfig,
   subscriptionConfig?: SNSSubscriptionOptions,
-  extraParams?: ExtraParams,
+  extraParams?: InitSnsSqsExtraParams,
 ): Promise<{ subscriptionArn: string; topicArn: string; queueUrl: string; queueName: string }> {
   if (!locatorConfig?.subscriptionArn) {
     if (!creationConfig?.topic && !locatorConfig?.topicArn && !locatorConfig?.topicName) {
@@ -85,23 +93,58 @@ export async function initSnsSqs(
 
   const queueUrl = await resolveQueueUrlFromLocatorConfig(sqsClient, locatorConfig)
 
-  const checkPromises: Promise<Either<'not_found', unknown>>[] = []
   // Check for existing resources, using the locators
   const subscriptionTopicArn =
     locatorConfig.topicArn ?? (await buildTopicArn(stsClient, locatorConfig.topicName ?? ''))
-  const topicPromise = getTopicAttributes(snsClient, subscriptionTopicArn)
-  checkPromises.push(topicPromise)
 
-  const queuePromise = getQueueAttributes(sqsClient, queueUrl)
-  checkPromises.push(queuePromise)
+  const resourceAvailabilityConfig = extraParams?.resourceAvailabilityConfig
 
-  const [topicCheckResult, queueCheckResult] = await Promise.all(checkPromises)
+  // If resource availability waiting is enabled, poll for resources to become available
+  if (isResourceAvailabilityWaitingEnabled(resourceAvailabilityConfig)) {
+    // Wait for topic to become available
+    await waitForResource({
+      config: resourceAvailabilityConfig,
+      resourceName: `SNS topic ${subscriptionTopicArn}`,
+      logger: extraParams?.logger,
+      checkFn: async () => {
+        const result = await getTopicAttributes(snsClient, subscriptionTopicArn)
+        if (result.error === 'not_found') {
+          return { isAvailable: false }
+        }
+        return { isAvailable: true, result: result.result }
+      },
+    })
 
-  if (queueCheckResult?.error === 'not_found') {
-    throw new Error(`Queue with queueUrl ${queueUrl} does not exist.`)
-  }
-  if (topicCheckResult?.error === 'not_found') {
-    throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
+    // Wait for queue to become available
+    await waitForResource({
+      config: resourceAvailabilityConfig,
+      resourceName: `SQS queue ${queueUrl}`,
+      logger: extraParams?.logger,
+      checkFn: async () => {
+        const result = await getQueueAttributes(sqsClient, queueUrl)
+        if (result.error === 'not_found') {
+          return { isAvailable: false }
+        }
+        return { isAvailable: true, result: result.result }
+      },
+    })
+  } else {
+    // Original behavior: check resources once and fail immediately if not found
+    const checkPromises: Promise<Either<'not_found', unknown>>[] = []
+    const topicPromise = getTopicAttributes(snsClient, subscriptionTopicArn)
+    checkPromises.push(topicPromise)
+
+    const queuePromise = getQueueAttributes(sqsClient, queueUrl)
+    checkPromises.push(queuePromise)
+
+    const [topicCheckResult, queueCheckResult] = await Promise.all(checkPromises)
+
+    if (queueCheckResult?.error === 'not_found') {
+      throw new Error(`Queue with queueUrl ${queueUrl} does not exist.`)
+    }
+    if (topicCheckResult?.error === 'not_found') {
+      throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
+    }
   }
 
   let queueName: string
@@ -205,6 +248,7 @@ export async function initSns(
   stsClient: STSClient,
   locatorConfig?: SNSTopicLocatorType,
   creationConfig?: SNSCreationConfig,
+  extraParams?: InitSnsExtraParams,
 ) {
   if (locatorConfig) {
     if (!locatorConfig.topicArn && !locatorConfig.topicName) {
@@ -216,9 +260,28 @@ export async function initSns(
     const topicArn =
       locatorConfig.topicArn ?? (await buildTopicArn(stsClient, locatorConfig.topicName ?? ''))
 
-    const checkResult = await getTopicAttributes(snsClient, topicArn)
-    if (checkResult.error === 'not_found') {
-      throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
+    const resourceAvailabilityConfig = extraParams?.resourceAvailabilityConfig
+
+    // If resource availability waiting is enabled, poll for topic to become available
+    if (isResourceAvailabilityWaitingEnabled(resourceAvailabilityConfig)) {
+      await waitForResource({
+        config: resourceAvailabilityConfig,
+        resourceName: `SNS topic ${topicArn}`,
+        logger: extraParams?.logger,
+        checkFn: async () => {
+          const result = await getTopicAttributes(snsClient, topicArn)
+          if (result.error === 'not_found') {
+            return { isAvailable: false }
+          }
+          return { isAvailable: true, result: result.result }
+        },
+      })
+    } else {
+      // Original behavior: check once and fail immediately if not found
+      const checkResult = await getTopicAttributes(snsClient, topicArn)
+      if (checkResult.error === 'not_found') {
+        throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
+      }
     }
 
     return { topicArn }

@@ -244,6 +244,83 @@ Both publishers and consumers accept a queue name and configuration as parameter
 
 If you do not want to create a new queue/topic, you can set `queueLocator` field for `queueConfiguration`. In that case `message-queue-toolkit` will not attempt to create a new queue or topic, and instead throw an error if they don't already exist.
 
+## Resource Availability Polling (Eventual Consistency Mode)
+
+When using `locatorConfig` to reference existing queues or topics, the default behavior is to fail immediately if the resource doesn't exist. However, in some deployment scenarios (especially with cross-service dependencies), resources may not be available at startup time.
+
+The `resourceAvailabilityConfig` option enables "eventual consistency mode" where consumers poll for resources to become available instead of failing immediately.
+
+### Use Case: Cross-Service Dependencies
+
+Consider two services that need to subscribe to each other's topics:
+- **Service A** needs to subscribe to **Service B's** topic
+- **Service B** needs to subscribe to **Service A's** topic
+
+Without eventual consistency mode, neither service can deploy first because the other's topic doesn't exist yet. With `resourceAvailabilityConfig`, both services can start simultaneously and wait for the other's resources to appear.
+
+### Configuration
+
+```typescript
+const consumer = new MySnsSqsConsumer(dependencies, {
+  locatorConfig: {
+    topicArn: 'arn:aws:sns:...',
+    queueUrl: 'https://sqs...',
+    subscriptionArn: '...'
+  },
+  // Enable eventual consistency mode
+  resourceAvailabilityConfig: {
+    enabled: true,           // Enable polling for resource availability
+    pollingIntervalMs: 5000, // Check every 5 seconds (default: 5000)
+    timeoutMs: 300000,       // Fail after 5 minutes (optional, default: no timeout)
+  }
+})
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | `boolean` | `false` | Enable eventual consistency mode |
+| `pollingIntervalMs` | `number` | `5000` | Interval between availability checks (ms) |
+| `timeoutMs` | `number` | `undefined` | Maximum wait time before throwing `ResourceAvailabilityTimeoutError`. If not set, polls indefinitely |
+
+### Environment-Specific Configuration
+
+```typescript
+// Development/Staging - poll indefinitely
+{
+  resourceAvailabilityConfig: {
+    enabled: true,
+    pollingIntervalMs: 5000,
+  }
+}
+
+// Production - poll with timeout to catch misconfigurations
+{
+  resourceAvailabilityConfig: {
+    enabled: true,
+    pollingIntervalMs: 10000,
+    timeoutMs: 5 * 60 * 1000, // 5 minutes
+  }
+}
+```
+
+### Error Handling
+
+When `timeoutMs` is configured and the resource doesn't become available within the specified time, a `ResourceAvailabilityTimeoutError` is thrown:
+
+```typescript
+import { ResourceAvailabilityTimeoutError } from '@message-queue-toolkit/core'
+
+try {
+  await consumer.init()
+} catch (error) {
+  if (error instanceof ResourceAvailabilityTimeoutError) {
+    console.error(`Resource ${error.resourceName} not available after ${error.timeoutMs}ms`)
+  }
+}
+```
+
 ## SQS Policy Configuration
 
 SQS queues can be configured with access policies to control who can send messages to and receive messages from the queue. The `policyConfig` parameter allows you to define these policies when creating or updating SQS queues.

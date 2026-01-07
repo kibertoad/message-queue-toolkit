@@ -102,7 +102,10 @@ export abstract class AbstractSnsSqsConsumer<
       this.locatorConfig,
       this.creationConfig,
       this.subscriptionConfig,
-      { logger: this.logger },
+      {
+        logger: this.logger,
+        resourceAvailabilityConfig: this.resourceAvailabilityConfig,
+      },
     )
     this.queueName = initSnsSqsResult.queueName
     this.queueUrl = initSnsSqsResult.queueUrl

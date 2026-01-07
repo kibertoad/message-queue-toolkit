@@ -25,7 +25,12 @@ export {
   generateFilterAttributes,
   generateTopicSubscriptionPolicy,
 } from './utils/snsAttributeUtils.ts'
-export { initSns, initSnsSqs } from './utils/snsInitter.ts'
+export {
+  initSns,
+  initSnsSqs,
+  type InitSnsExtraParams,
+  type InitSnsSqsExtraParams,
+} from './utils/snsInitter.ts'
 export { deserializeSNSMessage } from './utils/snsMessageDeserializer.ts'
 export { readSnsMessage } from './utils/snsMessageReader.ts'
 export { subscribeToTopic } from './utils/snsSubscriber.ts'

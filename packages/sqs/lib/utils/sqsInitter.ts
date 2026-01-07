@@ -1,7 +1,8 @@
 import type { QueueAttributeName, SQSClient } from '@aws-sdk/client-sqs'
 import { SetQueueAttributesCommand, TagQueueCommand } from '@aws-sdk/client-sqs'
-import type { DeletionConfig } from '@message-queue-toolkit/core'
-import { isProduction } from '@message-queue-toolkit/core'
+import type { CommonLogger } from '@lokalise/node-core'
+import type { DeletionConfig, ResourceAvailabilityConfig } from '@message-queue-toolkit/core'
+import { isProduction, isResourceAvailabilityWaitingEnabled, waitForResource } from '@message-queue-toolkit/core'
 
 import type { SQSCreationConfig, SQSQueueLocatorType } from '../sqs/AbstractSqsService.ts'
 
@@ -12,6 +13,11 @@ import {
   resolveQueueUrlFromLocatorConfig,
   validateFifoQueueName,
 } from './sqsUtils.ts'
+
+export type InitSqsExtraParams = {
+  resourceAvailabilityConfig?: ResourceAvailabilityConfig
+  logger?: CommonLogger
+}
 
 export async function deleteSqs(
   sqsClient: SQSClient,
@@ -68,18 +74,42 @@ export async function initSqs(
   locatorConfig?: Partial<SQSQueueLocatorType>,
   creationConfig?: SQSCreationConfig,
   isFifoQueue?: boolean,
+  extraParams?: InitSqsExtraParams,
 ) {
   // reuse existing queue only
   if (locatorConfig) {
     const queueUrl = await resolveQueueUrlFromLocatorConfig(sqsClient, locatorConfig)
 
-    const checkResult = await getQueueAttributes(sqsClient, queueUrl, ['QueueArn'])
+    const resourceAvailabilityConfig = extraParams?.resourceAvailabilityConfig
 
-    if (checkResult.error === 'not_found') {
-      throw new Error(`Queue with queueUrl ${locatorConfig.queueUrl} does not exist.`)
+    let queueArn: string | undefined
+
+    // If resource availability waiting is enabled, poll for queue to become available
+    if (isResourceAvailabilityWaitingEnabled(resourceAvailabilityConfig)) {
+      const result = await waitForResource({
+        config: resourceAvailabilityConfig,
+        resourceName: `SQS queue ${queueUrl}`,
+        logger: extraParams?.logger,
+        checkFn: async () => {
+          const checkResult = await getQueueAttributes(sqsClient, queueUrl, ['QueueArn'])
+          if (checkResult.error === 'not_found') {
+            return { isAvailable: false }
+          }
+          return { isAvailable: true, result: checkResult.result?.attributes?.QueueArn }
+        },
+      })
+      queueArn = result
+    } else {
+      // Original behavior: check once and fail immediately if not found
+      const checkResult = await getQueueAttributes(sqsClient, queueUrl, ['QueueArn'])
+
+      if (checkResult.error === 'not_found') {
+        throw new Error(`Queue with queueUrl ${locatorConfig.queueUrl} does not exist.`)
+      }
+
+      queueArn = checkResult.result?.attributes?.QueueArn
     }
 
-    const queueArn = checkResult.result?.attributes?.QueueArn
     if (!queueArn) {
       throw new Error('Queue ARN was not set')
     }

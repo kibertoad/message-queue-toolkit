@@ -118,6 +118,13 @@ export type CommonQueueOptions = {
   deletionConfig?: DeletionConfig
   payloadStoreConfig?: PayloadStoreConfig
   messageDeduplicationConfig?: MessageDeduplicationConfig
+  /**
+   * Configuration for eventual consistency mode.
+   * When enabled, the consumer will poll for the topic/queue to become available
+   * instead of failing immediately when using locatorConfig.
+   * This is useful for handling cross-service dependencies during deployment.
+   */
+  resourceAvailabilityConfig?: ResourceAvailabilityConfig
 }
 
 export type CommonCreationConfigType = {
@@ -128,6 +135,59 @@ export type DeletionConfig = {
   deleteIfExists?: boolean
   waitForConfirmation?: boolean
   forceDeleteInProduction?: boolean
+}
+
+/**
+ * Configuration for eventual consistency mode when resources may not exist at startup.
+ *
+ * This is useful in scenarios where services have cross-dependencies:
+ * - Service A needs to subscribe to Service B's topic
+ * - Service B needs to subscribe to Service A's topic
+ * - Neither can deploy first without the other's topic existing
+ *
+ * With `resourceAvailabilityConfig.enabled = true`, the consumer will poll for the
+ * topic/queue to become available instead of failing immediately.
+ *
+ * @example
+ * // Development/staging - poll indefinitely
+ * {
+ *   resourceAvailabilityConfig: {
+ *     enabled: true,
+ *     pollingIntervalMs: 5000,
+ *   }
+ * }
+ *
+ * @example
+ * // Production - poll with timeout to catch misconfigurations
+ * {
+ *   resourceAvailabilityConfig: {
+ *     enabled: true,
+ *     timeoutMs: 5 * 60 * 1000, // 5 minutes
+ *     pollingIntervalMs: 10000,
+ *   }
+ * }
+ */
+export type ResourceAvailabilityConfig = {
+  /**
+   * If true, the consumer will poll for the topic/queue to become available
+   * instead of failing immediately when using locatorConfig.
+   * Default: false (fail immediately for backwards compatibility)
+   */
+  enabled: boolean
+
+  /**
+   * Maximum time in milliseconds to wait for the resource to become available.
+   * If not set or set to 0, will poll indefinitely (useful for dev/staging environments).
+   * For production, it's recommended to set a reasonable timeout (e.g., 5 minutes).
+   * Default: undefined (no timeout - poll indefinitely)
+   */
+  timeoutMs?: number
+
+  /**
+   * Interval in milliseconds between polling attempts.
+   * Default: 5000 (5 seconds)
+   */
+  pollingIntervalMs?: number
 }
 
 type NewQueueOptions<CreationConfigType extends CommonCreationConfigType> = {

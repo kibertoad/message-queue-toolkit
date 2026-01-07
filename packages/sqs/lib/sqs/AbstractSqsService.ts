@@ -108,6 +108,10 @@ export abstract class AbstractSqsService<
       this.locatorConfig,
       this.creationConfig,
       this.isFifoQueue,
+      {
+        resourceAvailabilityConfig: this.resourceAvailabilityConfig,
+        logger: this.logger,
+      },
     )
     this.queueName = queueName
     this.queueUrl = queueUrl
