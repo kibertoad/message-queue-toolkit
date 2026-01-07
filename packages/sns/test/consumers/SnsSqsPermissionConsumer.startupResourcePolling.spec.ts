@@ -9,7 +9,7 @@ import {
 } from '@message-queue-toolkit/core'
 import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AbstractSnsSqsConsumer,
   type SNSSQSConsumerDependencies,
@@ -218,6 +218,143 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
       expect(consumer.subscriptionProps.queueName).toBe(queueName)
+    })
+  })
+
+  describe('when nonBlocking mode is enabled', () => {
+    it('returns immediately when both resources are available on first check', async () => {
+      // Create queue first, then topic (order matters for LocalStack)
+      await assertQueue(sqsClient, { QueueName: queueName })
+      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicArn,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+            nonBlocking: true,
+          },
+        },
+      })
+
+      await consumer.init()
+
+      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+      expect(consumer.subscriptionProps.queueUrl).toBe(queueUrl)
+    })
+
+    it('returns immediately when topic is not available', async () => {
+      // Create queue but not topic
+      await assertQueue(sqsClient, { QueueName: queueName })
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+            nonBlocking: true,
+          },
+        },
+        creationConfig: {
+          queue: { QueueName: queueName },
+        },
+      })
+
+      // Init should return immediately even though topic doesn't exist
+      await consumer.init()
+
+      // queueName should still be set
+      expect(consumer.subscriptionProps.queueName).toBe(queueName)
+    })
+
+    it('returns immediately when queue is not available', async () => {
+      // Create topic but not queue
+      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicArn,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+            nonBlocking: true,
+          },
+        },
+      })
+
+      // Init should return immediately even though queue doesn't exist
+      await consumer.init()
+
+      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+    })
+
+    it('invokes onResourcesReady callback when both resources become available in background', async () => {
+      // Test at the initter level since AbstractSnsSqsConsumer doesn't expose the callback
+      const { initSnsSqs } = await import('../../lib/utils/snsInitter.ts')
+
+      let callbackInvoked = false
+      let callbackTopicArn: string | undefined
+      let callbackQueueUrl: string | undefined
+
+      // Create queue but not topic
+      await assertQueue(sqsClient, { QueueName: queueName })
+
+      const result = await initSnsSqs(
+        sqsClient,
+        snsClient,
+        stsClient,
+        {
+          topicName,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: 5000,
+            nonBlocking: true,
+          },
+        },
+        undefined,
+        undefined,
+        {
+          onResourcesReady: ({ topicArn, queueUrl: url }) => {
+            callbackInvoked = true
+            callbackTopicArn = topicArn
+            callbackQueueUrl = url
+          },
+        },
+      )
+
+      expect(result.resourcesReady).toBe(false)
+
+      // Create topic after init returns
+      await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      // Wait for callback to be invoked using vi.waitFor (more reliable than fixed timeout)
+      await vi.waitFor(
+        () => {
+          expect(callbackInvoked).toBe(true)
+        },
+        { timeout: 2000, interval: 50 },
+      )
+
+      expect(callbackTopicArn).toBeDefined()
+      expect(callbackQueueUrl).toBe(queueUrl)
     })
   })
 

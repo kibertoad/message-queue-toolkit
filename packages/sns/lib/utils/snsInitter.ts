@@ -180,13 +180,22 @@ export async function initSnsSqs(
           }
           return { isAvailable: true, result: result.result }
         },
-      }).catch((error) => {
-        extraParams?.logger?.error({
-          message: 'Background polling for SQS queue failed',
-          queueUrl,
-          error,
-        })
       })
+        .then((result) => {
+          // If queue was immediately available, waitForResource returns the result
+          // but doesn't call onResourceAvailable, so we handle it here
+          if (result !== undefined) {
+            queueAvailable = true
+            notifyIfBothReady()
+          }
+        })
+        .catch((error) => {
+          extraParams?.logger?.error({
+            message: 'Background polling for SQS queue failed',
+            queueUrl,
+            error,
+          })
+        })
 
       return {
         subscriptionArn: locatorConfig.subscriptionArn,
