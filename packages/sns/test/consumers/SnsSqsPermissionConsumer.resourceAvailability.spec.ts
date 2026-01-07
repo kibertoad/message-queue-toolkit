@@ -2,12 +2,18 @@ import { setTimeout } from 'node:timers/promises'
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
-import { ResourceAvailabilityTimeoutError } from '@message-queue-toolkit/core'
+import {
+  MessageHandlerConfigBuilder,
+  ResourceAvailabilityTimeoutError,
+} from '@message-queue-toolkit/core'
 import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import type { SNSSQSConsumerDependencies } from '../../lib/sns/AbstractSnsSqsConsumer.ts'
-import { AbstractSnsSqsConsumer } from '../../lib/sns/AbstractSnsSqsConsumer.ts'
+import {
+  AbstractSnsSqsConsumer,
+  type SNSSQSConsumerDependencies,
+  type SNSSQSConsumerOptions,
+} from '../../lib/sns/AbstractSnsSqsConsumer.ts'
 import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -16,42 +22,24 @@ import {
   type PERMISSIONS_ADD_MESSAGE_TYPE,
 } from './userConsumerSchemas.ts'
 
+type TestConsumerOptions = Pick<
+  SNSSQSConsumerOptions<PERMISSIONS_ADD_MESSAGE_TYPE, undefined, undefined>,
+  'locatorConfig' | 'creationConfig' | 'resourceAvailabilityConfig'
+>
+
 // Simple consumer for testing resource availability
 class TestResourceAvailabilityConsumer extends AbstractSnsSqsConsumer<
   PERMISSIONS_ADD_MESSAGE_TYPE,
   undefined,
   undefined
 > {
-  constructor(
-    dependencies: SNSSQSConsumerDependencies,
-    options: {
-      locatorConfig?: {
-        topicArn?: string
-        topicName?: string
-        queueUrl?: string
-        queueName?: string
-        subscriptionArn?: string
-      }
-      creationConfig?: {
-        queue?: { QueueName: string }
-        topic?: { Name: string }
-      }
-      resourceAvailabilityConfig?: {
-        enabled: boolean
-        timeoutMs?: number
-        pollingIntervalMs?: number
-      }
-    },
-  ) {
+  constructor(dependencies: SNSSQSConsumerDependencies, options: TestConsumerOptions) {
     super(
       dependencies,
       {
-        handlers: [
-          {
-            schema: PERMISSIONS_ADD_MESSAGE_SCHEMA,
-            handler: () => Promise.resolve({ result: 'success' }),
-          },
-        ],
+        handlers: new MessageHandlerConfigBuilder<PERMISSIONS_ADD_MESSAGE_TYPE, undefined>()
+          .addConfig(PERMISSIONS_ADD_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' }))
+          .build(),
         messageTypeResolver: { messageTypePath: 'messageType' },
         subscriptionConfig: { updateAttributesIfExists: false },
         ...options,

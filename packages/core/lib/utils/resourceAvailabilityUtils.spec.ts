@@ -11,6 +11,12 @@ describe('resourceAvailabilityUtils', () => {
       expect(isResourceAvailabilityWaitingEnabled({ enabled: true })).toBe(true)
     })
 
+    it('returns true when enabled is not specified (defaults to true)', () => {
+      expect(isResourceAvailabilityWaitingEnabled({})).toBe(true)
+      expect(isResourceAvailabilityWaitingEnabled({ pollingIntervalMs: 1000 })).toBe(true)
+      expect(isResourceAvailabilityWaitingEnabled({ timeoutMs: 5000 })).toBe(true)
+    })
+
     it('returns false when enabled is false', () => {
       expect(isResourceAvailabilityWaitingEnabled({ enabled: false })).toBe(false)
     })

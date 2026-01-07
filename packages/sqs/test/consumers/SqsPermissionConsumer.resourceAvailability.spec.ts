@@ -1,11 +1,16 @@
 import { setTimeout } from 'node:timers/promises'
 import type { SQSClient } from '@aws-sdk/client-sqs'
-import { ResourceAvailabilityTimeoutError } from '@message-queue-toolkit/core'
+import {
+  MessageHandlerConfigBuilder,
+  ResourceAvailabilityTimeoutError,
+} from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-
-import type { SQSConsumerDependencies } from '../../lib/sqs/AbstractSqsConsumer.ts'
-import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer.ts'
+import {
+  AbstractSqsConsumer,
+  type SQSConsumerDependencies,
+  type SQSConsumerOptions,
+} from '../../lib/sqs/AbstractSqsConsumer.ts'
 import { assertQueue, deleteQueue } from '../../lib/utils/sqsUtils.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -14,38 +19,24 @@ import {
   type PERMISSIONS_ADD_MESSAGE_TYPE,
 } from './userConsumerSchemas.ts'
 
+type TestConsumerOptions = Pick<
+  SQSConsumerOptions<PERMISSIONS_ADD_MESSAGE_TYPE, undefined, undefined>,
+  'locatorConfig' | 'creationConfig' | 'resourceAvailabilityConfig'
+>
+
 // Simple consumer for testing resource availability
 class TestResourceAvailabilityConsumer extends AbstractSqsConsumer<
   PERMISSIONS_ADD_MESSAGE_TYPE,
   undefined,
   undefined
 > {
-  constructor(
-    dependencies: SQSConsumerDependencies,
-    options: {
-      locatorConfig?: {
-        queueUrl?: string
-        queueName?: string
-      }
-      creationConfig?: {
-        queue?: { QueueName: string }
-      }
-      resourceAvailabilityConfig?: {
-        enabled: boolean
-        timeoutMs?: number
-        pollingIntervalMs?: number
-      }
-    },
-  ) {
+  constructor(dependencies: SQSConsumerDependencies, options: TestConsumerOptions) {
     super(
       dependencies,
       {
-        handlers: [
-          {
-            schema: PERMISSIONS_ADD_MESSAGE_SCHEMA,
-            handler: () => Promise.resolve({ result: 'success' }),
-          },
-        ],
+        handlers: new MessageHandlerConfigBuilder<PERMISSIONS_ADD_MESSAGE_TYPE, undefined>()
+          .addConfig(PERMISSIONS_ADD_MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' }))
+          .build(),
         messageTypeResolver: { messageTypePath: 'messageType' },
         ...options,
       },

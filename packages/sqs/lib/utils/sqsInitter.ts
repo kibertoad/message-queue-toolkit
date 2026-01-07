@@ -108,7 +108,7 @@ export async function initSqs(
       const checkResult = await getQueueAttributes(sqsClient, queueUrl, ['QueueArn'])
 
       if (checkResult.error === 'not_found') {
-        throw new Error(`Queue with queueUrl ${locatorConfig.queueUrl} does not exist.`)
+        throw new Error(`Queue with queueUrl ${queueUrl} does not exist.`)
       }
 
       queueArn = checkResult.result?.attributes?.QueueArn

@@ -145,14 +145,13 @@ export type DeletionConfig = {
  * - Service B needs to subscribe to Service A's topic
  * - Neither can deploy first without the other's topic existing
  *
- * With `resourceAvailabilityConfig.enabled = true`, the consumer will poll for the
+ * When `resourceAvailabilityConfig` is provided, the consumer will poll for the
  * topic/queue to become available instead of failing immediately.
  *
  * @example
  * // Development/staging - poll indefinitely
  * {
  *   resourceAvailabilityConfig: {
- *     enabled: true,
  *     pollingIntervalMs: 5000,
  *   }
  * }
@@ -161,19 +160,27 @@ export type DeletionConfig = {
  * // Production - poll with timeout to catch misconfigurations
  * {
  *   resourceAvailabilityConfig: {
- *     enabled: true,
  *     timeoutMs: 5 * 60 * 1000, // 5 minutes
  *     pollingIntervalMs: 10000,
+ *   }
+ * }
+ *
+ * @example
+ * // Temporarily disable without removing config
+ * {
+ *   resourceAvailabilityConfig: {
+ *     enabled: false,
+ *     timeoutMs: 5 * 60 * 1000,
  *   }
  * }
  */
 export type ResourceAvailabilityConfig = {
   /**
-   * If true, the consumer will poll for the topic/queue to become available
-   * instead of failing immediately when using locatorConfig.
-   * Default: false (fail immediately for backwards compatibility)
+   * Controls whether polling is enabled.
+   * Default: true (when resourceAvailabilityConfig is provided)
+   * Set to false to temporarily disable polling without removing the config.
    */
-  enabled: boolean
+  enabled?: boolean
 
   /**
    * Maximum time in milliseconds to wait for the resource to become available.

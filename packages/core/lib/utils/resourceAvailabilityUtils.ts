@@ -156,10 +156,11 @@ export async function waitForResource<T>(options: WaitForResourceOptions<T>): Pr
 }
 
 /**
- * Helper to check if resource availability waiting is enabled
+ * Helper to check if resource availability waiting is enabled.
+ * Returns true when config is provided and enabled is not explicitly false.
  */
 export function isResourceAvailabilityWaitingEnabled(
   config?: ResourceAvailabilityConfig,
 ): config is ResourceAvailabilityConfig {
-  return config?.enabled === true
+  return config != null && config.enabled !== false
 }

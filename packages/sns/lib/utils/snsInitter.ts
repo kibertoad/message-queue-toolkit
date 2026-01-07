@@ -151,7 +151,7 @@ export async function initSnsSqs(
       throw new Error(`Queue with queueUrl ${queueUrl} does not exist.`)
     }
     if (topicCheckResult?.error === 'not_found') {
-      throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
+      throw new Error(`Topic with topicArn ${subscriptionTopicArn} does not exist.`)
     }
   }
 
@@ -288,7 +288,7 @@ export async function initSns(
       // Original behavior: check once and fail immediately if not found
       const checkResult = await getTopicAttributes(snsClient, topicArn)
       if (checkResult.error === 'not_found') {
-        throw new Error(`Topic with topicArn ${locatorConfig.topicArn} does not exist.`)
+        throw new Error(`Topic with topicArn ${topicArn} does not exist.`)
       }
     }
 
