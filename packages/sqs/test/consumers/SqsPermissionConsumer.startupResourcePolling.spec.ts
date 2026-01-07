@@ -226,7 +226,15 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
       // Start init without queue existing
       const initPromise = initSqs(
         sqsClient,
-        { queueUrl, startupResourcePolling: { enabled: true, pollingIntervalMs: 50, timeoutMs: 5000, nonBlocking: true } },
+        {
+          queueUrl,
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: 5000,
+            nonBlocking: true,
+          },
+        },
         undefined,
         undefined,
         {

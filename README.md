@@ -354,6 +354,80 @@ import { NO_TIMEOUT } from '@message-queue-toolkit/core'
 }
 ```
 
+### Non-Blocking Mode
+
+When `nonBlocking: true` is set, `init()` returns immediately if the resource is not available on the first check. Polling continues in the background, and you can use callbacks to be notified when resources become available.
+
+**Important behaviors:**
+- If the resource IS immediately available, `init()` returns normally with the resource ready
+- If the resource is NOT immediately available, `init()` returns with `resourcesReady: false` (for SNS/SQS) or `queueArn: undefined` (for SQS)
+- Background polling continues and invokes the callback when the resource becomes available
+- For SNS+SQS consumers, the callback is only invoked when BOTH topic and queue are available
+
+```typescript
+// SQS non-blocking with callback
+import { initSqs } from '@message-queue-toolkit/sqs'
+
+const result = await initSqs(
+  sqsClient,
+  {
+    queueUrl: '...',
+    startupResourcePolling: {
+      enabled: true,
+      timeoutMs: 5 * 60 * 1000,
+      nonBlocking: true,
+    },
+  },
+  undefined,
+  undefined,
+  {
+    onQueueReady: ({ queueArn }) => {
+      console.log(`Queue is now available: ${queueArn}`)
+      // Start consuming messages, update health checks, etc.
+    },
+  },
+)
+
+if (result.queueArn) {
+  console.log('Queue was immediately available')
+} else {
+  console.log('Queue not yet available, will be notified via callback')
+}
+
+// SNS+SQS non-blocking with callback
+import { initSnsSqs } from '@message-queue-toolkit/sns'
+
+const result = await initSnsSqs(
+  sqsClient,
+  snsClient,
+  stsClient,
+  {
+    topicArn: '...',
+    queueUrl: '...',
+    subscriptionArn: '...',
+    startupResourcePolling: {
+      enabled: true,
+      timeoutMs: 5 * 60 * 1000,
+      nonBlocking: true,
+    },
+  },
+  undefined,
+  undefined,
+  {
+    onResourcesReady: ({ topicArn, queueUrl }) => {
+      // Called only when BOTH topic and queue are available
+      console.log(`Resources ready: topic=${topicArn}, queue=${queueUrl}`)
+    },
+  },
+)
+
+if (result.resourcesReady) {
+  console.log('All resources were immediately available')
+} else {
+  console.log('Resources not yet available, will be notified via callback')
+}
+```
+
 ### Error Handling
 
 When `timeoutMs` is configured and the resource doesn't become available within the specified time, a `StartupResourcePollingTimeoutError` is thrown:

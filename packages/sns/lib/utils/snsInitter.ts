@@ -122,6 +122,16 @@ export async function initSnsSqs(
   if (isStartupResourcePollingEnabled(startupResourcePolling)) {
     const nonBlocking = startupResourcePolling.nonBlocking === true
 
+    // Track availability for non-blocking mode coordination
+    let topicAvailable = false
+    let queueAvailable = false
+
+    const notifyIfBothReady = () => {
+      if (nonBlocking && topicAvailable && queueAvailable) {
+        extraParams?.onResourcesReady?.({ topicArn: subscriptionTopicArn, queueUrl })
+      }
+    }
+
     // Wait for topic to become available
     const topicResult = await waitForResource({
       config: startupResourcePolling,
@@ -129,10 +139,8 @@ export async function initSnsSqs(
       logger: extraParams?.logger,
       errorReporter: extraParams?.errorReporter,
       onResourceAvailable: () => {
-        // In non-blocking mode, when topic becomes available, notify caller
-        if (nonBlocking) {
-          extraParams?.onResourcesReady?.({ topicArn: subscriptionTopicArn, queueUrl })
-        }
+        topicAvailable = true
+        notifyIfBothReady()
       },
       checkFn: async () => {
         const result = await getTopicAttributes(snsClient, subscriptionTopicArn)
@@ -143,11 +151,42 @@ export async function initSnsSqs(
       },
     })
 
+    // If topic was immediately available, mark it
+    if (topicResult !== undefined) {
+      topicAvailable = true
+    }
+
     // If non-blocking and topic wasn't immediately available, return early
+    // Background polling will continue and call notifyIfBothReady when topic is available
     if (nonBlocking && topicResult === undefined) {
       const splitUrl = queueUrl.split('/')
       // biome-ignore lint/style/noNonNullAssertion: It's ok
       const queueName = splitUrl[splitUrl.length - 1]!
+
+      // Also start polling for queue in background so we can notify when both are ready
+      waitForResource({
+        config: startupResourcePolling,
+        resourceName: `SQS queue ${queueUrl}`,
+        logger: extraParams?.logger,
+        errorReporter: extraParams?.errorReporter,
+        onResourceAvailable: () => {
+          queueAvailable = true
+          notifyIfBothReady()
+        },
+        checkFn: async () => {
+          const result = await getQueueAttributes(sqsClient, queueUrl)
+          if (result.error === 'not_found') {
+            return { isAvailable: false }
+          }
+          return { isAvailable: true, result: result.result }
+        },
+      }).catch((error) => {
+        extraParams?.logger?.error({
+          message: 'Background polling for SQS queue failed',
+          queueUrl,
+          error,
+        })
+      })
 
       return {
         subscriptionArn: locatorConfig.subscriptionArn,
@@ -165,10 +204,8 @@ export async function initSnsSqs(
       logger: extraParams?.logger,
       errorReporter: extraParams?.errorReporter,
       onResourceAvailable: () => {
-        // In non-blocking mode, when queue becomes available, notify caller
-        if (nonBlocking) {
-          extraParams?.onResourcesReady?.({ topicArn: subscriptionTopicArn, queueUrl })
-        }
+        queueAvailable = true
+        notifyIfBothReady()
       },
       checkFn: async () => {
         const result = await getQueueAttributes(sqsClient, queueUrl)
@@ -178,6 +215,11 @@ export async function initSnsSqs(
         return { isAvailable: true, result: result.result }
       },
     })
+
+    // If queue was immediately available, mark it
+    if (queueResult !== undefined) {
+      queueAvailable = true
+    }
 
     // If non-blocking and queue wasn't immediately available, return early
     if (nonBlocking && queueResult === undefined) {
