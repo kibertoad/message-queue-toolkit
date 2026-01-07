@@ -171,4 +171,84 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
       await expect(consumer.init()).rejects.toThrow(/does not exist/)
     })
   })
+
+  describe('when nonBlocking mode is enabled', () => {
+    it('returns immediately when resource is available on first check', async () => {
+      // Create queue first
+      await assertQueue(sqsClient, { QueueName: queueName })
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          queueUrl,
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+            nonBlocking: true,
+          },
+        },
+      })
+
+      await consumer.init()
+
+      expect(consumer.queueProps.url).toBe(queueUrl)
+      expect(consumer.queueProps.arn).toBeDefined()
+    })
+
+    it('returns immediately when resource is not available and queueArn is undefined', async () => {
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          queueUrl,
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+            nonBlocking: true,
+          },
+        },
+      })
+
+      // Init should complete immediately even though queue doesn't exist
+      await consumer.init()
+
+      expect(consumer.queueProps.url).toBe(queueUrl)
+      expect(consumer.queueProps.arn).toBeUndefined()
+    })
+
+    it('invokes onQueueReady callback when resource becomes available in background', async () => {
+      // We need to test the callback at the initter level since AbstractSqsConsumer
+      // doesn't expose the onQueueReady callback directly
+      const { initSqs } = await import('../../lib/utils/sqsInitter.ts')
+
+      let callbackInvoked = false
+      let callbackArn: string | undefined
+
+      // Start init without queue existing
+      const initPromise = initSqs(
+        sqsClient,
+        { queueUrl, startupResourcePolling: { enabled: true, pollingIntervalMs: 50, timeoutMs: 5000, nonBlocking: true } },
+        undefined,
+        undefined,
+        {
+          onQueueReady: (result) => {
+            callbackInvoked = true
+            callbackArn = result.queueArn
+          },
+        },
+      )
+
+      // Init should return immediately
+      const result = await initPromise
+      expect(result.queueArn).toBeUndefined()
+
+      // Create queue after init returns
+      await assertQueue(sqsClient, { QueueName: queueName })
+
+      // Wait for background polling to detect the queue
+      await setTimeout(200)
+
+      expect(callbackInvoked).toBe(true)
+      expect(callbackArn).toBeDefined()
+    })
+  })
 })
