@@ -118,13 +118,6 @@ export type CommonQueueOptions = {
   deletionConfig?: DeletionConfig
   payloadStoreConfig?: PayloadStoreConfig
   messageDeduplicationConfig?: MessageDeduplicationConfig
-  /**
-   * Configuration for eventual consistency mode.
-   * When enabled, the consumer will poll for the topic/queue to become available
-   * instead of failing immediately when using locatorConfig.
-   * This is useful for handling cross-service dependencies during deployment.
-   */
-  resourceAvailabilityConfig?: ResourceAvailabilityConfig
 }
 
 export type CommonCreationConfigType = {
@@ -138,63 +131,101 @@ export type DeletionConfig = {
 }
 
 /**
- * Configuration for eventual consistency mode when resources may not exist at startup.
+ * Symbol to indicate no timeout - polling will continue indefinitely.
+ * Use this for dev/staging environments where you want to wait indefinitely for resources.
+ *
+ * @example
+ * {
+ *   locatorConfig: {
+ *     queueUrl: '...',
+ *     startupResourcePolling: {
+ *       enabled: true,
+ *       timeoutMs: NO_TIMEOUT,
+ *     }
+ *   }
+ * }
+ */
+export const NO_TIMEOUT = Symbol('NO_TIMEOUT')
+
+/**
+ * Configuration for startup resource polling mode when resources may not exist at startup.
  *
  * This is useful in scenarios where services have cross-dependencies:
  * - Service A needs to subscribe to Service B's topic
  * - Service B needs to subscribe to Service A's topic
  * - Neither can deploy first without the other's topic existing
  *
- * When `resourceAvailabilityConfig` is provided, the consumer will poll for the
- * topic/queue to become available instead of failing immediately.
+ * When `startupResourcePolling` is provided with `enabled: true` inside `locatorConfig`,
+ * the consumer will poll for the topic/queue to become available instead of failing immediately.
  *
  * @example
- * // Development/staging - poll indefinitely
+ * // Enable with 5 minute timeout
  * {
- *   resourceAvailabilityConfig: {
- *     pollingIntervalMs: 5000,
+ *   locatorConfig: {
+ *     queueUrl: '...',
+ *     startupResourcePolling: {
+ *       enabled: true,
+ *       timeoutMs: 5 * 60 * 1000,
+ *     }
  *   }
  * }
  *
  * @example
- * // Production - poll with timeout to catch misconfigurations
+ * // Poll indefinitely (useful for dev/staging environments)
  * {
- *   resourceAvailabilityConfig: {
- *     timeoutMs: 5 * 60 * 1000, // 5 minutes
- *     pollingIntervalMs: 10000,
+ *   locatorConfig: {
+ *     queueUrl: '...',
+ *     startupResourcePolling: {
+ *       enabled: true,
+ *       timeoutMs: NO_TIMEOUT,
+ *     }
  *   }
  * }
  *
  * @example
- * // Temporarily disable without removing config
+ * // Custom timeout and interval
  * {
- *   resourceAvailabilityConfig: {
- *     enabled: false,
- *     timeoutMs: 5 * 60 * 1000,
+ *   locatorConfig: {
+ *     queueUrl: '...',
+ *     startupResourcePolling: {
+ *       enabled: true,
+ *       timeoutMs: 10 * 60 * 1000, // 10 minutes
+ *       pollingIntervalMs: 10000,
+ *     }
  *   }
  * }
  */
-export type ResourceAvailabilityConfig = {
+export type StartupResourcePollingConfig = {
   /**
    * Controls whether polling is enabled.
-   * Default: true (when resourceAvailabilityConfig is provided)
-   * Set to false to temporarily disable polling without removing the config.
+   * Must be set to true to enable polling.
    */
   enabled?: boolean
 
   /**
    * Maximum time in milliseconds to wait for the resource to become available.
-   * If not set or set to 0, will poll indefinitely (useful for dev/staging environments).
-   * For production, it's recommended to set a reasonable timeout (e.g., 5 minutes).
-   * Default: undefined (no timeout - poll indefinitely)
+   * Use `NO_TIMEOUT` to disable timeout and poll indefinitely.
    */
-  timeoutMs?: number
+  timeoutMs: number | typeof NO_TIMEOUT
 
   /**
    * Interval in milliseconds between polling attempts.
    * Default: 5000 (5 seconds)
    */
   pollingIntervalMs?: number
+}
+
+/**
+ * Base type for queue locator configurations that includes startup resource polling.
+ * Protocol-specific locator types should extend this.
+ */
+export type BaseQueueLocatorType = {
+  /**
+   * Configuration for startup resource polling mode.
+   * When enabled, the consumer will poll for the resource to become available
+   * instead of failing immediately.
+   */
+  startupResourcePolling?: StartupResourcePollingConfig
 }
 
 type NewQueueOptions<CreationConfigType extends CommonCreationConfigType> = {

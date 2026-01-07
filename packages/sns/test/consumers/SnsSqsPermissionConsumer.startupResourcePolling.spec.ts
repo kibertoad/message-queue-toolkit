@@ -4,7 +4,7 @@ import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import {
   MessageHandlerConfigBuilder,
-  ResourceAvailabilityTimeoutError,
+  StartupResourcePollingTimeoutError,
 } from '@message-queue-toolkit/core'
 import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
@@ -24,11 +24,11 @@ import {
 
 type TestConsumerOptions = Pick<
   SNSSQSConsumerOptions<PERMISSIONS_ADD_MESSAGE_TYPE, undefined, undefined>,
-  'locatorConfig' | 'creationConfig' | 'resourceAvailabilityConfig'
+  'locatorConfig' | 'creationConfig'
 >
 
-// Simple consumer for testing resource availability
-class TestResourceAvailabilityConsumer extends AbstractSnsSqsConsumer<
+// Simple consumer for testing startup resource polling
+class TestStartupResourcePollingConsumer extends AbstractSnsSqsConsumer<
   PERMISSIONS_ADD_MESSAGE_TYPE,
   undefined,
   undefined
@@ -58,9 +58,9 @@ class TestResourceAvailabilityConsumer extends AbstractSnsSqsConsumer<
   }
 }
 
-describe('SnsSqsPermissionConsumer - resourceAvailabilityConfig', () => {
-  const queueName = 'resource-availability-test-queue'
-  const topicName = 'resource-availability-test-topic'
+describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
+  const queueName = 'startup-resource-polling-test-queue'
+  const topicName = 'startup-resource-polling-test-topic'
   const queueUrl = `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`
 
   let diContainer: AwilixContainer<Dependencies>
@@ -91,25 +91,25 @@ describe('SnsSqsPermissionConsumer - resourceAvailabilityConfig', () => {
     await diContainer.dispose()
   })
 
-  describe('when resourceAvailabilityConfig is enabled', () => {
+  describe('when startupResourcePolling is enabled', () => {
     it('waits for topic to become available and initializes successfully', async () => {
       // Create queue first, but not the topic
       await assertQueue(sqsClient, { QueueName: queueName })
 
-      const consumer = new TestResourceAvailabilityConsumer(diContainer.cradle, {
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
           topicName,
           queueUrl,
           subscriptionArn:
             'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+          },
         },
         creationConfig: {
           queue: { QueueName: queueName },
-        },
-        resourceAvailabilityConfig: {
-          enabled: true,
-          pollingIntervalMs: 100,
-          timeoutMs: 5000,
         },
       })
 
@@ -131,17 +131,17 @@ describe('SnsSqsPermissionConsumer - resourceAvailabilityConfig', () => {
       // Create topic first, but not the queue
       const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
 
-      const consumer = new TestResourceAvailabilityConsumer(diContainer.cradle, {
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
           topicArn,
           queueUrl,
           subscriptionArn:
             'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
-        },
-        resourceAvailabilityConfig: {
-          enabled: true,
-          pollingIntervalMs: 100,
-          timeoutMs: 5000,
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+          },
         },
       })
 
@@ -159,48 +159,49 @@ describe('SnsSqsPermissionConsumer - resourceAvailabilityConfig', () => {
       expect(consumer.subscriptionProps.queueUrl).toBe(queueUrl)
     })
 
-    it('throws ResourceAvailabilityTimeoutError when timeout is reached', async () => {
+    it('throws StartupResourcePollingTimeoutError when timeout is reached', async () => {
       // Create queue but not topic
       await assertQueue(sqsClient, { QueueName: queueName })
 
-      const consumer = new TestResourceAvailabilityConsumer(diContainer.cradle, {
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
           topicName,
           queueUrl,
           subscriptionArn:
             'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: 200, // Short timeout
+          },
         },
         creationConfig: {
           queue: { QueueName: queueName },
         },
-        resourceAvailabilityConfig: {
-          enabled: true,
-          pollingIntervalMs: 50,
-          timeoutMs: 200, // Short timeout
-        },
       })
 
       // Should throw timeout error since topic never appears
-      await expect(consumer.init()).rejects.toThrow(ResourceAvailabilityTimeoutError)
+      await expect(consumer.init()).rejects.toThrow(StartupResourcePollingTimeoutError)
     })
   })
 
-  describe('when resourceAvailabilityConfig is disabled', () => {
+  describe('when startupResourcePolling is disabled', () => {
     it('throws immediately when topic does not exist', async () => {
       // Create queue but not topic
       await assertQueue(sqsClient, { QueueName: queueName })
 
       const topicArn = 'arn:aws:sns:eu-west-1:000000000000:non-existent-topic'
 
-      const consumer = new TestResourceAvailabilityConsumer(diContainer.cradle, {
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
           topicArn,
           queueUrl,
           subscriptionArn:
             'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
-        },
-        resourceAvailabilityConfig: {
-          enabled: false,
+          startupResourcePolling: {
+            enabled: false,
+            timeoutMs: 5000,
+          },
         },
       })
 
@@ -212,15 +213,16 @@ describe('SnsSqsPermissionConsumer - resourceAvailabilityConfig', () => {
       // Create topic but not queue
       const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
 
-      const consumer = new TestResourceAvailabilityConsumer(diContainer.cradle, {
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
           topicArn,
           queueUrl,
           subscriptionArn:
             'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
-        },
-        resourceAvailabilityConfig: {
-          enabled: false,
+          startupResourcePolling: {
+            enabled: false,
+            timeoutMs: 5000,
+          },
         },
       })
 

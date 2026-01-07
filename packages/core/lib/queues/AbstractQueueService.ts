@@ -46,7 +46,6 @@ import type {
   ProcessedMessageMetadata,
   QueueDependencies,
   QueueOptions,
-  ResourceAvailabilityConfig,
 } from '../types/queueOptionsTypes.ts'
 import { isRetryDateExceeded } from '../utils/dateUtils.ts'
 import { streamWithKnownSizeToString } from '../utils/streamUtils.ts'
@@ -126,7 +125,6 @@ export abstract class AbstractQueueService<
   protected readonly creationConfig?: QueueConfiguration
   protected readonly locatorConfig?: QueueLocatorType
   protected readonly deletionConfig?: DeletionConfig
-  protected readonly resourceAvailabilityConfig?: ResourceAvailabilityConfig
   protected readonly payloadStoreConfig?:
     | MakeRequired<SinglePayloadStoreConfig, 'serializer'>
     | MakeRequired<MultiPayloadStoreConfig, 'serializer'>
@@ -162,7 +160,6 @@ export abstract class AbstractQueueService<
     this.creationConfig = options.creationConfig
     this.locatorConfig = options.locatorConfig
     this.deletionConfig = options.deletionConfig
-    this.resourceAvailabilityConfig = options.resourceAvailabilityConfig
     this.payloadStoreConfig = options.payloadStoreConfig
       ? {
           serializer: jsonStreamStringifySerializer,

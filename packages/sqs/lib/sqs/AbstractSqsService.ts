@@ -1,5 +1,9 @@
 import type { CreateQueueRequest, SQSClient } from '@aws-sdk/client-sqs'
-import type { QueueDependencies, QueueOptions } from '@message-queue-toolkit/core'
+import type {
+  BaseQueueLocatorType,
+  QueueDependencies,
+  QueueOptions,
+} from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { SQSMessage } from '../types/MessageTypes.ts'
 import { deleteSqs, initSqs } from '../utils/sqsInitter.ts'
@@ -38,15 +42,17 @@ export type SQSCreationConfig = {
   policyConfig?: SQSPolicyConfig
 } & ExtraSQSCreationParams
 
-export type SQSQueueLocatorType =
-  | {
-      queueUrl: string
-      queueName?: never
-    }
-  | {
-      queueName: string
-      queueUrl?: never
-    }
+export type SQSQueueLocatorType = BaseQueueLocatorType &
+  (
+    | {
+        queueUrl: string
+        queueName?: never
+      }
+    | {
+        queueName: string
+        queueUrl?: never
+      }
+  )
 
 export type SQSQueueConfig = {
   /**
@@ -108,10 +114,7 @@ export abstract class AbstractSqsService<
       this.locatorConfig,
       this.creationConfig,
       this.isFifoQueue,
-      {
-        resourceAvailabilityConfig: this.resourceAvailabilityConfig,
-        logger: this.logger,
-      },
+      { logger: this.logger },
     )
     this.queueName = queueName
     this.queueUrl = queueUrl

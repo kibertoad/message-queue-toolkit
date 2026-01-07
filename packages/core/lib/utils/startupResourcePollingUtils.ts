@@ -1,10 +1,10 @@
 import { setTimeout } from 'node:timers/promises'
 import type { CommonLogger } from '@lokalise/node-core'
-import type { ResourceAvailabilityConfig } from '../types/queueOptionsTypes.ts'
+import { NO_TIMEOUT, type StartupResourcePollingConfig } from '../types/queueOptionsTypes.ts'
 
 const DEFAULT_POLLING_INTERVAL_MS = 5000
 
-export type ResourceAvailabilityCheckResult<T> =
+export type StartupResourcePollingCheckResult<T> =
   | {
       isAvailable: true
       result: T
@@ -15,9 +15,9 @@ export type ResourceAvailabilityCheckResult<T> =
 
 export type WaitForResourceOptions<T> = {
   /**
-   * Resource availability configuration
+   * Startup resource polling configuration
    */
-  config: ResourceAvailabilityConfig
+  config: StartupResourcePollingConfig
 
   /**
    * Function that checks if the resource is available.
@@ -25,7 +25,7 @@ export type WaitForResourceOptions<T> = {
    * or { isAvailable: false } when resource doesn't exist.
    * Should throw on unexpected errors.
    */
-  checkFn: () => Promise<ResourceAvailabilityCheckResult<T>>
+  checkFn: () => Promise<StartupResourcePollingCheckResult<T>>
 
   /**
    * Human-readable name of the resource for logging
@@ -38,7 +38,7 @@ export type WaitForResourceOptions<T> = {
   logger?: CommonLogger
 }
 
-export class ResourceAvailabilityTimeoutError extends Error {
+export class StartupResourcePollingTimeoutError extends Error {
   public readonly resourceName: string
   public readonly timeoutMs: number
 
@@ -47,7 +47,7 @@ export class ResourceAvailabilityTimeoutError extends Error {
       `Timeout waiting for resource "${resourceName}" to become available after ${timeoutMs}ms. ` +
         'The resource may not exist or there may be a configuration issue.',
     )
-    this.name = 'ResourceAvailabilityTimeoutError'
+    this.name = 'StartupResourcePollingTimeoutError'
     this.resourceName = resourceName
     this.timeoutMs = timeoutMs
   }
@@ -55,13 +55,13 @@ export class ResourceAvailabilityTimeoutError extends Error {
 
 function checkTimeoutExceeded(
   hasTimeout: boolean,
-  timeoutMs: number | undefined,
+  timeoutMs: number,
   startTime: number,
   resourceName: string,
   attemptCount: number,
   logger?: CommonLogger,
 ): void {
-  if (!hasTimeout || timeoutMs === undefined) return
+  if (!hasTimeout) return
 
   const elapsedMs = Date.now() - startTime
   if (elapsedMs >= timeoutMs) {
@@ -72,7 +72,7 @@ function checkTimeoutExceeded(
       attemptCount,
       elapsedMs,
     })
-    throw new ResourceAvailabilityTimeoutError(resourceName, timeoutMs)
+    throw new StartupResourcePollingTimeoutError(resourceName, timeoutMs)
   }
 }
 
@@ -93,17 +93,17 @@ function logResourceAvailable(
 
 /**
  * Waits for a resource to become available by polling.
- * This is used for eventual consistency mode where resources may not exist at startup.
+ * This is used for startup resource polling mode where resources may not exist at startup.
  *
  * @param options - Configuration and check function
  * @returns The result from the check function when resource becomes available
- * @throws ResourceAvailabilityTimeoutError if timeout is reached
+ * @throws StartupResourcePollingTimeoutError if timeout is reached
  */
 export async function waitForResource<T>(options: WaitForResourceOptions<T>): Promise<T> {
   const { config, checkFn, resourceName, logger } = options
   const pollingIntervalMs = config.pollingIntervalMs ?? DEFAULT_POLLING_INTERVAL_MS
-  const timeoutMs = config.timeoutMs
-  const hasTimeout = timeoutMs !== undefined && timeoutMs > 0
+  const hasTimeout = config.timeoutMs !== NO_TIMEOUT
+  const timeoutMs = hasTimeout ? (config.timeoutMs as number) : 0
 
   const startTime = Date.now()
   let attemptCount = 0
@@ -112,7 +112,7 @@ export async function waitForResource<T>(options: WaitForResourceOptions<T>): Pr
     message: `Waiting for resource "${resourceName}" to become available`,
     resourceName,
     pollingIntervalMs,
-    timeoutMs: timeoutMs ?? 'indefinite',
+    timeoutMs: hasTimeout ? timeoutMs : 'NO_TIMEOUT',
   })
 
   while (true) {
@@ -156,11 +156,11 @@ export async function waitForResource<T>(options: WaitForResourceOptions<T>): Pr
 }
 
 /**
- * Helper to check if resource availability waiting is enabled.
- * Returns true when config is provided and enabled is not explicitly false.
+ * Helper to check if startup resource polling is enabled.
+ * Returns true only when config is provided and enabled is explicitly true.
  */
-export function isResourceAvailabilityWaitingEnabled(
-  config?: ResourceAvailabilityConfig,
-): config is ResourceAvailabilityConfig {
-  return config != null && config.enabled !== false
+export function isStartupResourcePollingEnabled(
+  config?: StartupResourcePollingConfig,
+): config is StartupResourcePollingConfig {
+  return config?.enabled === true
 }

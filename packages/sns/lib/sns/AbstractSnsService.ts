@@ -1,6 +1,10 @@
 import type { CreateTopicCommandInput, SNSClient, Tag } from '@aws-sdk/client-sns'
 import type { STSClient } from '@aws-sdk/client-sts'
-import type { QueueDependencies, QueueOptions } from '@message-queue-toolkit/core'
+import type {
+  BaseQueueLocatorType,
+  QueueDependencies,
+  QueueOptions,
+} from '@message-queue-toolkit/core'
 import { AbstractQueueService } from '@message-queue-toolkit/core'
 import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes.ts'
 import { deleteSns, initSns } from '../utils/snsInitter.ts'
@@ -40,7 +44,7 @@ export type SNSCreationConfig = {
   updateAttributesIfExists?: boolean
 } & ExtraSNSCreationParams
 
-export type SNSTopicLocatorType = {
+export type SNSTopicLocatorType = BaseQueueLocatorType & {
   topicArn?: string
   topicName?: string
 }
@@ -82,6 +86,7 @@ export abstract class AbstractSnsService<
       this.stsClient,
       this.locatorConfig,
       this.creationConfig,
+      { logger: this.logger },
     )
     this.topicArn = initResult.topicArn
     this.isInitted = true

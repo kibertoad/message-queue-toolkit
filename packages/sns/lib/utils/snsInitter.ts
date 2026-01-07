@@ -2,14 +2,10 @@ import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import type { Either } from '@lokalise/node-core'
-import type {
-  DeletionConfig,
-  ExtraParams,
-  ResourceAvailabilityConfig,
-} from '@message-queue-toolkit/core'
+import type { DeletionConfig, ExtraParams } from '@message-queue-toolkit/core'
 import {
   isProduction,
-  isResourceAvailabilityWaitingEnabled,
+  isStartupResourcePollingEnabled,
   waitForResource,
 } from '@message-queue-toolkit/core'
 import {
@@ -26,13 +22,9 @@ import { subscribeToTopic } from './snsSubscriber.ts'
 import { assertTopic, deleteSubscription, deleteTopic, getTopicAttributes } from './snsUtils.ts'
 import { buildTopicArn } from './stsUtils.ts'
 
-export type InitSnsSqsExtraParams = ExtraParams & {
-  resourceAvailabilityConfig?: ResourceAvailabilityConfig
-}
+export type InitSnsSqsExtraParams = ExtraParams
 
-export type InitSnsExtraParams = ExtraParams & {
-  resourceAvailabilityConfig?: ResourceAvailabilityConfig
-}
+export type InitSnsExtraParams = ExtraParams
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: fixme
 export async function initSnsSqs(
@@ -105,13 +97,13 @@ export async function initSnsSqs(
   const subscriptionTopicArn =
     locatorConfig.topicArn ?? (await buildTopicArn(stsClient, locatorConfig.topicName ?? ''))
 
-  const resourceAvailabilityConfig = extraParams?.resourceAvailabilityConfig
+  const startupResourcePolling = locatorConfig.startupResourcePolling
 
-  // If resource availability waiting is enabled, poll for resources to become available
-  if (isResourceAvailabilityWaitingEnabled(resourceAvailabilityConfig)) {
+  // If startup resource polling is enabled, poll for resources to become available
+  if (isStartupResourcePollingEnabled(startupResourcePolling)) {
     // Wait for topic to become available
     await waitForResource({
-      config: resourceAvailabilityConfig,
+      config: startupResourcePolling,
       resourceName: `SNS topic ${subscriptionTopicArn}`,
       logger: extraParams?.logger,
       checkFn: async () => {
@@ -125,7 +117,7 @@ export async function initSnsSqs(
 
     // Wait for queue to become available
     await waitForResource({
-      config: resourceAvailabilityConfig,
+      config: startupResourcePolling,
       resourceName: `SQS queue ${queueUrl}`,
       logger: extraParams?.logger,
       checkFn: async () => {
@@ -268,12 +260,12 @@ export async function initSns(
     const topicArn =
       locatorConfig.topicArn ?? (await buildTopicArn(stsClient, locatorConfig.topicName ?? ''))
 
-    const resourceAvailabilityConfig = extraParams?.resourceAvailabilityConfig
+    const startupResourcePolling = locatorConfig.startupResourcePolling
 
-    // If resource availability waiting is enabled, poll for topic to become available
-    if (isResourceAvailabilityWaitingEnabled(resourceAvailabilityConfig)) {
+    // If startup resource polling is enabled, poll for topic to become available
+    if (isStartupResourcePollingEnabled(startupResourcePolling)) {
       await waitForResource({
-        config: resourceAvailabilityConfig,
+        config: startupResourcePolling,
         resourceName: `SNS topic ${topicArn}`,
         logger: extraParams?.logger,
         checkFn: async () => {

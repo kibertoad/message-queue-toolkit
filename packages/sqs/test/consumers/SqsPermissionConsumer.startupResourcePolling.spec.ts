@@ -2,7 +2,8 @@ import { setTimeout } from 'node:timers/promises'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import {
   MessageHandlerConfigBuilder,
-  ResourceAvailabilityTimeoutError,
+  NO_TIMEOUT,
+  StartupResourcePollingTimeoutError,
 } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -21,11 +22,11 @@ import {
 
 type TestConsumerOptions = Pick<
   SQSConsumerOptions<PERMISSIONS_ADD_MESSAGE_TYPE, undefined, undefined>,
-  'locatorConfig' | 'creationConfig' | 'resourceAvailabilityConfig'
+  'locatorConfig' | 'creationConfig'
 >
 
-// Simple consumer for testing resource availability
-class TestResourceAvailabilityConsumer extends AbstractSqsConsumer<
+// Simple consumer for testing startup resource polling
+class TestStartupResourcePollingConsumer extends AbstractSqsConsumer<
   PERMISSIONS_ADD_MESSAGE_TYPE,
   undefined,
   undefined
@@ -53,8 +54,8 @@ class TestResourceAvailabilityConsumer extends AbstractSqsConsumer<
   }
 }
 
-describe('SqsPermissionConsumer - resourceAvailabilityConfig', () => {
-  const queueName = 'resource-availability-test-queue'
+describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
+  const queueName = 'startup-resource-polling-test-queue'
   const queueUrl = `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`
 
   let diContainer: AwilixContainer<Dependencies>
@@ -72,16 +73,16 @@ describe('SqsPermissionConsumer - resourceAvailabilityConfig', () => {
     await diContainer.dispose()
   })
 
-  describe('when resourceAvailabilityConfig is enabled', () => {
+  describe('when startupResourcePolling is enabled', () => {
     it('waits for queue to become available and initializes successfully', async () => {
-      const consumer = new TestResourceAvailabilityConsumer(diContainer.cradle, {
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
           queueUrl,
-        },
-        resourceAvailabilityConfig: {
-          enabled: true,
-          pollingIntervalMs: 100,
-          timeoutMs: 5000,
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+          },
         },
       })
 
@@ -99,31 +100,31 @@ describe('SqsPermissionConsumer - resourceAvailabilityConfig', () => {
       expect(consumer.queueProps.name).toBe(queueName)
     })
 
-    it('throws ResourceAvailabilityTimeoutError when timeout is reached', async () => {
-      const consumer = new TestResourceAvailabilityConsumer(diContainer.cradle, {
+    it('throws StartupResourcePollingTimeoutError when timeout is reached', async () => {
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
           queueUrl,
-        },
-        resourceAvailabilityConfig: {
-          enabled: true,
-          pollingIntervalMs: 50,
-          timeoutMs: 200, // Short timeout
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: 200, // Short timeout
+          },
         },
       })
 
       // Should throw timeout error since queue never appears
-      await expect(consumer.init()).rejects.toThrow(ResourceAvailabilityTimeoutError)
+      await expect(consumer.init()).rejects.toThrow(StartupResourcePollingTimeoutError)
     })
 
-    it('polls indefinitely when timeoutMs is not set', async () => {
-      const consumer = new TestResourceAvailabilityConsumer(diContainer.cradle, {
+    it('polls indefinitely when NO_TIMEOUT is used', async () => {
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
           queueUrl,
-        },
-        resourceAvailabilityConfig: {
-          enabled: true,
-          pollingIntervalMs: 50,
-          // No timeout - polls indefinitely
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: NO_TIMEOUT,
+          },
         },
       })
 
@@ -141,14 +142,15 @@ describe('SqsPermissionConsumer - resourceAvailabilityConfig', () => {
     })
   })
 
-  describe('when resourceAvailabilityConfig is disabled', () => {
+  describe('when startupResourcePolling is disabled', () => {
     it('throws immediately when queue does not exist', async () => {
-      const consumer = new TestResourceAvailabilityConsumer(diContainer.cradle, {
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
           queueUrl,
-        },
-        resourceAvailabilityConfig: {
-          enabled: false,
+          startupResourcePolling: {
+            enabled: false,
+            timeoutMs: 5000,
+          },
         },
       })
 
@@ -157,9 +159,9 @@ describe('SqsPermissionConsumer - resourceAvailabilityConfig', () => {
     })
   })
 
-  describe('when resourceAvailabilityConfig is not provided', () => {
+  describe('when startupResourcePolling is not provided', () => {
     it('throws immediately when queue does not exist (default behavior)', async () => {
-      const consumer = new TestResourceAvailabilityConsumer(diContainer.cradle, {
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
           queueUrl,
         },

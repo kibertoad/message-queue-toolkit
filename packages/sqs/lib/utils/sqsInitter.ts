@@ -1,10 +1,10 @@
 import type { QueueAttributeName, SQSClient } from '@aws-sdk/client-sqs'
 import { SetQueueAttributesCommand, TagQueueCommand } from '@aws-sdk/client-sqs'
 import type { CommonLogger } from '@lokalise/node-core'
-import type { DeletionConfig, ResourceAvailabilityConfig } from '@message-queue-toolkit/core'
+import type { DeletionConfig } from '@message-queue-toolkit/core'
 import {
   isProduction,
-  isResourceAvailabilityWaitingEnabled,
+  isStartupResourcePollingEnabled,
   waitForResource,
 } from '@message-queue-toolkit/core'
 
@@ -19,7 +19,6 @@ import {
 } from './sqsUtils.ts'
 
 export type InitSqsExtraParams = {
-  resourceAvailabilityConfig?: ResourceAvailabilityConfig
   logger?: CommonLogger
 }
 
@@ -84,14 +83,14 @@ export async function initSqs(
   if (locatorConfig) {
     const queueUrl = await resolveQueueUrlFromLocatorConfig(sqsClient, locatorConfig)
 
-    const resourceAvailabilityConfig = extraParams?.resourceAvailabilityConfig
+    const startupResourcePolling = locatorConfig.startupResourcePolling
 
     let queueArn: string | undefined
 
-    // If resource availability waiting is enabled, poll for queue to become available
-    if (isResourceAvailabilityWaitingEnabled(resourceAvailabilityConfig)) {
+    // If startup resource polling is enabled, poll for queue to become available
+    if (isStartupResourcePollingEnabled(startupResourcePolling)) {
       const result = await waitForResource({
-        config: resourceAvailabilityConfig,
+        config: startupResourcePolling,
         resourceName: `SQS queue ${queueUrl}`,
         logger: extraParams?.logger,
         checkFn: async () => {

@@ -1,28 +1,30 @@
 import { describe, expect, it, vi } from 'vitest'
+import { NO_TIMEOUT } from '../types/queueOptionsTypes.ts'
 import {
-  isResourceAvailabilityWaitingEnabled,
-  ResourceAvailabilityTimeoutError,
+  isStartupResourcePollingEnabled,
+  StartupResourcePollingTimeoutError,
   waitForResource,
-} from './resourceAvailabilityUtils.ts'
+} from './startupResourcePollingUtils.ts'
 
-describe('resourceAvailabilityUtils', () => {
-  describe('isResourceAvailabilityWaitingEnabled', () => {
+describe('startupResourcePollingUtils', () => {
+  describe('isStartupResourcePollingEnabled', () => {
     it('returns true when enabled is true', () => {
-      expect(isResourceAvailabilityWaitingEnabled({ enabled: true })).toBe(true)
+      expect(isStartupResourcePollingEnabled({ enabled: true, timeoutMs: 5000 })).toBe(true)
     })
 
-    it('returns true when enabled is not specified (defaults to true)', () => {
-      expect(isResourceAvailabilityWaitingEnabled({})).toBe(true)
-      expect(isResourceAvailabilityWaitingEnabled({ pollingIntervalMs: 1000 })).toBe(true)
-      expect(isResourceAvailabilityWaitingEnabled({ timeoutMs: 5000 })).toBe(true)
+    it('returns false when enabled is not specified', () => {
+      expect(isStartupResourcePollingEnabled({ timeoutMs: 5000 })).toBe(false)
+      expect(isStartupResourcePollingEnabled({ pollingIntervalMs: 1000, timeoutMs: 5000 })).toBe(
+        false,
+      )
     })
 
     it('returns false when enabled is false', () => {
-      expect(isResourceAvailabilityWaitingEnabled({ enabled: false })).toBe(false)
+      expect(isStartupResourcePollingEnabled({ enabled: false, timeoutMs: 5000 })).toBe(false)
     })
 
     it('returns false when config is undefined', () => {
-      expect(isResourceAvailabilityWaitingEnabled(undefined)).toBe(false)
+      expect(isStartupResourcePollingEnabled(undefined)).toBe(false)
     })
   })
 
@@ -31,7 +33,7 @@ describe('resourceAvailabilityUtils', () => {
       const checkFn = vi.fn().mockResolvedValue({ isAvailable: true, result: 'test-result' })
 
       const result = await waitForResource({
-        config: { enabled: true, pollingIntervalMs: 100 },
+        config: { enabled: true, pollingIntervalMs: 100, timeoutMs: 5000 },
         checkFn,
         resourceName: 'test-resource',
       })
@@ -51,7 +53,7 @@ describe('resourceAvailabilityUtils', () => {
       })
 
       const result = await waitForResource({
-        config: { enabled: true, pollingIntervalMs: 10 },
+        config: { enabled: true, pollingIntervalMs: 10, timeoutMs: 5000 },
         checkFn,
         resourceName: 'test-resource',
       })
@@ -60,7 +62,7 @@ describe('resourceAvailabilityUtils', () => {
       expect(checkFn).toHaveBeenCalledTimes(3)
     })
 
-    it('throws ResourceAvailabilityTimeoutError when timeout is reached', async () => {
+    it('throws StartupResourcePollingTimeoutError when timeout is reached', async () => {
       const checkFn = vi.fn().mockResolvedValue({ isAvailable: false })
 
       await expect(
@@ -69,7 +71,7 @@ describe('resourceAvailabilityUtils', () => {
           checkFn,
           resourceName: 'test-resource',
         }),
-      ).rejects.toThrow(ResourceAvailabilityTimeoutError)
+      ).rejects.toThrow(StartupResourcePollingTimeoutError)
 
       // Should have made at least a few attempts
       expect(checkFn.mock.calls.length).toBeGreaterThan(0)
@@ -80,7 +82,7 @@ describe('resourceAvailabilityUtils', () => {
 
       await expect(
         waitForResource({
-          config: { enabled: true, pollingIntervalMs: 10 },
+          config: { enabled: true, pollingIntervalMs: 10, timeoutMs: 5000 },
           checkFn,
           resourceName: 'test-resource',
         }),
@@ -93,7 +95,7 @@ describe('resourceAvailabilityUtils', () => {
       const checkFn = vi.fn().mockResolvedValue({ isAvailable: true, result: 'test-result' })
 
       const result = await waitForResource({
-        config: { enabled: true },
+        config: { enabled: true, timeoutMs: 5000 },
         checkFn,
         resourceName: 'test-resource',
       })
@@ -110,7 +112,7 @@ describe('resourceAvailabilityUtils', () => {
       const checkFn = vi.fn().mockResolvedValue({ isAvailable: true, result: 'test-result' })
 
       await waitForResource({
-        config: { enabled: true, pollingIntervalMs: 10 },
+        config: { enabled: true, pollingIntervalMs: 10, timeoutMs: 5000 },
         checkFn,
         resourceName: 'test-resource',
         // @ts-expect-error - partial logger for testing
@@ -131,27 +133,7 @@ describe('resourceAvailabilityUtils', () => {
       )
     })
 
-    it('polls indefinitely when timeoutMs is not set', async () => {
-      let callCount = 0
-      const checkFn = vi.fn().mockImplementation(() => {
-        callCount++
-        if (callCount < 10) {
-          return Promise.resolve({ isAvailable: false })
-        }
-        return Promise.resolve({ isAvailable: true, result: 'test-result' })
-      })
-
-      const result = await waitForResource({
-        config: { enabled: true, pollingIntervalMs: 1 },
-        checkFn,
-        resourceName: 'test-resource',
-      })
-
-      expect(result).toBe('test-result')
-      expect(checkFn).toHaveBeenCalledTimes(10)
-    })
-
-    it('polls indefinitely when timeoutMs is 0', async () => {
+    it('polls indefinitely when NO_TIMEOUT is used', async () => {
       let callCount = 0
       const checkFn = vi.fn().mockImplementation(() => {
         callCount++
@@ -162,7 +144,11 @@ describe('resourceAvailabilityUtils', () => {
       })
 
       const result = await waitForResource({
-        config: { enabled: true, pollingIntervalMs: 1, timeoutMs: 0 },
+        config: {
+          enabled: true,
+          pollingIntervalMs: 1,
+          timeoutMs: NO_TIMEOUT,
+        },
         checkFn,
         resourceName: 'test-resource',
       })
@@ -172,15 +158,15 @@ describe('resourceAvailabilityUtils', () => {
     })
   })
 
-  describe('ResourceAvailabilityTimeoutError', () => {
+  describe('StartupResourcePollingTimeoutError', () => {
     it('includes resource name and timeout in message', () => {
-      const error = new ResourceAvailabilityTimeoutError('my-queue', 5000)
+      const error = new StartupResourcePollingTimeoutError('my-queue', 5000)
 
       expect(error.message).toContain('my-queue')
       expect(error.message).toContain('5000')
       expect(error.resourceName).toBe('my-queue')
       expect(error.timeoutMs).toBe(5000)
-      expect(error.name).toBe('ResourceAvailabilityTimeoutError')
+      expect(error.name).toBe('StartupResourcePollingTimeoutError')
     })
   })
 })
