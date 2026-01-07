@@ -4,6 +4,7 @@ import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import {
   MessageHandlerConfigBuilder,
+  NO_TIMEOUT,
   StartupResourcePollingTimeoutError,
 } from '@message-queue-toolkit/core'
 import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
@@ -182,6 +183,41 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       // Should throw timeout error since topic never appears
       await expect(consumer.init()).rejects.toThrow(StartupResourcePollingTimeoutError)
+    })
+
+    it('polls indefinitely when NO_TIMEOUT is used', async () => {
+      // Create queue first, but not the topic
+      await assertQueue(sqsClient, { QueueName: queueName })
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: NO_TIMEOUT,
+          },
+        },
+        creationConfig: {
+          queue: { QueueName: queueName },
+        },
+      })
+
+      // Start init in background
+      const initPromise = consumer.init()
+
+      // Wait a bit then create the topic
+      await setTimeout(500)
+      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      // Init should complete successfully
+      await initPromise
+
+      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+      expect(consumer.subscriptionProps.queueName).toBe(queueName)
     })
   })
 
