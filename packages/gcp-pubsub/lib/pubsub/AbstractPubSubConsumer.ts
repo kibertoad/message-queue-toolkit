@@ -864,7 +864,7 @@ export abstract class AbstractPubSubConsumer<
 
   protected override resolveMessageLog(
     processedMessageMetadata: ProcessedMessageMetadata<MessagePayloadType>,
-  ): unknown {
+  ): unknown | null {
     if (!processedMessageMetadata.message || !processedMessageMetadata.messageType) {
       return null
     }
