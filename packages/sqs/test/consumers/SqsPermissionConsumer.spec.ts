@@ -992,7 +992,14 @@ describe('SqsPermissionConsumer', () => {
           return Promise.resolve({ error: 'retryLater' })
         },
       })
+
+      // Consumer should not be running before start
+      expect(consumer.isRunning).toBe(false)
+
       await consumer.start()
+
+      // Consumer should be running after start
+      expect(consumer.isRunning).toBe(true)
 
       const publisher = new SqsPermissionPublisher(diContainer.cradle, {
         locatorConfig: { queueUrl: consumer.queueProps.url },

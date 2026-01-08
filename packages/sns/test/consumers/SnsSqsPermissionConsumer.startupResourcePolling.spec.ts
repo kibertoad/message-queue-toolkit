@@ -220,6 +220,83 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
       expect(consumer.subscriptionProps.queueName).toBe(queueName)
     })
+
+    it('start() waits for resources and starts consumers (blocking mode)', async () => {
+      // Create queue first, but not the topic
+      await assertQueue(sqsClient, { QueueName: queueName })
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: 5000,
+          },
+        },
+        creationConfig: {
+          queue: { QueueName: queueName },
+        },
+      })
+
+      // Consumer should not be running before start
+      expect(consumer.isRunning).toBe(false)
+
+      // Start in background (blocking mode waits for resources)
+      const startPromise = consumer.start()
+
+      // Wait a bit then create the topic
+      await setTimeout(200)
+      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      // start() should complete successfully after topic appears
+      await startPromise
+
+      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+      expect(consumer.subscriptionProps.queueUrl).toBe(queueUrl)
+      // Consumer should be running after start completes
+      expect(consumer.isRunning).toBe(true)
+
+      // Clean up
+      await consumer.close()
+    })
+
+    it('start() works immediately when resources already exist (blocking mode)', async () => {
+      // Create both resources before starting
+      await assertQueue(sqsClient, { QueueName: queueName })
+      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicArn,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+          },
+        },
+      })
+
+      // Consumer should not be running before start
+      expect(consumer.isRunning).toBe(false)
+
+      // start() should complete immediately since resources exist
+      await consumer.start()
+
+      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+      expect(consumer.subscriptionProps.queueUrl).toBe(queueUrl)
+      // Consumer should be running after start completes
+      expect(consumer.isRunning).toBe(true)
+
+      // Clean up
+      await consumer.close()
+    })
   })
 
   describe('when nonBlocking mode is enabled', () => {
@@ -464,6 +541,91 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(callbackError).toBeDefined()
       expect(callbackError?.message).toContain('Timeout')
       expect(callbackContext).toEqual({ isFinal: true })
+    })
+
+    it('start() returns immediately when topic is not available and starts consumers when resources become ready', async () => {
+      // Create queue but not topic
+      await assertQueue(sqsClient, { QueueName: queueName })
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: 5000,
+            nonBlocking: true,
+          },
+        },
+        creationConfig: {
+          queue: { QueueName: queueName },
+        },
+      })
+
+      // Consumer should not be running before start
+      expect(consumer.isRunning).toBe(false)
+
+      // start() should return immediately even though topic doesn't exist
+      await consumer.start()
+
+      // queueName should be set but consumer should NOT be running yet (resources not ready)
+      expect(consumer.subscriptionProps.queueName).toBe(queueName)
+      expect(consumer.isRunning).toBe(false)
+
+      // Create topic after start returns
+      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      // Wait for consumer to start running (happens when resources become ready)
+      await vi.waitFor(
+        () => {
+          expect(consumer.isRunning).toBe(true)
+        },
+        { timeout: 3000, interval: 50 },
+      )
+
+      // Verify topicArn was updated
+      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+
+      // Clean up
+      await consumer.close()
+    })
+
+    it('start() works immediately when resources are already available', async () => {
+      // Create both queue and topic before starting
+      await assertQueue(sqsClient, { QueueName: queueName })
+      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicArn,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+            nonBlocking: true,
+          },
+        },
+      })
+
+      // Consumer should not be running before start
+      expect(consumer.isRunning).toBe(false)
+
+      // start() should work immediately since resources exist
+      await consumer.start()
+
+      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+      expect(consumer.subscriptionProps.queueUrl).toBe(queueUrl)
+      // Consumer should be running after start completes (resources were available)
+      expect(consumer.isRunning).toBe(true)
+
+      // Clean up
+      await consumer.close()
     })
   })
 

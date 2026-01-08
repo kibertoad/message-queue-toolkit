@@ -288,10 +288,10 @@ export async function initSnsSqs(
         )
       }
 
-      // biome-ignore lint/style/noNonNullAssertion: Validated above that at least one of topicArn or topicName is present
+      // topicName is guaranteed to be defined here because we validated above that at least one of topicArn or topicName is present
       const topicArnToWaitFor =
         topicResolutionOptions.topicArn ??
-        (await buildTopicArn(stsClient, topicResolutionOptions.topicName!))
+        (await buildTopicArn(stsClient, topicResolutionOptions.topicName as string))
 
       return await createSubscriptionWithPolling(
         sqsClient,
@@ -351,7 +351,8 @@ export async function initSnsSqs(
         extraParams?.onResourcesReady?.({
           topicArn: subscriptionTopicArn,
           queueUrl,
-          subscriptionArn: locatorConfig.subscriptionArn!,
+          // subscriptionArn is guaranteed to be defined here because we're in the branch where locatorConfig.subscriptionArn exists
+          subscriptionArn: locatorConfig.subscriptionArn as string,
           queueName,
         })
       }
