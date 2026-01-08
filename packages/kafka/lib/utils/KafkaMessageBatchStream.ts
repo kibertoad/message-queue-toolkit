@@ -101,8 +101,9 @@ export class KafkaMessageBatchStream<
 const getTopicPartitionKey = (topic: string, partition: number): string => `${topic}:${partition}`
 const splitTopicPartitionKey = (key: string): { topic: string; partition: number } => {
   const [topic, partition] = key.split(':')
-  if (!topic || !partition) {
-    throw new Error('Invalid topic-partition key format')
-  }
+  /* v8 ignore start */
+  if (!topic || !partition) throw new Error('Invalid topic-partition key format')
+  /* v8 ignore stop */
+
   return { topic, partition: Number.parseInt(partition, 10) }
 }

@@ -149,11 +149,12 @@ export abstract class AbstractKafkaConsumer<
     if (!this.consumerStream && !this.messageBatchStream) return false
     try {
       return this.consumer.isConnected()
+      /* v8 ignore start */
     } catch (_) {
       // this should not happen, but if so it means the consumer is not healthy
-      /* v8 ignore next */
       return false
     }
+    /* v8 ignore stop */
   }
 
   /**
@@ -165,11 +166,12 @@ export abstract class AbstractKafkaConsumer<
     if (!this.consumerStream && !this.messageBatchStream) return false
     try {
       return this.consumer.isActive()
+      /* v8 ignore start */
     } catch (_) {
       // this should not happen, but if so it means the consumer is not healthy
-      /* v8 ignore next */
       return false
     }
+    /* v8 ignore stop */
   }
 
   async init(): Promise<void> {
@@ -218,16 +220,6 @@ export abstract class AbstractKafkaConsumer<
       await this.consume(
         message.topic,
         message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
-      )
-    }
-  }
-  private async handleSyncStreamBatch(
-    stream: KafkaMessageBatchStream<DeserializedMessage<SupportedMessageValues<TopicsConfig>>>,
-  ): Promise<void> {
-    for await (const messageBatch of stream) {
-      await this.consume(
-        messageBatch.topic,
-        messageBatch.messages as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
       )
     }
   }
@@ -288,7 +280,6 @@ export abstract class AbstractKafkaConsumer<
     const firstMessage = validMessages[0]!
     const requestContext = this.getRequestContext(firstMessage)
 
-    /* v8 ignore next */
     const transactionId = randomUUID()
     this.transactionObservabilityManager?.start(this.buildTransactionName(topic), transactionId)
 
