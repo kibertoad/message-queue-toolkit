@@ -269,6 +269,15 @@ export abstract class AbstractSqsConsumer<
 
   public async start() {
     await this.init()
+    await this.startConsumers()
+  }
+
+  /**
+   * Creates and starts the SQS consumers.
+   * This method is separated from start() to allow subclasses to defer consumer creation
+   * until resources are ready (e.g., in non-blocking polling mode).
+   */
+  protected async startConsumers() {
     await this.stopExistingConsumers()
 
     const visibilityTimeout = await this.getQueueVisibilityTimeout()

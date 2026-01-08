@@ -465,6 +465,80 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(callbackError?.message).toContain('Timeout')
       expect(callbackContext).toEqual({ isFinal: true })
     })
+
+    it('start() returns immediately when topic is not available and starts consumers when resources become ready', async () => {
+      // Create queue but not topic
+      await assertQueue(sqsClient, { QueueName: queueName })
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: 5000,
+            nonBlocking: true,
+          },
+        },
+        creationConfig: {
+          queue: { QueueName: queueName },
+        },
+      })
+
+      // start() should return immediately even though topic doesn't exist
+      await consumer.start()
+
+      // queueName should be set but consumer shouldn't be actively polling yet
+      expect(consumer.subscriptionProps.queueName).toBe(queueName)
+
+      // Create topic after start returns
+      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      // Wait for consumer to start (handlerSpy becomes available when consumers are running)
+      await vi.waitFor(
+        () => {
+          // Check that topicArn was updated (happens when resources become ready)
+          expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+        },
+        { timeout: 3000, interval: 50 },
+      )
+
+      // Clean up
+      await consumer.close()
+    })
+
+    it('start() works immediately when resources are already available', async () => {
+      // Create both queue and topic before starting
+      await assertQueue(sqsClient, { QueueName: queueName })
+      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicArn,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+            nonBlocking: true,
+          },
+        },
+      })
+
+      // start() should work immediately since resources exist
+      await consumer.start()
+
+      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+      expect(consumer.subscriptionProps.queueUrl).toBe(queueUrl)
+
+      // Clean up
+      await consumer.close()
+    })
   })
 
   describe('when subscriptionArn is not provided (subscription creation mode)', () => {
