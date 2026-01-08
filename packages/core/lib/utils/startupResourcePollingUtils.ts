@@ -48,6 +48,13 @@ export type WaitForResourceOptions<T> = {
    * Only used when config.nonBlocking is true and the resource was not immediately available.
    */
   onResourceAvailable?: (result: T) => void
+
+  /**
+   * Callback invoked when background polling fails in non-blocking mode.
+   * This can happen due to polling timeout or unexpected errors during polling.
+   * Only used when config.nonBlocking is true.
+   */
+  onError?: (error: Error) => void
 }
 
 export class StartupResourcePollingTimeoutError extends Error {
@@ -294,17 +301,20 @@ export async function waitForResource<T>(
     })
 
     // Fire and forget - start polling in background
+    const { onError } = options
     setTimeout(pollingIntervalMs).then(() => {
       pollForResource(options, pollingIntervalMs, hasTimeout, timeoutMs, throwOnTimeout, 1)
         .then((result) => {
           onResourceAvailable?.(result)
         })
-        .catch((error) => {
+        .catch((err) => {
+          const error = err instanceof Error ? err : new Error(String(err))
           logger?.error({
             message: `Background polling for resource "${resourceName}" failed`,
             resourceName,
             error,
           })
+          onError?.(error)
         })
     })
 

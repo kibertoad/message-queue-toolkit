@@ -356,6 +356,59 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(callbackTopicArn).toBeDefined()
       expect(callbackQueueUrl).toBe(queueUrl)
     })
+
+    it('invokes onResourcesError callback when background queue polling times out', async () => {
+      // Neither topic nor queue exist initially
+      // Topic will be created after init returns, queue never appears
+
+      let errorCallbackInvoked = false
+      let callbackError: Error | undefined
+
+      const result = await initSnsSqs(
+        sqsClient,
+        snsClient,
+        stsClient,
+        {
+          topicName,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: 200, // Short timeout so it fails quickly
+            nonBlocking: true,
+          },
+        },
+        undefined,
+        undefined,
+        {
+          onResourcesError: (error) => {
+            errorCallbackInvoked = true
+            callbackError = error
+          },
+        },
+      )
+
+      // Should return immediately with resourcesReady: false
+      expect(result.resourcesReady).toBe(false)
+
+      // Create topic so topic polling succeeds, but NOT queue
+      await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      // Wait for error callback to be invoked (queue polling timeout)
+      // Need to wait for: topic to become available (so topic polling succeeds)
+      // + queue polling timeout (200ms) + some buffer
+      await vi.waitFor(
+        () => {
+          expect(errorCallbackInvoked).toBe(true)
+        },
+        { timeout: 3000, interval: 50 },
+      )
+
+      expect(callbackError).toBeDefined()
+      expect(callbackError?.message).toContain('Timeout')
+    })
   })
 
   describe('when subscriptionArn is not provided (subscription creation mode)', () => {

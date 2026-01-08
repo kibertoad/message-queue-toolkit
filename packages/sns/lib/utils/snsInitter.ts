@@ -35,6 +35,7 @@ async function pollForTopic(
   startupResourcePolling: NonNullable<SNSSQSQueueLocatorType['startupResourcePolling']>,
   extraParams?: ExtraParams,
   onResourceAvailable?: () => void,
+  onError?: (error: Error) => void,
 ): Promise<TopicPollingResult> {
   const topicResult = await waitForResource({
     config: startupResourcePolling,
@@ -42,6 +43,7 @@ async function pollForTopic(
     logger: extraParams?.logger,
     errorReporter: extraParams?.errorReporter,
     onResourceAvailable,
+    onError,
     checkFn: async () => {
       const result = await getTopicAttributes(snsClient, topicArn)
       if (result.error === 'not_found') {
@@ -123,12 +125,14 @@ async function createSubscriptionWithPolling(
         topicArn: result.topicArn,
         queueUrl: result.queueUrl,
       })
-    } catch (error) {
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err))
       extraParams?.logger?.error({
         message: 'Background subscription creation failed',
         topicArn,
         error,
       })
+      extraParams?.onResourcesError?.(error)
     }
   }
 
@@ -177,6 +181,7 @@ async function pollForQueue(
   startupResourcePolling: NonNullable<SNSSQSQueueLocatorType['startupResourcePolling']>,
   extraParams?: ExtraParams,
   onResourceAvailable?: () => void,
+  onError?: (error: Error) => void,
 ): Promise<unknown | undefined> {
   return await waitForResource({
     config: startupResourcePolling,
@@ -184,6 +189,7 @@ async function pollForQueue(
     logger: extraParams?.logger,
     errorReporter: extraParams?.errorReporter,
     onResourceAvailable,
+    onError,
     checkFn: async () => {
       const result = await getQueueAttributes(sqsClient, queueUrl)
       if (result.error === 'not_found') {
@@ -200,6 +206,11 @@ export type InitSnsSqsExtraParams = ExtraParams & {
    * Only called when startupResourcePolling.nonBlocking is true and resources were not immediately available.
    */
   onResourcesReady?: (result: { topicArn: string; queueUrl: string }) => void
+  /**
+   * Callback invoked when background resource polling or subscription creation fails in non-blocking mode.
+   * This can happen due to polling timeout or subscription creation failure.
+   */
+  onResourcesError?: (error: Error) => void
 }
 
 export type InitSnsExtraParams = ExtraParams & {
@@ -328,6 +339,9 @@ export async function initSnsSqs(
         topicAvailable = true
         notifyIfBothReady()
       },
+      (error) => {
+        extraParams?.onResourcesError?.(error)
+      },
     )
 
     // If topic was immediately available, mark it
@@ -343,25 +357,26 @@ export async function initSnsSqs(
       const queueName = splitUrl[splitUrl.length - 1]!
 
       // Also start polling for queue in background so we can notify when both are ready
-      pollForQueue(sqsClient, queueUrl, startupResourcePolling, extraParams, () => {
-        queueAvailable = true
-        notifyIfBothReady()
+      pollForQueue(
+        sqsClient,
+        queueUrl,
+        startupResourcePolling,
+        extraParams,
+        () => {
+          queueAvailable = true
+          notifyIfBothReady()
+        },
+        (error) => {
+          extraParams?.onResourcesError?.(error)
+        },
+      ).then((result) => {
+        // If queue was immediately available, pollForQueue returns the result
+        // but doesn't call onResourceAvailable, so we handle it here
+        if (result !== undefined) {
+          queueAvailable = true
+          notifyIfBothReady()
+        }
       })
-        .then((result) => {
-          // If queue was immediately available, pollForQueue returns the result
-          // but doesn't call onResourceAvailable, so we handle it here
-          if (result !== undefined) {
-            queueAvailable = true
-            notifyIfBothReady()
-          }
-        })
-        .catch((error) => {
-          extraParams?.logger?.error({
-            message: 'Background polling for SQS queue failed',
-            queueUrl,
-            error,
-          })
-        })
 
       return {
         subscriptionArn: locatorConfig.subscriptionArn,
