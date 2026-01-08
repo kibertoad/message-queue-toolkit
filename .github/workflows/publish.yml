@@ -281,6 +281,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Pull latest changes
+        run: git pull --ff-only origin main
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
