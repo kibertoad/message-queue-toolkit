@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/core",
-    "version": "25.1.0",
+    "version": "25.2.0",
     "license": "MIT",
     "description": "Useful utilities, interfaces and base classes for message queue handling. Supports AMQP and SQS with a common abstraction on top currently",
     "maintainers": [
