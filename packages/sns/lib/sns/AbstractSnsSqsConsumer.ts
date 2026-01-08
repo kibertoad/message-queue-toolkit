@@ -104,13 +104,16 @@ export abstract class AbstractSnsSqsConsumer<
       this.subscriptionConfig,
       {
         logger: this.logger,
+        // This callback is only invoked in non-blocking mode when resources were NOT
+        // immediately available. It will NOT be called if resourcesReady is true.
         onResourcesReady: (result) => {
-          // Update values that may have been empty when resourcesReady was false
+          // Update values that were empty when resourcesReady was false
           this.topicArn = result.topicArn
           this.queueUrl = result.queueUrl
           this.subscriptionArn = result.subscriptionArn
           this.queueName = result.queueName
-          // Initialize DLQ now that resources are ready
+          // Initialize DLQ now that resources are ready (this is mutually exclusive
+          // with the synchronous initDeadLetterQueue call below)
           this.initDeadLetterQueue().catch((err) => {
             this.logger.error({
               message: 'Failed to initialize dead letter queue after resources became ready',
