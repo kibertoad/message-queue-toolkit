@@ -28,7 +28,7 @@ export class KafkaMessageBatchStream<
   private readonly currentBatchPerTopicPartition: Record<string, TMessage[]>
   private readonly batchTimeoutPerTopicPartition: Record<string, NodeJS.Timeout | undefined>
 
-  private readonly timeoutBatchesBeingProcessed: Map<string, Promise<void>> = new Map()
+  private readonly timeoutProcessingPromises: Map<string, Promise<void>> = new Map()
 
   constructor(
     onBatch: OnMessageBatchCallback<TMessage>,
@@ -46,9 +46,9 @@ export class KafkaMessageBatchStream<
     const key = getTopicPartitionKey(message.topic, message.partition)
 
     // Wait for all pending timeout flushes to complete to maintain backpressure
-    if (this.timeoutBatchesBeingProcessed.size > 0) {
+    if (this.timeoutProcessingPromises.size > 0) {
       // Capture a snapshot of current promises to avoid race conditions with new timeouts
-      const promises = Array.from(this.timeoutBatchesBeingProcessed.values())
+      const promises = Array.from(this.timeoutProcessingPromises.values())
       // Wait for all to complete and then clean up from the map
       await Promise.all(promises)
     }
@@ -68,10 +68,10 @@ export class KafkaMessageBatchStream<
     if (!this.batchTimeoutPerTopicPartition[key]) {
       this.batchTimeoutPerTopicPartition[key] = setTimeout(
         () =>
-          this.timeoutBatchesBeingProcessed.set(
+          this.timeoutProcessingPromises.set(
             key,
             this.flushCurrentBatchMessages(message.topic, message.partition).finally(() =>
-              this.timeoutBatchesBeingProcessed.delete(key),
+              this.timeoutProcessingPromises.delete(key),
             ),
           ),
         this.timeout,
