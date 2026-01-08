@@ -12,22 +12,26 @@ describe('KafkaMessageBatchStream', () => {
     }))
 
     // When
-    const batchStream = new KafkaMessageBatchStream<any>({
-      batchSize: 3,
-      timeoutMilliseconds: 10000,
-    }) // Setting big timeout to check batch size only
-
     const receivedBatches: MessageBatch<any>[] = []
 
-    const dataFetchingPromise = new Promise((resolve) => {
-      batchStream.on('data', (batch) => {
+    let resolvePromise: () => void
+    const dataFetchingPromise = new Promise<void>((resolve) => {
+      resolvePromise = resolve
+    })
+
+    const batchStream = new KafkaMessageBatchStream<any>(
+      (batch) => {
         receivedBatches.push(batch)
         // We expect 3 batches and last message waiting in the stream
         if (receivedBatches.length >= 3) {
-          resolve(null)
+          resolvePromise()
         }
-      })
-    })
+      },
+      {
+        batchSize: 3,
+        timeoutMilliseconds: 10000,
+      },
+    ) // Setting big timeout to check batch size only
 
     for (const message of messages) {
       batchStream.write(message)
@@ -54,23 +58,25 @@ describe('KafkaMessageBatchStream', () => {
     }))
 
     // When
-    const batchStream = new KafkaMessageBatchStream<any>({
-      batchSize: 1000,
-      timeoutMilliseconds: 500,
-    }) // Setting big batch size to check timeout only
-
     const receivedBatches: MessageBatch<any>[] = []
-    batchStream.on('data', (batch) => {
-      receivedBatches.push(batch)
-    })
+
+    const batchStream = new KafkaMessageBatchStream<any>(
+      (batch) => {
+        receivedBatches.push(batch)
+      },
+      {
+        batchSize: 1000,
+        timeoutMilliseconds: 100,
+      },
+    ) // Setting big batch size to check timeout only
 
     for (const message of messages) {
       batchStream.write(message)
     }
 
-    // Sleep 1 seconds to let the timeout trigger
+    // Sleep to let the timeout trigger
     await new Promise((resolve) => {
-      setTimeout(resolve, 1000)
+      setTimeout(resolve, 150)
     })
 
     // Then
@@ -104,16 +110,16 @@ describe('KafkaMessageBatchStream', () => {
     ]
 
     // When
-    const batchStream = new KafkaMessageBatchStream<{ topic: string; partition: number }>({
-      batchSize: 2,
-      timeoutMilliseconds: 10000,
-    }) // Setting big timeout to check batch size only
-
     const receivedBatchesByTopicPartition: Record<string, any[][]> = {}
-
     let receivedMessagesCounter = 0
-    const dataFetchingPromise = new Promise((resolve) => {
-      batchStream.on('data', (batch) => {
+
+    let resolvePromise: () => void
+    const dataFetchingPromise = new Promise<void>((resolve) => {
+      resolvePromise = resolve
+    })
+
+    const batchStream = new KafkaMessageBatchStream<{ topic: string; partition: number }>(
+      (batch) => {
         const key = `${batch.topic}:${batch.partition}`
         if (!receivedBatchesByTopicPartition[key]) {
           receivedBatchesByTopicPartition[key] = []
@@ -123,10 +129,14 @@ describe('KafkaMessageBatchStream', () => {
         // We expect 5 batches and last message waiting in the stream
         receivedMessagesCounter++
         if (receivedMessagesCounter >= 5) {
-          resolve(null)
+          resolvePromise()
         }
-      })
-    })
+      },
+      {
+        batchSize: 2,
+        timeoutMilliseconds: 10000,
+      },
+    ) // Setting big timeout to check batch size only
 
     for (const message of messages) {
       batchStream.write(message)
@@ -177,25 +187,29 @@ describe('KafkaMessageBatchStream', () => {
     ]
 
     // When
-    const batchStream = new KafkaMessageBatchStream<{ topic: string; partition: number }>({
-      batchSize: 2,
-      timeoutMilliseconds: 10000,
-    }) // Setting big timeout to check batch size only
-
     const receivedBatches: any[] = []
-
     let receivedBatchesCounter = 0
-    const dataFetchingPromise = new Promise((resolve) => {
-      batchStream.on('data', (batch) => {
+
+    let resolvePromise: () => void
+    const dataFetchingPromise = new Promise<void>((resolve) => {
+      resolvePromise = resolve
+    })
+
+    const batchStream = new KafkaMessageBatchStream<{ topic: string; partition: number }>(
+      (batch) => {
         receivedBatches.push(batch)
 
         // We expect 4 batches (2 per partition)
         receivedBatchesCounter++
         if (receivedBatchesCounter >= 4) {
-          resolve(null)
+          resolvePromise()
         }
-      })
-    })
+      },
+      {
+        batchSize: 2,
+        timeoutMilliseconds: 10000,
+      },
+    ) // Setting big timeout to check batch size only
 
     for (const message of messages) {
       batchStream.write(message)
