@@ -48,9 +48,9 @@ export class KafkaMessageBatchStream<
     // Wait for all pending timeout flushes to complete to maintain backpressure
     if (this.timeoutProcessingPromises.size > 0) {
       // Capture a snapshot of current promises to avoid race conditions with new timeouts
-      const promises = Array.from(this.timeoutProcessingPromises.values())
+      const promiseEntries = Array.from(this.timeoutProcessingPromises.entries())
       // Wait for all to complete and then clean up from the map
-      await Promise.all(promises)
+      await Promise.all(promiseEntries.map(([k, p]) => p.finally(() => this.timeoutProcessingPromises.delete(k))))
     }
 
     // Accumulate the message
@@ -68,12 +68,7 @@ export class KafkaMessageBatchStream<
     if (!this.batchTimeoutPerTopicPartition[key]) {
       this.batchTimeoutPerTopicPartition[key] = setTimeout(
         () =>
-          this.timeoutProcessingPromises.set(
-            key,
-            this.flushCurrentBatchMessages(message.topic, message.partition).finally(() =>
-              this.timeoutProcessingPromises.delete(key),
-            ),
-          ),
+          this.timeoutProcessingPromises.set(key, this.flushCurrentBatchMessages(message.topic, message.partition)),
         this.timeout,
       )
     }
