@@ -220,6 +220,73 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
       expect(consumer.subscriptionProps.queueName).toBe(queueName)
     })
+
+    it('start() waits for resources and starts consumers (blocking mode)', async () => {
+      // Create queue first, but not the topic
+      await assertQueue(sqsClient, { QueueName: queueName })
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: 5000,
+          },
+        },
+        creationConfig: {
+          queue: { QueueName: queueName },
+        },
+      })
+
+      // Start in background (blocking mode waits for resources)
+      const startPromise = consumer.start()
+
+      // Wait a bit then create the topic
+      await setTimeout(200)
+      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      // start() should complete successfully after topic appears
+      await startPromise
+
+      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+      expect(consumer.subscriptionProps.queueUrl).toBe(queueUrl)
+
+      // Clean up
+      await consumer.close()
+    })
+
+    it('start() works immediately when resources already exist (blocking mode)', async () => {
+      // Create both resources before starting
+      await assertQueue(sqsClient, { QueueName: queueName })
+      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicArn,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+          },
+        },
+      })
+
+      // start() should complete immediately since resources exist
+      await consumer.start()
+
+      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+      expect(consumer.subscriptionProps.queueUrl).toBe(queueUrl)
+
+      // Clean up
+      await consumer.close()
+    })
   })
 
   describe('when nonBlocking mode is enabled', () => {
