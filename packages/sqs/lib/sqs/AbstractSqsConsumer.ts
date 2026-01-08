@@ -200,6 +200,14 @@ export abstract class AbstractSqsConsumer<
 
   public readonly _messageSchemaContainer: MessageSchemaContainer<MessagePayloadType>
 
+  /**
+   * Returns true if the consumer has active SQS polling consumers running.
+   * Useful for checking if the consumer has started processing messages.
+   */
+  public get isRunning(): boolean {
+    return this.consumers.length > 0
+  }
+
   protected constructor(
     dependencies: SQSConsumerDependencies,
     options: ConsumerOptionsType,

@@ -242,6 +242,9 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         },
       })
 
+      // Consumer should not be running before start
+      expect(consumer.isRunning).toBe(false)
+
       // Start in background (blocking mode waits for resources)
       const startPromise = consumer.start()
 
@@ -254,6 +257,8 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
       expect(consumer.subscriptionProps.queueUrl).toBe(queueUrl)
+      // Consumer should be running after start completes
+      expect(consumer.isRunning).toBe(true)
 
       // Clean up
       await consumer.close()
@@ -278,11 +283,16 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         },
       })
 
+      // Consumer should not be running before start
+      expect(consumer.isRunning).toBe(false)
+
       // start() should complete immediately since resources exist
       await consumer.start()
 
       expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
       expect(consumer.subscriptionProps.queueUrl).toBe(queueUrl)
+      // Consumer should be running after start completes
+      expect(consumer.isRunning).toBe(true)
 
       // Clean up
       await consumer.close()
@@ -555,23 +565,29 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         },
       })
 
+      // Consumer should not be running before start
+      expect(consumer.isRunning).toBe(false)
+
       // start() should return immediately even though topic doesn't exist
       await consumer.start()
 
-      // queueName should be set but consumer shouldn't be actively polling yet
+      // queueName should be set but consumer should NOT be running yet (resources not ready)
       expect(consumer.subscriptionProps.queueName).toBe(queueName)
+      expect(consumer.isRunning).toBe(false)
 
       // Create topic after start returns
       const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
 
-      // Wait for consumer to start (handlerSpy becomes available when consumers are running)
+      // Wait for consumer to start running (happens when resources become ready)
       await vi.waitFor(
         () => {
-          // Check that topicArn was updated (happens when resources become ready)
-          expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+          expect(consumer.isRunning).toBe(true)
         },
         { timeout: 3000, interval: 50 },
       )
+
+      // Verify topicArn was updated
+      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
 
       // Clean up
       await consumer.close()
@@ -597,11 +613,16 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         },
       })
 
+      // Consumer should not be running before start
+      expect(consumer.isRunning).toBe(false)
+
       // start() should work immediately since resources exist
       await consumer.start()
 
       expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
       expect(consumer.subscriptionProps.queueUrl).toBe(queueUrl)
+      // Consumer should be running after start completes (resources were available)
+      expect(consumer.isRunning).toBe(true)
 
       // Clean up
       await consumer.close()
