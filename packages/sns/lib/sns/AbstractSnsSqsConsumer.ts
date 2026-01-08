@@ -102,14 +102,43 @@ export abstract class AbstractSnsSqsConsumer<
       this.locatorConfig,
       this.creationConfig,
       this.subscriptionConfig,
-      { logger: this.logger },
+      {
+        logger: this.logger,
+        // This callback is only invoked in non-blocking mode when resources were NOT
+        // immediately available. It will NOT be called if resourcesReady is true.
+        onResourcesReady: (result) => {
+          // Update values that were empty when resourcesReady was false
+          this.topicArn = result.topicArn
+          this.queueUrl = result.queueUrl
+          this.subscriptionArn = result.subscriptionArn
+          this.queueName = result.queueName
+          // Initialize DLQ now that resources are ready (this is mutually exclusive
+          // with the synchronous initDeadLetterQueue call below)
+          this.initDeadLetterQueue().catch((err) => {
+            this.logger.error({
+              message: 'Failed to initialize dead letter queue after resources became ready',
+              error: err,
+            })
+          })
+        },
+      },
     )
-    this.queueName = initSnsSqsResult.queueName
-    this.queueUrl = initSnsSqsResult.queueUrl
-    this.topicArn = initSnsSqsResult.topicArn
-    this.subscriptionArn = initSnsSqsResult.subscriptionArn
 
-    await this.initDeadLetterQueue()
+    // Always assign topicArn and queueName (always valid in both blocking and non-blocking modes)
+    this.topicArn = initSnsSqsResult.topicArn
+    this.queueName = initSnsSqsResult.queueName
+
+    // Only assign queueUrl and subscriptionArn if resources are ready,
+    // or if they have valid values (non-blocking mode with locatorConfig provides valid values)
+    if (initSnsSqsResult.resourcesReady || initSnsSqsResult.queueUrl) {
+      this.queueUrl = initSnsSqsResult.queueUrl
+      this.subscriptionArn = initSnsSqsResult.subscriptionArn
+    }
+
+    // Only initialize DLQ if resources are ready and queueUrl is available
+    if (initSnsSqsResult.resourcesReady && initSnsSqsResult.queueUrl) {
+      await this.initDeadLetterQueue()
+    }
   }
 
   protected override resolveMessage(message: SQSMessage) {

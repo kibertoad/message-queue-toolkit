@@ -108,6 +108,7 @@ async function createSubscriptionWithPolling(
   resourcesReady: boolean
 }> {
   const nonBlocking = startupResourcePolling.nonBlocking === true
+  // biome-ignore lint/style/noNonNullAssertion: QueueName is validated in initSnsSqs before calling this function
   const queueName = creationConfig.queue.QueueName!
 
   const onTopicReady = async () => {
@@ -124,6 +125,8 @@ async function createSubscriptionWithPolling(
       extraParams?.onResourcesReady?.({
         topicArn: result.topicArn,
         queueUrl: result.queueUrl,
+        subscriptionArn: result.subscriptionArn,
+        queueName,
       })
     } catch (err) {
       const error = isError(err) ? err : new Error(String(err))
@@ -207,7 +210,12 @@ export type InitSnsSqsExtraParams = ExtraParams & {
    * Callback invoked when resources become available in non-blocking mode.
    * Only called when startupResourcePolling.nonBlocking is true and resources were not immediately available.
    */
-  onResourcesReady?: (result: { topicArn: string; queueUrl: string }) => void
+  onResourcesReady?: (result: {
+    topicArn: string
+    queueUrl: string
+    subscriptionArn: string
+    queueName: string
+  }) => void
   /**
    * Callback invoked when background resource polling or subscription creation fails in non-blocking mode.
    * This can happen due to polling timeout or subscription creation failure.
@@ -273,9 +281,17 @@ export async function initSnsSqs(
       isStartupResourcePollingEnabled(startupResourcePolling) &&
       !isCreateTopicCommand(topicResolutionOptions)
     ) {
+      // Validate that we have either topicArn or topicName to build the ARN
+      if (!topicResolutionOptions.topicArn && !topicResolutionOptions.topicName) {
+        throw new Error(
+          'When startup resource polling is enabled and topic is not being created, either topicArn or topicName must be provided in locatorConfig to identify the topic to poll for',
+        )
+      }
+
+      // biome-ignore lint/style/noNonNullAssertion: Validated above that at least one of topicArn or topicName is present
       const topicArnToWaitFor =
         topicResolutionOptions.topicArn ??
-        (await buildTopicArn(stsClient, topicResolutionOptions.topicName ?? ''))
+        (await buildTopicArn(stsClient, topicResolutionOptions.topicName!))
 
       return await createSubscriptionWithPolling(
         sqsClient,
@@ -321,13 +337,23 @@ export async function initSnsSqs(
   if (isStartupResourcePollingEnabled(startupResourcePolling)) {
     const nonBlocking = startupResourcePolling.nonBlocking === true
 
+    // Extract queueName early for use in callbacks
+    const splitUrl = queueUrl.split('/')
+    // biome-ignore lint/style/noNonNullAssertion: It's ok
+    const queueName = splitUrl[splitUrl.length - 1]!
+
     // Track availability for non-blocking mode coordination
     let topicAvailable = false
     let queueAvailable = false
 
     const notifyIfBothReady = () => {
       if (nonBlocking && topicAvailable && queueAvailable) {
-        extraParams?.onResourcesReady?.({ topicArn: subscriptionTopicArn, queueUrl })
+        extraParams?.onResourcesReady?.({
+          topicArn: subscriptionTopicArn,
+          queueUrl,
+          subscriptionArn: locatorConfig.subscriptionArn!,
+          queueName,
+        })
       }
     }
 
@@ -354,10 +380,6 @@ export async function initSnsSqs(
     // If non-blocking and topic wasn't immediately available, return early
     // Background polling will continue and call notifyIfBothReady when topic is available
     if (nonBlocking && topicResult === undefined) {
-      const splitUrl = queueUrl.split('/')
-      // biome-ignore lint/style/noNonNullAssertion: It's ok
-      const queueName = splitUrl[splitUrl.length - 1]!
-
       // Also start polling for queue in background so we can notify when both are ready
       pollForQueue(
         sqsClient,
@@ -419,10 +441,6 @@ export async function initSnsSqs(
 
     // If non-blocking and queue wasn't immediately available, return early
     if (nonBlocking && queueResult === undefined) {
-      const splitUrl = queueUrl.split('/')
-      // biome-ignore lint/style/noNonNullAssertion: It's ok
-      const queueName = splitUrl[splitUrl.length - 1]!
-
       return {
         subscriptionArn: locatorConfig.subscriptionArn,
         topicArn: subscriptionTopicArn,
