@@ -1,7 +1,7 @@
 import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
-import type { Either } from '@lokalise/node-core'
+import { type Either, isError } from '@lokalise/node-core'
 import type { DeletionConfig, ExtraParams } from '@message-queue-toolkit/core'
 import {
   isProduction,
@@ -126,7 +126,7 @@ async function createSubscriptionWithPolling(
         queueUrl: result.queueUrl,
       })
     } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err))
+      const error = isError(err) ? err : new Error(String(err))
       extraParams?.logger?.error({
         message: 'Background subscription creation failed',
         topicArn,

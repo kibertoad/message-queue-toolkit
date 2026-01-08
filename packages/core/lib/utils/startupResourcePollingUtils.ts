@@ -1,5 +1,5 @@
 import { setTimeout } from 'node:timers/promises'
-import type { CommonLogger, ErrorReporter } from '@lokalise/node-core'
+import { type CommonLogger, type ErrorReporter, isError } from '@lokalise/node-core'
 import { NO_TIMEOUT, type StartupResourcePollingConfig } from '../types/queueOptionsTypes.ts'
 
 const DEFAULT_POLLING_INTERVAL_MS = 5000
@@ -308,7 +308,7 @@ export async function waitForResource<T>(
           onResourceAvailable?.(result)
         })
         .catch((err) => {
-          const error = err instanceof Error ? err : new Error(String(err))
+          const error = isError(err) ? err : new Error(String(err))
           logger?.error({
             message: `Background polling for resource "${resourceName}" failed`,
             resourceName,
