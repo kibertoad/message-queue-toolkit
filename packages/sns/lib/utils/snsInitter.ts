@@ -371,14 +371,25 @@ export async function initSnsSqs(
         (error, context) => {
           extraParams?.onResourcesError?.(error, context)
         },
-      ).then((result) => {
-        // If queue was immediately available, pollForQueue returns the result
-        // but doesn't call onResourceAvailable, so we handle it here
-        if (result !== undefined) {
-          queueAvailable = true
-          notifyIfBothReady()
-        }
-      })
+      )
+        .then((result) => {
+          // If queue was immediately available, pollForQueue returns the result
+          // but doesn't call onResourceAvailable, so we handle it here
+          if (result !== undefined) {
+            queueAvailable = true
+            notifyIfBothReady()
+          }
+        })
+        .catch((err) => {
+          // Handle unexpected errors during background polling
+          const error = isError(err) ? err : new Error(String(err))
+          extraParams?.logger?.error({
+            message: 'Background queue polling failed unexpectedly',
+            queueUrl,
+            error,
+          })
+          extraParams?.onResourcesError?.(error, { isFinal: true })
+        })
 
       return {
         subscriptionArn: locatorConfig.subscriptionArn,
