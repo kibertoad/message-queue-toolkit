@@ -1,8 +1,24 @@
 import { setTimeout } from 'node:timers/promises'
-import type { CommonLogger, ErrorReporter } from '@lokalise/node-core'
+import { type CommonLogger, type ErrorReporter, isError } from '@lokalise/node-core'
 import { NO_TIMEOUT, type StartupResourcePollingConfig } from '../types/queueOptionsTypes.ts'
 
 const DEFAULT_POLLING_INTERVAL_MS = 5000
+
+/**
+ * Context passed to error callbacks indicating whether the error is final.
+ */
+export type PollingErrorContext = {
+  /**
+   * If true, the operation has stopped and will not retry.
+   * If false, this is a transient error and the operation will continue.
+   */
+  isFinal: boolean
+}
+
+/**
+ * Callback invoked when a polling operation fails.
+ */
+export type PollingErrorCallback = (error: Error, context: PollingErrorContext) => void
 
 export type StartupResourcePollingCheckResult<T> =
   | {
@@ -48,6 +64,13 @@ export type WaitForResourceOptions<T> = {
    * Only used when config.nonBlocking is true and the resource was not immediately available.
    */
   onResourceAvailable?: (result: T) => void
+
+  /**
+   * Callback invoked when background polling fails in non-blocking mode.
+   * This can happen due to polling timeout or unexpected errors during polling.
+   * Only used when config.nonBlocking is true.
+   */
+  onError?: PollingErrorCallback
 }
 
 export class StartupResourcePollingTimeoutError extends Error {
@@ -294,17 +317,22 @@ export async function waitForResource<T>(
     })
 
     // Fire and forget - start polling in background
+    const { onError } = options
     setTimeout(pollingIntervalMs).then(() => {
       pollForResource(options, pollingIntervalMs, hasTimeout, timeoutMs, throwOnTimeout, 1)
         .then((result) => {
           onResourceAvailable?.(result)
         })
-        .catch((error) => {
+        .catch((err) => {
+          const error = isError(err) ? err : new Error(String(err))
           logger?.error({
             message: `Background polling for resource "${resourceName}" failed`,
             resourceName,
             error,
           })
+          // isFinal: true because pollForResource only throws when it gives up
+          // (timeout with throwOnTimeout: true, or unexpected error)
+          onError?.(error, { isFinal: true })
         })
     })
 

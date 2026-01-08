@@ -107,6 +107,8 @@ export { type ParseMessageResult, parseMessage } from './utils/parseUtils.ts'
 export { objectToBuffer } from './utils/queueUtils.ts'
 export {
   isStartupResourcePollingEnabled,
+  type PollingErrorCallback,
+  type PollingErrorContext,
   type StartupResourcePollingCheckResult,
   StartupResourcePollingTimeoutError,
   type WaitForResourceOptions,
