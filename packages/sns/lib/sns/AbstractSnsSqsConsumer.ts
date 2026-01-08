@@ -144,7 +144,8 @@ export abstract class AbstractSnsSqsConsumer<
             })
             .catch((err) => {
               this.logger.error({
-                message: 'Failed to initialize dead letter queue or start consumers after resources became ready',
+                message:
+                  'Failed to initialize dead letter queue or start consumers after resources became ready',
                 error: err,
               })
             })
@@ -183,7 +184,8 @@ export abstract class AbstractSnsSqsConsumer<
       // Consumers will be started automatically when onResourcesReady callback fires.
       this.startRequested = true
       this.logger.info({
-        message: 'Start requested but resources not ready yet, will start when resources become available',
+        message:
+          'Start requested but resources not ready yet, will start when resources become available',
         queueName: this.queueName,
         topicArn: this.topicArn,
       })
