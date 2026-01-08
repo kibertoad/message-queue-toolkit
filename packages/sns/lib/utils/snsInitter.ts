@@ -143,6 +143,7 @@ async function createSubscriptionWithPolling(
     startupResourcePolling,
     extraParams,
     nonBlocking ? onTopicReady : undefined,
+    nonBlocking ? extraParams?.onResourcesError : undefined,
   )
 
   // Non-blocking: return early if topic wasn't immediately available

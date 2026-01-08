@@ -412,6 +412,59 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(callbackError?.message).toContain('Timeout')
       expect(callbackContext).toEqual({ isFinal: true })
     })
+
+    it('invokes onResourcesError callback when background topic polling times out', async () => {
+      // Neither topic nor queue exist initially
+      // Topic never appears - will timeout
+
+      let errorCallbackInvoked = false
+      let callbackError: Error | undefined
+      let callbackContext: { isFinal: boolean } | undefined
+
+      const result = await initSnsSqs(
+        sqsClient,
+        snsClient,
+        stsClient,
+        {
+          topicName,
+          queueUrl,
+          subscriptionArn:
+            'arn:aws:sns:eu-west-1:000000000000:dummy:bdf640a2-bedf-475a-98b8-758b88c87395',
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: 200, // Short timeout so it fails quickly
+            nonBlocking: true,
+          },
+        },
+        undefined,
+        undefined,
+        {
+          onResourcesError: (error, context) => {
+            errorCallbackInvoked = true
+            callbackError = error
+            callbackContext = context
+          },
+        },
+      )
+
+      // Should return immediately with resourcesReady: false
+      expect(result.resourcesReady).toBe(false)
+
+      // Don't create topic - let it timeout
+
+      // Wait for error callback to be invoked (topic polling timeout)
+      await vi.waitFor(
+        () => {
+          expect(errorCallbackInvoked).toBe(true)
+        },
+        { timeout: 2000, interval: 50 },
+      )
+
+      expect(callbackError).toBeDefined()
+      expect(callbackError?.message).toContain('Timeout')
+      expect(callbackContext).toEqual({ isFinal: true })
+    })
   })
 
   describe('when subscriptionArn is not provided (subscription creation mode)', () => {
@@ -550,6 +603,88 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       expect(callbackTopicArn).toBe(topicArn)
       expect(callbackQueueUrl).toContain(queueName)
+    })
+
+    it('creates subscription immediately when topic is available in non-blocking mode', async () => {
+      // Topic exists before init
+      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      const result = await initSnsSqs(
+        sqsClient,
+        snsClient,
+        stsClient,
+        {
+          topicName,
+          // No subscriptionArn - will create subscription
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+            nonBlocking: true,
+          },
+        },
+        {
+          queue: { QueueName: queueName },
+        },
+        { updateAttributesIfExists: false },
+      )
+
+      // Should return immediately with resourcesReady: true since topic was immediately available
+      expect(result.resourcesReady).toBe(true)
+      expect(result.subscriptionArn).toBeDefined()
+      expect(result.subscriptionArn).not.toBe('')
+      expect(result.topicArn).toBe(topicArn)
+      expect(result.queueName).toBe(queueName)
+    })
+
+    it('invokes onResourcesError callback when topic polling times out in non-blocking mode', async () => {
+      // No topic exists - will timeout
+
+      let errorCallbackInvoked = false
+      let callbackError: Error | undefined
+      let callbackContext: { isFinal: boolean } | undefined
+
+      const result = await initSnsSqs(
+        sqsClient,
+        snsClient,
+        stsClient,
+        {
+          topicName,
+          // No subscriptionArn - will create subscription
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: 200, // Short timeout so it fails quickly
+            nonBlocking: true,
+          },
+        },
+        {
+          queue: { QueueName: queueName },
+        },
+        { updateAttributesIfExists: false },
+        {
+          onResourcesError: (error, context) => {
+            errorCallbackInvoked = true
+            callbackError = error
+            callbackContext = context
+          },
+        },
+      )
+
+      // Should return immediately with resourcesReady: false
+      expect(result.resourcesReady).toBe(false)
+
+      // Wait for error callback to be invoked (topic polling timeout)
+      await vi.waitFor(
+        () => {
+          expect(errorCallbackInvoked).toBe(true)
+        },
+        { timeout: 2000, interval: 50 },
+      )
+
+      expect(callbackError).toBeDefined()
+      expect(callbackError?.message).toContain('Timeout')
+      expect(callbackContext).toEqual({ isFinal: true })
     })
   })
 
