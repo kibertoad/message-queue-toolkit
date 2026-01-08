@@ -22,6 +22,62 @@ import { subscribeToTopic } from './snsSubscriber.ts'
 import { assertTopic, deleteSubscription, deleteTopic, getTopicAttributes } from './snsUtils.ts'
 import { buildTopicArn } from './stsUtils.ts'
 
+// Helper type for topic polling result
+type TopicPollingResult = {
+  topicResult: unknown | undefined
+  topicArn: string
+}
+
+// Helper function to poll for SNS topic availability
+async function pollForTopic(
+  snsClient: SNSClient,
+  topicArn: string,
+  startupResourcePolling: NonNullable<SNSSQSQueueLocatorType['startupResourcePolling']>,
+  extraParams?: ExtraParams,
+  onResourceAvailable?: () => void,
+): Promise<TopicPollingResult> {
+  const topicResult = await waitForResource({
+    config: startupResourcePolling,
+    resourceName: `SNS topic ${topicArn}`,
+    logger: extraParams?.logger,
+    errorReporter: extraParams?.errorReporter,
+    onResourceAvailable,
+    checkFn: async () => {
+      const result = await getTopicAttributes(snsClient, topicArn)
+      if (result.error === 'not_found') {
+        return { isAvailable: false }
+      }
+      return { isAvailable: true, result: result.result }
+    },
+  })
+
+  return { topicResult, topicArn }
+}
+
+// Helper function to poll for SQS queue availability
+async function pollForQueue(
+  sqsClient: SQSClient,
+  queueUrl: string,
+  startupResourcePolling: NonNullable<SNSSQSQueueLocatorType['startupResourcePolling']>,
+  extraParams?: ExtraParams,
+  onResourceAvailable?: () => void,
+): Promise<unknown | undefined> {
+  return await waitForResource({
+    config: startupResourcePolling,
+    resourceName: `SQS queue ${queueUrl}`,
+    logger: extraParams?.logger,
+    errorReporter: extraParams?.errorReporter,
+    onResourceAvailable,
+    checkFn: async () => {
+      const result = await getQueueAttributes(sqsClient, queueUrl)
+      if (result.error === 'not_found') {
+        return { isAvailable: false }
+      }
+      return { isAvailable: true, result: result.result }
+    },
+  })
+}
+
 export type InitSnsSqsExtraParams = ExtraParams & {
   /**
    * Callback invoked when resources become available in non-blocking mode.
@@ -81,6 +137,39 @@ export async function initSnsSqs(
       ...creationConfig.topic,
     }
 
+    // If startup resource polling is enabled and we're not creating the topic (just locating it),
+    // we should poll for the topic to exist before attempting to subscribe
+    const startupResourcePolling = locatorConfig?.startupResourcePolling
+    if (
+      isStartupResourcePollingEnabled(startupResourcePolling) &&
+      !isCreateTopicCommand(topicResolutionOptions)
+    ) {
+      const topicArnToWaitFor =
+        topicResolutionOptions.topicArn ??
+        (await buildTopicArn(stsClient, topicResolutionOptions.topicName ?? ''))
+
+      const nonBlocking = startupResourcePolling.nonBlocking === true
+
+      const { topicResult } = await pollForTopic(
+        snsClient,
+        topicArnToWaitFor,
+        startupResourcePolling,
+        extraParams,
+      )
+
+      // If non-blocking and topic wasn't immediately available, return early with resourcesReady: false
+      // The caller will need to handle this case (e.g., retry later or use onResourcesReady callback)
+      if (nonBlocking && topicResult === undefined) {
+        return {
+          subscriptionArn: '',
+          topicArn: topicArnToWaitFor,
+          queueName: creationConfig.queue.QueueName,
+          queueUrl: '',
+          resourcesReady: false,
+        }
+      }
+    }
+
     const { subscriptionArn, topicArn, queueUrl } = await subscribeToTopic(
       sqsClient,
       snsClient,
@@ -133,23 +222,16 @@ export async function initSnsSqs(
     }
 
     // Wait for topic to become available
-    const topicResult = await waitForResource({
-      config: startupResourcePolling,
-      resourceName: `SNS topic ${subscriptionTopicArn}`,
-      logger: extraParams?.logger,
-      errorReporter: extraParams?.errorReporter,
-      onResourceAvailable: () => {
+    const { topicResult } = await pollForTopic(
+      snsClient,
+      subscriptionTopicArn,
+      startupResourcePolling,
+      extraParams,
+      () => {
         topicAvailable = true
         notifyIfBothReady()
       },
-      checkFn: async () => {
-        const result = await getTopicAttributes(snsClient, subscriptionTopicArn)
-        if (result.error === 'not_found') {
-          return { isAvailable: false }
-        }
-        return { isAvailable: true, result: result.result }
-      },
-    })
+    )
 
     // If topic was immediately available, mark it
     if (topicResult !== undefined) {
@@ -164,25 +246,12 @@ export async function initSnsSqs(
       const queueName = splitUrl[splitUrl.length - 1]!
 
       // Also start polling for queue in background so we can notify when both are ready
-      waitForResource({
-        config: startupResourcePolling,
-        resourceName: `SQS queue ${queueUrl}`,
-        logger: extraParams?.logger,
-        errorReporter: extraParams?.errorReporter,
-        onResourceAvailable: () => {
-          queueAvailable = true
-          notifyIfBothReady()
-        },
-        checkFn: async () => {
-          const result = await getQueueAttributes(sqsClient, queueUrl)
-          if (result.error === 'not_found') {
-            return { isAvailable: false }
-          }
-          return { isAvailable: true, result: result.result }
-        },
+      pollForQueue(sqsClient, queueUrl, startupResourcePolling, extraParams, () => {
+        queueAvailable = true
+        notifyIfBothReady()
       })
         .then((result) => {
-          // If queue was immediately available, waitForResource returns the result
+          // If queue was immediately available, pollForQueue returns the result
           // but doesn't call onResourceAvailable, so we handle it here
           if (result !== undefined) {
             queueAvailable = true
@@ -207,23 +276,16 @@ export async function initSnsSqs(
     }
 
     // Wait for queue to become available
-    const queueResult = await waitForResource({
-      config: startupResourcePolling,
-      resourceName: `SQS queue ${queueUrl}`,
-      logger: extraParams?.logger,
-      errorReporter: extraParams?.errorReporter,
-      onResourceAvailable: () => {
+    const queueResult = await pollForQueue(
+      sqsClient,
+      queueUrl,
+      startupResourcePolling,
+      extraParams,
+      () => {
         queueAvailable = true
         notifyIfBothReady()
       },
-      checkFn: async () => {
-        const result = await getQueueAttributes(sqsClient, queueUrl)
-        if (result.error === 'not_found') {
-          return { isAvailable: false }
-        }
-        return { isAvailable: true, result: result.result }
-      },
-    })
+    )
 
     // If queue was immediately available, mark it
     if (queueResult !== undefined) {

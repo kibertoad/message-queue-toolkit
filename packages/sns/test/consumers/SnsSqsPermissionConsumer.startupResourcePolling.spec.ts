@@ -358,6 +358,93 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
     })
   })
 
+  describe('when subscriptionArn is not provided (subscription creation mode)', () => {
+    it('waits for topic to become available before creating subscription', async () => {
+      // No topic and no queue exist initially
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName,
+          // No subscriptionArn - will create subscription
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+          },
+        },
+        creationConfig: {
+          queue: { QueueName: queueName },
+        },
+      })
+
+      // Start init in background
+      const initPromise = consumer.init()
+
+      // Wait a bit then create the topic (queue will be created by assertQueue in subscribeToTopic)
+      await setTimeout(300)
+      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+
+      // Init should complete successfully after topic is created
+      await initPromise
+
+      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+      expect(consumer.subscriptionProps.queueName).toBe(queueName)
+      expect(consumer.subscriptionProps.subscriptionArn).toBeDefined()
+    })
+
+    it('throws StartupResourcePollingTimeoutError when topic never appears', async () => {
+      // No topic exists
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName,
+          // No subscriptionArn - will create subscription
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 50,
+            timeoutMs: 200, // Short timeout
+          },
+        },
+        creationConfig: {
+          queue: { QueueName: queueName },
+        },
+      })
+
+      // Should throw timeout error since topic never appears
+      await expect(consumer.init()).rejects.toThrow(StartupResourcePollingTimeoutError)
+    })
+
+    it('returns immediately in non-blocking mode when topic not available', async () => {
+      // Test at the initter level since consumer.init() sets internal state
+      const { initSnsSqs } = await import('../../lib/utils/snsInitter.ts')
+
+      const result = await initSnsSqs(
+        sqsClient,
+        snsClient,
+        stsClient,
+        {
+          topicName,
+          // No subscriptionArn
+          startupResourcePolling: {
+            enabled: true,
+            pollingIntervalMs: 100,
+            timeoutMs: 5000,
+            nonBlocking: true,
+          },
+        },
+        {
+          queue: { QueueName: queueName },
+        },
+        { updateAttributesIfExists: false },
+      )
+
+      // Should return immediately with resourcesReady: false
+      expect(result.resourcesReady).toBe(false)
+      expect(result.subscriptionArn).toBe('')
+      expect(result.queueName).toBe(queueName)
+    })
+  })
+
   describe('when startupResourcePolling is disabled', () => {
     it('throws immediately when topic does not exist', async () => {
       // Create queue but not topic
