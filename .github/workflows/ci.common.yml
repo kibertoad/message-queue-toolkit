@@ -21,6 +21,9 @@ jobs:
           node-version: ${{ inputs.node_version }}
           package-manager-cache: false
 
+      - name: Pull latest changes
+        run: git pull origin ${{ github.head_ref || github.ref_name }}
+
       - name: Install
         run: npm install --ignore-scripts
 
