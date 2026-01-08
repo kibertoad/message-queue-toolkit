@@ -4,6 +4,22 @@ import { NO_TIMEOUT, type StartupResourcePollingConfig } from '../types/queueOpt
 
 const DEFAULT_POLLING_INTERVAL_MS = 5000
 
+/**
+ * Context passed to error callbacks indicating whether the error is final.
+ */
+export type PollingErrorContext = {
+  /**
+   * If true, the operation has stopped and will not retry.
+   * If false, this is a transient error and the operation will continue.
+   */
+  isFinal: boolean
+}
+
+/**
+ * Callback invoked when a polling operation fails.
+ */
+export type PollingErrorCallback = (error: Error, context: PollingErrorContext) => void
+
 export type StartupResourcePollingCheckResult<T> =
   | {
       isAvailable: true
@@ -54,7 +70,7 @@ export type WaitForResourceOptions<T> = {
    * This can happen due to polling timeout or unexpected errors during polling.
    * Only used when config.nonBlocking is true.
    */
-  onError?: (error: Error) => void
+  onError?: PollingErrorCallback
 }
 
 export class StartupResourcePollingTimeoutError extends Error {
@@ -314,7 +330,9 @@ export async function waitForResource<T>(
             resourceName,
             error,
           })
-          onError?.(error)
+          // isFinal: true because pollForResource only throws when it gives up
+          // (timeout with throwOnTimeout: true, or unexpected error)
+          onError?.(error, { isFinal: true })
         })
     })
 

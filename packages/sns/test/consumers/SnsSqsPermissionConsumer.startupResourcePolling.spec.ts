@@ -363,6 +363,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       let errorCallbackInvoked = false
       let callbackError: Error | undefined
+      let callbackContext: { isFinal: boolean } | undefined
 
       const result = await initSnsSqs(
         sqsClient,
@@ -383,9 +384,10 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         undefined,
         undefined,
         {
-          onResourcesError: (error) => {
+          onResourcesError: (error, context) => {
             errorCallbackInvoked = true
             callbackError = error
+            callbackContext = context
           },
         },
       )
@@ -408,6 +410,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       expect(callbackError).toBeDefined()
       expect(callbackError?.message).toContain('Timeout')
+      expect(callbackContext).toEqual({ isFinal: true })
     })
   })
 

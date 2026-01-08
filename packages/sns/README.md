@@ -598,10 +598,16 @@ const result = await initSnsSqs(
       console.log('Queue URL:', queueUrl)
     },
 
-    // Called if background polling fails (e.g., timeout)
-    onResourcesError: (error) => {
-      console.error('Failed to wait for resources:', error.message)
-      // Handle error - maybe alert, retry, or graceful degradation
+    // Called if background polling fails (e.g., timeout or unexpected error)
+    onResourcesError: (error, context) => {
+      if (context.isFinal) {
+        // Polling has stopped and will not retry
+        console.error('Failed to wait for resources:', error.message)
+        // Handle error - maybe alert, retry, or graceful degradation
+      } else {
+        // Transient error, polling will continue
+        console.warn('Transient error while polling:', error.message)
+      }
     },
   },
 )

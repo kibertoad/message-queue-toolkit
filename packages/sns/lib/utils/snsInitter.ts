@@ -2,7 +2,7 @@ import type { CreateTopicCommandInput, SNSClient } from '@aws-sdk/client-sns'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import { type Either, isError } from '@lokalise/node-core'
-import type { DeletionConfig, ExtraParams } from '@message-queue-toolkit/core'
+import type { DeletionConfig, ExtraParams, PollingErrorCallback } from '@message-queue-toolkit/core'
 import {
   isProduction,
   isStartupResourcePollingEnabled,
@@ -35,7 +35,7 @@ async function pollForTopic(
   startupResourcePolling: NonNullable<SNSSQSQueueLocatorType['startupResourcePolling']>,
   extraParams?: ExtraParams,
   onResourceAvailable?: () => void,
-  onError?: (error: Error) => void,
+  onError?: PollingErrorCallback,
 ): Promise<TopicPollingResult> {
   const topicResult = await waitForResource({
     config: startupResourcePolling,
@@ -132,7 +132,8 @@ async function createSubscriptionWithPolling(
         topicArn,
         error,
       })
-      extraParams?.onResourcesError?.(error)
+      // Subscription creation failure is final - we don't retry
+      extraParams?.onResourcesError?.(error, { isFinal: true })
     }
   }
 
@@ -181,7 +182,7 @@ async function pollForQueue(
   startupResourcePolling: NonNullable<SNSSQSQueueLocatorType['startupResourcePolling']>,
   extraParams?: ExtraParams,
   onResourceAvailable?: () => void,
-  onError?: (error: Error) => void,
+  onError?: PollingErrorCallback,
 ): Promise<unknown | undefined> {
   return await waitForResource({
     config: startupResourcePolling,
@@ -210,7 +211,7 @@ export type InitSnsSqsExtraParams = ExtraParams & {
    * Callback invoked when background resource polling or subscription creation fails in non-blocking mode.
    * This can happen due to polling timeout or subscription creation failure.
    */
-  onResourcesError?: (error: Error) => void
+  onResourcesError?: PollingErrorCallback
 }
 
 export type InitSnsExtraParams = ExtraParams & {
@@ -339,8 +340,8 @@ export async function initSnsSqs(
         topicAvailable = true
         notifyIfBothReady()
       },
-      (error) => {
-        extraParams?.onResourcesError?.(error)
+      (error, context) => {
+        extraParams?.onResourcesError?.(error, context)
       },
     )
 
@@ -366,8 +367,8 @@ export async function initSnsSqs(
           queueAvailable = true
           notifyIfBothReady()
         },
-        (error) => {
-          extraParams?.onResourcesError?.(error)
+        (error, context) => {
+          extraParams?.onResourcesError?.(error, context)
         },
       ).then((result) => {
         // If queue was immediately available, pollForQueue returns the result
