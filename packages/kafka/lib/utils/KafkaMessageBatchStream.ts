@@ -9,9 +9,7 @@ export type KafkaMessageBatchOptions = {
 }
 
 export type MessageBatch<TMessage> = { topic: string; partition: number; messages: TMessage[] }
-export type OnMessageBatchCallback<TMessage> = (
-  batch: MessageBatch<TMessage>,
-) => Promise<void> | void
+export type OnMessageBatchCallback<TMessage> = (batch: MessageBatch<TMessage>) => Promise<void>
 
 /**
  * Collects messages in batches based on provided batchSize and flushes them when messages amount or timeout is reached.
@@ -30,6 +28,8 @@ export class KafkaMessageBatchStream<
   private readonly currentBatchPerTopicPartition: Record<string, TMessage[]>
   private readonly batchTimeoutPerTopicPartition: Record<string, NodeJS.Timeout | undefined>
 
+  private readonly timeoutBatchesBeingProcessed: Map<string, Promise<void>> = new Map()
+
   constructor(
     onBatch: OnMessageBatchCallback<TMessage>,
     options: { batchSize: number; timeoutMilliseconds: number },
@@ -45,12 +45,19 @@ export class KafkaMessageBatchStream<
   override async _transform(message: TMessage, _encoding: BufferEncoding, callback: () => void) {
     const key = getTopicPartitionKey(message.topic, message.partition)
 
-    // Accumulate message
-    if (!this.currentBatchPerTopicPartition[key]) this.currentBatchPerTopicPartition[key] = []
-    // biome-ignore lint/style/noNonNullAssertion: non-existing entry is handled above
-    this.currentBatchPerTopicPartition[key]!.push(message)
+    // Wait for all pending timeout flushes to complete to maintain backpressure
+    if (this.timeoutBatchesBeingProcessed.size > 0) {
+      // Capture a snapshot of current promises to avoid race conditions with new timeouts
+      const promises = Array.from(this.timeoutBatchesBeingProcessed.values())
+      // Wait for all to complete and then clean up from the map
+      await Promise.all(promises)
+    }
 
-    // Check if batch is complete by size
+    // Accumulate the message
+    if (!this.currentBatchPerTopicPartition[key]) this.currentBatchPerTopicPartition[key] = []
+    this.currentBatchPerTopicPartition[key].push(message)
+
+    // Check if the batch is complete by size
     if (this.currentBatchPerTopicPartition[key].length >= this.batchSize) {
       await this.flushCurrentBatchMessages(message.topic, message.partition)
       callback()
@@ -60,7 +67,13 @@ export class KafkaMessageBatchStream<
     // Start timeout for this partition if not already started
     if (!this.batchTimeoutPerTopicPartition[key]) {
       this.batchTimeoutPerTopicPartition[key] = setTimeout(
-        () => this.flushCurrentBatchMessages(message.topic, message.partition),
+        () =>
+          this.timeoutBatchesBeingProcessed.set(
+            key,
+            this.flushCurrentBatchMessages(message.topic, message.partition).finally(() =>
+              this.timeoutBatchesBeingProcessed.delete(key),
+            ),
+          ),
         this.timeout,
       )
     }

@@ -22,10 +22,11 @@ describe('KafkaMessageBatchStream', () => {
     const batchStream = new KafkaMessageBatchStream<any>(
       (batch) => {
         receivedBatches.push(batch)
-        // We expect 3 batches and last message waiting in the stream
+        // We expect 3 batches and the last message waiting in the stream
         if (receivedBatches.length >= 3) {
           resolvePromise()
         }
+        return Promise.resolve()
       },
       {
         batchSize: 3,
@@ -63,6 +64,7 @@ describe('KafkaMessageBatchStream', () => {
     const batchStream = new KafkaMessageBatchStream<any>(
       (batch) => {
         receivedBatches.push(batch)
+        return Promise.resolve()
       },
       {
         batchSize: 1000,
@@ -131,6 +133,8 @@ describe('KafkaMessageBatchStream', () => {
         if (receivedMessagesCounter >= 5) {
           resolvePromise()
         }
+
+        return Promise.resolve()
       },
       {
         batchSize: 2,
@@ -204,6 +208,8 @@ describe('KafkaMessageBatchStream', () => {
         if (receivedBatchesCounter >= 4) {
           resolvePromise()
         }
+
+        return Promise.resolve()
       },
       {
         batchSize: 2,
