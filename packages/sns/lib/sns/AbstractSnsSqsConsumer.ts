@@ -131,6 +131,12 @@ export abstract class AbstractSnsSqsConsumer<
           // Initialize DLQ now that resources are ready (this is mutually exclusive
           // with the synchronous initDeadLetterQueue call below)
           this.initDeadLetterQueue()
+            .catch((err) => {
+              this.logger.error({
+                message: 'Failed to initialize dead letter queue after resources became ready',
+                error: err,
+              })
+            })
             .then(() => {
               // If start() was called while resources weren't ready, start consumers now
               if (this.startRequested) {
@@ -144,8 +150,7 @@ export abstract class AbstractSnsSqsConsumer<
             })
             .catch((err) => {
               this.logger.error({
-                message:
-                  'Failed to initialize dead letter queue or start consumers after resources became ready',
+                message: 'Failed to start consumers after resources became ready',
                 error: err,
               })
             })
