@@ -1,8 +1,6 @@
+import { setTimeout as sleep } from 'node:timers/promises'
 import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
-import {setTimeout as sleep} from 'node:timers/promises'
 import { KafkaMessageBatchStream, type MessageBatch } from './KafkaMessageBatchStream.ts'
-import {pipeline, Readable} from "node:stream";
-import {promisify} from "node:util";
 
 describe('KafkaMessageBatchStream', () => {
   it('should batch messages based on batch size', async () => {
