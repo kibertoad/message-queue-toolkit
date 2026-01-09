@@ -1,4 +1,4 @@
-import { setTimeout as sleep } from 'node:timers/promises'
+import { setTimeout } from 'node:timers/promises'
 import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
 import { KafkaMessageBatchStream, type MessageBatch } from './KafkaMessageBatchStream.ts'
 
@@ -79,9 +79,7 @@ describe('KafkaMessageBatchStream', () => {
     }
 
     // Sleep to let the timeout trigger
-    await new Promise((resolve) => {
-      setTimeout(resolve, 150)
-    })
+    await setTimeout(150)
 
     // Then
     expect(receivedBatches).toEqual([{ topic, partition: 0, messages }])
@@ -244,19 +242,22 @@ describe('KafkaMessageBatchStream', () => {
       partition: 0,
     }))
 
-    const batchStartTimes: number[] = []
-    const batchEndTimes: number[] = []
-    let batchesProcessing = 0
-    let maxConcurrentBatches = 0
+    const batchStartTimes: number[] = [] // Track start times of batch processing
+    const batchEndTimes: number[] = [] // Track end times of batch processing
+    const batchMessageCounts: number[] = [] // Track number of messages per batch
+    let maxConcurrentBatches = 0 // Track max concurrent batches
 
+    let batchesProcessing = 0
     const batchStream = new KafkaMessageBatchStream<any>(
-      async (_batch) => {
+      async (batch) => {
         batchStartTimes.push(Date.now())
+        batchMessageCounts.push(batch.messages.length)
+
         batchesProcessing++
         maxConcurrentBatches = Math.max(maxConcurrentBatches, batchesProcessing)
 
         // Simulate batch processing (50ms per batch)
-        await new Promise((resolve) => setTimeout(resolve, 50))
+        await setTimeout(50)
 
         batchEndTimes.push(Date.now())
         batchesProcessing--
@@ -267,28 +268,32 @@ describe('KafkaMessageBatchStream', () => {
       },
     )
 
-    // When: Write messages with 80ms delay between them (longer than timeout + processing)
-    // This ensures each message triggers its own timeout flush before the next arrives
+    // When: Write messages with 20ms delay between them
+    // Since processing (50ms) is slower than message arrival + timeout, backpressure causes accumulation
     for (const message of messages) {
       batchStream.write(message)
-      await sleep(80)
+      await setTimeout(20)
     }
 
-    // Wait until all 6 batches have been processed (one per message)
-    await waitAndRetry(() => batchEndTimes.length >= 6, 50, 20)
+    // Then
+    // Wait until all 3 batches have been processed
+    await waitAndRetry(() => batchMessageCounts.length >= 3, 500, 20)
 
-    // Then: Verify that batches never processed in parallel (backpressure working)
+    // Backpressure causes messages to accumulate while previous batch processes:
+    // - Batch 1: Message 1 (flushed at 10ms timeout)
+    // - Batch 2: Messages 2-4 (accumulated during Batch 1 processing, including Message 4 arriving at ~60ms)
+    // - Batch 3: Messages 5-6 (accumulated during Batch 2 processing)
+    expect(batchMessageCounts).toEqual([1, 3, 2])
+
+    // Verify that batches never processed in parallel (backpressure working)
     expect(maxConcurrentBatches).toBe(1) // Should never process more than 1 batch at a time
 
     // Verify that batches were processed sequentially (each starts after previous ends)
     for (let i = 1; i < batchStartTimes.length; i++) {
       const previousEndTime = batchEndTimes[i - 1]
       const currentStartTime = batchStartTimes[i]
-      // Current batch must start after previous batch finished
+      // The current batch must start after the previous batch finished
       expect(currentStartTime).toBeGreaterThanOrEqual(previousEndTime ?? 0)
     }
-
-    // Verify we got exactly 6 batches (one per message via timeout)
-    expect(batchEndTimes.length).toEqual(6)
   })
 })
