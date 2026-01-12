@@ -1,6 +1,4 @@
-import { Duplex } from 'node:stream'
-
-type CallbackFunction = (error?: Error | null) => void
+import { Transform } from 'node:stream'
 
 // Topic and partition are required for the stream to work properly
 type MessageWithTopicAndPartition = { topic: string; partition: number }
@@ -11,103 +9,114 @@ export type KafkaMessageBatchOptions = {
 }
 
 export type MessageBatch<TMessage> = { topic: string; partition: number; messages: TMessage[] }
-
-export interface KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartition>
-  extends Duplex {
-  // biome-ignore lint/suspicious/noExplicitAny: compatible with Duplex definition
-  on(event: string | symbol, listener: (...args: any[]) => void): this
-  on(event: 'data', listener: (chunk: MessageBatch<TMessage>) => void): this
-
-  push(chunk: MessageBatch<TMessage> | null): boolean
-}
+export type OnMessageBatchCallback<TMessage> = (batch: MessageBatch<TMessage>) => Promise<void>
 
 /**
  * Collects messages in batches based on provided batchSize and flushes them when messages amount or timeout is reached.
+ *
+ * This implementation uses Transform stream which properly handles backpressure by design.
+ * When the downstream consumer is slow, the stream will automatically pause accepting new messages
+ * until the consumer catches up, preventing memory leaks and OOM errors.
  */
-// biome-ignore lint/suspicious/noUnsafeDeclarationMerging: merging interface with class to add strong typing for 'data' event
-export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartition> extends Duplex {
+export class KafkaMessageBatchStream<
+  TMessage extends MessageWithTopicAndPartition,
+> extends Transform {
+  private readonly onBatch: OnMessageBatchCallback<TMessage>
   private readonly batchSize: number
   private readonly timeout: number
 
   private readonly currentBatchPerTopicPartition: Record<string, TMessage[]>
   private readonly batchTimeoutPerTopicPartition: Record<string, NodeJS.Timeout | undefined>
 
-  constructor(options: { batchSize: number; timeoutMilliseconds: number }) {
+  private readonly timeoutProcessingPromises: Map<string, Promise<void>> = new Map()
+
+  constructor(
+    onBatch: OnMessageBatchCallback<TMessage>,
+    options: { batchSize: number; timeoutMilliseconds: number },
+  ) {
     super({ objectMode: true })
+    this.onBatch = onBatch
     this.batchSize = options.batchSize
     this.timeout = options.timeoutMilliseconds
     this.currentBatchPerTopicPartition = {}
     this.batchTimeoutPerTopicPartition = {}
   }
 
-  override _read() {
-    // No-op, as we push data when we have a full batch or timeout
-  }
+  override async _transform(message: TMessage, _encoding: BufferEncoding, callback: () => void) {
+    const key = getTopicPartitionKey(message.topic, message.partition)
 
-  override _write(message: TMessage, _encoding: BufferEncoding, callback: CallbackFunction) {
-    const key = this.getTopicPartitionKey(message.topic, message.partition)
-
-    if (!this.currentBatchPerTopicPartition[key]) {
-      this.currentBatchPerTopicPartition[key] = [message]
-    } else {
-      // biome-ignore lint/style/noNonNullAssertion: non-existing entry is handled above
-      this.currentBatchPerTopicPartition[key]!.push(message)
+    // Wait for all pending timeout flushes to complete to maintain backpressure
+    if (this.timeoutProcessingPromises.size > 0) {
+      // Capture a snapshot of current promises to avoid race conditions with new timeouts
+      const promiseEntries = Array.from(this.timeoutProcessingPromises.entries())
+      // Wait for all to complete and then clean up from the map
+      await Promise.all(
+        promiseEntries.map(([k, p]) => p.finally(() => this.timeoutProcessingPromises.delete(k))),
+      )
     }
 
-    // biome-ignore lint/style/noNonNullAssertion: we ensure above that the array is defined
-    if (this.currentBatchPerTopicPartition[key]!.length >= this.batchSize) {
-      this.flushCurrentBatchMessages(message.topic, message.partition)
-      return callback(null)
+    // Accumulate the message
+    if (!this.currentBatchPerTopicPartition[key]) this.currentBatchPerTopicPartition[key] = []
+    this.currentBatchPerTopicPartition[key].push(message)
+
+    // Check if the batch is complete by size
+    if (this.currentBatchPerTopicPartition[key].length >= this.batchSize) {
+      await this.flushCurrentBatchMessages(message.topic, message.partition)
+      callback()
+      return
     }
 
+    // Start timeout for this partition if not already started
     if (!this.batchTimeoutPerTopicPartition[key]) {
-      this.batchTimeoutPerTopicPartition[key] = setTimeout(() => {
-        this.flushCurrentBatchMessages(message.topic, message.partition)
-      }, this.timeout)
+      this.batchTimeoutPerTopicPartition[key] = setTimeout(
+        () =>
+          this.timeoutProcessingPromises.set(
+            key,
+            this.flushCurrentBatchMessages(message.topic, message.partition),
+          ),
+        this.timeout,
+      )
     }
 
-    callback(null)
-  }
-
-  // Write side is closed, flush the remaining messages
-  override _final(callback: CallbackFunction) {
-    this.flushAllBatches()
-    this.push(null) // End readable side
     callback()
   }
 
-  private flushAllBatches() {
+  // Flush all remaining batches when stream is closing
+  override async _flush(callback: () => void) {
+    await this.flushAllBatches()
+    callback()
+  }
+
+  private async flushAllBatches() {
     for (const key of Object.keys(this.currentBatchPerTopicPartition)) {
-      const { topic, partition } = this.splitTopicPartitionKey(key)
-      this.flushCurrentBatchMessages(topic, partition)
+      const { topic, partition } = splitTopicPartitionKey(key)
+      await this.flushCurrentBatchMessages(topic, partition)
     }
   }
 
-  private flushCurrentBatchMessages(topic: string, partition: number) {
-    const key = this.getTopicPartitionKey(topic, partition)
+  private async flushCurrentBatchMessages(topic: string, partition: number) {
+    const key = getTopicPartitionKey(topic, partition)
 
+    // Clear timeout
     if (this.batchTimeoutPerTopicPartition[key]) {
       clearTimeout(this.batchTimeoutPerTopicPartition[key])
       this.batchTimeoutPerTopicPartition[key] = undefined
     }
 
-    if (!this.currentBatchPerTopicPartition[key]?.length) {
-      return
-    }
+    const messages = this.currentBatchPerTopicPartition[key] ?? []
 
-    this.push({ topic, partition, messages: this.currentBatchPerTopicPartition[key] })
+    // Push the batch downstream
+    await this.onBatch({ topic, partition, messages })
     this.currentBatchPerTopicPartition[key] = []
   }
+}
 
-  private getTopicPartitionKey(topic: string, partition: number): string {
-    return `${topic}:${partition}`
-  }
+const getTopicPartitionKey = (topic: string, partition: number): string => `${topic}:${partition}`
+const splitTopicPartitionKey = (key: string): { topic: string; partition: number } => {
+  const [topic, partition] = key.split(':')
+  /* v8 ignore start */
+  if (!topic || !partition) throw new Error('Invalid topic-partition key format')
+  /* v8 ignore stop */
 
-  private splitTopicPartitionKey(key: string): { topic: string; partition: number } {
-    const [topic, partition] = key.split(':')
-    if (!topic || !partition) {
-      throw new Error('Invalid topic-partition key format')
-    }
-    return { topic, partition: Number.parseInt(partition, 10) }
-  }
+  return { topic, partition: Number.parseInt(partition, 10) }
 }
