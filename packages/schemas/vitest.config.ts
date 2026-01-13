@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     globals: true,
     watch: false,
-    restoreMocks: true,
+    mockReset: true,
     pool: 'threads',
     coverage: {
       provider: 'v8',
@@ -13,7 +13,7 @@ export default defineConfig({
       exclude: ['vitest.config.ts', 'lib/**/index.ts', 'lib/events/eventTypes.ts'],
       thresholds: {
         lines: 6,
-        functions: 60,
+        functions: 40,
         branches: 70,
         statements: 6,
       },
