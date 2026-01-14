@@ -21,39 +21,21 @@ export type OnMessageBatchCallback<TMessage> = (batch: MessageBatch<TMessage>) =
 export class KafkaMessageBatchStream<
   TMessage extends MessageWithTopicAndPartition,
 > extends Transform {
-  private readonly onBatch: OnMessageBatchCallback<TMessage>
   private readonly batchSize: number
   private readonly timeout: number
 
   private readonly currentBatchPerTopicPartition: Record<string, TMessage[]>
   private readonly batchTimeoutPerTopicPartition: Record<string, NodeJS.Timeout | undefined>
-
-  private readonly timeoutProcessingPromises: Map<string, Promise<void>> = new Map()
-
-  constructor(
-    onBatch: OnMessageBatchCallback<TMessage>,
-    options: { batchSize: number; timeoutMilliseconds: number },
-  ) {
+  constructor(options: { batchSize: number; timeoutMilliseconds: number }) {
     super({ objectMode: true })
-    this.onBatch = onBatch
     this.batchSize = options.batchSize
     this.timeout = options.timeoutMilliseconds
     this.currentBatchPerTopicPartition = {}
     this.batchTimeoutPerTopicPartition = {}
   }
 
-  override async _transform(message: TMessage, _encoding: BufferEncoding, callback: () => void) {
+  override _transform(message: TMessage, _encoding: BufferEncoding, callback: () => void) {
     const key = getTopicPartitionKey(message.topic, message.partition)
-
-    // Wait for all pending timeout flushes to complete to maintain backpressure
-    if (this.timeoutProcessingPromises.size > 0) {
-      // Capture a snapshot of current promises to avoid race conditions with new timeouts
-      const promiseEntries = Array.from(this.timeoutProcessingPromises.entries())
-      // Wait for all to complete and then clean up from the map
-      await Promise.all(
-        promiseEntries.map(([k, p]) => p.finally(() => this.timeoutProcessingPromises.delete(k))),
-      )
-    }
 
     // Accumulate the message
     if (!this.currentBatchPerTopicPartition[key]) this.currentBatchPerTopicPartition[key] = []
@@ -61,7 +43,7 @@ export class KafkaMessageBatchStream<
 
     // Check if the batch is complete by size
     if (this.currentBatchPerTopicPartition[key].length >= this.batchSize) {
-      await this.flushCurrentBatchMessages(message.topic, message.partition)
+      this.flushCurrentBatchMessages(message.topic, message.partition)
       callback()
       return
     }
@@ -69,11 +51,7 @@ export class KafkaMessageBatchStream<
     // Start timeout for this partition if not already started
     if (!this.batchTimeoutPerTopicPartition[key]) {
       this.batchTimeoutPerTopicPartition[key] = setTimeout(
-        () =>
-          this.timeoutProcessingPromises.set(
-            key,
-            this.flushCurrentBatchMessages(message.topic, message.partition),
-          ),
+        () => this.flushCurrentBatchMessages(message.topic, message.partition),
         this.timeout,
       )
     }
@@ -87,14 +65,14 @@ export class KafkaMessageBatchStream<
     callback()
   }
 
-  private async flushAllBatches() {
+  private flushAllBatches() {
     for (const key of Object.keys(this.currentBatchPerTopicPartition)) {
       const { topic, partition } = splitTopicPartitionKey(key)
-      await this.flushCurrentBatchMessages(topic, partition)
+      this.flushCurrentBatchMessages(topic, partition)
     }
   }
 
-  private async flushCurrentBatchMessages(topic: string, partition: number) {
+  private flushCurrentBatchMessages(topic: string, partition: number) {
     const key = getTopicPartitionKey(topic, partition)
 
     // Clear timeout
@@ -104,10 +82,17 @@ export class KafkaMessageBatchStream<
     }
 
     const messages = this.currentBatchPerTopicPartition[key] ?? []
+    if (!messages.length) return
 
-    // Push the batch downstream
-    await this.onBatch({ topic, partition, messages })
+    this.push({ topic, partition, messages: messages })
     this.currentBatchPerTopicPartition[key] = []
+  }
+
+  override push(
+    chunk: { topic: string; partition: number; messages: TMessage[] },
+    encoding?: BufferEncoding,
+  ): boolean {
+    return super.push(chunk, encoding)
   }
 }
 
