@@ -9,7 +9,6 @@ export type KafkaMessageBatchOptions = {
 }
 
 export type MessageBatch<TMessage> = { topic: string; partition: number; messages: TMessage[] }
-export type OnMessageBatchCallback<TMessage> = (batch: MessageBatch<TMessage>) => Promise<void>
 
 /**
  * Collects messages in batches based on provided batchSize and flushes them when messages amount or timeout is reached.
@@ -60,8 +59,9 @@ export class KafkaMessageBatchStream<
   }
 
   // Flush all remaining batches when stream is closing
-  override async _flush(callback: () => void) {
-    await this.flushAllBatches()
+  override _flush(callback: () => void) {
+    this.flushAllBatches()
+    this.push(null) // end of stream
     callback()
   }
 
@@ -89,7 +89,7 @@ export class KafkaMessageBatchStream<
   }
 
   override push(
-    chunk: { topic: string; partition: number; messages: TMessage[] },
+    chunk: { topic: string; partition: number; messages: TMessage[] } | null,
     encoding?: BufferEncoding,
   ): boolean {
     return super.push(chunk, encoding)
