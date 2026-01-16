@@ -39,13 +39,12 @@ export class KafkaMessageBatchStream<
     try {
       this.messages.push(message)
 
-      // Check if the batch is complete by size
       if (this.messages.length >= this.batchSize) {
+        // Check if the batch is complete by size
         this.flushMessages()
-        return
-      } else if (!this.existingTimeout) {
+      } else {
         // Start timeout if not already started
-        this.existingTimeout = setTimeout(() => this.flushMessages(), this.timeout)
+        this.existingTimeout ??= setTimeout(() => this.flushMessages(), this.timeout)
       }
     } finally {
       callback(null)
@@ -66,9 +65,7 @@ export class KafkaMessageBatchStream<
     this.isFlushing = true
 
     const messages = this.messages.splice(0, this.messages.length)
-    if (messages.length) {
-      this.push(messages)
-    }
+    if (messages.length) this.push(messages)
     this.isFlushing = false
   }
 
