@@ -52,10 +52,8 @@ export class KafkaMessageBatchStream<
     }
   }
 
-  // Flush all remaining batches when stream is closing
-  override _flush(callback: () => void) {
+  override _final(callback: (error?: Error | null) => void) {
     this.flushMessages()
-    this.push(null) // end of stream
     callback()
   }
 
