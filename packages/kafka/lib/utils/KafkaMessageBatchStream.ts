@@ -25,6 +25,7 @@ export class KafkaMessageBatchStream<
 
   private readonly messages: TMessage[]
   private existingTimeout: NodeJS.Timeout | undefined
+  private isFlushing: boolean = false
 
   constructor(options: { batchSize: number; timeoutMilliseconds: number }) {
     super({ objectMode: true })
@@ -63,24 +64,17 @@ export class KafkaMessageBatchStream<
       clearTimeout(this.existingTimeout)
       this.existingTimeout = undefined
     }
+    if (this.isFlushing) return
+    this.isFlushing = true
 
     const messages = this.messages.splice(0, this.messages.length)
     if (messages.length) {
       this.push(messages)
     }
+    this.isFlushing = false
   }
 
   override push(chunk: TMessage[] | null, encoding?: BufferEncoding): boolean {
     return super.push(chunk, encoding)
   }
-}
-
-const getTopicPartitionKey = (topic: string, partition: number): string => `${topic}:${partition}`
-const splitTopicPartitionKey = (key: string): { topic: string; partition: number } => {
-  const [topic, partition] = key.split(':')
-  /* v8 ignore start */
-  if (!topic || !partition) throw new Error('Invalid topic-partition key format')
-  /* v8 ignore stop */
-
-  return { topic, partition: Number.parseInt(partition, 10) }
 }
