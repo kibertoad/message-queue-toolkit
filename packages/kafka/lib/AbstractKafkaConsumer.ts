@@ -230,10 +230,34 @@ export abstract class AbstractKafkaConsumer<
   private async handleSyncStreamBatch(
     stream: KafkaMessageBatchStream<DeserializedMessage<SupportedMessageValues<TopicsConfig>>>,
   ): Promise<void> {
+    const getTopicPartitionKey = (topic: string, partition: number): string =>
+      `${topic}:${partition}`
+    const splitTopicPartitionKey = (key: string): { topic: string; partition: number } => {
+      const [topic, partition] = key.split(':')
+      /* v8 ignore start */
+      if (!topic || !partition) throw new Error('Invalid topic-partition key format')
+      /* v8 ignore stop */
+
+      return { topic, partition: Number.parseInt(partition, 10) }
+    }
+
     for await (const messageBatch of stream) {
-      await this.consume(
-        messageBatch.topic,
-        messageBatch.messages as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
+      const messagesByTopicPartition: Record<
+        string,
+        DeserializedMessage<SupportedMessageValues<TopicsConfig>>[]
+      > = {}
+      for (const message of messageBatch) {
+        const key = getTopicPartitionKey(message.topic, message.partition)
+        if (!messagesByTopicPartition[key]) {
+          messagesByTopicPartition[key] = []
+        }
+        messagesByTopicPartition[key].push(message)
+      }
+
+      await Promise.all(
+        Object.entries(messagesByTopicPartition).map(([key, messages]) =>
+          this.consume(splitTopicPartitionKey(key).topic, messages),
+        ),
       )
     }
   }

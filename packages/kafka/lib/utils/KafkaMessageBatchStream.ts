@@ -1,4 +1,4 @@
-import { Transform } from 'node:stream'
+import { Transform, type TransformCallback } from 'node:stream'
 
 // Topic and partition are required for the stream to work properly
 type MessageWithTopicAndPartition = { topic: string; partition: number }
@@ -23,75 +23,54 @@ export class KafkaMessageBatchStream<
   private readonly batchSize: number
   private readonly timeout: number
 
-  private readonly currentBatchPerTopicPartition: Record<string, TMessage[]>
-  private readonly batchTimeoutPerTopicPartition: Record<string, NodeJS.Timeout | undefined>
+  private readonly messages: TMessage[]
+  private existingTimeout: NodeJS.Timeout | undefined
+
   constructor(options: { batchSize: number; timeoutMilliseconds: number }) {
     super({ objectMode: true })
     this.batchSize = options.batchSize
     this.timeout = options.timeoutMilliseconds
-    this.currentBatchPerTopicPartition = {}
-    this.batchTimeoutPerTopicPartition = {}
+
+    this.messages = []
   }
 
-  override _transform(message: TMessage, _encoding: BufferEncoding, callback: () => void) {
-    const key = getTopicPartitionKey(message.topic, message.partition)
+  override _transform(message: TMessage, _encoding: BufferEncoding, callback: TransformCallback) {
+    try {
+      this.messages.push(message)
 
-    // Accumulate the message
-    if (!this.currentBatchPerTopicPartition[key]) this.currentBatchPerTopicPartition[key] = []
-    this.currentBatchPerTopicPartition[key].push(message)
-
-    // Check if the batch is complete by size
-    if (this.currentBatchPerTopicPartition[key].length >= this.batchSize) {
-      this.flushCurrentBatchMessages(message.topic, message.partition)
-      callback()
-      return
+      // Check if the batch is complete by size
+      if (this.messages.length >= this.batchSize) {
+        this.flushMessages()
+        return
+      } else if (!this.existingTimeout) {
+        // Start timeout if not already started
+        this.existingTimeout = setTimeout(() => this.flushMessages(), this.timeout)
+      }
+    } finally {
+      callback(null)
     }
-
-    // Start timeout for this partition if not already started
-    if (!this.batchTimeoutPerTopicPartition[key]) {
-      this.batchTimeoutPerTopicPartition[key] = setTimeout(
-        () => this.flushCurrentBatchMessages(message.topic, message.partition),
-        this.timeout,
-      )
-    }
-
-    callback()
   }
 
   // Flush all remaining batches when stream is closing
   override _flush(callback: () => void) {
-    this.flushAllBatches()
+    this.flushMessages()
     this.push(null) // end of stream
     callback()
   }
 
-  private flushAllBatches() {
-    for (const key of Object.keys(this.currentBatchPerTopicPartition)) {
-      const { topic, partition } = splitTopicPartitionKey(key)
-      this.flushCurrentBatchMessages(topic, partition)
+  private flushMessages() {
+    if (this.existingTimeout) {
+      clearTimeout(this.existingTimeout)
+      this.existingTimeout = undefined
+    }
+
+    const messages = this.messages.splice(0, this.messages.length)
+    if (messages.length) {
+      this.push(messages)
     }
   }
 
-  private flushCurrentBatchMessages(topic: string, partition: number) {
-    const key = getTopicPartitionKey(topic, partition)
-
-    // Clear timeout
-    if (this.batchTimeoutPerTopicPartition[key]) {
-      clearTimeout(this.batchTimeoutPerTopicPartition[key])
-      this.batchTimeoutPerTopicPartition[key] = undefined
-    }
-
-    const messages = this.currentBatchPerTopicPartition[key] ?? []
-    if (!messages.length) return
-
-    this.push({ topic, partition, messages: messages })
-    this.currentBatchPerTopicPartition[key] = []
-  }
-
-  override push(
-    chunk: { topic: string; partition: number; messages: TMessage[] } | null,
-    encoding?: BufferEncoding,
-  ): boolean {
+  override push(chunk: TMessage[] | null, encoding?: BufferEncoding): boolean {
     return super.push(chunk, encoding)
   }
 }
