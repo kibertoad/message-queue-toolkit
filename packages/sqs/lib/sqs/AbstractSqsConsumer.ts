@@ -5,6 +5,7 @@ import {
   SetQueueAttributesCommand,
 } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
+import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import {
   type BarrierResult,
   type DeadLetterQueueOptions,
@@ -25,7 +26,6 @@ import {
 import type { ConsumerOptions } from 'sqs-consumer'
 import { Consumer } from 'sqs-consumer'
 import type { ZodSchema } from 'zod/v4'
-
 import type { SQSMessage } from '../types/MessageTypes.ts'
 import { hasOffloadedPayload } from '../utils/messageUtils.ts'
 import { deleteSqs, initSqs } from '../utils/sqsInitter.ts'
@@ -401,10 +401,7 @@ export abstract class AbstractSqsConsumer<
         // @ts-expect-error
         const uniqueTransactionKey = parsedMessage[this.messageIdField]
         this.transactionObservabilityManager?.start(transactionSpanId, uniqueTransactionKey)
-        if (this.logMessages) {
-          const resolvedLogMessage = this.resolveMessageLog(parsedMessage, messageType)
-          this.logMessage(resolvedLogMessage)
-        }
+
         const result: Either<'retryLater' | Error, 'success'> = await this.internalProcessMessage(
           parsedMessage,
           messageType,
@@ -852,9 +849,17 @@ export abstract class AbstractSqsConsumer<
     )
   }
 
-  protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
-    const handler = this.handlerContainer.resolveHandler(messageType)
-    return handler.messageLogFormatter(message)
+  protected override resolveMessageLog(
+    processedMessageMetadata: ProcessedMessageMetadata<MessagePayloadType>,
+  ): unknown | null {
+    if (!processedMessageMetadata.message || !processedMessageMetadata.messageType) {
+      return null
+    }
+    const handler = this.handlerContainer.resolveHandler(processedMessageMetadata.messageType)
+    if (!handler.messageLogFormatter) {
+      return null
+    }
+    return handler.messageLogFormatter(processedMessageMetadata.message)
   }
 
   protected override resolveMessage(message: SQSMessage) {

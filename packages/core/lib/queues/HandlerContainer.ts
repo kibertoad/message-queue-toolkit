@@ -55,8 +55,6 @@ export type Prehandler<MessagePayloadSchema extends object, ExecutionContext, Pr
   next: (result: PrehandlerResult) => void,
 ) => void
 
-export const defaultLogFormatter = <MessagePayloadSchema>(message: MessagePayloadSchema) => message
-
 export type HandlerConfigOptions<
   MessagePayloadSchema extends object,
   ExecutionContext,
@@ -98,7 +96,7 @@ export class MessageHandlerConfig<
     PrehandlerOutput,
     BarrierOutput
   >
-  public readonly messageLogFormatter: LogFormatter<MessagePayloadSchema>
+  public readonly messageLogFormatter?: LogFormatter<MessagePayloadSchema>
   public readonly preHandlerBarrier?: BarrierCallback<
     MessagePayloadSchema,
     ExecutionContext,
@@ -126,7 +124,7 @@ export class MessageHandlerConfig<
     this.definition = eventDefinition
     this.messageType = options?.messageType
     this.handler = handler
-    this.messageLogFormatter = options?.messageLogFormatter ?? defaultLogFormatter
+    this.messageLogFormatter = options?.messageLogFormatter
     this.preHandlerBarrier = options?.preHandlerBarrier
     this.preHandlers = options?.preHandlers ?? []
   }
