@@ -190,19 +190,14 @@ export abstract class AbstractKafkaConsumer<
       })
 
       this.consumerStream = await this.consumer.consume({ ...consumeOptions, topics })
-      this.consumerStream.on('error', (error) => this.handlerError(error))
-
       if (this.options.batchProcessingEnabled && this.options.batchProcessingOptions) {
         this.messageBatchStream = new KafkaMessageBatchStream<
           DeserializedMessage<SupportedMessageValues<TopicsConfig>>
-        >(
-          (batch) =>
-            this.consume(batch.topic, batch.messages).catch((error) => this.handlerError(error)),
-          this.options.batchProcessingOptions,
-        )
+        >({
+          batchSize: this.options.batchProcessingOptions.batchSize,
+          timeoutMilliseconds: this.options.batchProcessingOptions.timeoutMilliseconds,
+        })
         this.consumerStream.pipe(this.messageBatchStream)
-      } else {
-        this.handleSyncStream(this.consumerStream).catch((error) => this.handlerError(error))
       }
     } catch (error) {
       throw new InternalError({
@@ -211,6 +206,15 @@ export abstract class AbstractKafkaConsumer<
         cause: error,
       })
     }
+
+    if (this.options.batchProcessingEnabled && this.messageBatchStream) {
+      this.handleSyncStreamBatch(this.messageBatchStream).catch((error) => this.handlerError(error))
+    } else {
+      this.handleSyncStream(this.consumerStream).catch((error) => this.handlerError(error))
+    }
+
+    this.consumerStream.on('error', (error) => this.handlerError(error))
+    this.messageBatchStream?.on('error', (error) => this.handlerError(error))
   }
 
   private async handleSyncStream(
@@ -220,6 +224,40 @@ export abstract class AbstractKafkaConsumer<
       await this.consume(
         message.topic,
         message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
+      )
+    }
+  }
+  private async handleSyncStreamBatch(
+    stream: KafkaMessageBatchStream<DeserializedMessage<SupportedMessageValues<TopicsConfig>>>,
+  ): Promise<void> {
+    const getTopicPartitionKey = (topic: string, partition: number): string =>
+      `${topic}:${partition}`
+    const splitTopicPartitionKey = (key: string): { topic: string; partition: number } => {
+      const [topic, partition] = key.split(':')
+      /* v8 ignore start */
+      if (!topic || !partition) throw new Error('Invalid topic-partition key format')
+      /* v8 ignore stop */
+
+      return { topic, partition: Number.parseInt(partition, 10) }
+    }
+
+    for await (const messageBatch of stream) {
+      const messagesByTopicPartition: Record<
+        string,
+        DeserializedMessage<SupportedMessageValues<TopicsConfig>>[]
+      > = {}
+      for (const message of messageBatch) {
+        const key = getTopicPartitionKey(message.topic, message.partition)
+        if (!messagesByTopicPartition[key]) {
+          messagesByTopicPartition[key] = []
+        }
+        messagesByTopicPartition[key].push(message)
+      }
+
+      await Promise.all(
+        Object.entries(messagesByTopicPartition).map(([key, messages]) =>
+          this.consume(splitTopicPartitionKey(key).topic, messages),
+        ),
       )
     }
   }
