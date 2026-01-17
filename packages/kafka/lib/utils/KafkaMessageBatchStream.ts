@@ -31,23 +31,19 @@ export class KafkaMessageBatchStream<TMessage> extends Duplex {
     this.timeout = options.timeoutMilliseconds
 
     this.messages = []
-
-    // Listen to 'drain' event to resume after backpressure
-    this.on('drain', () => {
-      if (!this.pendingCallback) return
-
-      const cb = this.pendingCallback
-      this.pendingCallback = undefined
-      cb()
-    })
   }
 
   override _read() {
-    // No-op, as we push data when we have a full batch or timeout
+    // When _read is called, it means the downstream consumer is ready for more data
+    // This is when we should resume the writable side by calling the pending callback if it exists
+    if (!this.pendingCallback) return
+
+    const cb = this.pendingCallback
+    this.pendingCallback = undefined
+    cb()
   }
 
   override _write(message: TMessage, _encoding: BufferEncoding, callback: CallbackFunction) {
-    // biome-ignore lint/correctness/noUnusedVariables: All good in this version
     let canContinue = true
 
     try {
@@ -58,14 +54,11 @@ export class KafkaMessageBatchStream<TMessage> extends Duplex {
       } else {
         // If backpressure happens, we don't have a callback to hold
         // The next _write will handle backpressure
-        // TODO: check if we can handle this.
         this.existingTimeout ??= setTimeout(() => this.flushMessages(), this.timeout)
       }
     } finally {
-      // TODO: to be enabled in next beta version
-      // if (!canContinue) this.pendingCallback = callback
-      // else callback()
-      callback()
+      if (!canContinue) this.pendingCallback = callback
+      else callback()
     }
   }
 
@@ -76,10 +69,9 @@ export class KafkaMessageBatchStream<TMessage> extends Duplex {
   }
 
   private flushMessages(): boolean {
-    if (this.existingTimeout) {
-      clearTimeout(this.existingTimeout)
-      this.existingTimeout = undefined
-    }
+    clearTimeout(this.existingTimeout)
+    this.existingTimeout = undefined
+
     if (this.isFlushing) return true
     this.isFlushing = true
 
