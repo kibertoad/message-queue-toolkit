@@ -480,8 +480,9 @@ export abstract class AbstractKafkaConsumer<
       this.logger.debug(logDetails, 'Message committed successfully')
     } catch (error) {
       this.logger.debug(logDetails, 'Message commit failed')
-      if (error instanceof ResponseError) return this.handleResponseErrorOnCommit(error)
-      throw error
+      if (error instanceof ResponseError) {
+        return this.handleResponseErrorOnCommit(error)
+      }
     }
   }
 
@@ -493,7 +494,7 @@ export abstract class AbstractKafkaConsumer<
         error.apiCode &&
         commitErrorCodesToIgnore.has(error.apiCode)
       ) {
-        this.logger.error(
+        this.logger.warn(
           {
             apiCode: error.apiCode,
             apiId: error.apiId,
@@ -503,9 +504,6 @@ export abstract class AbstractKafkaConsumer<
           },
           `Failed to commit message: ${error.message}`,
         )
-      } else {
-        // If error is not recognized, rethrow it
-        throw responseError
       }
     }
   }
