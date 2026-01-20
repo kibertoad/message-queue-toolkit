@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { pipeline } from 'node:stream/promises'
 import { setTimeout } from 'node:timers/promises'
 import {
   InternalError,
@@ -197,7 +198,12 @@ export abstract class AbstractKafkaConsumer<
           batchSize: this.options.batchProcessingOptions.batchSize,
           timeoutMilliseconds: this.options.batchProcessingOptions.timeoutMilliseconds,
         })
-        this.consumerStream.pipe(this.messageBatchStream)
+
+        // Use pipeline for better error handling and backpressure management
+        pipeline(this.consumerStream, this.messageBatchStream).catch((error) => {
+          this.logger.error('Stream pipeline failed')
+          this.handlerError(error)
+        })
       }
     } catch (error) {
       throw new InternalError({
@@ -211,10 +217,22 @@ export abstract class AbstractKafkaConsumer<
       this.handleSyncStreamBatch(this.messageBatchStream).catch((error) => this.handlerError(error))
     } else {
       this.handleSyncStream(this.consumerStream).catch((error) => this.handlerError(error))
+      this.consumerStream.on('error', (error) => this.handlerError(error))
     }
 
-    this.consumerStream.on('error', (error) => this.handlerError(error))
-    this.messageBatchStream?.on('error', (error) => this.handlerError(error))
+    // To be removed
+    // Add logging for stream lifecycle events to diagnose backpressure issues
+    this.consumerStream.on('pause', () => this.logger.warn('Consumer stream PAUSED'))
+    this.consumerStream.on('resume', () => this.logger.info('Consumer stream RESUMED'))
+    this.consumerStream.on('fetch', () => this.logger.info('Consumer stream FETCH'))
+    this.consumerStream.on('close', () => this.logger.info('Consumer stream CLOSE'))
+    this.consumerStream.on('end', () => this.logger.info('Consumer stream END'))
+    this.consumerStream.on('end', () => this.logger.info('Consumer stream END'))
+    this.messageBatchStream?.on('pause', () => this.logger.warn('Message batch stream PAUSED'))
+    this.messageBatchStream?.on('resume', () => this.logger.info('Message batch stream RESUMED'))
+    this.messageBatchStream?.on('drain', () => this.logger.info('Message batch stream DRAINED'))
+    this.messageBatchStream?.on('close', () => this.logger.info('Message batch stream CLOSE'))
+    this.messageBatchStream?.on('end', () => this.logger.info('Message batch stream END'))
   }
 
   private async handleSyncStream(
@@ -254,7 +272,7 @@ export abstract class AbstractKafkaConsumer<
         messagesByTopicPartition[key].push(message)
       }
 
-      await Promise.all(
+      await Promise.allSettled(
         Object.entries(messagesByTopicPartition).map(([key, messages]) =>
           this.consume(splitTopicPartitionKey(key).topic, messages),
         ),
