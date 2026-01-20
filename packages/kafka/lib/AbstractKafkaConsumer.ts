@@ -198,6 +198,26 @@ export abstract class AbstractKafkaConsumer<
           timeoutMilliseconds: this.options.batchProcessingOptions.timeoutMilliseconds,
         })
         this.consumerStream.pipe(this.messageBatchStream)
+
+        setInterval(() => {
+          try {
+            this.logger.info(
+              {
+                isPaused: this.consumerStream?.isPaused(),
+                isActive: this.consumerStream?.isActive(),
+                isConnected: this.consumerStream?.isConnected(),
+              },
+              'Checking consumer stream status...',
+            )
+            if (this.consumerStream?.isPaused()) {
+              this.logger.info('Consumer stream was paused. trying to resume')
+              this.consumerStream?.resume()
+              this.logger.info('Stream resumed successfully')
+            }
+          } finally {
+            // do nothing
+          }
+        }, 5000)
       }
     } catch (error) {
       throw new InternalError({
