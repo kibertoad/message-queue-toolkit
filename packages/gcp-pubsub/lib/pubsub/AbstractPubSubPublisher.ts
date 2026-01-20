@@ -68,12 +68,6 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
       const messageProcessingStartTimestamp = Date.now()
       const parsedMessage = messageSchemaResult.result.parse(message)
 
-      if (this.logMessages) {
-        const messageType = this.resolveMessageTypeFromMessage(message) ?? 'unknown'
-        const resolvedLogMessage = this.resolveMessageLog(message, messageType)
-        this.logMessage(resolvedLogMessage)
-      }
-
       message = this.updateInternalProperties(message)
       const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(message, () => {
         // Calculate message size for PubSub
@@ -162,9 +156,5 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
 
   protected override resolveSchema(message: MessagePayloadType) {
     return this.messageSchemaContainer.resolveSchema(message)
-  }
-
-  protected override resolveMessageLog(message: MessagePayloadType, _messageType: string): unknown {
-    return message
   }
 }
