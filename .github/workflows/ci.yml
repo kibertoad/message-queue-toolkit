@@ -38,6 +38,15 @@ jobs:
       package_name: '@message-queue-toolkit/kafka'
       node_version: ${{ matrix.node-version }}
 
+  kafkajs:
+    strategy:
+      matrix:
+        node-version: [22.x, 24.x]
+    uses: ./.github/workflows/ci.common.yml
+    with:
+      package_name: '@message-queue-toolkit/kafkajs'
+      node_version: ${{ matrix.node-version }}
+
   automerge:
     needs: [ general ]
     runs-on: ubuntu-latest

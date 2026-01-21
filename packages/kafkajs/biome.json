@@ -1,0 +1,3 @@
+{
+  "extends": ["@lokalise/biome-config/biome"]
+}
