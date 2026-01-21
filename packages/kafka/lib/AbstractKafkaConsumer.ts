@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { pipeline } from 'node:stream/promises'
 import { setTimeout } from 'node:timers/promises'
 import {
   InternalError,
@@ -195,14 +196,16 @@ export abstract class AbstractKafkaConsumer<
       if (this.options.batchProcessingEnabled && this.options.batchProcessingOptions) {
         this.messageBatchStream = new KafkaMessageBatchStream<
           DeserializedMessage<SupportedMessageValues<TopicsConfig>>
-        >(
-          (batch) =>
-            this.consume(batch.topic, batch.messages).catch((error) => this.handlerError(error)),
-          this.options.batchProcessingOptions,
-        )
-        this.consumerStream.pipe(this.messageBatchStream)
-      } else {
-        this.handleSyncStream(this.consumerStream).catch((error) => this.handlerError(error))
+        >({
+          batchSize: this.options.batchProcessingOptions.batchSize,
+          timeoutMilliseconds: this.options.batchProcessingOptions.timeoutMilliseconds,
+        })
+
+        // Use pipeline for better error handling and backpressure management
+        pipeline(this.consumerStream, this.messageBatchStream).catch((error) => {
+          this.logger.error('Stream pipeline failed')
+          this.handlerError(error)
+        })
       }
     } catch (error) {
       throw new InternalError({
@@ -210,6 +213,12 @@ export abstract class AbstractKafkaConsumer<
         errorCode: 'KAFKA_CONSUMER_INIT_ERROR',
         cause: error,
       })
+    }
+
+    if (this.messageBatchStream) {
+      this.handleSyncStreamBatch(this.messageBatchStream).catch((error) => this.handlerError(error))
+    } else {
+      this.handleSyncStream(this.consumerStream).catch((error) => this.handlerError(error))
     }
   }
 
@@ -221,6 +230,13 @@ export abstract class AbstractKafkaConsumer<
         message.topic,
         message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
       )
+    }
+  }
+  private async handleSyncStreamBatch(
+    stream: KafkaMessageBatchStream<DeserializedMessage<SupportedMessageValues<TopicsConfig>>>,
+  ): Promise<void> {
+    for await (const messageBatch of stream) {
+      await this.consume(messageBatch[0].topic, messageBatch)
     }
   }
 
@@ -395,10 +411,7 @@ export abstract class AbstractKafkaConsumer<
       const errorContext = Array.isArray(messageOrBatch)
         ? { batchSize: messageOrBatch.length }
         : { message: stringValueSerializer(messageOrBatch.value) }
-      this.handlerError(error, {
-        topic,
-        ...errorContext,
-      })
+      this.handlerError(error, { topic, ...errorContext })
     }
 
     return { status: 'error', errorReason: 'handlerError' }
@@ -443,7 +456,7 @@ export abstract class AbstractKafkaConsumer<
     } catch (error) {
       this.logger.debug(logDetails, 'Message commit failed')
       if (error instanceof ResponseError) return this.handleResponseErrorOnCommit(error)
-      throw error
+      this.handlerError(error)
     }
   }
 
@@ -455,7 +468,7 @@ export abstract class AbstractKafkaConsumer<
         error.apiCode &&
         commitErrorCodesToIgnore.has(error.apiCode)
       ) {
-        this.logger.error(
+        this.logger.warn(
           {
             apiCode: error.apiCode,
             apiId: error.apiId,
@@ -466,8 +479,7 @@ export abstract class AbstractKafkaConsumer<
           `Failed to commit message: ${error.message}`,
         )
       } else {
-        // If error is not recognized, rethrow it
-        throw responseError
+        this.handlerError(error)
       }
     }
   }
