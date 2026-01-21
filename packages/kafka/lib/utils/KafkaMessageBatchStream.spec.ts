@@ -1,5 +1,5 @@
 import { setTimeout } from 'node:timers/promises'
-import { KafkaMessageBatchStream, type MessageBatch } from './KafkaMessageBatchStream.ts'
+import { KafkaMessageBatchStream } from './KafkaMessageBatchStream.ts'
 
 describe('KafkaMessageBatchStream', () => {
   it('should batch messages based on batch size', async () => {
@@ -13,7 +13,7 @@ describe('KafkaMessageBatchStream', () => {
     }))
 
     // When
-    const receivedBatches: MessageBatch<any>[] = []
+    const receivedBatches: any[] = []
 
     let resolvePromise: () => void
     const dataFetchingPromise = new Promise<void>((resolve) => {
@@ -58,7 +58,7 @@ describe('KafkaMessageBatchStream', () => {
     }))
 
     // When
-    const receivedBatches: MessageBatch<any>[] = []
+    const receivedBatches: any[] = []
 
     const batchStream = new KafkaMessageBatchStream<any>({
       batchSize: 1000,
