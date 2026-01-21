@@ -13,13 +13,12 @@ export type KafkaMessageBatchOptions = {
   timeoutMilliseconds: number
 }
 
-
 /**
  * Interface extending Duplex to provide strong typing for the 'data' event.
  * The stream emits arrays of messages grouped by topic-partition.
  */
 export interface KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartition>
-    extends Duplex {
+  extends Duplex {
   // biome-ignore lint/suspicious/noExplicitAny: compatible with Duplex definition
   on(event: string | symbol, listener: (...args: any[]) => void): this
   /** Listen for batches of messages from the same topic-partition */
@@ -52,7 +51,6 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
   private readonly messages: TMessage[]
   private existingTimeout: NodeJS.Timeout | undefined
   private pendingCallback: CallbackFunction | undefined
-
 
   constructor(options: KafkaMessageBatchOptions) {
     super({ objectMode: true })
@@ -131,5 +129,4 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
   }
 }
 
-
-const getTopicPartitionKey = (topic: string, partition: number): string  => `${topic}:${partition}`
+const getTopicPartitionKey = (topic: string, partition: number): string => `${topic}:${partition}`

@@ -220,11 +220,11 @@ describe('KafkaMessageBatchStream', () => {
     // - write(msg[6], msg[7]) → flush → [msg[6]] (partition 0) and [msg[7]] (partition 1)
     expect(receivedBatches).toEqual([
       [messages[0], messages[1]], // partition 0
-      [messages[2]],              // partition 0
-      [messages[3]],              // partition 1
+      [messages[2]], // partition 0
+      [messages[3]], // partition 1
       [messages[4], messages[5]], // partition 1
-      [messages[6]],              // partition 0
-      [messages[7]],              // partition 1
+      [messages[6]], // partition 0
+      [messages[7]], // partition 1
     ])
 
     expect(messages[0]!.partition).toBe(0)
