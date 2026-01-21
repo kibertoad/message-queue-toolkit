@@ -7,8 +7,6 @@ export type KafkaMessageBatchOptions = {
   timeoutMilliseconds: number
 }
 
-export type MessageBatch<TMessage> = { topic: string; partition: number; messages: TMessage[] }
-
 /**
  * Collects messages in batches based on provided batchSize and flushes them when messages amount or timeout is reached.
  *
@@ -23,7 +21,6 @@ export class KafkaMessageBatchStream<TMessage> extends Duplex {
   private readonly messages: TMessage[]
   private existingTimeout: NodeJS.Timeout | undefined
   private pendingCallback: CallbackFunction | undefined
-  private isFlushing: boolean = false
 
   constructor(options: { batchSize: number; timeoutMilliseconds: number }) {
     super({ objectMode: true })
@@ -72,15 +69,8 @@ export class KafkaMessageBatchStream<TMessage> extends Duplex {
     clearTimeout(this.existingTimeout)
     this.existingTimeout = undefined
 
-    if (this.isFlushing) return true
-    this.isFlushing = true
-
     const messages = this.messages.splice(0, this.messages.length)
-    let canContinue = true
-    if (messages.length) canContinue = this.push(messages)
-    this.isFlushing = false
-
-    return canContinue
+    return this.push(messages)
   }
 
   override push(chunk: TMessage[] | null, encoding?: BufferEncoding): boolean {

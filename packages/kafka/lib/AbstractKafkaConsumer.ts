@@ -222,17 +222,16 @@ export abstract class AbstractKafkaConsumer<
 
     // To be removed
     // Add logging for stream lifecycle events to diagnose backpressure issues
-    this.consumerStream.on('pause', () => this.logger.warn('Consumer stream PAUSED'))
-    this.consumerStream.on('resume', () => this.logger.info('Consumer stream RESUMED'))
-    this.consumerStream.on('fetch', () => this.logger.info('Consumer stream FETCH'))
-    this.consumerStream.on('close', () => this.logger.info('Consumer stream CLOSE'))
-    this.consumerStream.on('end', () => this.logger.info('Consumer stream END'))
-    this.consumerStream.on('end', () => this.logger.info('Consumer stream END'))
-    this.messageBatchStream?.on('pause', () => this.logger.warn('Message batch stream PAUSED'))
-    this.messageBatchStream?.on('resume', () => this.logger.info('Message batch stream RESUMED'))
-    this.messageBatchStream?.on('drain', () => this.logger.info('Message batch stream DRAINED'))
-    this.messageBatchStream?.on('close', () => this.logger.info('Message batch stream CLOSE'))
-    this.messageBatchStream?.on('end', () => this.logger.info('Message batch stream END'))
+    this.consumerStream.on('pause', () => this.logger.debug('Consumer stream PAUSED'))
+    this.consumerStream.on('resume', () => this.logger.debug('Consumer stream RESUMED'))
+    this.consumerStream.on('close', () => this.logger.warn('Consumer stream CLOSE'))
+    this.consumerStream.on('end', () => this.logger.warn('Consumer stream END'))
+    this.consumerStream.on('error', () => this.logger.error('Consumer stream ERROR'))
+    this.messageBatchStream?.on('pause', () => this.logger.debug('Message batch stream PAUSED'))
+    this.messageBatchStream?.on('resume', () => this.logger.debug('Message batch stream RESUMED'))
+    this.messageBatchStream?.on('close', () => this.logger.warn('Message batch stream CLOSE'))
+    this.messageBatchStream?.on('end', () => this.logger.warn('Message batch stream END'))
+    this.messageBatchStream?.on('error', () => this.logger.warn('Message batch stream ERROR'))
   }
 
   private async handleSyncStream(
