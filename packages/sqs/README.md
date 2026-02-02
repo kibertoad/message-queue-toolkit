@@ -1906,7 +1906,6 @@ const consumer = new UserEventConsumer({
   logger: console,
   transactionObservabilityManager: undefined,
 })
-
 await consumer.start()
 
 // Example EventBridge event structure (for testing):

@@ -1,4 +1,8 @@
-import type { CommonLogger, TransactionObservabilityManager } from '@lokalise/node-core'
+import type {
+  CommonLogger,
+  ErrorReporter,
+  TransactionObservabilityManager,
+} from '@lokalise/node-core'
 import type { ZodSchema } from 'zod/v4'
 
 import type { PublicHandlerSpy } from '../queues/HandlerSpy.ts'
@@ -38,6 +42,7 @@ export type { TransactionObservabilityManager }
 
 export type ExtraParams = {
   logger?: CommonLogger
+  errorReporter?: ErrorReporter
 }
 
 export type SchemaMap<SupportedMessageTypes extends string> = Record<

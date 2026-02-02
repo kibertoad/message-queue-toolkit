@@ -244,6 +244,206 @@ Both publishers and consumers accept a queue name and configuration as parameter
 
 If you do not want to create a new queue/topic, you can set `queueLocator` field for `queueConfiguration`. In that case `message-queue-toolkit` will not attempt to create a new queue or topic, and instead throw an error if they don't already exist.
 
+## Startup Resource Polling (Eventual Consistency Mode)
+
+When using `locatorConfig` to reference existing queues or topics, the default behavior is to fail immediately if the resource doesn't exist. However, in some deployment scenarios (especially with cross-service dependencies), resources may not be available at startup time.
+
+The `startupResourcePolling` option within `locatorConfig` enables "eventual consistency mode" where consumers poll for resources to become available instead of failing immediately.
+
+### Use Case: Cross-Service Dependencies
+
+Consider two services that need to subscribe to each other's topics:
+- **Service A** needs to subscribe to **Service B's** topic
+- **Service B** needs to subscribe to **Service A's** topic
+
+Without eventual consistency mode, neither service can deploy first because the other's topic doesn't exist yet. With `startupResourcePolling`, both services can start simultaneously and wait for the other's resources to appear.
+
+### Configuration
+
+```typescript
+import { NO_TIMEOUT } from '@message-queue-toolkit/core'
+
+const consumer = new MySnsSqsConsumer(dependencies, {
+  locatorConfig: {
+    topicArn: 'arn:aws:sns:...',
+    queueUrl: 'https://sqs...',
+    subscriptionArn: '...',
+    // Enable eventual consistency mode
+    startupResourcePolling: {
+      enabled: true,           // Enable polling for resource availability
+      pollingIntervalMs: 5000, // Check every 5 seconds (default: 5000)
+      timeoutMs: 300000,       // Fail after 5 minutes (required)
+    }
+  }
+})
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | `boolean` | - | Must be set to `true` to enable polling |
+| `pollingIntervalMs` | `number` | `5000` | Interval between availability checks (ms) |
+| `timeoutMs` | `number \| NO_TIMEOUT` | - (required) | Maximum wait time before throwing `StartupResourcePollingTimeoutError`. Use `NO_TIMEOUT` to poll indefinitely |
+| `throwOnTimeout` | `boolean` | `true` | When `true`, throws error on timeout. When `false`, reports error via errorReporter, resets timeout counter, and continues polling |
+| `nonBlocking` | `boolean` | `false` | When `true`, `init()` returns immediately if resource is not available, and polling continues in the background. A callback is invoked when the resource becomes available |
+
+### Environment-Specific Configuration
+
+```typescript
+import { NO_TIMEOUT } from '@message-queue-toolkit/core'
+
+// Production - with timeout (throws error when timeout reached)
+{
+  locatorConfig: {
+    queueUrl: '...',
+    startupResourcePolling: {
+      enabled: true,
+      timeoutMs: 5 * 60 * 1000, // 5 minutes
+    }
+  }
+}
+
+// Production - report timeout but keep trying
+// Useful when you want visibility into prolonged unavailability without failing
+{
+  locatorConfig: {
+    queueUrl: '...',
+    startupResourcePolling: {
+      enabled: true,
+      timeoutMs: 5 * 60 * 1000, // Report every 5 minutes
+      throwOnTimeout: false,    // Don't throw, just report and continue
+    }
+  }
+}
+
+// Development/Staging - poll indefinitely
+{
+  locatorConfig: {
+    queueUrl: '...',
+    startupResourcePolling: {
+      enabled: true,
+      timeoutMs: NO_TIMEOUT,
+    }
+  }
+}
+
+// Custom timeout and interval
+{
+  locatorConfig: {
+    queueUrl: '...',
+    startupResourcePolling: {
+      enabled: true,
+      pollingIntervalMs: 10000,
+      timeoutMs: 10 * 60 * 1000, // 10 minutes
+    }
+  }
+}
+
+// Non-blocking mode - service starts immediately, polling continues in background
+// Useful when you want the service to be available even if dependencies are not ready
+{
+  locatorConfig: {
+    queueUrl: '...',
+    startupResourcePolling: {
+      enabled: true,
+      timeoutMs: 5 * 60 * 1000,
+      nonBlocking: true,  // init() resolves immediately
+    }
+  }
+}
+```
+
+### Non-Blocking Mode
+
+When `nonBlocking: true` is set, `init()` returns immediately if the resource is not available on the first check. Polling continues in the background, and you can use callbacks to be notified when resources become available.
+
+**Important behaviors:**
+- If the resource IS immediately available, `init()` returns normally with the resource ready
+- If the resource is NOT immediately available, `init()` returns with `resourcesReady: false` (for SNS/SQS) or `queueArn: undefined` (for SQS)
+- Background polling continues and invokes the callback when the resource becomes available
+- For SNS+SQS consumers, the callback is only invoked when BOTH topic and queue are available
+
+```typescript
+// SQS non-blocking with callback
+import { initSqs } from '@message-queue-toolkit/sqs'
+
+const result = await initSqs(
+  sqsClient,
+  {
+    queueUrl: '...',
+    startupResourcePolling: {
+      enabled: true,
+      timeoutMs: 5 * 60 * 1000,
+      nonBlocking: true,
+    },
+  },
+  undefined,
+  undefined,
+  {
+    onQueueReady: ({ queueArn }) => {
+      console.log(`Queue is now available: ${queueArn}`)
+      // Start consuming messages, update health checks, etc.
+    },
+  },
+)
+
+if (result.queueArn) {
+  console.log('Queue was immediately available')
+} else {
+  console.log('Queue not yet available, will be notified via callback')
+}
+
+// SNS+SQS non-blocking with callback
+import { initSnsSqs } from '@message-queue-toolkit/sns'
+
+const result = await initSnsSqs(
+  sqsClient,
+  snsClient,
+  stsClient,
+  {
+    topicArn: '...',
+    queueUrl: '...',
+    subscriptionArn: '...',
+    startupResourcePolling: {
+      enabled: true,
+      timeoutMs: 5 * 60 * 1000,
+      nonBlocking: true,
+    },
+  },
+  undefined,
+  undefined,
+  {
+    onResourcesReady: ({ topicArn, queueUrl }) => {
+      // Called only when BOTH topic and queue are available
+      console.log(`Resources ready: topic=${topicArn}, queue=${queueUrl}`)
+    },
+  },
+)
+
+if (result.resourcesReady) {
+  console.log('All resources were immediately available')
+} else {
+  console.log('Resources not yet available, will be notified via callback')
+}
+```
+
+### Error Handling
+
+When `timeoutMs` is configured and the resource doesn't become available within the specified time, a `StartupResourcePollingTimeoutError` is thrown:
+
+```typescript
+import { StartupResourcePollingTimeoutError } from '@message-queue-toolkit/core'
+
+try {
+  await consumer.init()
+} catch (error) {
+  if (error instanceof StartupResourcePollingTimeoutError) {
+    console.error(`Resource ${error.resourceName} not available after ${error.timeoutMs}ms`)
+  }
+}
+```
+
 ## SQS Policy Configuration
 
 SQS queues can be configured with access policies to control who can send messages to and receive messages from the queue. The `policyConfig` parameter allows you to define these policies when creating or updating SQS queues.

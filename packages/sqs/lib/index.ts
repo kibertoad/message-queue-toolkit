@@ -35,7 +35,12 @@ export {
   generateWildcardSnsArn,
   generateWildcardSqsArn,
 } from './utils/sqsAttributeUtils.ts'
-export { deleteSqs, updateQueueAttributes } from './utils/sqsInitter.ts'
+export {
+  deleteSqs,
+  type InitSqsExtraParams,
+  initSqs,
+  updateQueueAttributes,
+} from './utils/sqsInitter.ts'
 export { deserializeSQSMessage } from './utils/sqsMessageDeserializer.ts'
 export {
   createEventBridgeResolverWithMapping,

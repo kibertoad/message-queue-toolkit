@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     globals: true,
     watch: false,
-    restoreMocks: true,
+    mockReset: true,
     pool: 'threads',
     maxWorkers: 1,
     coverage: {

@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/kafka",
-    "version": "0.8.3",
+    "version": "0.9.0",
     "engines": {
         "node": ">= 22.14.0"
     },
@@ -53,7 +53,7 @@
     "dependencies": {
         "@lokalise/node-core": "^14.2.0",
         "@lokalise/universal-ts-utils": "^4.5.1",
-        "@platformatic/kafka": "^1.22.0"
+        "@platformatic/kafka": "^1.23.0"
     },
     "peerDependencies": {
         "@message-queue-toolkit/core": ">=23.0.0",
@@ -67,12 +67,12 @@
         "@message-queue-toolkit/core": ">=23.0.0",
         "@message-queue-toolkit/schemas": ">=7.0.0",
         "@types/node": "^25.0.2",
-        "@vitest/coverage-v8": "^3.2.4",
+        "@vitest/coverage-v8": "^4.0.15",
         "awilix": "^12.0.1",
         "awilix-manager": "^6.0.0",
         "rimraf": "^6.0.1",
         "typescript": "^5.9.2",
-        "vitest": "^3.2.4",
+        "vitest": "^4.0.15",
         "zod": "^4.0.17"
     }
 }

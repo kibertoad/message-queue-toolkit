@@ -136,6 +136,126 @@ export type DeletionConfig = {
   forceDeleteInProduction?: boolean
 }
 
+/**
+ * Symbol to indicate no timeout - polling will continue indefinitely.
+ * Use this for dev/staging environments where you want to wait indefinitely for resources.
+ *
+ * @example
+ * {
+ *   locatorConfig: {
+ *     queueUrl: '...',
+ *     startupResourcePolling: {
+ *       enabled: true,
+ *       timeoutMs: NO_TIMEOUT,
+ *     }
+ *   }
+ * }
+ */
+export const NO_TIMEOUT = Symbol('NO_TIMEOUT')
+
+/**
+ * Configuration for startup resource polling mode when resources may not exist at startup.
+ *
+ * This is useful in scenarios where services have cross-dependencies:
+ * - Service A needs to subscribe to Service B's topic
+ * - Service B needs to subscribe to Service A's topic
+ * - Neither can deploy first without the other's topic existing
+ *
+ * When `startupResourcePolling` is provided with `enabled: true` inside `locatorConfig`,
+ * the consumer will poll for the topic/queue to become available instead of failing immediately.
+ *
+ * @example
+ * // Enable with 5 minute timeout
+ * {
+ *   locatorConfig: {
+ *     queueUrl: '...',
+ *     startupResourcePolling: {
+ *       enabled: true,
+ *       timeoutMs: 5 * 60 * 1000,
+ *     }
+ *   }
+ * }
+ *
+ * @example
+ * // Poll indefinitely (useful for dev/staging environments)
+ * {
+ *   locatorConfig: {
+ *     queueUrl: '...',
+ *     startupResourcePolling: {
+ *       enabled: true,
+ *       timeoutMs: NO_TIMEOUT,
+ *     }
+ *   }
+ * }
+ *
+ * @example
+ * // Custom timeout and interval
+ * {
+ *   locatorConfig: {
+ *     queueUrl: '...',
+ *     startupResourcePolling: {
+ *       enabled: true,
+ *       timeoutMs: 10 * 60 * 1000, // 10 minutes
+ *       pollingIntervalMs: 10000,
+ *     }
+ *   }
+ * }
+ */
+export type StartupResourcePollingConfig = {
+  /**
+   * Controls whether polling is enabled.
+   * Must be set to true to enable polling.
+   */
+  enabled?: boolean
+
+  /**
+   * Maximum time in milliseconds to wait for the resource to become available.
+   * Use `NO_TIMEOUT` to disable timeout and poll indefinitely.
+   */
+  timeoutMs: number | typeof NO_TIMEOUT
+
+  /**
+   * Interval in milliseconds between polling attempts.
+   * Default: 5000 (5 seconds)
+   */
+  pollingIntervalMs?: number
+
+  /**
+   * Whether to throw an error when timeout is reached.
+   * - `true` (default): Throws `StartupResourcePollingTimeoutError` when timeout is reached
+   * - `false`: Reports the error via errorReporter, resets the timeout counter, and continues polling
+   *
+   * Use `false` when you want to be notified about prolonged unavailability but don't want to fail.
+   * Default: true
+   */
+  throwOnTimeout?: boolean
+
+  /**
+   * Whether to run polling in non-blocking mode.
+   * - `false` (default): init() waits for the resource to become available before resolving
+   * - `true`: If resource is not immediately available, init() resolves immediately and
+   *   polling continues in the background. When the resource becomes available,
+   *   the `onResourceAvailable` callback is invoked.
+   *
+   * Use `true` when you want the service to start quickly without waiting for dependencies.
+   * Default: false
+   */
+  nonBlocking?: boolean
+}
+
+/**
+ * Base type for queue locator configurations that includes startup resource polling.
+ * Protocol-specific locator types should extend this.
+ */
+export type BaseQueueLocatorType = {
+  /**
+   * Configuration for startup resource polling mode.
+   * When enabled, the consumer will poll for the resource to become available
+   * instead of failing immediately.
+   */
+  startupResourcePolling?: StartupResourcePollingConfig
+}
+
 type NewQueueOptions<CreationConfigType extends CommonCreationConfigType> = {
   creationConfig?: CreationConfigType
 }

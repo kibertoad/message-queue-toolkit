@@ -1,7 +1,12 @@
 import type { QueueAttributeName, SQSClient } from '@aws-sdk/client-sqs'
 import { SetQueueAttributesCommand, TagQueueCommand } from '@aws-sdk/client-sqs'
+import type { CommonLogger, ErrorReporter } from '@lokalise/node-core'
 import type { DeletionConfig } from '@message-queue-toolkit/core'
-import { isProduction } from '@message-queue-toolkit/core'
+import {
+  isProduction,
+  isStartupResourcePollingEnabled,
+  waitForResource,
+} from '@message-queue-toolkit/core'
 
 import type { SQSCreationConfig, SQSQueueLocatorType } from '../sqs/AbstractSqsService.ts'
 
@@ -12,6 +17,22 @@ import {
   resolveQueueUrlFromLocatorConfig,
   validateFifoQueueName,
 } from './sqsUtils.ts'
+
+export type InitSqsResult = {
+  queueArn: string | undefined
+  queueUrl: string
+  queueName: string
+}
+
+export type InitSqsExtraParams = {
+  logger?: CommonLogger
+  errorReporter?: ErrorReporter
+  /**
+   * Callback invoked when queue becomes available in non-blocking mode.
+   * Only called when startupResourcePolling.nonBlocking is true and queue was not immediately available.
+   */
+  onQueueReady?: (result: { queueArn: string }) => void
+}
 
 export async function deleteSqs(
   sqsClient: SQSClient,
@@ -68,19 +89,50 @@ export async function initSqs(
   locatorConfig?: Partial<SQSQueueLocatorType>,
   creationConfig?: SQSCreationConfig,
   isFifoQueue?: boolean,
-) {
+  extraParams?: InitSqsExtraParams,
+): Promise<InitSqsResult> {
   // reuse existing queue only
   if (locatorConfig) {
     const queueUrl = await resolveQueueUrlFromLocatorConfig(sqsClient, locatorConfig)
 
-    const checkResult = await getQueueAttributes(sqsClient, queueUrl, ['QueueArn'])
+    const startupResourcePolling = locatorConfig.startupResourcePolling
 
-    if (checkResult.error === 'not_found') {
-      throw new Error(`Queue with queueUrl ${locatorConfig.queueUrl} does not exist.`)
+    let queueArn: string | undefined
+
+    // If startup resource polling is enabled, poll for queue to become available
+    if (isStartupResourcePollingEnabled(startupResourcePolling)) {
+      const result = await waitForResource({
+        config: startupResourcePolling,
+        resourceName: `SQS queue ${queueUrl}`,
+        logger: extraParams?.logger,
+        errorReporter: extraParams?.errorReporter,
+        onResourceAvailable: (arn) => {
+          if (arn) {
+            extraParams?.onQueueReady?.({ queueArn: arn })
+          }
+        },
+        checkFn: async () => {
+          const checkResult = await getQueueAttributes(sqsClient, queueUrl, ['QueueArn'])
+          if (checkResult.error === 'not_found') {
+            return { isAvailable: false }
+          }
+          return { isAvailable: true, result: checkResult.result?.attributes?.QueueArn }
+        },
+      })
+      queueArn = result
+    } else {
+      // Original behavior: check once and fail immediately if not found
+      const checkResult = await getQueueAttributes(sqsClient, queueUrl, ['QueueArn'])
+
+      if (checkResult.error === 'not_found') {
+        throw new Error(`Queue with queueUrl ${queueUrl} does not exist.`)
+      }
+
+      queueArn = checkResult.result?.attributes?.QueueArn
     }
 
-    const queueArn = checkResult.result?.attributes?.QueueArn
-    if (!queueArn) {
+    // In non-blocking mode, queueArn may be undefined if resource wasn't immediately available
+    if (!queueArn && !startupResourcePolling?.nonBlocking) {
       throw new Error('Queue ARN was not set')
     }
 
