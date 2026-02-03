@@ -125,12 +125,6 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
       const topicName =
         this.locatorConfig?.topicName ?? this.creationConfig?.topic?.Name ?? 'unknown'
 
-      if (this.logMessages) {
-        const messageType = this.resolveMessageTypeFromMessage(message) ?? 'unknown'
-        const resolvedLogMessage = this.resolveMessageLog(message, messageType)
-        this.logMessage(resolvedLogMessage)
-      }
-
       const updatedMessage = this.updateInternalProperties(message)
 
       // Resolve FIFO options from original message BEFORE offloading
