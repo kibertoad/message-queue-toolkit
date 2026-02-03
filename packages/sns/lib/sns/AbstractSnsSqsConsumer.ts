@@ -55,6 +55,20 @@ export abstract class AbstractSnsSqsConsumer<
   private readonly snsClient: SNSClient
   private readonly stsClient: STSClient
 
+  /**
+   * Tracks whether resources (SNS topic, SQS queue, subscription) are ready.
+   * In non-blocking polling mode, this may be false initially and become true
+   * when the onResourcesReady callback fires.
+   */
+  private resourcesReady: boolean = false
+
+  /**
+   * Tracks whether start() has been called but consumers couldn't be started
+   * because resources weren't ready yet. When resources become ready and this
+   * is true, consumers will be started automatically.
+   */
+  private startRequested: boolean = false
+
   // @ts-expect-error
   protected topicArn: string
   // @ts-expect-error
@@ -102,14 +116,89 @@ export abstract class AbstractSnsSqsConsumer<
       this.locatorConfig,
       this.creationConfig,
       this.subscriptionConfig,
-      { logger: this.logger },
-    )
-    this.queueName = initSnsSqsResult.queueName
-    this.queueUrl = initSnsSqsResult.queueUrl
-    this.topicArn = initSnsSqsResult.topicArn
-    this.subscriptionArn = initSnsSqsResult.subscriptionArn
+      {
+        logger: this.logger,
+        // This callback is only invoked in non-blocking mode when resources were NOT
+        // immediately available. It will NOT be called if resourcesReady is true.
+        onResourcesReady: (result) => {
+          // Update values that were empty when resourcesReady was false
+          this.topicArn = result.topicArn
+          this.queueUrl = result.queueUrl
+          this.subscriptionArn = result.subscriptionArn
+          this.queueName = result.queueName
+          this.resourcesReady = true
 
-    await this.initDeadLetterQueue()
+          // Initialize DLQ now that resources are ready (this is mutually exclusive
+          // with the synchronous initDeadLetterQueue call below)
+          this.initDeadLetterQueue()
+            .catch((err) => {
+              this.logger.error({
+                message: 'Failed to initialize dead letter queue after resources became ready',
+                error: err,
+              })
+            })
+            .then(() => {
+              // If start() was called while resources weren't ready, start consumers now
+              if (this.startRequested) {
+                this.logger.info({
+                  message: 'Resources now ready, starting consumers',
+                  queueName: this.queueName,
+                  topicArn: this.topicArn,
+                })
+                return this.startConsumers()
+              }
+            })
+            .catch((err) => {
+              this.logger.error({
+                message: 'Failed to start consumers after resources became ready',
+                error: err,
+              })
+            })
+        },
+      },
+    )
+
+    // Always assign topicArn and queueName (always valid in both blocking and non-blocking modes)
+    this.topicArn = initSnsSqsResult.topicArn
+    this.queueName = initSnsSqsResult.queueName
+    this.resourcesReady = initSnsSqsResult.resourcesReady
+
+    // Only assign queueUrl and subscriptionArn if resources are ready,
+    // or if they have valid values (non-blocking mode with locatorConfig provides valid values)
+    if (initSnsSqsResult.resourcesReady || initSnsSqsResult.queueUrl) {
+      this.queueUrl = initSnsSqsResult.queueUrl
+      this.subscriptionArn = initSnsSqsResult.subscriptionArn
+    }
+
+    // Only initialize DLQ if resources are ready and queueUrl is available
+    if (initSnsSqsResult.resourcesReady && initSnsSqsResult.queueUrl) {
+      await this.initDeadLetterQueue()
+    }
+  }
+
+  /**
+   * Starts the consumer. In non-blocking polling mode, if resources aren't ready yet,
+   * this method will return immediately and consumers will start automatically once
+   * resources become available.
+   */
+  public override async start() {
+    await this.init()
+
+    if (!this.resourcesReady) {
+      // Resources not ready yet (non-blocking polling mode), mark that start was requested.
+      // Consumers will be started automatically when onResourcesReady callback fires.
+      this.startRequested = true
+      this.logger.info({
+        message:
+          'Start requested but resources not ready yet, will start when resources become available',
+        queueName: this.queueName,
+        topicArn: this.topicArn,
+      })
+      return
+    }
+
+    // Resources are ready, start consumers immediately
+    await this.startConsumers()
   }
 
   protected override resolveMessage(message: SQSMessage) {

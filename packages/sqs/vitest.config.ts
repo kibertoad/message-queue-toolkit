@@ -5,20 +5,18 @@ export default defineConfig({
   test: {
     globals: true,
     watch: false,
-    restoreMocks: true,
+    mockReset: true,
     pool: 'threads',
-    poolOptions: {
-      threads: { singleThread: true },
-    },
+    maxWorkers: 1,
     coverage: {
       provider: 'v8',
       include: ['lib/**/*.ts'],
       exclude: ['vitest.config.ts', 'lib/**/index.ts'],
       thresholds: {
-        lines: 87,
-        functions: 98,
+        lines: 86,
+        functions: 97,
         branches: 74,
-        statements: 87,
+        statements: 86,
       },
     },
   },

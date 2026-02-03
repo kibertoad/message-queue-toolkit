@@ -38,8 +38,9 @@ export async function getTopicAttributes(
       },
     }
   } catch (err) {
+    // SNS returns NotFoundException for non-existent topics
     // @ts-expect-error
-    if (err.Code === 'AWS.SimpleQueueService.NonExistentQueue') {
+    if (err.name === 'NotFoundException' || err.name === 'NotFound') {
       return {
         error: 'not_found',
       }
@@ -64,8 +65,9 @@ export async function getSubscriptionAttributes(
       },
     }
   } catch (err) {
+    // SNS returns NotFoundException for non-existent subscriptions
     // @ts-expect-error
-    if (err.Code === 'AWS.SimpleQueueService.NonExistentQueue') {
+    if (err.name === 'NotFoundException' || err.name === 'NotFound') {
       return {
         error: 'not_found',
       }

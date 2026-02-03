@@ -1,5 +1,5 @@
 # @message-queue-toolkit/core
- 
+  
 Core library for message-queue-toolkit. Provides foundational abstractions, utilities, and base classes for building message queue publishers and consumers.
 
 ## Table of Contents

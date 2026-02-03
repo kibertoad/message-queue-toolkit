@@ -105,5 +105,14 @@ export { isProduction, reloadConfig } from './utils/envUtils.ts'
 export { isShallowSubset, objectMatches } from './utils/matchUtils.ts'
 export { type ParseMessageResult, parseMessage } from './utils/parseUtils.ts'
 export { objectToBuffer } from './utils/queueUtils.ts'
+export {
+  isStartupResourcePollingEnabled,
+  type PollingErrorCallback,
+  type PollingErrorContext,
+  type StartupResourcePollingCheckResult,
+  StartupResourcePollingTimeoutError,
+  type WaitForResourceOptions,
+  waitForResource,
+} from './utils/startupResourcePollingUtils.ts'
 export { toDatePreprocessor } from './utils/toDateProcessor.ts'
 export { waitAndRetry } from './utils/waitUtils.ts'
