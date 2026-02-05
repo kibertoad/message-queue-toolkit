@@ -1,0 +1,122 @@
+import { Transform } from 'node:stream'
+
+// Topic and partition are required for the stream to work properly
+type MessageWithTopicAndPartition = { topic: string; partition: number }
+
+export type KafkaMessageBatchOptions = {
+  batchSize: number
+  timeoutMilliseconds: number
+}
+
+export type MessageBatch<TMessage> = { topic: string; partition: number; messages: TMessage[] }
+export type OnMessageBatchCallback<TMessage> = (batch: MessageBatch<TMessage>) => Promise<void>
+
+/**
+ * Collects messages in batches based on provided batchSize and flushes them when messages amount or timeout is reached.
+ *
+ * This implementation uses Transform stream which properly handles backpressure by design.
+ * When the downstream consumer is slow, the stream will automatically pause accepting new messages
+ * until the consumer catches up, preventing memory leaks and OOM errors.
+ */
+export class KafkaMessageBatchStream<
+  TMessage extends MessageWithTopicAndPartition,
+> extends Transform {
+  private readonly onBatch: OnMessageBatchCallback<TMessage>
+  private readonly batchSize: number
+  private readonly timeout: number
+
+  private readonly currentBatchPerTopicPartition: Record<string, TMessage[]>
+  private readonly batchTimeoutPerTopicPartition: Record<string, NodeJS.Timeout | undefined>
+
+  private readonly timeoutProcessingPromises: Map<string, Promise<void>> = new Map()
+
+  constructor(
+    onBatch: OnMessageBatchCallback<TMessage>,
+    options: { batchSize: number; timeoutMilliseconds: number },
+  ) {
+    super({ objectMode: true })
+    this.onBatch = onBatch
+    this.batchSize = options.batchSize
+    this.timeout = options.timeoutMilliseconds
+    this.currentBatchPerTopicPartition = {}
+    this.batchTimeoutPerTopicPartition = {}
+  }
+
+  override async _transform(message: TMessage, _encoding: BufferEncoding, callback: () => void) {
+    const key = getTopicPartitionKey(message.topic, message.partition)
+
+    // Wait for all pending timeout flushes to complete to maintain backpressure
+    if (this.timeoutProcessingPromises.size > 0) {
+      // Capture a snapshot of current promises to avoid race conditions with new timeouts
+      const promiseEntries = Array.from(this.timeoutProcessingPromises.entries())
+      // Wait for all to complete and then clean up from the map
+      await Promise.all(
+        promiseEntries.map(([k, p]) => p.finally(() => this.timeoutProcessingPromises.delete(k))),
+      )
+    }
+
+    // Accumulate the message
+    if (!this.currentBatchPerTopicPartition[key]) this.currentBatchPerTopicPartition[key] = []
+    this.currentBatchPerTopicPartition[key].push(message)
+
+    // Check if the batch is complete by size
+    if (this.currentBatchPerTopicPartition[key].length >= this.batchSize) {
+      await this.flushCurrentBatchMessages(message.topic, message.partition)
+      callback()
+      return
+    }
+
+    // Start timeout for this partition if not already started
+    if (!this.batchTimeoutPerTopicPartition[key]) {
+      this.batchTimeoutPerTopicPartition[key] = setTimeout(
+        () =>
+          this.timeoutProcessingPromises.set(
+            key,
+            this.flushCurrentBatchMessages(message.topic, message.partition),
+          ),
+        this.timeout,
+      )
+    }
+
+    callback()
+  }
+
+  // Flush all remaining batches when stream is closing
+  override async _flush(callback: () => void) {
+    await this.flushAllBatches()
+    callback()
+  }
+
+  private async flushAllBatches() {
+    for (const key of Object.keys(this.currentBatchPerTopicPartition)) {
+      const { topic, partition } = splitTopicPartitionKey(key)
+      await this.flushCurrentBatchMessages(topic, partition)
+    }
+  }
+
+  private async flushCurrentBatchMessages(topic: string, partition: number) {
+    const key = getTopicPartitionKey(topic, partition)
+
+    // Clear timeout
+    if (this.batchTimeoutPerTopicPartition[key]) {
+      clearTimeout(this.batchTimeoutPerTopicPartition[key])
+      this.batchTimeoutPerTopicPartition[key] = undefined
+    }
+
+    const messages = this.currentBatchPerTopicPartition[key] ?? []
+
+    // Push the batch downstream
+    await this.onBatch({ topic, partition, messages })
+    this.currentBatchPerTopicPartition[key] = []
+  }
+}
+
+const getTopicPartitionKey = (topic: string, partition: number): string => `${topic}:${partition}`
+const splitTopicPartitionKey = (key: string): { topic: string; partition: number } => {
+  const [topic, partition] = key.split(':')
+  /* v8 ignore start */
+  if (!topic || !partition) throw new Error('Invalid topic-partition key format')
+  /* v8 ignore stop */
+
+  return { topic, partition: Number.parseInt(partition, 10) }
+}
