@@ -10,7 +10,7 @@ jobs:
   general:
     strategy:
       matrix:
-        node-version: [20.x, 22.x, 24.x]
+        node-version: [22.x, 24.x]
         package-name: [
           '@message-queue-toolkit/amqp',
           '@message-queue-toolkit/core',
@@ -22,21 +22,13 @@ jobs:
           '@message-queue-toolkit/sns',
           '@message-queue-toolkit/sqs',
           '@message-queue-toolkit/gcp-pubsub',
-          '@message-queue-toolkit/gcs-payload-store'
+          '@message-queue-toolkit/gcs-payload-store',
+          '@message-queue-toolkit/kafka'
         ]
     uses: ./.github/workflows/ci.common.yml
     with:
       node_version: ${{ matrix.node-version }}
       package_name: ${{ matrix.package-name }}
-
-  kafka:
-    strategy:
-      matrix:
-        node-version: [22.x, 24.x]
-    uses: ./.github/workflows/ci.common.yml
-    with:
-      package_name: '@message-queue-toolkit/kafka'
-      node_version: ${{ matrix.node-version }}
 
   automerge:
     needs: [ general ]
