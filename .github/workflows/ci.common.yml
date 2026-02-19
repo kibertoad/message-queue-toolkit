@@ -24,6 +24,9 @@ jobs:
       - name: Install
         run: npm install --ignore-scripts
 
+      - name: Run lint
+        run: npm run lint -- --filter=${{ inputs.package_name }}
+
       - name: Build TS
         run: npm run build -- --filter=${{ inputs.package_name }}
 
@@ -35,6 +38,3 @@ jobs:
 
       - name: Docker stop
         run: npm run docker:stop:ci -- --filter=${{ inputs.package_name }}
-
-      - name: Run lint
-        run: npm run lint -- --filter=${{ inputs.package_name }}
