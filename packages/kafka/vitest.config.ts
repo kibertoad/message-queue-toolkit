@@ -6,7 +6,6 @@ export default defineConfig({
     globals: true,
     watch: false,
     mockReset: true,
-    maxConcurrency: 1,
     pool: 'threads',
     maxWorkers: 1,
     coverage: {
