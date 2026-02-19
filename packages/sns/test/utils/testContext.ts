@@ -26,7 +26,7 @@ import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer.
 import { CreateLocateConfigMixPublisher } from '../publishers/CreateLocateConfigMixPublisher.ts'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
 import { TEST_REDIS_CONFIG } from './testRedisConfig.ts'
-import { TEST_AWS_CONFIG } from './testSnsConfig.ts'
+import { TEST_AWS_CONFIG, TEST_S3_CONFIG } from './testSnsConfig.ts'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -109,7 +109,7 @@ export async function registerDependencies(
       },
     ),
     s3: asFunction(() => {
-      return new S3(TEST_AWS_CONFIG)
+      return new S3(TEST_S3_CONFIG)
     }),
 
     consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),

@@ -7,6 +7,8 @@ export default defineConfig({
     watch: false,
     mockReset: true,
     pool: 'threads',
+    maxWorkers: 1,
+    globalSetup: ['test/utils/globalSetup.ts'],
     coverage: {
       provider: 'v8',
       include: ['lib/**/*.ts'],

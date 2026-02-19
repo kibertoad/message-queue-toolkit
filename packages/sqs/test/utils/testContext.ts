@@ -12,7 +12,7 @@ import { Redis } from 'ioredis'
 import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver.ts'
 import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
-import { TEST_AWS_CONFIG } from './testAwsConfig.ts'
+import { TEST_AWS_CONFIG, TEST_S3_CONFIG } from './testAwsConfig.ts'
 import { TEST_REDIS_CONFIG } from './testRedisConfig.ts'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
@@ -51,7 +51,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
       },
     ),
     s3: asFunction(() => {
-      return new S3(TEST_AWS_CONFIG)
+      return new S3(TEST_S3_CONFIG)
     }),
     consumerErrorResolver: asFunction(() => {
       return new SqsConsumerErrorResolver()

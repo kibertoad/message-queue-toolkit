@@ -137,7 +137,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           deadLetterQueue: {
             redrivePolicy: { maxReceiveCount: 5 },
             locatorConfig: {
-              queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/badQueue',
+              queueUrl: 'http://localhost:4566/000000000000/badQueue',
             },
           },
         })
