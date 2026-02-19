@@ -217,11 +217,19 @@ export abstract class AbstractKafkaConsumer<
     stream: MessagesStream<string, object, string, string>,
   ): Promise<void> {
     for await (const message of stream) {
-      await this.consume(
-        message.topic,
-        message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
-      )
+      try {
+        await this.consume(
+          message.topic,
+          message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
+        )
+      } catch (e) {
+        console.log(e)
+      }
     }
+    //stream.on('data', (message) => {
+    //  console.log(message)
+    //})
+    //return
   }
 
   async close(): Promise<void> {
