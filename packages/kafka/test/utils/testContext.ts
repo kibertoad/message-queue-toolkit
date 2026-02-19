@@ -6,7 +6,7 @@ import {
   type TransactionObservabilityManager,
 } from '@lokalise/node-core'
 import type { MessageMetricsManager } from '@message-queue-toolkit/core'
-import { adminClient } from '@platformatic/kafka'
+import { Admin } from '@platformatic/kafka'
 import {
   type AwilixContainer,
   asFunction,
@@ -26,7 +26,7 @@ export type TestContext = AwilixContainer<Dependencies>
 type Dependencies = {
   awilixManager: AwilixManager
   kafkaConfig: KafkaConfig
-  kafkaAdmin: adminClient.Admin
+  kafkaAdmin: Admin
   errorReporter: ErrorReporter
   logger: CommonLogger
   transactionObservabilityManager: TransactionObservabilityManager
@@ -60,7 +60,7 @@ const resolveDIConfig = (awilixManager: AwilixManager): DiConfig => ({
   kafkaConfig: asFunction(getKafkaConfig, SINGLETON_CONFIG),
   kafkaAdmin: asFunction(
     ({ kafkaConfig }) =>
-      new adminClient.Admin({
+      new Admin({
         clientId: randomUUID(),
         bootstrapBrokers: kafkaConfig.bootstrapBrokers,
       }),
