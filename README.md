@@ -8,7 +8,9 @@ Useful utilities, interfaces and base classes for message queue handling.
 
 ## Overview
 
-`message-queue-toolkit ` is an abstraction over several different queue systems, which implements common deserialization, validation and error handling logic. The library provides utilities, interfaces and base classes to build the support for any queue system you may need in your service.
+`message-queue-toolkit ` is an abstraction over several different queue systems, which implements common deserialization,
+validation and error handling logic. The library provides utilities, interfaces and base classes to build the support for
+any queue system you may need in your service.
 
 It consists of the following submodules:
 
