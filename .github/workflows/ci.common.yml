@@ -24,11 +24,11 @@ jobs:
       - name: Install
         run: npm install --ignore-scripts
 
-      - name: Run lint
-        run: npm run lint -- --filter=${{ inputs.package_name }}
-
       - name: Build TS
         run: npm run build -- --filter=${{ inputs.package_name }}
+
+      - name: Run lint
+        run: npm run lint -- --filter=${{ inputs.package_name }}
 
       - name: Docker start
         run: npm run docker:start:ci -- --filter=${{ inputs.package_name }}
