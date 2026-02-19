@@ -27,8 +27,6 @@
         "test:coverage": "npm run test -- --coverage",
         "lint": "biome check . && tsc",
         "lint:fix": "biome check --write .",
-        "docker:start": "docker compose up -d --quiet-pull localstack",
-        "docker:stop": "docker compose down",
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {},
