@@ -1,6 +1,7 @@
 # @message-queue-toolkit/sqs
 
-AWS SQS (Simple Queue Service) implementation for the message-queue-toolkit. Provides a robust, type-safe abstraction for publishing and consuming messages from both standard and FIFO SQS queues.
+AWS SQS (Simple Queue Service) implementation for the message-queue-toolkit. Provides a robust, type-safe abstraction
+for publishing and consuming messages from both standard and FIFO SQS queues.
 
 ## Table of Contents
 
