@@ -20,6 +20,7 @@ import type {
   DeserializedMessage,
   KafkaConfig,
   KafkaDependencies,
+  RequestContext,
   SupportedMessageValues,
   TopicConfig,
 } from './types.ts'
@@ -125,8 +126,17 @@ export abstract class AbstractKafkaService<
     }
   }
 
-  protected handlerError(error: unknown, context: Record<string, unknown> = {}): void {
-    this.logger.error({ ...resolveGlobalErrorLogObject(error), ...context })
-    if (isError(error)) this.errorReporter.report({ error, context })
+  protected handlerError(
+    error: unknown,
+    requestContext: RequestContext,
+    context: Record<string, unknown> = {},
+  ): void {
+    const logger = requestContext.logger ?? this.logger
+    logger.error({ ...resolveGlobalErrorLogObject(error), ...context })
+    if (isError(error))
+      this.errorReporter.report({
+        error,
+        context: { ...context, 'x-request-id': requestContext.reqId },
+      })
   }
 }
