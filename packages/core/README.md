@@ -1,6 +1,7 @@
 # @message-queue-toolkit/core
   
-Core library for message-queue-toolkit. Provides foundational abstractions, utilities, and base classes for building message queue publishers and consumers.
+Core library for message-queue-toolkit. Provides foundational abstractions, utilities, and base classes for building
+message queue publishers and consumers.
 
 ## Table of Contents
 
@@ -74,13 +75,16 @@ type UserCreated = z.infer<typeof UserCreatedSchema>
 
 #### What is Message Type?
 
-The **message type** is a discriminator field that identifies what kind of event or command a message represents. It's used for:
+The **message type** is a discriminator field that identifies what kind of event or command a message represents. It's 
+used for:
 
 1. **Routing**: Directing messages to the appropriate handler based on their type
 2. **Schema validation**: Selecting the correct Zod schema to validate the message
 3. **Observability**: Tracking metrics and logs per message type
 
-In a typical event-driven architecture, a single queue or topic may receive multiple types of messages. For example, a `user-events` queue might receive `user.created`, `user.updated`, and `user.deleted` events. The message type tells the consumer which handler should process each message.
+In a typical event-driven architecture, a single queue or topic may receive multiple types of messages. For example, a
+`user-events` queue might receive `user.created`, `user.updated`, and `user.deleted` events. The message type tells the 
+consumer which handler should process each message.
 
 #### Configuration Options
 
@@ -126,7 +130,8 @@ const resolverConfig: MessageTypeResolverConfig = {
 }
 ```
 
-**Important:** The resolver function must always return a valid string. If the type cannot be determined, either return a default type or throw an error with a descriptive message.
+**Important:** The resolver function must always return a valid string. If the type cannot be determined, either return
+a default type or throw an error with a descriptive message.
 
 #### Real-World Examples by Platform
 
@@ -478,7 +483,8 @@ The third parameter to `addConfig` accepts these options:
 
 #### Explicit Message Type
 
-When using a custom resolver function (`messageTypeResolver: { resolver: fn }`), the message type cannot be automatically extracted from schemas at registration time. You must provide an explicit `messageType` for each handler:
+When using a custom resolver function (`messageTypeResolver: { resolver: fn }`), the message type cannot be automatically
+extracted from schemas at registration time. You must provide an explicit `messageType` for each handler:
 
 ```typescript
 const handlers = new MessageHandlerConfigBuilder<SupportedMessages, Context>()
