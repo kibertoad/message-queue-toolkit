@@ -75,6 +75,7 @@ export class PermissionConsumer extends AbstractKafkaConsumer<
         handlerSpy: options.handlerSpy ?? true,
         headerRequestIdField: options.headerRequestIdField,
         messageIdField: options.messageIdField,
+        maxWaitTime: 5,
       },
       {
         incrementAmount: 0,
