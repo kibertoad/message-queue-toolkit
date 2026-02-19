@@ -41,7 +41,7 @@
         "@lokalise/tsconfig": "^3.0.0",
         "@types/node": "^25.0.2",
         "@vitest/coverage-v8": "^4.0.15",
-        "fauxqs": "^1.0.1",
+        "fauxqs": "^1.2.0",
         "rimraf": "^6.0.1",
         "typescript": "^5.9.2",
         "vitest": "^4.0.15"
