@@ -95,22 +95,21 @@ describe('AmqpPermissionConsumer', () => {
 
       await newConsumer.close()
 
-      expect(logger.loggedMessages.length).toBe(6)
+      expect(logger.loggedMessages.length).toBe(4)
       expect(logger.loggedMessages).toMatchObject([
         'Propagating new connection across 0 receivers',
-        {
-          id: '1',
-          messageType: 'add',
-        },
         'timestamp not defined, adding it automatically',
-        expect.any(Object),
         {
-          id: '1',
-          messageType: 'add',
-          timestamp: expect.any(String),
+          processedMessageMetadata: expect.objectContaining({
+            processingResult: { status: 'published' },
+          }),
         },
         {
-          processedMessageMetadata: expect.any(String),
+          processedMessageMetadata: expect.objectContaining({
+            messageId: '1',
+            messageType: 'add',
+            processingResult: { status: 'consumed' },
+          }),
         },
       ])
     })
@@ -164,6 +163,7 @@ describe('AmqpPermissionConsumer', () => {
             id: '1',
             messageType: 'add',
           }),
+          messageMetadata: undefined,
         },
       ])
     })
