@@ -7,31 +7,69 @@ on:
   pull_request:
 
 jobs:
+  changed-files-job:
+    name: Get changed packages
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.detect.outputs.packages }}
+    steps:
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46
+        with:
+          files: packages/**
+
+      - name: Detect changed packages
+        id: detect
+        env:
+          ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        run: |
+          declare -A PATH_TO_NAME=(
+            ["packages/amqp"]="@message-queue-toolkit/amqp"
+            ["packages/core"]="@message-queue-toolkit/core"
+            ["packages/gcp-pubsub"]="@message-queue-toolkit/gcp-pubsub"
+            ["packages/gcs-payload-store"]="@message-queue-toolkit/gcs-payload-store"
+            ["packages/kafka"]="@message-queue-toolkit/kafka"
+            ["packages/metrics"]="@message-queue-toolkit/metrics"
+            ["packages/outbox-core"]="@message-queue-toolkit/outbox-core"
+            ["packages/redis-message-deduplication-store"]="@message-queue-toolkit/redis-message-deduplication-store"
+            ["packages/s3-payload-store"]="@message-queue-toolkit/s3-payload-store"
+            ["packages/schemas"]="@message-queue-toolkit/schemas"
+            ["packages/sns"]="@message-queue-toolkit/sns"
+            ["packages/sqs"]="@message-queue-toolkit/sqs"
+          )
+
+          PACKAGES=()
+          for path in "${!PATH_TO_NAME[@]}"; do
+            if echo "$ALL_CHANGED_FILES" | grep -q "$path/"; then
+              PACKAGES+=("\"${PATH_TO_NAME[$path]}\"")
+            fi
+          done
+
+          if [ ${#PACKAGES[@]} -eq 0 ]; then
+            echo 'packages=[]' >> $GITHUB_OUTPUT
+            echo "No packages changed"
+          else
+            JSON="[$(IFS=,; echo "${PACKAGES[*]}")]"
+            echo "packages=$JSON" >> $GITHUB_OUTPUT
+            echo "Changed packages: $JSON"
+          fi
+
   general:
+    needs: [changed-files-job]
+    if: needs.changed-files-job.outputs.packages != '[]'
     strategy:
       matrix:
         node-version: [22.x, 24.x]
-        package-name: [
-          '@message-queue-toolkit/amqp',
-          '@message-queue-toolkit/core',
-          '@message-queue-toolkit/metrics',
-          '@message-queue-toolkit/outbox-core',
-          '@message-queue-toolkit/redis-message-deduplication-store',
-          '@message-queue-toolkit/s3-payload-store',
-          '@message-queue-toolkit/schemas',
-          '@message-queue-toolkit/sns',
-          '@message-queue-toolkit/sqs',
-          '@message-queue-toolkit/gcp-pubsub',
-          '@message-queue-toolkit/gcs-payload-store',
-          '@message-queue-toolkit/kafka'
-        ]
+        package-name: ${{ fromJson(needs.changed-files-job.outputs.packages) }}
     uses: ./.github/workflows/ci.common.yml
     with:
       node_version: ${{ matrix.node-version }}
       package_name: ${{ matrix.package-name }}
 
   automerge:
-    needs: [ general ]
+    needs: [general]
+    if: always() && (needs.general.result == 'success' || needs.general.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
