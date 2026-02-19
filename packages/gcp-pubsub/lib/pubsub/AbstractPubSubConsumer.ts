@@ -2,6 +2,7 @@ import { type Either, type ErrorResolver, isError } from '@lokalise/node-core'
 import type {
   MessageInvalidFormatError,
   MessageValidationError,
+  ProcessedMessageMetadata,
   ResolvedMessage,
 } from '@message-queue-toolkit/core'
 import {
@@ -861,9 +862,17 @@ export abstract class AbstractPubSubConsumer<
     )
   }
 
-  protected override resolveMessageLog(message: MessagePayloadType, messageType: string): unknown {
-    const handler = this.handlerContainer.resolveHandler(messageType)
-    return handler.messageLogFormatter(message)
+  protected override resolveMessageLog(
+    processedMessageMetadata: ProcessedMessageMetadata<MessagePayloadType>,
+  ): unknown | null {
+    if (!processedMessageMetadata.message || !processedMessageMetadata.messageType) {
+      return null
+    }
+    const handler = this.handlerContainer.resolveHandler(processedMessageMetadata.messageType)
+    if (!handler.messageLogFormatter) {
+      return null
+    }
+    return handler.messageLogFormatter(processedMessageMetadata.message)
   }
 
   protected override isDeduplicationEnabledForMessage(message: MessagePayloadType): boolean {
