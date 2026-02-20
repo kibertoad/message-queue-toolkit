@@ -1,6 +1,7 @@
 # @message-queue-toolkit/sqs
 
-AWS SQS (Simple Queue Service) implementation for the message-queue-toolkit. Provides a robust, type-safe abstraction for publishing and consuming messages from both standard and FIFO SQS queues.
+AWS SQS (Simple Queue Service) implementation for the message-queue-toolkit. Provides a robust, type-safe abstraction
+for publishing and consuming messages from both standard and FIFO SQS queues.
 
 ## Table of Contents
 
@@ -70,7 +71,7 @@ Publishers send messages to SQS queues. They handle:
 - Message validation against Zod schemas
 - Automatic serialization
 - Optional deduplication (preventing duplicate sends)
-- Optional payload offloading (for messages > 256KB)
+- Optional payload offloading (for messages > 1 MiB)
 - FIFO-specific concerns (MessageGroupId, MessageDeduplicationId)
 
 ### Consumers
@@ -379,7 +380,7 @@ When using `creationConfig`, the queue will be created automatically if it doesn
 
         // Other attributes
         DelaySeconds: '0',                 // Default delay for all messages
-        MaximumMessageSize: '262144',      // 256 KB (default maximum)
+        MaximumMessageSize: '1048576',      // 1 MiB (default maximum)
       },
       tags: {
         Environment: 'production',
@@ -456,7 +457,7 @@ When using `locatorConfig`, you connect to an existing queue without creating it
   // Optional - Payload Offloading
   payloadStoreConfig: {
     payloadStore: s3Store,             // S3-based payload store
-    maxPayloadSize: 256 * 1024,        // 256 KB
+    maxPayloadSize: 1024 * 1024,       // 1 MiB
   },
 
   // Optional - Deletion
@@ -754,7 +755,7 @@ Prevents processing the same message multiple times:
 
 ### Payload Offloading
 
-For messages larger than 256 KB, store the payload externally (e.g., S3):
+For messages larger than 1 MiB, store the payload externally (e.g., S3):
 
 ```typescript
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
@@ -768,7 +769,7 @@ const payloadStore = new S3PayloadStore({
 {
   payloadStoreConfig: {
     payloadStore,
-    maxPayloadSize: 256 * 1024,  // 256 KB threshold
+    maxPayloadSize: 1024 * 1024,  // 1 MiB threshold
   },
 }
 
@@ -776,7 +777,7 @@ const payloadStore = new S3PayloadStore({
 await publisher.publish({
   id: '123',
   messageType: 'document.processed',
-  largeData: hugeArrayOfData,  // If total size > 256 KB, stored in S3
+  largeData: hugeArrayOfData,  // If total size > 1 MiB, stored in S3
 })
 ```
 

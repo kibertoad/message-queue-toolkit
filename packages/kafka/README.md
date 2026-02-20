@@ -20,7 +20,8 @@ See [test consumer](test/consumer/PermissionConsumer.ts) for an example of imple
 
 ## Batch Processing
 
-Kafka supports batch processing for improved throughput. To enable it, set `batchProcessingEnabled` to `true` and configure `batchProcessingOptions`.
+Kafka supports batch processing for improved throughput. To enable it, set `batchProcessingEnabled` to `true` and 
+configure `batchProcessingOptions`.
 
 When batch processing is enabled, message handlers receive an array of messages instead of a single message.
 

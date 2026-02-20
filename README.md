@@ -6,6 +6,9 @@
 
 Useful utilities, interfaces and base classes for message queue handling.
 
+> **Note:** Node.js 20 is no longer officially supported. It is likely to work, but we are no longer maintaining it.
+Please use a later version of Node.js.
+
 ## Overview
 
 `message-queue-toolkit ` is an abstraction over several different queue systems, which implements common deserialization,
