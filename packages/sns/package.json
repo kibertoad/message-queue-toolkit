@@ -55,7 +55,7 @@
         "@vitest/coverage-v8": "^4.0.15",
         "awilix": "^12.1.1",
         "awilix-manager": "^6.1.0",
-        "fauxqs": "^1.6.7",
+        "fauxqs": "^1.6.8",
         "ioredis": "^5.7.0",
         "rimraf": "^6.0.1",
         "typescript": "^5.9.3",
