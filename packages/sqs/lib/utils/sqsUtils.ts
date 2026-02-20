@@ -274,7 +274,7 @@ export async function deleteQueue(
 /**
  * Calculates the size of an outgoing SQS message.
  *
- * SQS imposes a 256 KB limit on the total size of a message, which includes both the message body and any metadata (attributes).
+ * SQS imposes a 1 MiB limit on the total size of a message, which includes both the message body and any metadata (attributes).
  * This function currently computes the size based solely on the message body, as no attributes are included at this time.
  * For future updates, if message attributes are added, their sizes should also be considered.
  *

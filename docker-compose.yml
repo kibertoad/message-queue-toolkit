@@ -10,7 +10,7 @@ services:
     restart: on-failure
 
   localstack:
-    image: localstack/localstack:4.10.0
+    image: localstack/localstack:4.13.1
     network_mode: bridge
     hostname: localstack
     ports:
