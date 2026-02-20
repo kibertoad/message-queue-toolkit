@@ -9,7 +9,7 @@ import type { SQSMessage } from '../types/MessageTypes.ts'
 import { deleteSqs, initSqs } from '../utils/sqsInitter.ts'
 
 // https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html
-export const SQS_MESSAGE_MAX_SIZE = 256 * 1024 // 256KB
+export const SQS_MESSAGE_MAX_SIZE = 1024 * 1024 // 1 MiB
 export const SQS_RESOURCE_ANY = Symbol('any')
 export const SQS_RESOURCE_CURRENT_QUEUE = Symbol('current_queue')
 
