@@ -4,7 +4,7 @@ import type { STSClient } from '@aws-sdk/client-sts'
 import type { InternalError } from '@lokalise/node-core'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
-import { assertQueue, FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
+import { FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -92,9 +92,7 @@ describe('SnsPermissionPublisher', () => {
     })
 
     it('does not create a new queue when queue locator is passed', async () => {
-      const arn = await assertTopic(snsClient, stsClient, {
-        Name: topicNome,
-      })
+      const arn = await testAdmin.createTopic(topicNome)
 
       const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
         locatorConfig: {
@@ -216,9 +214,7 @@ describe('SnsPermissionPublisher', () => {
         timestamp: new Date().toISOString(),
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
-      const { queueUrl } = await assertQueue(sqsClient, {
-        QueueName: queueName,
-      })
+      const { queueUrl } = await testAdmin.createQueue(queueName)
 
       await subscribeToTopic(
         sqsClient,
@@ -279,9 +275,7 @@ describe('SnsPermissionPublisher', () => {
         messageType: 'add',
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
-      const { queueUrl } = await assertQueue(sqsClient, {
-        QueueName: queueName,
-      })
+      const { queueUrl } = await testAdmin.createQueue(queueName)
 
       await subscribeToTopic(
         sqsClient,

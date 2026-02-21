@@ -6,7 +6,7 @@ import type {
   SinglePayloadStoreConfig,
 } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
-import { assertQueue, OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
+import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { Consumer } from 'sqs-consumer'
@@ -55,7 +55,7 @@ describe('SqsPermissionPublisher - payload offloading', () => {
     })
     beforeEach(async () => {
       await testAdmin.deleteQueues(queueName)
-      const { queueUrl } = await assertQueue(sqsClient, { QueueName: queueName })
+      const { queueUrl } = await testAdmin.createQueue(queueName)
 
       receivedSqsMessages = []
       consumer = Consumer.create({

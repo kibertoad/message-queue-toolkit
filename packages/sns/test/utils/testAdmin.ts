@@ -2,10 +2,10 @@ import type { S3 } from '@aws-sdk/client-s3'
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
-import { deleteQueue } from '@message-queue-toolkit/sqs'
+import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { FauxqsServer } from 'fauxqs'
-import { deleteTopic } from '../../lib/utils/snsUtils.ts'
-import { assertBucket, emptyBucket } from './s3Utils.ts'
+import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils.ts'
+import { assertBucket, emptyBuckets } from './s3Utils.ts'
 
 export class TestAwsResourceAdmin {
   private server: FauxqsServer | undefined
@@ -31,6 +31,24 @@ export class TestAwsResourceAdmin {
     this.region = opts.region
   }
 
+  async createQueue(
+    name: string,
+    opts?: { attributes?: Record<string, string>; tags?: Record<string, string> },
+  ) {
+    if (this.server) {
+      return this.server.createQueue(name, {
+        region: this.region,
+        attributes: opts?.attributes,
+        tags: opts?.tags,
+      })
+    }
+    return await assertQueue(this.sqsClient, {
+      QueueName: name,
+      Attributes: opts?.attributes,
+      tags: opts?.tags,
+    })
+  }
+
   async deleteQueues(...queueNames: string[]) {
     if (this.server) {
       for (const name of queueNames) {
@@ -41,6 +59,14 @@ export class TestAwsResourceAdmin {
     for (const name of queueNames) {
       await deleteQueue(this.sqsClient, name)
     }
+  }
+
+  async createTopic(name: string) {
+    if (this.server) {
+      const { topicArn } = this.server.createTopic(name, { region: this.region })
+      return topicArn
+    }
+    return await assertTopic(this.snsClient, this.stsClient, { Name: name })
   }
 
   async deleteTopics(...topicNames: string[]) {
@@ -63,11 +89,13 @@ export class TestAwsResourceAdmin {
     return await assertBucket(this.s3!, name)
   }
 
-  async emptyBucket(name: string) {
+  async emptyBuckets(...names: string[]) {
     if (this.server) {
-      this.server.emptyBucket(name)
+      for (const name of names) {
+        this.server.emptyBucket(name)
+      }
       return
     }
-    return await emptyBucket(this.s3!, name)
+    return await emptyBuckets(this.s3!, ...names)
   }
 }

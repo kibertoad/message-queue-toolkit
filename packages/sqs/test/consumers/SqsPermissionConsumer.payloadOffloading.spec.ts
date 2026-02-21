@@ -3,7 +3,7 @@ import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { SinglePayloadStoreConfig } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
-import { assertQueue, OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
+import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -69,7 +69,7 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
       await consumer.close(true)
     })
     afterAll(async () => {
-      await testAdmin.emptyBucket(s3BucketName)
+      await testAdmin.emptyBuckets(s3BucketName)
 
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
@@ -139,7 +139,7 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
       await testPublisher.close()
 
       // Delete the S3 object to simulate S3 failure BEFORE starting consumer
-      await testAdmin.emptyBucket(s3BucketName)
+      await testAdmin.emptyBuckets(s3BucketName)
 
       // Create a test error reporter to capture deserialization errors
       const capturedErrors: Array<{ error: Error; context?: Record<string, unknown> }> = []
@@ -194,7 +194,7 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
       const { sqsClient } = diContainer.cradle
 
       await testAdmin.deleteQueues(TEST_QUEUE_NAME)
-      const { queueUrl } = await assertQueue(sqsClient, { QueueName: TEST_QUEUE_NAME })
+      const { queueUrl } = await testAdmin.createQueue(TEST_QUEUE_NAME)
 
       // Manually create a payload in S3 (simulating what an old publisher would do)
       const originalMessage = {
@@ -279,7 +279,7 @@ describe('SqsPermissionConsumer - nested messageTypePath with payload offloading
     })
 
     afterAll(async () => {
-      await testAdmin.emptyBucket(s3BucketName)
+      await testAdmin.emptyBuckets(s3BucketName)
 
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()

@@ -10,7 +10,7 @@ import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import type { SQSMessage } from '../../lib/types/MessageTypes.ts'
-import { assertQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
+import { getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
 import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
@@ -93,7 +93,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       })
 
       it('creates dead letter queue for an existing queue', async () => {
-        const { queueUrl } = await assertQueue(sqsClient, { QueueName: customQueueName })
+        const { queueUrl } = await testAdmin.createQueue(customQueueName)
 
         consumer = new SqsPermissionConsumer(diContainer.cradle, {
           locatorConfig: { queueUrl },
@@ -124,9 +124,8 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       let dlqUrl: string
 
       beforeEach(async () => {
-        const result = await assertQueue(sqsClient, {
-          QueueName: customDeadLetterQueueName,
-          Attributes: { KmsMasterKeyId: 'my first value' },
+        const result = await testAdmin.createQueue(customDeadLetterQueueName, {
+          attributes: { KmsMasterKeyId: 'my first value' },
           tags: { tag: 'old', hello: 'world' },
         })
         dlqUrl = result.queueUrl
@@ -222,7 +221,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       })
 
       it('connect existing dlq to existing queue', async () => {
-        const { queueUrl } = await assertQueue(sqsClient, { QueueName: customQueueName })
+        const { queueUrl } = await testAdmin.createQueue(customQueueName)
 
         consumer = new SqsPermissionConsumer(diContainer.cradle, {
           locatorConfig: { queueUrl },

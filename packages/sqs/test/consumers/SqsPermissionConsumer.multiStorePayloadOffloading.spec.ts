@@ -6,7 +6,7 @@ import {
   type SinglePayloadStoreConfig,
 } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
-import { assertQueue, OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
+import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -53,8 +53,7 @@ describe('SqsPermissionConsumer - multi-store payload offloading', () => {
       await consumer?.close(true)
     })
     afterAll(async () => {
-      await testAdmin.emptyBucket(s3BucketNameStore1)
-      await testAdmin.emptyBucket(s3BucketNameStore2)
+      await testAdmin.emptyBuckets(s3BucketNameStore1, s3BucketNameStore2)
 
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
@@ -221,7 +220,7 @@ describe('SqsPermissionConsumer - multi-store payload offloading', () => {
       const { sqsClient } = diContainer.cradle
 
       await testAdmin.deleteQueues(TEST_QUEUE_NAME)
-      const { queueUrl } = await assertQueue(sqsClient, { QueueName: TEST_QUEUE_NAME })
+      const { queueUrl } = await testAdmin.createQueue(TEST_QUEUE_NAME)
 
       const store1 = new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketNameStore1 })
       const store2 = new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketNameStore2 })
@@ -297,7 +296,7 @@ describe('SqsPermissionConsumer - multi-store payload offloading', () => {
       const { sqsClient } = diContainer.cradle
 
       await testAdmin.deleteQueues(TEST_QUEUE_NAME)
-      const { queueUrl } = await assertQueue(sqsClient, { QueueName: TEST_QUEUE_NAME })
+      const { queueUrl } = await testAdmin.createQueue(TEST_QUEUE_NAME)
 
       const store1 = new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketNameStore1 })
       const store2 = new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketNameStore2 })

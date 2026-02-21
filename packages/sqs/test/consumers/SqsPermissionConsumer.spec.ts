@@ -18,7 +18,7 @@ import {
   SQS_RESOURCE_CURRENT_QUEUE,
   type SQSPolicyConfig,
 } from '../../lib/sqs/AbstractSqsService.ts'
-import { assertQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
+import { getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
 import { FakeLogger } from '../fakes/FakeLogger.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
@@ -59,9 +59,7 @@ describe('SqsPermissionConsumer', () => {
     })
 
     it('does not create a new queue when queue locator is passed', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: queueName,
-      })
+      await testAdmin.createQueue(queueName)
 
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -74,9 +72,7 @@ describe('SqsPermissionConsumer', () => {
     })
 
     it('resolves existing queue by name', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: queueName,
-      })
+      await testAdmin.createQueue(queueName)
 
       const newConsumer = new SqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -90,9 +86,8 @@ describe('SqsPermissionConsumer', () => {
 
     describe('attributes update', () => {
       it('updates existing queue when one with different attributes exist', async () => {
-        await assertQueue(sqsClient, {
-          QueueName: queueName,
-          Attributes: {
+        await testAdmin.createQueue(queueName, {
+          attributes: {
             KmsMasterKeyId: 'somevalue',
           },
         })
@@ -133,9 +128,8 @@ describe('SqsPermissionConsumer', () => {
       })
 
       it('does not update existing queue when attributes did not change', async () => {
-        await assertQueue(sqsClient, {
-          QueueName: queueName,
-          Attributes: {
+        await testAdmin.createQueue(queueName, {
+          attributes: {
             KmsMasterKeyId: 'somevalue',
           },
         })
@@ -188,8 +182,7 @@ describe('SqsPermissionConsumer', () => {
           cc: 'some-cc',
         }
 
-        const assertResult = await assertQueue(sqsClient, {
-          QueueName: queueName,
+        const assertResult = await testAdmin.createQueue(queueName, {
           tags: initialTags,
         })
         const preTags = await getTags(assertResult.queueUrl)
@@ -227,8 +220,7 @@ describe('SqsPermissionConsumer', () => {
       })
 
       it('does not update existing queue tags when update is not forced', async () => {
-        const assertResult = await assertQueue(sqsClient, {
-          QueueName: queueName,
+        const assertResult = await testAdmin.createQueue(queueName, {
           tags: {
             project: 'some-project',
             service: 'some-service',

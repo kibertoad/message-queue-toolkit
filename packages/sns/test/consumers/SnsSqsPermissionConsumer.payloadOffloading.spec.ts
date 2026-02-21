@@ -61,7 +61,7 @@ describe('SnsSqsPermissionConsumer - single-store payload offloading', () => {
     })
 
     afterAll(async () => {
-      await testAdmin.emptyBucket(s3BucketName)
+      await testAdmin.emptyBuckets(s3BucketName)
 
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()

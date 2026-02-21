@@ -1,6 +1,6 @@
 import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
-import { assertQueue, getQueueAttributes, type SQSMessage } from '@message-queue-toolkit/sqs'
+import { getQueueAttributes, type SQSMessage } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -88,9 +88,7 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
     })
 
     it('using existing dead letter queue', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: deadLetterQueueName,
-      })
+      await testAdmin.createQueue(deadLetterQueueName)
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         creationConfig: {
@@ -125,9 +123,8 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
     })
 
     it('should update attributes and tags', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: deadLetterQueueName,
-        Attributes: { KmsMasterKeyId: 'old' },
+      await testAdmin.createQueue(deadLetterQueueName, {
+        attributes: { KmsMasterKeyId: 'old' },
         tags: { tag: 'old' },
       })
 

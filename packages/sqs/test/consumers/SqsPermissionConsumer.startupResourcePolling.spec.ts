@@ -12,7 +12,6 @@ import {
   type SQSConsumerDependencies,
   type SQSConsumerOptions,
 } from '../../lib/sqs/AbstractSqsConsumer.ts'
-import { assertQueue } from '../../lib/utils/sqsUtils.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -94,7 +93,7 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       // Wait a bit then create the queue
       await setTimeout(300)
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       // Init should complete successfully
       await initPromise
@@ -136,7 +135,7 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       // Wait a bit then create the queue
       await setTimeout(500)
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       // Init should complete successfully
       await initPromise
@@ -178,7 +177,7 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
   describe('when nonBlocking mode is enabled', () => {
     it('returns immediately when resource is available on first check', async () => {
       // Create queue first
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -253,7 +252,7 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(result.queueArn).toBeUndefined()
 
       // Create queue after init returns
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       // Wait for background polling to detect the queue
       await setTimeout(200)

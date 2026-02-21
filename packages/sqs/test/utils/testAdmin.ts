@@ -5,7 +5,7 @@ import type { STSClient } from '@aws-sdk/client-sts'
 import type { FauxqsServer } from 'fauxqs'
 
 import { assertQueue, deleteQueue } from '../../lib/utils/sqsUtils.ts'
-import { assertBucket, emptyBucket } from './s3Utils.ts'
+import { assertBucket, emptyBuckets } from './s3Utils.ts'
 
 export class TestAwsResourceAdmin {
   private server: FauxqsServer | undefined
@@ -36,12 +36,11 @@ export class TestAwsResourceAdmin {
     opts?: { attributes?: Record<string, string>; tags?: Record<string, string> },
   ) {
     if (this.server) {
-      this.server.createQueue(name, {
+      return this.server.createQueue(name, {
         region: this.region,
         attributes: opts?.attributes,
         tags: opts?.tags,
       })
-      return
     }
     return await assertQueue(this.sqsClient, {
       QueueName: name,
@@ -70,11 +69,13 @@ export class TestAwsResourceAdmin {
     return await assertBucket(this.s3!, name)
   }
 
-  async emptyBucket(name: string) {
+  async emptyBuckets(...names: string[]) {
     if (this.server) {
-      this.server.emptyBucket(name)
+      for (const name of names) {
+        this.server.emptyBucket(name)
+      }
       return
     }
-    return await emptyBucket(this.s3!, name)
+    return await emptyBuckets(this.s3!, ...names)
   }
 }
