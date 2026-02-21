@@ -12,7 +12,8 @@ import {
   type SQSConsumerDependencies,
   type SQSConsumerOptions,
 } from '../../lib/sqs/AbstractSqsConsumer.ts'
-import { assertQueue, deleteQueue } from '../../lib/utils/sqsUtils.ts'
+import { assertQueue } from '../../lib/utils/sqsUtils.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import {
@@ -60,15 +61,17 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
 
   let diContainer: AwilixContainer<Dependencies>
   let sqsClient: SQSClient
+  let testAdmin: TestAwsResourceAdmin
 
   beforeEach(async () => {
     diContainer = await registerDependencies()
     sqsClient = diContainer.cradle.sqsClient
-    await deleteQueue(sqsClient, queueName)
+    testAdmin = diContainer.cradle.testAdmin
+    await testAdmin.deleteQueue(queueName)
   })
 
   afterEach(async () => {
-    await deleteQueue(sqsClient, queueName)
+    await testAdmin.deleteQueue(queueName)
     await diContainer.cradle.awilixManager.executeDispose()
     await diContainer.dispose()
   })

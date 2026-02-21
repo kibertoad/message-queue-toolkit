@@ -3,11 +3,12 @@ import { ListTagsForResourceCommand, type SNSClient } from '@aws-sdk/client-sns'
 import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import { waitAndRetry } from '@lokalise/node-core'
-import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
+import { assertQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
 import { type AwilixContainer, asFunction, asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils.ts'
+import { assertTopic } from '../../lib/utils/snsUtils.ts'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer.ts'
@@ -24,16 +25,18 @@ describe('SnsSqsPermissionConsumer', () => {
     let sqsClient: SQSClient
     let snsClient: SNSClient
     let stsClient: STSClient
+    let testAdmin: TestAwsResourceAdmin
 
     beforeAll(async () => {
       diContainer = await registerDependencies({}, false)
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
       stsClient = diContainer.cradle.stsClient
+      testAdmin = diContainer.cradle.testAdmin
     })
     beforeEach(async () => {
-      await deleteQueue(sqsClient, queueName)
-      await deleteTopic(snsClient, stsClient, topicNome)
+      await testAdmin.deleteQueue(queueName)
+      await testAdmin.deleteTopic(topicNome)
     })
 
     // FixMe https://github.com/localstack/localstack/issues/9306
@@ -788,8 +791,8 @@ describe('SnsSqsPermissionConsumer', () => {
     })
 
     beforeEach(async () => {
-      await deleteQueue(diContainer.cradle.sqsClient, queueName)
-      await deleteTopic(diContainer.cradle.snsClient, diContainer.cradle.stsClient, topicName)
+      await diContainer.cradle.testAdmin.deleteQueue(queueName)
+      await diContainer.cradle.testAdmin.deleteTopic(topicName)
     })
 
     afterAll(async () => {
@@ -870,8 +873,8 @@ describe('SnsSqsPermissionConsumer', () => {
     })
 
     beforeEach(async () => {
-      await deleteQueue(diContainer.cradle.sqsClient, queueName)
-      await deleteTopic(diContainer.cradle.snsClient, diContainer.cradle.stsClient, topicName)
+      await diContainer.cradle.testAdmin.deleteQueue(queueName)
+      await diContainer.cradle.testAdmin.deleteTopic(topicName)
     })
 
     afterAll(async () => {

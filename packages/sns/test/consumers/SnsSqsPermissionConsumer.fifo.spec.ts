@@ -1,10 +1,9 @@
-import type { SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { deleteTopic } from '../../lib/utils/snsUtils.ts'
 import { SnsPermissionPublisherFifo } from '../publishers/SnsPermissionPublisherFifo.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SnsSqsPermissionConsumerFifo } from './SnsSqsPermissionConsumerFifo.ts'
@@ -16,16 +15,16 @@ describe('SnsSqsPermissionConsumerFifo', () => {
     const dlqName = 'test-fifo-consumer-dlq.fifo'
 
     let diContainer: AwilixContainer<Dependencies>
-    let snsClient: SNSClient
     let sqsClient: SQSClient
+    let testAdmin: TestAwsResourceAdmin
     beforeEach(async () => {
       diContainer = await registerDependencies()
-      snsClient = diContainer.cradle.snsClient
       sqsClient = diContainer.cradle.sqsClient
+      testAdmin = diContainer.cradle.testAdmin
     })
 
     afterEach(async () => {
-      await deleteTopic(snsClient, diContainer.cradle.stsClient, topicName)
+      await testAdmin.deleteTopic(topicName)
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
       await diContainer.dispose()

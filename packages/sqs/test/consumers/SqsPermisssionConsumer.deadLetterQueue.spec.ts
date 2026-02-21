@@ -10,8 +10,9 @@ import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import type { SQSMessage } from '../../lib/types/MessageTypes.ts'
-import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
+import { assertQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
 import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 
@@ -27,6 +28,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
 
   let diContainer: AwilixContainer<Dependencies>
   let sqsClient: SQSClient
+  let testAdmin: TestAwsResourceAdmin
   let permissionPublisher: SqsPermissionPublisher
   let consumer: SqsPermissionConsumer | undefined
   let dlqConsumer: Consumer | undefined
@@ -34,12 +36,13 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
   beforeAll(async () => {
     diContainer = await registerDependencies()
     sqsClient = diContainer.cradle.sqsClient
+    testAdmin = diContainer.cradle.testAdmin
     permissionPublisher = diContainer.cradle.permissionPublisher
   })
 
   beforeEach(async () => {
-    await deleteQueue(sqsClient, queueName)
-    await deleteQueue(sqsClient, deadLetterQueueName)
+    await testAdmin.deleteQueue(queueName)
+    await testAdmin.deleteQueue(deadLetterQueueName)
   })
 
   afterEach(async () => {
@@ -59,8 +62,8 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
     const customDeadLetterQueueName = 'customDlq'
 
     beforeEach(async () => {
-      await deleteQueue(sqsClient, customQueueName)
-      await deleteQueue(sqsClient, customDeadLetterQueueName)
+      await testAdmin.deleteQueue(customQueueName)
+      await testAdmin.deleteQueue(customDeadLetterQueueName)
     })
 
     describe('creating new dead letter queue', () => {

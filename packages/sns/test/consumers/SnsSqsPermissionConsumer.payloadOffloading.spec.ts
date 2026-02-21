@@ -1,14 +1,11 @@
-import type { S3 } from '@aws-sdk/client-s3'
 import type { SinglePayloadStoreConfig } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
-import { deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { SNS_MESSAGE_MAX_SIZE } from '../../lib/sns/AbstractSnsService.ts'
-import { deleteTopic } from '../../lib/utils/snsUtils.ts'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
-import { assertBucket, emptyBucket } from '../utils/s3Utils.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer.ts'
@@ -20,7 +17,7 @@ describe('SnsSqsPermissionConsumer - single-store payload offloading', () => {
     const s3BucketName = 'test-bucket'
 
     let diContainer: AwilixContainer<Dependencies>
-    let s3: S3
+    let testAdmin: TestAwsResourceAdmin
     let payloadStoreConfig: SinglePayloadStoreConfig
 
     let publisher: SnsPermissionPublisher
@@ -31,9 +28,9 @@ describe('SnsSqsPermissionConsumer - single-store payload offloading', () => {
         permissionPublisher: asValue(() => undefined),
         permissionConsumer: asValue(() => undefined),
       })
-      s3 = diContainer.cradle.s3
+      testAdmin = diContainer.cradle.testAdmin
 
-      await assertBucket(s3, s3BucketName)
+      await testAdmin.createBucket(s3BucketName)
       payloadStoreConfig = {
         messageSizeThreshold: largeMessageSizeThreshold,
         store: new S3PayloadStore(diContainer.cradle, {
@@ -51,12 +48,8 @@ describe('SnsSqsPermissionConsumer - single-store payload offloading', () => {
         payloadStoreConfig,
       })
 
-      await deleteQueue(diContainer.cradle.sqsClient, SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
-      await deleteTopic(
-        diContainer.cradle.snsClient,
-        diContainer.cradle.stsClient,
-        SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME,
-      )
+      await testAdmin.deleteQueue(SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
+      await testAdmin.deleteTopic(SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
 
       await consumer.start()
       await publisher.init()
@@ -68,7 +61,7 @@ describe('SnsSqsPermissionConsumer - single-store payload offloading', () => {
     })
 
     afterAll(async () => {
-      await emptyBucket(s3, s3BucketName)
+      await testAdmin.emptyBucket(s3BucketName)
 
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()

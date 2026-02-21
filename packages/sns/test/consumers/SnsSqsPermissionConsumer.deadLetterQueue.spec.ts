@@ -1,18 +1,11 @@
-import type { SNSClient } from '@aws-sdk/client-sns'
 import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
-import type { STSClient } from '@aws-sdk/client-sts'
 import { waitAndRetry } from '@lokalise/node-core'
-import {
-  assertQueue,
-  deleteQueue,
-  getQueueAttributes,
-  type SQSMessage,
-} from '@message-queue-toolkit/sqs'
+import { assertQueue, getQueueAttributes, type SQSMessage } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { deleteTopic } from '../../lib/utils/snsUtils.ts'
 import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer.ts'
@@ -26,8 +19,7 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
 
   let diContainer: AwilixContainer<Dependencies>
   let sqsClient: SQSClient
-  let snsClient: SNSClient
-  let stsClient: STSClient
+  let testAdmin: TestAwsResourceAdmin
 
   let publisher: SnsPermissionPublisher
   let consumer: SnsSqsPermissionConsumer | undefined
@@ -35,15 +27,14 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
   beforeAll(async () => {
     diContainer = await registerDependencies({}, false)
     sqsClient = diContainer.cradle.sqsClient
-    snsClient = diContainer.cradle.snsClient
-    stsClient = diContainer.cradle.stsClient
+    testAdmin = diContainer.cradle.testAdmin
     publisher = diContainer.cradle.permissionPublisher
   })
 
   beforeEach(async () => {
-    await deleteQueue(sqsClient, queueName)
-    await deleteQueue(sqsClient, deadLetterQueueName)
-    await deleteTopic(snsClient, stsClient, topicName)
+    await testAdmin.deleteQueue(queueName)
+    await testAdmin.deleteQueue(deadLetterQueueName)
+    await testAdmin.deleteTopic(topicName)
   })
 
   afterEach(async () => {
@@ -60,9 +51,9 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
     const deadLetterQueueName = 'deadLetterQueue'
 
     beforeEach(async () => {
-      await deleteQueue(sqsClient, queueName)
-      await deleteQueue(sqsClient, deadLetterQueueName)
-      await deleteTopic(snsClient, stsClient, topicName)
+      await testAdmin.deleteQueue(queueName)
+      await testAdmin.deleteQueue(deadLetterQueueName)
+      await testAdmin.deleteTopic(topicName)
     })
 
     it('creates a new dead letter queue', async () => {

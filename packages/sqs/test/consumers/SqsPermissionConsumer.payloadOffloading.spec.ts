@@ -3,11 +3,7 @@ import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { SinglePayloadStoreConfig } from '@message-queue-toolkit/core'
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
-import {
-  assertQueue,
-  deleteQueue,
-  OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE,
-} from '@message-queue-toolkit/sqs'
+import { assertQueue, OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -17,7 +13,8 @@ import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer.ts'
 import { AbstractSqsPublisher } from '../../lib/sqs/AbstractSqsPublisher.ts'
 import { SQS_MESSAGE_MAX_SIZE } from '../../lib/sqs/AbstractSqsService.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
-import { assertBucket, emptyBucket, putObjectContent, waitForS3Objects } from '../utils/s3Utils.ts'
+import { putObjectContent, waitForS3Objects } from '../utils/s3Utils.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 
@@ -31,6 +28,7 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
 
     let diContainer: AwilixContainer<Dependencies>
     let s3: S3
+    let testAdmin: TestAwsResourceAdmin
     let payloadStoreConfig: SinglePayloadStoreConfig
 
     let publisher: SqsPermissionPublisher
@@ -42,8 +40,9 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
         permissionConsumer: asValue(() => undefined),
       })
       s3 = diContainer.cradle.s3
+      testAdmin = diContainer.cradle.testAdmin
 
-      await assertBucket(s3, s3BucketName)
+      await testAdmin.createBucket(s3BucketName)
       payloadStoreConfig = {
         messageSizeThreshold: largeMessageSizeThreshold,
         store: new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketName }),
@@ -51,8 +50,7 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
       }
     })
     beforeEach(async () => {
-      const { sqsClient } = diContainer.cradle
-      await deleteQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await testAdmin.deleteQueue(SqsPermissionConsumer.QUEUE_NAME)
 
       consumer = new SqsPermissionConsumer(diContainer.cradle, {
         payloadStoreConfig,
@@ -71,7 +69,7 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
       await consumer.close(true)
     })
     afterAll(async () => {
-      await emptyBucket(s3, s3BucketName)
+      await testAdmin.emptyBucket(s3BucketName)
 
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
@@ -101,10 +99,9 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
     it('handles missing offloaded payload gracefully', async () => {
       // Use completely isolated queue to avoid conflicts with other tests
       const TEST_QUEUE_NAME = 'user_permissions_offloading_error_test'
-      const { sqsClient } = diContainer.cradle
 
       // Clean up any existing test queue
-      await deleteQueue(sqsClient, TEST_QUEUE_NAME)
+      await testAdmin.deleteQueue(TEST_QUEUE_NAME)
 
       // Create dedicated publisher with isolated queue
       const testPublisher = new SqsPermissionPublisher(diContainer.cradle, {
@@ -142,7 +139,7 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
       await testPublisher.close()
 
       // Delete the S3 object to simulate S3 failure BEFORE starting consumer
-      await emptyBucket(s3, s3BucketName)
+      await testAdmin.emptyBucket(s3BucketName)
 
       // Create a test error reporter to capture deserialization errors
       const capturedErrors: Array<{ error: Error; context?: Record<string, unknown> }> = []
@@ -196,7 +193,7 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
       const TEST_QUEUE_NAME = 'user_permissions_legacy_format_test'
       const { sqsClient } = diContainer.cradle
 
-      await deleteQueue(sqsClient, TEST_QUEUE_NAME)
+      await testAdmin.deleteQueue(TEST_QUEUE_NAME)
       const { queueUrl } = await assertQueue(sqsClient, { QueueName: TEST_QUEUE_NAME })
 
       // Manually create a payload in S3 (simulating what an old publisher would do)
@@ -269,20 +266,20 @@ describe('SqsPermissionConsumer - nested messageTypePath with payload offloading
     const TEST_QUEUE_NAME = 'nested_type_path_offloading_test'
 
     let diContainer: AwilixContainer<Dependencies>
-    let s3: S3
+    let testAdmin: TestAwsResourceAdmin
 
     beforeAll(async () => {
       diContainer = await registerDependencies({
         permissionPublisher: asValue(() => undefined),
         permissionConsumer: asValue(() => undefined),
       })
-      s3 = diContainer.cradle.s3
+      testAdmin = diContainer.cradle.testAdmin
 
-      await assertBucket(s3, s3BucketName)
+      await testAdmin.createBucket(s3BucketName)
     })
 
     afterAll(async () => {
-      await emptyBucket(s3, s3BucketName)
+      await testAdmin.emptyBucket(s3BucketName)
 
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
@@ -290,8 +287,7 @@ describe('SqsPermissionConsumer - nested messageTypePath with payload offloading
     })
 
     it('preserves nested messageTypePath when offloading payload', async () => {
-      const { sqsClient } = diContainer.cradle
-      await deleteQueue(sqsClient, TEST_QUEUE_NAME)
+      await testAdmin.deleteQueue(TEST_QUEUE_NAME)
 
       const payloadStoreConfig: SinglePayloadStoreConfig = {
         messageSizeThreshold: largeMessageSizeThreshold,

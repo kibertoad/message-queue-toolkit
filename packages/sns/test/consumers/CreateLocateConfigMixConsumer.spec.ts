@@ -1,29 +1,28 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
-import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
-import { deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { beforeAll, beforeEach, describe, it } from 'vitest'
-import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils.ts'
+import { assertTopic } from '../../lib/utils/snsUtils.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import { type Dependencies, registerDependencies } from '../utils/testContext.ts'
 import { CreateLocateConfigMixConsumer } from './CreateLocateConfigMixConsumer.ts'
 
 describe('CreateLocateConfigMixConsumer', () => {
   let diContainer: AwilixContainer<Dependencies>
-  let sqsClient: SQSClient
   let snsClient: SNSClient
   let stsClient: STSClient
+  let testAdmin: TestAwsResourceAdmin
 
   beforeAll(async () => {
     diContainer = await registerDependencies({}, false)
-    sqsClient = diContainer.cradle.sqsClient
     snsClient = diContainer.cradle.snsClient
     stsClient = diContainer.cradle.stsClient
+    testAdmin = diContainer.cradle.testAdmin
   })
 
   beforeEach(async () => {
-    await deleteQueue(sqsClient, CreateLocateConfigMixConsumer.CONSUMED_QUEUE_NAME)
-    await deleteTopic(snsClient, stsClient, CreateLocateConfigMixConsumer.SUBSCRIBED_TOPIC_NAME)
+    await testAdmin.deleteQueue(CreateLocateConfigMixConsumer.CONSUMED_QUEUE_NAME)
+    await testAdmin.deleteTopic(CreateLocateConfigMixConsumer.SUBSCRIBED_TOPIC_NAME)
   })
 
   it('accepts mixed config of create and locate', async () => {

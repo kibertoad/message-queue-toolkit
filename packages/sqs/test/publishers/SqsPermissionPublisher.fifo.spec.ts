@@ -4,8 +4,8 @@ import type { PayloadStoreConfig } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { deleteQueue, isFifoQueueName, validateFifoQueueName } from '../../lib/utils/sqsUtils.ts'
-import { assertBucket } from '../utils/s3Utils.ts'
+import { isFifoQueueName, validateFifoQueueName } from '../../lib/utils/sqsUtils.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SqsPermissionPublisherFifo } from './SqsPermissionPublisherFifo.ts'
@@ -43,14 +43,16 @@ describe('SqsPermissionPublisherFifo', () => {
 
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
+    let testAdmin: TestAwsResourceAdmin
     beforeEach(async () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
-      await deleteQueue(sqsClient, queueName)
+      testAdmin = diContainer.cradle.testAdmin
+      await testAdmin.deleteQueue(queueName)
     })
 
     afterEach(async () => {
-      await deleteQueue(sqsClient, queueName)
+      await testAdmin.deleteQueue(queueName)
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
@@ -272,8 +274,7 @@ describe('SqsPermissionPublisherFifo', () => {
 
     it('resolves MessageGroupId from messageGroupIdField even when payload is offloaded', async () => {
       const s3BucketName = 'fifo-payload-offloading-test-bucket'
-      const s3 = diContainer.cradle.s3
-      await assertBucket(s3, s3BucketName)
+      await testAdmin.createBucket(s3BucketName)
 
       const payloadStoreConfig: PayloadStoreConfig = {
         messageSizeThreshold: 100, // Very small threshold to force offloading

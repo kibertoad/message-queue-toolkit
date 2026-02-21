@@ -11,9 +11,10 @@ import {
 } from '../../lib/sqs/AbstractSqsService.ts'
 import type { SQSMessage } from '../../lib/types/MessageTypes.ts'
 import { deserializeSQSMessage } from '../../lib/utils/sqsMessageDeserializer.ts'
-import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
+import { assertQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas.ts'
 import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SqsPermissionPublisher } from './SqsPermissionPublisher.ts'
@@ -25,10 +26,12 @@ describe('SqsPermissionPublisher', () => {
 
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
+    let testAdmin: TestAwsResourceAdmin
     beforeEach(async () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
-      await deleteQueue(sqsClient, queueName)
+      testAdmin = diContainer.cradle.testAdmin
+      await testAdmin.deleteQueue(queueName)
     })
 
     afterEach(async () => {

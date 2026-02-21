@@ -8,7 +8,7 @@ export default defineConfig({
     mockReset: true,
     pool: 'threads',
     maxWorkers: 1,
-    globalSetup: ['test/utils/globalSetup.ts'],
+    setupFiles: ['test/utils/vitest.setup.ts'],
     coverage: {
       provider: 'v8',
       include: ['lib/**/*.ts'],

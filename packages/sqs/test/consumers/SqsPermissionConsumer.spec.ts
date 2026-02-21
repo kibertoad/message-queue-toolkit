@@ -18,9 +18,10 @@ import {
   SQS_RESOURCE_CURRENT_QUEUE,
   type SQSPolicyConfig,
 } from '../../lib/sqs/AbstractSqsService.ts'
-import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
+import { assertQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
 import { FakeLogger } from '../fakes/FakeLogger.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext.ts'
 import { SqsPermissionConsumer, type SupportedMessages } from './SqsPermissionConsumer.ts'
@@ -33,11 +34,13 @@ describe('SqsPermissionConsumer', () => {
 
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
+    let testAdmin: TestAwsResourceAdmin
 
     beforeEach(async () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
-      await deleteQueue(sqsClient, queueName)
+      testAdmin = diContainer.cradle.testAdmin
+      await testAdmin.deleteQueue(queueName)
     })
 
     afterEach(async () => {

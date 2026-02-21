@@ -6,18 +6,15 @@ import type {
   SinglePayloadStoreConfig,
 } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
-import {
-  assertQueue,
-  deleteQueue,
-  OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE,
-} from '@message-queue-toolkit/sqs'
+import { assertQueue, OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas.ts'
-import { assertBucket, getObjectContent } from '../utils/s3Utils.ts'
+import { getObjectContent } from '../utils/s3Utils.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 
@@ -33,6 +30,7 @@ describe('SqsPermissionPublisher - payload offloading', () => {
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
     let s3: S3
+    let testAdmin: TestAwsResourceAdmin
 
     let payloadStoreConfig: SinglePayloadStoreConfig
     let publisher: SqsPermissionPublisher
@@ -46,8 +44,9 @@ describe('SqsPermissionPublisher - payload offloading', () => {
       })
       sqsClient = diContainer.cradle.sqsClient
       s3 = diContainer.cradle.s3
+      testAdmin = diContainer.cradle.testAdmin
 
-      await assertBucket(s3, s3BucketName)
+      await testAdmin.createBucket(s3BucketName)
       payloadStoreConfig = {
         messageSizeThreshold: largeMessageSizeThreshold,
         store: new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketName }),
@@ -55,7 +54,7 @@ describe('SqsPermissionPublisher - payload offloading', () => {
       }
     })
     beforeEach(async () => {
-      await deleteQueue(sqsClient, queueName)
+      await testAdmin.deleteQueue(queueName)
       const { queueUrl } = await assertQueue(sqsClient, { QueueName: queueName })
 
       receivedSqsMessages = []

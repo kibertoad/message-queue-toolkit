@@ -7,7 +7,7 @@ import {
   NO_TIMEOUT,
   StartupResourcePollingTimeoutError,
 } from '@message-queue-toolkit/core'
-import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
+import { assertQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -16,7 +16,8 @@ import {
   type SNSSQSConsumerOptions,
 } from '../../lib/sns/AbstractSnsSqsConsumer.ts'
 import { initSnsSqs } from '../../lib/utils/snsInitter.ts'
-import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils.ts'
+import { assertTopic } from '../../lib/utils/snsUtils.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import {
@@ -69,22 +70,24 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
   let sqsClient: SQSClient
   let snsClient: SNSClient
   let stsClient: STSClient
+  let testAdmin: TestAwsResourceAdmin
 
   beforeAll(async () => {
     diContainer = await registerDependencies({}, false)
     sqsClient = diContainer.cradle.sqsClient
     snsClient = diContainer.cradle.snsClient
     stsClient = diContainer.cradle.stsClient
+    testAdmin = diContainer.cradle.testAdmin
   })
 
   beforeEach(async () => {
-    await deleteQueue(sqsClient, queueName)
-    await deleteTopic(snsClient, stsClient, topicName)
+    await testAdmin.deleteQueue(queueName)
+    await testAdmin.deleteTopic(topicName)
   })
 
   afterEach(async () => {
-    await deleteQueue(sqsClient, queueName)
-    await deleteTopic(snsClient, stsClient, topicName)
+    await testAdmin.deleteQueue(queueName)
+    await testAdmin.deleteTopic(topicName)
   })
 
   afterAll(async () => {
