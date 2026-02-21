@@ -4,7 +4,7 @@ import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import { deleteQueue } from '@message-queue-toolkit/sqs'
 import type { FauxqsServer } from 'fauxqs'
-import { deleteTopic } from '../../lib/utils/snsUtils.ts'
+
 import { assertBucket, emptyBucket } from './s3Utils.ts'
 
 export class TestAwsResourceAdmin {
@@ -28,34 +28,32 @@ export class TestAwsResourceAdmin {
     this.stsClient = opts.stsClient
   }
 
-  async deleteQueue(name: string) {
-    return await deleteQueue(this.sqsClient, name)
-  }
-
-  async deleteTopic(name: string) {
-    return await deleteTopic(this.snsClient, this.stsClient, name)
+  async purge(...queueNames: string[]) {
+    if (this.server) {
+      this.server.reset()
+      for (const name of queueNames) {
+        this.server.deleteQueue(name)
+      }
+      return
+    }
+    for (const name of queueNames) {
+      await deleteQueue(this.sqsClient, name)
+    }
   }
 
   async createBucket(name: string) {
-    // if (this.server) {
-    //   this.server.createBucket(name)
-    //   return
-    // }
+    if (this.server) {
+      this.server.createBucket(name)
+      return
+    }
     return await assertBucket(this.s3!, name)
   }
 
   async emptyBucket(name: string) {
+    if (this.server) {
+      this.server.emptyBucket(name)
+      return
+    }
     return await emptyBucket(this.s3!, name)
-  }
-
-  reset() {
-    // if (this.server) {
-    //   this.server.reset()
-    // }
-  }
-
-  inspectQueue(name: string) {
-    // return this.server?.inspectQueue(name)
-    return undefined
   }
 }

@@ -41,8 +41,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
   })
 
   beforeEach(async () => {
-    await testAdmin.deleteQueue(queueName)
-    await testAdmin.deleteQueue(deadLetterQueueName)
+    await testAdmin.purge(queueName, deadLetterQueueName)
   })
 
   afterEach(async () => {
@@ -62,8 +61,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
     const customDeadLetterQueueName = 'customDlq'
 
     beforeEach(async () => {
-      await testAdmin.deleteQueue(customQueueName)
-      await testAdmin.deleteQueue(customDeadLetterQueueName)
+      await testAdmin.purge(customQueueName, customDeadLetterQueueName)
     })
 
     describe('creating new dead letter queue', () => {

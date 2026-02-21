@@ -48,11 +48,11 @@ describe('SnsPermissionPublisherFifo', () => {
       diContainer = await registerDependencies()
       snsClient = diContainer.cradle.snsClient
       testAdmin = diContainer.cradle.testAdmin
-      await testAdmin.deleteTopic(topicName)
+      await testAdmin.purge()
     })
 
     afterEach(async () => {
-      await testAdmin.deleteTopic(topicName)
+      await testAdmin.purge()
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })

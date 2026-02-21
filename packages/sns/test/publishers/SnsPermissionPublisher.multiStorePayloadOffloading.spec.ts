@@ -58,8 +58,7 @@ describe('SnsPermissionPublisher - multi-store payload offloading', () => {
     })
 
     beforeEach(async () => {
-      await testAdmin.deleteQueue(queueName)
-      await testAdmin.deleteTopic(SnsPermissionPublisher.TOPIC_NAME)
+      await testAdmin.purge(queueName)
       const { queueUrl } = await assertQueue(sqsClient, { QueueName: queueName })
       await subscribeToTopic(
         sqsClient,

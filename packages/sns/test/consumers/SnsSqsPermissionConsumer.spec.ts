@@ -35,8 +35,7 @@ describe('SnsSqsPermissionConsumer', () => {
       testAdmin = diContainer.cradle.testAdmin
     })
     beforeEach(async () => {
-      await testAdmin.deleteQueue(queueName)
-      await testAdmin.deleteTopic(topicNome)
+      await testAdmin.purge(queueName)
     })
 
     // FixMe https://github.com/localstack/localstack/issues/9306
@@ -791,8 +790,7 @@ describe('SnsSqsPermissionConsumer', () => {
     })
 
     beforeEach(async () => {
-      await diContainer.cradle.testAdmin.deleteQueue(queueName)
-      await diContainer.cradle.testAdmin.deleteTopic(topicName)
+      await diContainer.cradle.testAdmin.purge(queueName)
     })
 
     afterAll(async () => {
@@ -873,8 +871,7 @@ describe('SnsSqsPermissionConsumer', () => {
     })
 
     beforeEach(async () => {
-      await diContainer.cradle.testAdmin.deleteQueue(queueName)
-      await diContainer.cradle.testAdmin.deleteTopic(topicName)
+      await diContainer.cradle.testAdmin.purge(queueName)
     })
 
     afterAll(async () => {

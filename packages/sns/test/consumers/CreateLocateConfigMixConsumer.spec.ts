@@ -21,8 +21,7 @@ describe('CreateLocateConfigMixConsumer', () => {
   })
 
   beforeEach(async () => {
-    await testAdmin.deleteQueue(CreateLocateConfigMixConsumer.CONSUMED_QUEUE_NAME)
-    await testAdmin.deleteTopic(CreateLocateConfigMixConsumer.SUBSCRIBED_TOPIC_NAME)
+    await testAdmin.purge(CreateLocateConfigMixConsumer.CONSUMED_QUEUE_NAME)
   })
 
   it('accepts mixed config of create and locate', async () => {

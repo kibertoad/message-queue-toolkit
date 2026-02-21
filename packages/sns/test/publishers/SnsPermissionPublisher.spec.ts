@@ -38,7 +38,7 @@ describe('SnsPermissionPublisher', () => {
     })
 
     beforeEach(async () => {
-      await testAdmin.deleteTopic(topicNome)
+      await testAdmin.purge()
     })
 
     it('sets correct policy when policy fields are set', async () => {
@@ -197,8 +197,7 @@ describe('SnsPermissionPublisher', () => {
       testAdmin = diContainer.cradle.testAdmin
       await diContainer.cradle.permissionConsumer.close()
 
-      await testAdmin.deleteQueue(queueName)
-      await testAdmin.deleteTopic(SnsPermissionPublisher.TOPIC_NAME)
+      await testAdmin.purge(queueName)
     })
 
     afterEach(async () => {

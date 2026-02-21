@@ -29,36 +29,39 @@ export class TestAwsResourceAdmin {
   }
 
   async createQueue(name: string, attrs?: Record<string, string>) {
-    // if (this.server) {
-    //   this.server.createQueue(name, { attributes: attrs })
-    // }
+    if (this.server) {
+      this.server.createQueue(name, { attributes: attrs })
+      return
+    }
     return await assertQueue(this.sqsClient, { QueueName: name, Attributes: attrs })
   }
 
-  async deleteQueue(name: string) {
-    return await deleteQueue(this.sqsClient, name)
+  async purge(...queueNames: string[]) {
+    if (this.server) {
+      this.server.reset()
+      for (const name of queueNames) {
+        this.server.deleteQueue(name)
+      }
+      return
+    }
+    for (const name of queueNames) {
+      await deleteQueue(this.sqsClient, name)
+    }
   }
 
   async createBucket(name: string) {
-    // if (this.server) {
-    //   this.server.createBucket(name)
-    //   return
-    // }
+    if (this.server) {
+      this.server.createBucket(name)
+      return
+    }
     return await assertBucket(this.s3!, name)
   }
 
   async emptyBucket(name: string) {
+    if (this.server) {
+      this.server.emptyBucket(name)
+      return
+    }
     return await emptyBucket(this.s3!, name)
-  }
-
-  reset() {
-    // if (this.server) {
-    //   this.server.reset()
-    // }
-  }
-
-  inspectQueue(name: string) {
-    // return this.server?.inspectQueue(name)
-    return undefined
   }
 }

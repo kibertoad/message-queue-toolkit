@@ -81,13 +81,11 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
   })
 
   beforeEach(async () => {
-    await testAdmin.deleteQueue(queueName)
-    await testAdmin.deleteTopic(topicName)
+    await testAdmin.purge(queueName)
   })
 
   afterEach(async () => {
-    await testAdmin.deleteQueue(queueName)
-    await testAdmin.deleteTopic(topicName)
+    await testAdmin.purge(queueName)
   })
 
   afterAll(async () => {

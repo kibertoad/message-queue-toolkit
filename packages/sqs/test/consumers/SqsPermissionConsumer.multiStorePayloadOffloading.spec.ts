@@ -46,7 +46,7 @@ describe('SqsPermissionConsumer - multi-store payload offloading', () => {
       await testAdmin.createBucket(s3BucketNameStore2)
     })
     beforeEach(async () => {
-      await testAdmin.deleteQueue(SqsPermissionConsumer.QUEUE_NAME)
+      await testAdmin.purge(SqsPermissionConsumer.QUEUE_NAME)
     })
     afterEach(async () => {
       await publisher?.close()
@@ -220,7 +220,7 @@ describe('SqsPermissionConsumer - multi-store payload offloading', () => {
       const TEST_QUEUE_NAME = 'user_permissions_legacy_default_store_test'
       const { sqsClient } = diContainer.cradle
 
-      await testAdmin.deleteQueue(TEST_QUEUE_NAME)
+      await testAdmin.purge(TEST_QUEUE_NAME)
       const { queueUrl } = await assertQueue(sqsClient, { QueueName: TEST_QUEUE_NAME })
 
       const store1 = new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketNameStore1 })
@@ -296,7 +296,7 @@ describe('SqsPermissionConsumer - multi-store payload offloading', () => {
       const TEST_QUEUE_NAME = 'user_permissions_multi_store_no_default_test'
       const { sqsClient } = diContainer.cradle
 
-      await testAdmin.deleteQueue(TEST_QUEUE_NAME)
+      await testAdmin.purge(TEST_QUEUE_NAME)
       const { queueUrl } = await assertQueue(sqsClient, { QueueName: TEST_QUEUE_NAME })
 
       const store1 = new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketNameStore1 })

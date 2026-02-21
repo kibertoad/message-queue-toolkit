@@ -24,7 +24,7 @@ describe('SnsSqsPermissionConsumerFifo', () => {
     })
 
     afterEach(async () => {
-      await testAdmin.deleteTopic(topicName)
+      await testAdmin.purge()
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
       await diContainer.dispose()

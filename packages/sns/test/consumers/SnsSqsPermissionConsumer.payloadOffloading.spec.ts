@@ -48,8 +48,7 @@ describe('SnsSqsPermissionConsumer - single-store payload offloading', () => {
         payloadStoreConfig,
       })
 
-      await testAdmin.deleteQueue(SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
-      await testAdmin.deleteTopic(SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
+      await testAdmin.purge(SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
 
       await consumer.start()
       await publisher.init()

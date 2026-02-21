@@ -38,7 +38,7 @@ describe('SqsEventBridgeConsumer', () => {
 
   afterEach(async () => {
     await consumer.close()
-    await testAdmin.deleteQueue(SqsEventBridgeConsumer.QUEUE_NAME)
+    await testAdmin.purge(SqsEventBridgeConsumer.QUEUE_NAME)
     await diContainer.cradle.awilixManager.executeDispose()
     await diContainer.dispose()
   })
@@ -255,7 +255,7 @@ describe('SqsEventBridgeConsumer', () => {
 
     // Cleanup
     await failingConsumer.close()
-    await testAdmin.deleteQueue(failingConsumer.queueProps.name)
+    await testAdmin.purge(failingConsumer.queueProps.name)
   }, 10000) // 10 second timeout
 
   it('should handle multiple EventBridge events', async () => {
