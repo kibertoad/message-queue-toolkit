@@ -12,7 +12,7 @@ import { Redis } from 'ioredis'
 import { SqsConsumerErrorResolver } from '../../lib/errors/SqsConsumerErrorResolver.ts'
 import { SqsPermissionConsumer } from '../consumers/SqsPermissionConsumer.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
-import { getFauxqsServer } from './fauxqsInstance.ts'
+import { getFauxqsServer, getHost, getPort } from './fauxqsInstance.ts'
 import { TestAwsResourceAdmin } from './testAdmin.ts'
 import { TEST_AWS_CONFIG, TEST_S3_CONFIG } from './testAwsConfig.ts'
 import { TEST_REDIS_CONFIG } from './testRedisConfig.ts'
@@ -65,6 +65,8 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
         sqsClient: deps.sqsClient,
         s3: deps.s3,
         region: 'eu-west-1',
+        port: getPort(),
+        host: getHost(),
       })
     }, SINGLETON_CONFIG),
 

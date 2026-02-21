@@ -8,6 +8,7 @@ import { type AwilixContainer, asFunction, asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { assertTopic } from '../../lib/utils/snsUtils.ts'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
+import { getPort } from '../utils/fauxqsInstance.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -19,7 +20,7 @@ describe('SnsSqsPermissionConsumer', () => {
     const queueName = 'some-queue'
     const topicNome = 'some-topic'
 
-    const queueUrl = `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`
+    const queueUrl = `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${queueName}`
 
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
@@ -487,7 +488,7 @@ describe('SnsSqsPermissionConsumer', () => {
         await newConsumer.init()
         expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
         expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
-          'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
+          `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/deadLetterQueue`,
         )
 
         const attributes = await getQueueAttributes(
@@ -515,7 +516,7 @@ describe('SnsSqsPermissionConsumer', () => {
           deadLetterQueue: {
             redrivePolicy: { maxReceiveCount: 3 },
             locatorConfig: {
-              queueUrl: 'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
+              queueUrl: `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/deadLetterQueue`,
             },
           },
         })
@@ -523,7 +524,7 @@ describe('SnsSqsPermissionConsumer', () => {
         await newConsumer.init()
         expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
         expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
-          'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
+          `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/deadLetterQueue`,
         )
 
         const attributes = await getQueueAttributes(

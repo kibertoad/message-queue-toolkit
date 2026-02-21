@@ -5,6 +5,7 @@ import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
+import { getPort } from '../utils/fauxqsInstance.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -71,10 +72,10 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
 
       await newConsumer.init()
       expect(newConsumer.subscriptionProps.queueUrl).toBe(
-        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${queueName}`,
       )
       expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
-        `http://sqs.eu-west-1.localstack:4566/000000000000/${deadLetterQueueName}`,
+        `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${deadLetterQueueName}`,
       )
 
       const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
@@ -99,17 +100,17 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
         deadLetterQueue: {
           redrivePolicy: { maxReceiveCount: 3 },
           locatorConfig: {
-            queueUrl: `http://sqs.eu-west-1.localstack:4566/000000000000/${deadLetterQueueName}`,
+            queueUrl: `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${deadLetterQueueName}`,
           },
         },
       })
 
       await newConsumer.init()
       expect(newConsumer.subscriptionProps.queueUrl).toBe(
-        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${queueName}`,
       )
       expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
-        `http://sqs.eu-west-1.localstack:4566/000000000000/${deadLetterQueueName}`,
+        `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${deadLetterQueueName}`,
       )
 
       const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
@@ -150,10 +151,10 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
 
       await newConsumer.init()
       expect(newConsumer.subscriptionProps.queueUrl).toBe(
-        `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`,
+        `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${queueName}`,
       )
       expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
-        `http://sqs.eu-west-1.localstack:4566/000000000000/${deadLetterQueueName}`,
+        `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${deadLetterQueueName}`,
       )
 
       const mainQueueAttributes = await getQueueAttributes(

@@ -12,6 +12,7 @@ import {
   type SQSConsumerDependencies,
   type SQSConsumerOptions,
 } from '../../lib/sqs/AbstractSqsConsumer.ts'
+import { initSqs } from '../../lib/utils/sqsInitter.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -220,8 +221,6 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
     it('invokes onQueueReady callback when resource becomes available in background', async () => {
       // We need to test the callback at the initter level since AbstractSqsConsumer
       // doesn't expose the onQueueReady callback directly
-      const { initSqs } = await import('../../lib/utils/sqsInitter.ts')
-
       let callbackInvoked = false
       let callbackArn: string | undefined
 

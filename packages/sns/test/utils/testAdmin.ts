@@ -14,6 +14,8 @@ export class TestAwsResourceAdmin {
   private snsClient: SNSClient
   private stsClient: STSClient
   private region: string
+  private port: number
+  private host: string
 
   constructor(opts: {
     server: FauxqsServer | undefined
@@ -22,6 +24,8 @@ export class TestAwsResourceAdmin {
     snsClient: SNSClient
     stsClient: STSClient
     region: string
+    port: number
+    host: string
   }) {
     this.server = opts.server
     this.sqsClient = opts.sqsClient
@@ -29,6 +33,16 @@ export class TestAwsResourceAdmin {
     this.snsClient = opts.snsClient
     this.stsClient = opts.stsClient
     this.region = opts.region
+    this.port = opts.port
+    this.host = opts.host
+  }
+
+  getPort(): number {
+    return this.port
+  }
+
+  getHost(): string {
+    return this.host
   }
 
   async createQueue(

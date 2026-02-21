@@ -15,6 +15,7 @@ import {
   type SNSSQSConsumerOptions,
 } from '../../lib/sns/AbstractSnsSqsConsumer.ts'
 import { initSnsSqs } from '../../lib/utils/snsInitter.ts'
+import { getPort } from '../utils/fauxqsInstance.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -62,7 +63,7 @@ class TestStartupResourcePollingConsumer extends AbstractSnsSqsConsumer<
 describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
   const queueName = 'startup-resource-polling-test-queue'
   const topicName = 'startup-resource-polling-test-topic'
-  const queueUrl = `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`
+  const queueUrl = `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${queueName}`
 
   let diContainer: AwilixContainer<Dependencies>
   let sqsClient: SQSClient

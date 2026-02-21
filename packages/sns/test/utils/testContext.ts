@@ -25,7 +25,7 @@ import { SnsPublisherManager } from '../../lib/sns/SnsPublisherManager.ts'
 import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer.ts'
 import { CreateLocateConfigMixPublisher } from '../publishers/CreateLocateConfigMixPublisher.ts'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
-import { getFauxqsServer } from './fauxqsInstance.ts'
+import { getFauxqsServer, getHost, getPort } from './fauxqsInstance.ts'
 import { TestAwsResourceAdmin } from './testAdmin.ts'
 import { TEST_REDIS_CONFIG } from './testRedisConfig.ts'
 import { TEST_AWS_CONFIG, TEST_S3_CONFIG } from './testSnsConfig.ts'
@@ -124,6 +124,8 @@ export async function registerDependencies(
         snsClient: deps.snsClient,
         stsClient: deps.stsClient,
         region: 'eu-west-1',
+        port: getPort(),
+        host: getHost(),
       })
     }, SINGLETON_CONFIG),
 
