@@ -76,6 +76,22 @@ services:
       retries: 10
       start_period: 10s
 
+  localstack:
+    image: localstack/localstack:4.13.1
+    network_mode: bridge
+    hostname: localstack
+    ports:
+      - '127.0.0.1:4566:4566'
+      - '127.0.0.1:4510-4559:4510-4559'
+    environment:
+      - SERVICES=sns,sqs,s3,sts
+      - DEBUG=0
+      - LOCALSTACK_HOST=localstack
+    volumes:
+      - '${TMPDIR:-/tmp}/localstack:/var/log/localstack'
+      - '/var/run/docker.sock:/var/run/docker.sock'
+    restart: on-failure
+
 volumes:
   rabbit_data:
     driver: local

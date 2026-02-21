@@ -8,6 +8,10 @@ on:
       node_version:
         required: true
         type: string
+      queue_backend:
+        required: false
+        type: string
+        default: 'fauxqs'
 
 jobs:
   build:
@@ -32,9 +36,15 @@ jobs:
 
       - name: Docker start
         run: npm run docker:start:ci -- --filter=${{ inputs.package_name }}
+        env:
+          QUEUE_BACKEND: ${{ inputs.queue_backend }}
 
       - name: Run Tests
         run: npm run test:ci -- --filter=${{ inputs.package_name }}
+        env:
+          QUEUE_BACKEND: ${{ inputs.queue_backend }}
 
       - name: Docker stop
         run: npm run docker:stop:ci -- --filter=${{ inputs.package_name }}
+        env:
+          QUEUE_BACKEND: ${{ inputs.queue_backend }}
