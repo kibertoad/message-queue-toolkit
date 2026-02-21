@@ -8,20 +8,16 @@ import type {
   SinglePayloadStoreConfig,
 } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
-import {
-  assertQueue,
-  deleteQueue,
-  OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE,
-} from '@message-queue-toolkit/sqs'
+import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { SNS_MESSAGE_BODY_SCHEMA } from '../../lib/types/MessageTypes.ts'
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber.ts'
-import { deleteTopic } from '../../lib/utils/snsUtils.ts'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas.ts'
-import { assertBucket, getObjectContent } from '../utils/s3Utils.ts'
+import { getObjectContent } from '../utils/s3Utils.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SnsPermissionPublisher } from './SnsPermissionPublisher.ts'
@@ -38,6 +34,7 @@ describe('SnsPermissionPublisher - single-store payload offloading', () => {
     let snsClient: SNSClient
     let stsClient: STSClient
     let s3: S3
+    let testAdmin: TestAwsResourceAdmin
 
     let payloadStoreConfig: SinglePayloadStoreConfig
     let publisher: SnsPermissionPublisher
@@ -53,8 +50,9 @@ describe('SnsPermissionPublisher - single-store payload offloading', () => {
       snsClient = diContainer.cradle.snsClient
       stsClient = diContainer.cradle.stsClient
       s3 = diContainer.cradle.s3
+      testAdmin = diContainer.cradle.testAdmin
 
-      await assertBucket(s3, s3BucketName)
+      await testAdmin.createBucket(s3BucketName)
       payloadStoreConfig = {
         messageSizeThreshold: largeMessageSizeThreshold,
         store: new S3PayloadStore(diContainer.cradle, {
@@ -65,11 +63,9 @@ describe('SnsPermissionPublisher - single-store payload offloading', () => {
     })
 
     beforeEach(async () => {
-      await deleteQueue(sqsClient, queueName)
-      await deleteTopic(snsClient, stsClient, SnsPermissionPublisher.TOPIC_NAME)
-      const { queueUrl } = await assertQueue(sqsClient, {
-        QueueName: queueName,
-      })
+      await testAdmin.deleteQueues(queueName)
+      await testAdmin.deleteTopics(SnsPermissionPublisher.TOPIC_NAME)
+      const { queueUrl } = await testAdmin.createQueue(queueName)
       await subscribeToTopic(
         sqsClient,
         snsClient,

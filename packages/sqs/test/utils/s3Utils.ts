@@ -12,18 +12,19 @@ export async function assertBucket(s3: S3, bucketName: string) {
   }
 }
 
-export async function emptyBucket(s3: S3, bucketName: string) {
-  try {
-    const objects = await s3.listObjects({ Bucket: bucketName })
-    if (objects.Contents?.length) {
-      await s3.deleteObjects({
-        Bucket: bucketName,
-        Delete: { Objects: objects.Contents?.map((object) => ({ Key: object.Key })) },
-      })
-    }
-  } catch (e) {
-    if (e instanceof NoSuchBucket) {
-      return
+export async function emptyBuckets(s3: S3, ...bucketNames: string[]) {
+  for (const bucketName of bucketNames) {
+    try {
+      const objects = await s3.listObjects({ Bucket: bucketName })
+      if (objects.Contents?.length) {
+        await s3.deleteObjects({
+          Bucket: bucketName,
+          Delete: { Objects: objects.Contents?.map((object) => ({ Key: object.Key })) },
+        })
+      }
+    } catch (e) {
+      if (e instanceof NoSuchBucket) {
+      }
     }
   }
 }

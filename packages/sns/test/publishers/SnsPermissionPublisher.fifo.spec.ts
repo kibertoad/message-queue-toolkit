@@ -4,8 +4,8 @@ import type { SinglePayloadStoreConfig } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { deleteTopic, isFifoTopicName, validateFifoTopicName } from '../../lib/utils/snsUtils.ts'
-import { assertBucket } from '../utils/s3Utils.ts'
+import { isFifoTopicName, validateFifoTopicName } from '../../lib/utils/snsUtils.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SnsPermissionPublisherFifo } from './SnsPermissionPublisherFifo.ts'
@@ -43,14 +43,16 @@ describe('SnsPermissionPublisherFifo', () => {
 
     let diContainer: AwilixContainer<Dependencies>
     let snsClient: SNSClient
+    let testAdmin: TestAwsResourceAdmin
     beforeEach(async () => {
       diContainer = await registerDependencies()
       snsClient = diContainer.cradle.snsClient
-      await deleteTopic(snsClient, diContainer.cradle.stsClient, topicName)
+      testAdmin = diContainer.cradle.testAdmin
+      await testAdmin.deleteTopics(topicName)
     })
 
     afterEach(async () => {
-      await deleteTopic(snsClient, diContainer.cradle.stsClient, topicName)
+      await testAdmin.deleteTopics(topicName)
       await diContainer.cradle.awilixManager.executeDispose()
       await diContainer.dispose()
     })
@@ -271,8 +273,7 @@ describe('SnsPermissionPublisherFifo', () => {
 
     it('resolves MessageGroupId from messageGroupIdField even when payload is offloaded', async () => {
       const s3BucketName = 'fifo-payload-offloading-test-bucket'
-      const s3 = diContainer.cradle.s3
-      await assertBucket(s3, s3BucketName)
+      await testAdmin.createBucket(s3BucketName)
 
       const payloadStoreConfig: SinglePayloadStoreConfig = {
         messageSizeThreshold: 100, // Very small threshold to force offloading

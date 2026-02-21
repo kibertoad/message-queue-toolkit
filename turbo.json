@@ -1,5 +1,6 @@
 {
     "$schema": "https://turbo.build/schema.json",
+    "globalEnv": ["QUEUE_BACKEND"],
     "tasks": {
         "build": {
             "dependsOn": ["^build"],
@@ -8,9 +9,7 @@
         "clean": {
             "cache": false
         },
-        "test:coverage": {
-            "dependsOn": ["^test:coverage"]
-        },
+        "test:coverage": {},
         "lint": {
             "outputLogs": "errors-only"
         },

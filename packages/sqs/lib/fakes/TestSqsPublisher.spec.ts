@@ -4,10 +4,11 @@ import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { SqsPermissionConsumer } from '../../test/consumers/SqsPermissionConsumer.ts'
 import { SqsPermissionPublisher } from '../../test/publishers/SqsPermissionPublisher.ts'
+import type { TestAwsResourceAdmin } from '../../test/utils/testAdmin.ts'
 import type { Dependencies } from '../../test/utils/testContext.ts'
 import { registerDependencies } from '../../test/utils/testContext.ts'
 import type { SQSMessage } from '../types/MessageTypes.ts'
-import { assertQueue, deleteQueue } from '../utils/sqsUtils.ts'
+import { deleteQueue } from '../utils/sqsUtils.ts'
 import { TestSqsPublisher } from './TestSqsPublisher.ts'
 
 describe('TestSqsPublisher', () => {
@@ -18,11 +19,13 @@ describe('TestSqsPublisher', () => {
 
   let diContainer: AwilixContainer<Dependencies>
   let sqsClient: SQSClient
+  let testAdmin: TestAwsResourceAdmin
   let publisher: TestSqsPublisher
 
   beforeEach(async () => {
     diContainer = await registerDependencies()
     sqsClient = diContainer.cradle.sqsClient
+    testAdmin = diContainer.cradle.testAdmin
     publisher = new TestSqsPublisher(sqsClient)
     await deleteQueue(sqsClient, queueName)
     await deleteQueue(sqsClient, fifoQueueName)
@@ -35,7 +38,7 @@ describe('TestSqsPublisher', () => {
 
   describe('publish with queueUrl', () => {
     it('publishes arbitrary message without validation', async () => {
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       // Publish a message that doesn't match any schema
       await publisher.publish(
@@ -73,7 +76,7 @@ describe('TestSqsPublisher', () => {
     })
 
     it('publishes message without required schema fields', async () => {
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       // Publish a message missing required fields like messageType, id, timestamp
       await publisher.publish({ incomplete: 'message' }, { queueUrl })
@@ -100,7 +103,7 @@ describe('TestSqsPublisher', () => {
     })
 
     it('publishes complex nested objects', async () => {
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       const complexMessage = {
         arrays: [1, 2, 3],
@@ -140,7 +143,7 @@ describe('TestSqsPublisher', () => {
 
   describe('publish with queueName', () => {
     it('publishes message using queue name', async () => {
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       await publisher.publish({ test: 'queueName' }, { queueName })
 
@@ -259,9 +262,8 @@ describe('TestSqsPublisher', () => {
 
   describe('publish to FIFO queue', () => {
     it('publishes to FIFO queue with MessageGroupId and MessageDeduplicationId', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: fifoQueueName,
-        Attributes: {
+      await testAdmin.createQueue(fifoQueueName, {
+        attributes: {
           FifoQueue: 'true',
         },
       })

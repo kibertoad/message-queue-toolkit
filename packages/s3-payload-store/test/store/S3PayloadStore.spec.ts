@@ -6,7 +6,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { resolvePayloadStoreConfig, S3PayloadStore } from '../../lib/S3PayloadStore.ts'
 import { assertEmptyBucket, getObjectContent, objectExists } from '../utils/s3Utils.ts'
 import { streamToString } from '../utils/streamUtils.ts'
-import { TEST_AWS_CONFIG } from '../utils/testS3Config.ts'
+import { getTestS3Config } from '../utils/testS3Config.ts'
 
 const TEST_BUCKET = 'test-bucket'
 
@@ -15,7 +15,7 @@ describe('S3PayloadStore', () => {
   let store: S3PayloadStore
 
   beforeAll(() => {
-    s3 = new S3(TEST_AWS_CONFIG)
+    s3 = new S3(getTestS3Config())
     store = new S3PayloadStore({ s3 }, { bucketName: TEST_BUCKET })
   })
   beforeEach(async () => {

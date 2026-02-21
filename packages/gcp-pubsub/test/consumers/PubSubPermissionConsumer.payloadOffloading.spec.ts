@@ -9,7 +9,7 @@ import { PUBSUB_MESSAGE_MAX_SIZE } from '../../lib/pubsub/AbstractPubSubService.
 import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '../../lib/utils/messageUtils.ts'
 import { PubSubPermissionPublisher } from '../publishers/PubSubPermissionPublisher.ts'
 import { deletePubSubTopicAndSubscription } from '../utils/cleanupPubSub.ts'
-import { assertBucket, emptyBucket } from '../utils/gcsUtils.ts'
+import { assertBucket, emptyBuckets } from '../utils/gcsUtils.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { PubSubPermissionConsumer } from './PubSubPermissionConsumer.ts'
@@ -75,7 +75,7 @@ describe('PubSubPermissionConsumer - Payload Offloading', () => {
     })
 
     afterAll(async () => {
-      await emptyBucket(gcsStorage, gcsBucketName)
+      await emptyBuckets(gcsStorage, gcsBucketName)
 
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
@@ -259,7 +259,7 @@ describe('PubSubPermissionConsumer - Payload Offloading', () => {
     })
 
     afterAll(async () => {
-      await emptyBucket(gcsStorage, gcsBucketName)
+      await emptyBuckets(gcsStorage, gcsBucketName)
 
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()

@@ -9,25 +9,6 @@ services:
       - rabbit_data:/var/lib/rabbitmq
     restart: on-failure
 
-  localstack:
-    image: localstack/localstack:4.13.1
-    network_mode: bridge
-    hostname: localstack
-    ports:
-      - '127.0.0.1:4566:4566' # LocalStack Gateway
-      - '127.0.0.1:4510-4559:4510-4559' # external services port range
-    environment:
-      - SERVICES=sns,sqs,s3,sts
-      - DEBUG=0
-      - DATA_DIR=${DATA_DIR-}
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - LOCALSTACK_HOST=localstack
-    #      - LOCALSTACK_API_KEY=someDummyKey
-    volumes:
-      - '${TMPDIR:-/tmp}/localstack:/var/log/localstack'
-      - '/var/run/docker.sock:/var/run/docker.sock'
-    restart: on-failure
-
   redis:
     image: redis:6.2.7-alpine
     command: redis-server --requirepass sOmE_sEcUrE_pAsS
@@ -94,6 +75,22 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  localstack:
+    image: localstack/localstack:4.13.1
+    network_mode: bridge
+    hostname: localstack
+    ports:
+      - '127.0.0.1:4566:4566'
+      - '127.0.0.1:4510-4559:4510-4559'
+    environment:
+      - SERVICES=sns,sqs,s3,sts
+      - DEBUG=0
+      - LOCALSTACK_HOST=localstack
+    volumes:
+      - '${TMPDIR:-/tmp}/localstack:/var/log/localstack'
+      - '/var/run/docker.sock:/var/run/docker.sock'
+    restart: on-failure
 
 volumes:
   rabbit_data:

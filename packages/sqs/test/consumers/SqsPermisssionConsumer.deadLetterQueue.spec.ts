@@ -10,8 +10,9 @@ import { Consumer } from 'sqs-consumer'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import type { SQSMessage } from '../../lib/types/MessageTypes.ts'
-import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
+import { getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
 import type { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 
@@ -27,6 +28,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
 
   let diContainer: AwilixContainer<Dependencies>
   let sqsClient: SQSClient
+  let testAdmin: TestAwsResourceAdmin
   let permissionPublisher: SqsPermissionPublisher
   let consumer: SqsPermissionConsumer | undefined
   let dlqConsumer: Consumer | undefined
@@ -34,12 +36,12 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
   beforeAll(async () => {
     diContainer = await registerDependencies()
     sqsClient = diContainer.cradle.sqsClient
+    testAdmin = diContainer.cradle.testAdmin
     permissionPublisher = diContainer.cradle.permissionPublisher
   })
 
   beforeEach(async () => {
-    await deleteQueue(sqsClient, queueName)
-    await deleteQueue(sqsClient, deadLetterQueueName)
+    await testAdmin.deleteQueues(queueName, deadLetterQueueName)
   })
 
   afterEach(async () => {
@@ -59,8 +61,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
     const customDeadLetterQueueName = 'customDlq'
 
     beforeEach(async () => {
-      await deleteQueue(sqsClient, customQueueName)
-      await deleteQueue(sqsClient, customDeadLetterQueueName)
+      await testAdmin.deleteQueues(customQueueName, customDeadLetterQueueName)
     })
 
     describe('creating new dead letter queue', () => {
@@ -92,7 +93,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       })
 
       it('creates dead letter queue for an existing queue', async () => {
-        const { queueUrl } = await assertQueue(sqsClient, { QueueName: customQueueName })
+        const { queueUrl } = await testAdmin.createQueue(customQueueName)
 
         consumer = new SqsPermissionConsumer(diContainer.cradle, {
           locatorConfig: { queueUrl },
@@ -123,9 +124,8 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       let dlqUrl: string
 
       beforeEach(async () => {
-        const result = await assertQueue(sqsClient, {
-          QueueName: customDeadLetterQueueName,
-          Attributes: { KmsMasterKeyId: 'my first value' },
+        const result = await testAdmin.createQueue(customDeadLetterQueueName, {
+          attributes: { KmsMasterKeyId: 'my first value' },
           tags: { tag: 'old', hello: 'world' },
         })
         dlqUrl = result.queueUrl
@@ -137,7 +137,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
           deadLetterQueue: {
             redrivePolicy: { maxReceiveCount: 5 },
             locatorConfig: {
-              queueUrl: 'http://s3.localhost.localstack.cloud:4566/000000000000/badQueue',
+              queueUrl: 'http://localhost:4566/000000000000/badQueue',
             },
           },
         })
@@ -221,7 +221,7 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
       })
 
       it('connect existing dlq to existing queue', async () => {
-        const { queueUrl } = await assertQueue(sqsClient, { QueueName: customQueueName })
+        const { queueUrl } = await testAdmin.createQueue(customQueueName)
 
         consumer = new SqsPermissionConsumer(diContainer.cradle, {
           locatorConfig: { queueUrl },

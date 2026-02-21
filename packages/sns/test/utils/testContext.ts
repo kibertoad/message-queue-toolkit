@@ -25,8 +25,10 @@ import { SnsPublisherManager } from '../../lib/sns/SnsPublisherManager.ts'
 import { SnsSqsPermissionConsumer } from '../consumers/SnsSqsPermissionConsumer.ts'
 import { CreateLocateConfigMixPublisher } from '../publishers/CreateLocateConfigMixPublisher.ts'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
+import { getFauxqsServer, getHost, getPort } from './fauxqsInstance.ts'
+import { TestAwsResourceAdmin } from './testAdmin.ts'
 import { TEST_REDIS_CONFIG } from './testRedisConfig.ts'
-import { TEST_AWS_CONFIG } from './testSnsConfig.ts'
+import { TEST_AWS_CONFIG, TEST_S3_CONFIG } from './testSnsConfig.ts'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -109,10 +111,23 @@ export async function registerDependencies(
       },
     ),
     s3: asFunction(() => {
-      return new S3(TEST_AWS_CONFIG)
+      return new S3(TEST_S3_CONFIG)
     }),
 
     consumerErrorResolver: asClass(FakeConsumerErrorResolver, SINGLETON_CONFIG),
+
+    testAdmin: asFunction((deps) => {
+      return new TestAwsResourceAdmin({
+        server: getFauxqsServer(),
+        sqsClient: deps.sqsClient,
+        s3: deps.s3,
+        snsClient: deps.snsClient,
+        stsClient: deps.stsClient,
+        region: 'eu-west-1',
+        port: getPort(),
+        host: getHost(),
+      })
+    }, SINGLETON_CONFIG),
 
     permissionConsumer: asClass(SnsSqsPermissionConsumer, {
       lifetime: Lifetime.SINGLETON,
@@ -242,4 +257,5 @@ export interface Dependencies {
     TestEventsType
   >
   createLocateConfigMixPublisher: CreateLocateConfigMixPublisher
+  testAdmin: TestAwsResourceAdmin
 }

@@ -3,11 +3,13 @@ import { ListTagsForResourceCommand, type SNSClient } from '@aws-sdk/client-sns'
 import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import { waitAndRetry } from '@lokalise/node-core'
-import { assertQueue, deleteQueue, getQueueAttributes } from '@message-queue-toolkit/sqs'
+import { getQueueAttributes } from '@message-queue-toolkit/sqs'
 import { type AwilixContainer, asFunction, asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils.ts'
+import { assertTopic } from '../../lib/utils/snsUtils.ts'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
+import { getPort } from '../utils/fauxqsInstance.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SnsSqsPermissionConsumer } from './SnsSqsPermissionConsumer.ts'
@@ -18,29 +20,29 @@ describe('SnsSqsPermissionConsumer', () => {
     const queueName = 'some-queue'
     const topicNome = 'some-topic'
 
-    const queueUrl = `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`
+    const queueUrl = `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${queueName}`
 
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
     let snsClient: SNSClient
     let stsClient: STSClient
+    let testAdmin: TestAwsResourceAdmin
 
     beforeAll(async () => {
       diContainer = await registerDependencies({}, false)
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
       stsClient = diContainer.cradle.stsClient
+      testAdmin = diContainer.cradle.testAdmin
     })
     beforeEach(async () => {
-      await deleteQueue(sqsClient, queueName)
-      await deleteTopic(snsClient, stsClient, topicNome)
+      await testAdmin.deleteQueues(queueName)
+      await testAdmin.deleteTopics(topicNome)
     })
 
     // FixMe https://github.com/localstack/localstack/issues/9306
     it.skip('throws an error when invalid queue locator is passed', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: queueName,
-      })
+      await testAdmin.createQueue(queueName)
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -54,13 +56,9 @@ describe('SnsSqsPermissionConsumer', () => {
     })
 
     it('does not create a new queue when queue locator with url is passed', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: queueName,
-      })
+      await testAdmin.createQueue(queueName)
 
-      const arn = await assertTopic(snsClient, stsClient, {
-        Name: topicNome,
-      })
+      const arn = await testAdmin.createTopic(topicNome)
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -81,13 +79,9 @@ describe('SnsSqsPermissionConsumer', () => {
     })
 
     it('does not create a new queue when queue locator with name is passed', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: queueName,
-      })
+      await testAdmin.createQueue(queueName)
 
-      const arn = await assertTopic(snsClient, stsClient, {
-        Name: topicNome,
-      })
+      const arn = await testAdmin.createTopic(topicNome)
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -108,9 +102,7 @@ describe('SnsSqsPermissionConsumer', () => {
     })
 
     it('does not create a new topic when mixed locator is passed', async () => {
-      const arn = await assertTopic(snsClient, stsClient, {
-        Name: topicNome,
-      })
+      const arn = await testAdmin.createTopic(topicNome)
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -150,10 +142,7 @@ describe('SnsSqsPermissionConsumer', () => {
           service: 'changed-service',
           cc: 'some-cc',
         }
-        const assertResult = await assertQueue(sqsClient, {
-          QueueName: queueName,
-          tags: initialTags,
-        })
+        const assertResult = await testAdmin.createQueue(queueName, { tags: initialTags })
         const preTags = await getQueueTags(assertResult.queueUrl)
         expect(preTags.Tags).toEqual(initialTags)
 
@@ -195,10 +184,7 @@ describe('SnsSqsPermissionConsumer', () => {
           service: 'some-service',
           leftover: 'some-leftover',
         }
-        const assertResult = await assertQueue(sqsClient, {
-          QueueName: queueName,
-          tags: initialTags,
-        })
+        const assertResult = await testAdmin.createQueue(queueName, { tags: initialTags })
         const preTags = await getQueueTags(assertResult.queueUrl)
         expect(preTags.Tags).toEqual(initialTags)
 
@@ -328,10 +314,7 @@ describe('SnsSqsPermissionConsumer', () => {
           service: 'sqs-service-changed',
           cc: 'some-cc',
         }
-        const assertResult = await assertQueue(sqsClient, {
-          QueueName: queueName,
-          tags: initialQueueTags,
-        })
+        const assertResult = await testAdmin.createQueue(queueName, { tags: initialQueueTags })
         const preQueueTags = await getQueueTags(assertResult.queueUrl)
         expect(preQueueTags.Tags).toEqual(initialQueueTags)
 
@@ -374,9 +357,8 @@ describe('SnsSqsPermissionConsumer', () => {
 
     describe('attributes update', () => {
       it('updates existing queue when one with different attributes exist', async () => {
-        await assertQueue(sqsClient, {
-          QueueName: queueName,
-          Attributes: {
+        await testAdmin.createQueue(queueName, {
+          attributes: {
             KmsMasterKeyId: 'somevalue',
           },
         })
@@ -416,9 +398,8 @@ describe('SnsSqsPermissionConsumer', () => {
       })
 
       it('updates existing queue when one with different attributes exist and sets the policy', async () => {
-        await assertQueue(sqsClient, {
-          QueueName: queueName,
-          Attributes: {
+        await testAdmin.createQueue(queueName, {
+          attributes: {
             KmsMasterKeyId: 'somevalue',
           },
         })
@@ -507,7 +488,7 @@ describe('SnsSqsPermissionConsumer', () => {
         await newConsumer.init()
         expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
         expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
-          'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
+          `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/deadLetterQueue`,
         )
 
         const attributes = await getQueueAttributes(
@@ -524,9 +505,7 @@ describe('SnsSqsPermissionConsumer', () => {
       })
 
       it('using existing dead letter queue', async () => {
-        await assertQueue(sqsClient, {
-          QueueName: 'deadLetterQueue',
-        })
+        await testAdmin.createQueue('deadLetterQueue')
 
         const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
           creationConfig: {
@@ -537,7 +516,7 @@ describe('SnsSqsPermissionConsumer', () => {
           deadLetterQueue: {
             redrivePolicy: { maxReceiveCount: 3 },
             locatorConfig: {
-              queueUrl: 'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
+              queueUrl: `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/deadLetterQueue`,
             },
           },
         })
@@ -545,7 +524,7 @@ describe('SnsSqsPermissionConsumer', () => {
         await newConsumer.init()
         expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
         expect(newConsumer.subscriptionProps.deadLetterQueueUrl).toBe(
-          'http://sqs.eu-west-1.localstack:4566/000000000000/deadLetterQueue',
+          `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/deadLetterQueue`,
         )
 
         const attributes = await getQueueAttributes(
@@ -788,8 +767,8 @@ describe('SnsSqsPermissionConsumer', () => {
     })
 
     beforeEach(async () => {
-      await deleteQueue(diContainer.cradle.sqsClient, queueName)
-      await deleteTopic(diContainer.cradle.snsClient, diContainer.cradle.stsClient, topicName)
+      await diContainer.cradle.testAdmin.deleteQueues(queueName)
+      await diContainer.cradle.testAdmin.deleteTopics(topicName)
     })
 
     afterAll(async () => {
@@ -870,8 +849,8 @@ describe('SnsSqsPermissionConsumer', () => {
     })
 
     beforeEach(async () => {
-      await deleteQueue(diContainer.cradle.sqsClient, queueName)
-      await deleteTopic(diContainer.cradle.snsClient, diContainer.cradle.stsClient, topicName)
+      await diContainer.cradle.testAdmin.deleteQueues(queueName)
+      await diContainer.cradle.testAdmin.deleteTopics(topicName)
     })
 
     afterAll(async () => {

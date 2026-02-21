@@ -6,18 +6,15 @@ import {
   type SinglePayloadStoreConfig,
 } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
-import {
-  assertQueue,
-  deleteQueue,
-  OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE,
-} from '@message-queue-toolkit/sqs'
+import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SQS_MESSAGE_MAX_SIZE } from '../../lib/sqs/AbstractSqsService.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
-import { assertBucket, emptyBucket, putObjectContent } from '../utils/s3Utils.ts'
+import { putObjectContent } from '../utils/s3Utils.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 
@@ -32,6 +29,7 @@ describe('SqsPermissionConsumer - multi-store payload offloading', () => {
 
     let diContainer: AwilixContainer<Dependencies>
     let s3: S3
+    let testAdmin: TestAwsResourceAdmin
 
     let publisher: SqsPermissionPublisher
     let consumer: SqsPermissionConsumer
@@ -42,21 +40,20 @@ describe('SqsPermissionConsumer - multi-store payload offloading', () => {
         permissionConsumer: asValue(() => undefined),
       })
       s3 = diContainer.cradle.s3
+      testAdmin = diContainer.cradle.testAdmin
 
-      await assertBucket(s3, s3BucketNameStore1)
-      await assertBucket(s3, s3BucketNameStore2)
+      await testAdmin.createBucket(s3BucketNameStore1)
+      await testAdmin.createBucket(s3BucketNameStore2)
     })
     beforeEach(async () => {
-      const { sqsClient } = diContainer.cradle
-      await deleteQueue(sqsClient, SqsPermissionConsumer.QUEUE_NAME)
+      await testAdmin.deleteQueues(SqsPermissionConsumer.QUEUE_NAME)
     })
     afterEach(async () => {
       await publisher?.close()
       await consumer?.close(true)
     })
     afterAll(async () => {
-      await emptyBucket(s3, s3BucketNameStore1)
-      await emptyBucket(s3, s3BucketNameStore2)
+      await testAdmin.emptyBuckets(s3BucketNameStore1, s3BucketNameStore2)
 
       const { awilixManager } = diContainer.cradle
       await awilixManager.executeDispose()
@@ -222,8 +219,8 @@ describe('SqsPermissionConsumer - multi-store payload offloading', () => {
       const TEST_QUEUE_NAME = 'user_permissions_legacy_default_store_test'
       const { sqsClient } = diContainer.cradle
 
-      await deleteQueue(sqsClient, TEST_QUEUE_NAME)
-      const { queueUrl } = await assertQueue(sqsClient, { QueueName: TEST_QUEUE_NAME })
+      await testAdmin.deleteQueues(TEST_QUEUE_NAME)
+      const { queueUrl } = await testAdmin.createQueue(TEST_QUEUE_NAME)
 
       const store1 = new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketNameStore1 })
       const store2 = new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketNameStore2 })
@@ -298,8 +295,8 @@ describe('SqsPermissionConsumer - multi-store payload offloading', () => {
       const TEST_QUEUE_NAME = 'user_permissions_multi_store_no_default_test'
       const { sqsClient } = diContainer.cradle
 
-      await deleteQueue(sqsClient, TEST_QUEUE_NAME)
-      const { queueUrl } = await assertQueue(sqsClient, { QueueName: TEST_QUEUE_NAME })
+      await testAdmin.deleteQueues(TEST_QUEUE_NAME)
+      const { queueUrl } = await testAdmin.createQueue(TEST_QUEUE_NAME)
 
       const store1 = new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketNameStore1 })
       const store2 = new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketNameStore2 })
