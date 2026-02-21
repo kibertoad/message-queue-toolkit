@@ -40,7 +40,9 @@ jobs:
           QUEUE_BACKEND: ${{ inputs.queue_backend }}
 
       - name: Run Tests
-        run: npm run test:ci -- --filter=${{ inputs.package_name }}
+        run: |
+          echo "::notice::Running ${{ inputs.package_name }} with QUEUE_BACKEND=${{ inputs.queue_backend }}"
+          npm run test:ci -- --filter=${{ inputs.package_name }}
         env:
           QUEUE_BACKEND: ${{ inputs.queue_backend }}
 
