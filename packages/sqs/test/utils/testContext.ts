@@ -64,6 +64,7 @@ export async function registerDependencies(dependencyOverrides: DependencyOverri
         server: getFauxqsServer(),
         sqsClient: deps.sqsClient,
         s3: deps.s3,
+        region: 'eu-west-1',
       })
     }, SINGLETON_CONFIG),
 

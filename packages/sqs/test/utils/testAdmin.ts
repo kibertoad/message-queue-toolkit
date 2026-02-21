@@ -13,6 +13,7 @@ export class TestAwsResourceAdmin {
   private s3?: S3
   private snsClient?: SNSClient
   private stsClient?: STSClient
+  private region: string
 
   constructor(opts: {
     server: FauxqsServer | undefined
@@ -20,27 +21,39 @@ export class TestAwsResourceAdmin {
     s3?: S3
     snsClient?: SNSClient
     stsClient?: STSClient
+    region: string
   }) {
     this.server = opts.server
     this.sqsClient = opts.sqsClient
     this.s3 = opts.s3
     this.snsClient = opts.snsClient
     this.stsClient = opts.stsClient
+    this.region = opts.region
   }
 
-  async createQueue(name: string, attrs?: Record<string, string>) {
+  async createQueue(
+    name: string,
+    opts?: { attributes?: Record<string, string>; tags?: Record<string, string> },
+  ) {
     if (this.server) {
-      this.server.createQueue(name, { attributes: attrs })
+      this.server.createQueue(name, {
+        region: this.region,
+        attributes: opts?.attributes,
+        tags: opts?.tags,
+      })
       return
     }
-    return await assertQueue(this.sqsClient, { QueueName: name, Attributes: attrs })
+    return await assertQueue(this.sqsClient, {
+      QueueName: name,
+      Attributes: opts?.attributes,
+      tags: opts?.tags,
+    })
   }
 
-  async purge(...queueNames: string[]) {
+  async deleteQueues(...queueNames: string[]) {
     if (this.server) {
-      this.server.reset()
       for (const name of queueNames) {
-        this.server.deleteQueue(name)
+        this.server.deleteQueue(name, { region: this.region })
       }
       return
     }

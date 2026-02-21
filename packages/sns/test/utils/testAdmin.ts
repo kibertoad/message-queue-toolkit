@@ -4,7 +4,7 @@ import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import { deleteQueue } from '@message-queue-toolkit/sqs'
 import type { FauxqsServer } from 'fauxqs'
-
+import { deleteTopic } from '../../lib/utils/snsUtils.ts'
 import { assertBucket, emptyBucket } from './s3Utils.ts'
 
 export class TestAwsResourceAdmin {
@@ -13,6 +13,7 @@ export class TestAwsResourceAdmin {
   private s3?: S3
   private snsClient: SNSClient
   private stsClient: STSClient
+  private region: string
 
   constructor(opts: {
     server: FauxqsServer | undefined
@@ -20,24 +21,37 @@ export class TestAwsResourceAdmin {
     s3?: S3
     snsClient: SNSClient
     stsClient: STSClient
+    region: string
   }) {
     this.server = opts.server
     this.sqsClient = opts.sqsClient
     this.s3 = opts.s3
     this.snsClient = opts.snsClient
     this.stsClient = opts.stsClient
+    this.region = opts.region
   }
 
-  async purge(...queueNames: string[]) {
+  async deleteQueues(...queueNames: string[]) {
     if (this.server) {
-      this.server.reset()
       for (const name of queueNames) {
-        this.server.deleteQueue(name)
+        this.server.deleteQueue(name, { region: this.region })
       }
       return
     }
     for (const name of queueNames) {
       await deleteQueue(this.sqsClient, name)
+    }
+  }
+
+  async deleteTopics(...topicNames: string[]) {
+    if (this.server) {
+      for (const name of topicNames) {
+        this.server.deleteTopic(name, { region: this.region })
+      }
+      return
+    }
+    for (const name of topicNames) {
+      await deleteTopic(this.snsClient, this.stsClient, name)
     }
   }
 

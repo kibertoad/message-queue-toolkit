@@ -63,7 +63,8 @@ describe('SnsPermissionPublisher - single-store payload offloading', () => {
     })
 
     beforeEach(async () => {
-      await testAdmin.purge(queueName)
+      await testAdmin.deleteQueues(queueName)
+      await testAdmin.deleteTopics(SnsPermissionPublisher.TOPIC_NAME)
       const { queueUrl } = await assertQueue(sqsClient, {
         QueueName: queueName,
       })

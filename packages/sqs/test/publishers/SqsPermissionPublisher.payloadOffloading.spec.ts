@@ -54,7 +54,7 @@ describe('SqsPermissionPublisher - payload offloading', () => {
       }
     })
     beforeEach(async () => {
-      await testAdmin.purge(queueName)
+      await testAdmin.deleteQueues(queueName)
       const { queueUrl } = await assertQueue(sqsClient, { QueueName: queueName })
 
       receivedSqsMessages = []

@@ -123,6 +123,7 @@ export async function registerDependencies(
         s3: deps.s3,
         snsClient: deps.snsClient,
         stsClient: deps.stsClient,
+        region: 'eu-west-1',
       })
     }, SINGLETON_CONFIG),
 

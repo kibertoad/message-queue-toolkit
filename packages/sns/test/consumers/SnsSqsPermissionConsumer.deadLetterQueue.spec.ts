@@ -32,7 +32,8 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
   })
 
   beforeEach(async () => {
-    await testAdmin.purge(queueName, deadLetterQueueName)
+    await testAdmin.deleteQueues(queueName, deadLetterQueueName)
+    await testAdmin.deleteTopics(topicName)
   })
 
   afterEach(async () => {
@@ -49,7 +50,8 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
     const deadLetterQueueName = 'deadLetterQueue'
 
     beforeEach(async () => {
-      await testAdmin.purge(queueName, deadLetterQueueName)
+      await testAdmin.deleteQueues(queueName, deadLetterQueueName)
+      await testAdmin.deleteTopics(topicName)
     })
 
     it('creates a new dead letter queue', async () => {

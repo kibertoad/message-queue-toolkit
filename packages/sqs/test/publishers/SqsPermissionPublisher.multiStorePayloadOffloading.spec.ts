@@ -49,7 +49,7 @@ describe('SqsPermissionPublisher - multi-store payload offloading', () => {
       await testAdmin.createBucket(s3BucketNameStore2)
     })
     beforeEach(async () => {
-      await testAdmin.purge(queueName)
+      await testAdmin.deleteQueues(queueName)
       const { queueUrl } = await assertQueue(sqsClient, { QueueName: queueName })
 
       receivedSqsMessages = []

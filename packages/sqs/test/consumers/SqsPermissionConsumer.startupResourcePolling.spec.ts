@@ -67,11 +67,11 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
     diContainer = await registerDependencies()
     sqsClient = diContainer.cradle.sqsClient
     testAdmin = diContainer.cradle.testAdmin
-    await testAdmin.purge(queueName)
+    await testAdmin.deleteQueues(queueName)
   })
 
   afterEach(async () => {
-    await testAdmin.purge(queueName)
+    await testAdmin.deleteQueues(queueName)
     await diContainer.cradle.awilixManager.executeDispose()
     await diContainer.dispose()
   })

@@ -36,7 +36,8 @@ describe('snsSubscriber', () => {
     await awilixManager.executeDispose()
     await diContainer.dispose()
 
-    await testAdmin.purge(QUEUE_NAME)
+    await testAdmin.deleteQueues(QUEUE_NAME)
+    await testAdmin.deleteTopics(TOPIC_NAME)
   })
 
   describe('subscribeToTopic', () => {

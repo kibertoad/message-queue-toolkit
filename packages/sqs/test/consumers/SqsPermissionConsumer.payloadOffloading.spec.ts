@@ -50,7 +50,7 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
       }
     })
     beforeEach(async () => {
-      await testAdmin.purge(SqsPermissionConsumer.QUEUE_NAME)
+      await testAdmin.deleteQueues(SqsPermissionConsumer.QUEUE_NAME)
 
       consumer = new SqsPermissionConsumer(diContainer.cradle, {
         payloadStoreConfig,
@@ -101,7 +101,7 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
       const TEST_QUEUE_NAME = 'user_permissions_offloading_error_test'
 
       // Clean up any existing test queue
-      await testAdmin.purge(TEST_QUEUE_NAME)
+      await testAdmin.deleteQueues(TEST_QUEUE_NAME)
 
       // Create dedicated publisher with isolated queue
       const testPublisher = new SqsPermissionPublisher(diContainer.cradle, {
@@ -193,7 +193,7 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
       const TEST_QUEUE_NAME = 'user_permissions_legacy_format_test'
       const { sqsClient } = diContainer.cradle
 
-      await testAdmin.purge(TEST_QUEUE_NAME)
+      await testAdmin.deleteQueues(TEST_QUEUE_NAME)
       const { queueUrl } = await assertQueue(sqsClient, { QueueName: TEST_QUEUE_NAME })
 
       // Manually create a payload in S3 (simulating what an old publisher would do)
@@ -287,7 +287,7 @@ describe('SqsPermissionConsumer - nested messageTypePath with payload offloading
     })
 
     it('preserves nested messageTypePath when offloading payload', async () => {
-      await testAdmin.purge(TEST_QUEUE_NAME)
+      await testAdmin.deleteQueues(TEST_QUEUE_NAME)
 
       const payloadStoreConfig: SinglePayloadStoreConfig = {
         messageSizeThreshold: largeMessageSizeThreshold,

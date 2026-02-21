@@ -40,7 +40,7 @@ describe('SqsPermissionConsumer', () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
       testAdmin = diContainer.cradle.testAdmin
-      await testAdmin.purge(queueName)
+      await testAdmin.deleteQueues(queueName)
     })
 
     afterEach(async () => {
