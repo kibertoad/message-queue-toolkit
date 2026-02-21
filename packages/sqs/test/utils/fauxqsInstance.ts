@@ -15,6 +15,8 @@ export async function ensureFauxqsServer(): Promise<void> {
 }
 
 export function getFauxqsServer(): FauxqsServer | undefined {
-  console.log(`[fauxqs] getFauxqsServer: ${server ? 'instance available' : 'undefined (localstack mode)'}`)
+  console.log(
+    `[fauxqs] getFauxqsServer: ${server ? 'instance available' : 'undefined (localstack mode)'}`,
+  )
   return server
 }
