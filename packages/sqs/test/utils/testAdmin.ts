@@ -29,9 +29,9 @@ export class TestAwsResourceAdmin {
   }
 
   async createQueue(name: string, attrs?: Record<string, string>) {
-    if (this.server) {
-      this.server.createQueue(name, { attributes: attrs })
-    }
+    // if (this.server) {
+    //   this.server.createQueue(name, { attributes: attrs })
+    // }
     return await assertQueue(this.sqsClient, { QueueName: name, Attributes: attrs })
   }
 
@@ -40,10 +40,10 @@ export class TestAwsResourceAdmin {
   }
 
   async createBucket(name: string) {
-    if (this.server) {
-      this.server.createBucket(name)
-      return
-    }
+    // if (this.server) {
+    //   this.server.createBucket(name)
+    //   return
+    // }
     return await assertBucket(this.s3!, name)
   }
 
@@ -52,12 +52,13 @@ export class TestAwsResourceAdmin {
   }
 
   reset() {
-    if (this.server) {
-      this.server.reset()
-    }
+    // if (this.server) {
+    //   this.server.reset()
+    // }
   }
 
   inspectQueue(name: string) {
-    return this.server?.inspectQueue(name)
+    // return this.server?.inspectQueue(name)
+    return undefined
   }
 }
