@@ -7,7 +7,6 @@ import {
   NO_TIMEOUT,
   StartupResourcePollingTimeoutError,
 } from '@message-queue-toolkit/core'
-import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -16,7 +15,8 @@ import {
   type SNSSQSConsumerOptions,
 } from '../../lib/sns/AbstractSnsSqsConsumer.ts'
 import { initSnsSqs } from '../../lib/utils/snsInitter.ts'
-import { assertTopic, deleteTopic } from '../../lib/utils/snsUtils.ts'
+import { getPort } from '../utils/fauxqsInstance.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import {
@@ -63,28 +63,30 @@ class TestStartupResourcePollingConsumer extends AbstractSnsSqsConsumer<
 describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
   const queueName = 'startup-resource-polling-test-queue'
   const topicName = 'startup-resource-polling-test-topic'
-  const queueUrl = `http://sqs.eu-west-1.localstack:4566/000000000000/${queueName}`
+  const queueUrl = `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${queueName}`
 
   let diContainer: AwilixContainer<Dependencies>
   let sqsClient: SQSClient
   let snsClient: SNSClient
   let stsClient: STSClient
+  let testAdmin: TestAwsResourceAdmin
 
   beforeAll(async () => {
     diContainer = await registerDependencies({}, false)
     sqsClient = diContainer.cradle.sqsClient
     snsClient = diContainer.cradle.snsClient
     stsClient = diContainer.cradle.stsClient
+    testAdmin = diContainer.cradle.testAdmin
   })
 
   beforeEach(async () => {
-    await deleteQueue(sqsClient, queueName)
-    await deleteTopic(snsClient, stsClient, topicName)
+    await testAdmin.deleteQueues(queueName)
+    await testAdmin.deleteTopics(topicName)
   })
 
   afterEach(async () => {
-    await deleteQueue(sqsClient, queueName)
-    await deleteTopic(snsClient, stsClient, topicName)
+    await testAdmin.deleteQueues(queueName)
+    await testAdmin.deleteTopics(topicName)
   })
 
   afterAll(async () => {
@@ -96,7 +98,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
   describe('when startupResourcePolling is enabled', () => {
     it('waits for topic to become available and initializes successfully', async () => {
       // Create queue first, but not the topic
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -120,7 +122,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       // Wait a bit then create the topic
       await setTimeout(300)
-      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+      const topicArn = await testAdmin.createTopic(topicName)
 
       // Init should complete successfully
       await initPromise
@@ -131,7 +133,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
     it('waits for queue to become available and initializes successfully', async () => {
       // Create topic first, but not the queue
-      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+      const topicArn = await testAdmin.createTopic(topicName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -152,7 +154,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       // Wait a bit then create the queue
       await setTimeout(300)
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       // Init should complete successfully
       await initPromise
@@ -163,7 +165,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
     it('throws StartupResourcePollingTimeoutError when timeout is reached', async () => {
       // Create queue but not topic
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -188,7 +190,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
     it('polls indefinitely when NO_TIMEOUT is used', async () => {
       // Create queue first, but not the topic
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -212,7 +214,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       // Wait a bit then create the topic
       await setTimeout(500)
-      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+      const topicArn = await testAdmin.createTopic(topicName)
 
       // Init should complete successfully
       await initPromise
@@ -223,7 +225,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
     it('start() waits for resources and starts consumers (blocking mode)', async () => {
       // Create queue first, but not the topic
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -250,7 +252,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       // Wait a bit then create the topic
       await setTimeout(200)
-      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+      const topicArn = await testAdmin.createTopic(topicName)
 
       // start() should complete successfully after topic appears
       await startPromise
@@ -266,8 +268,8 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
     it('start() works immediately when resources already exist (blocking mode)', async () => {
       // Create both resources before starting
-      await assertQueue(sqsClient, { QueueName: queueName })
-      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+      await testAdmin.createQueue(queueName)
+      const topicArn = await testAdmin.createTopic(topicName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -302,8 +304,8 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
   describe('when nonBlocking mode is enabled', () => {
     it('returns immediately when both resources are available on first check', async () => {
       // Create queue first, then topic (order matters for LocalStack)
-      await assertQueue(sqsClient, { QueueName: queueName })
-      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+      await testAdmin.createQueue(queueName)
+      const topicArn = await testAdmin.createTopic(topicName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -328,7 +330,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
     it('returns immediately when topic is not available', async () => {
       // Create queue but not topic
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -357,7 +359,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
     it('returns immediately when queue is not available', async () => {
       // Create topic but not queue
-      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+      const topicArn = await testAdmin.createTopic(topicName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -388,7 +390,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       let callbackQueueUrl: string | undefined
 
       // Create queue but not topic
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       const result = await initSnsSqs(
         sqsClient,
@@ -420,7 +422,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(result.resourcesReady).toBe(false)
 
       // Create topic after init returns
-      await assertTopic(snsClient, stsClient, { Name: topicName })
+      await testAdmin.createTopic(topicName)
 
       // Wait for callback to be invoked using vi.waitFor (more reliable than fixed timeout)
       await vi.waitFor(
@@ -473,7 +475,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(result.resourcesReady).toBe(false)
 
       // Create topic so topic polling succeeds, but NOT queue
-      await assertTopic(snsClient, stsClient, { Name: topicName })
+      await testAdmin.createTopic(topicName)
 
       // Wait for error callback to be invoked (queue polling timeout)
       // Need to wait for: topic to become available (so topic polling succeeds)
@@ -545,7 +547,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
     it('start() returns immediately when topic is not available and starts consumers when resources become ready', async () => {
       // Create queue but not topic
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -576,7 +578,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(consumer.isRunning).toBe(false)
 
       // Create topic after start returns
-      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+      const topicArn = await testAdmin.createTopic(topicName)
 
       // Wait for consumer to start running (happens when resources become ready)
       await vi.waitFor(
@@ -595,8 +597,8 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
     it('start() works immediately when resources are already available', async () => {
       // Create both queue and topic before starting
-      await assertQueue(sqsClient, { QueueName: queueName })
-      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+      await testAdmin.createQueue(queueName)
+      const topicArn = await testAdmin.createTopic(topicName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -653,7 +655,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       // Wait a bit then create the topic (queue will be created by assertQueue in subscribeToTopic)
       await setTimeout(300)
-      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+      const topicArn = await testAdmin.createTopic(topicName)
 
       // Init should complete successfully after topic is created
       await initPromise
@@ -753,7 +755,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(result.subscriptionArn).toBe('')
 
       // Create topic after init returns
-      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+      const topicArn = await testAdmin.createTopic(topicName)
 
       // Wait for callback to be invoked (subscription created in background)
       await vi.waitFor(
@@ -769,7 +771,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
     it('creates subscription immediately when topic is available in non-blocking mode', async () => {
       // Topic exists before init
-      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+      const topicArn = await testAdmin.createTopic(topicName)
 
       const result = await initSnsSqs(
         sqsClient,
@@ -853,7 +855,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
   describe('when startupResourcePolling is disabled', () => {
     it('throws immediately when topic does not exist', async () => {
       // Create queue but not topic
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       const topicArn = 'arn:aws:sns:eu-west-1:000000000000:non-existent-topic'
 
@@ -876,7 +878,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
 
     it('throws immediately when queue does not exist', async () => {
       // Create topic but not queue
-      const topicArn = await assertTopic(snsClient, stsClient, { Name: topicName })
+      const topicArn = await testAdmin.createTopic(topicName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {

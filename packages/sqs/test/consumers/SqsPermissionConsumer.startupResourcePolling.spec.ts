@@ -12,7 +12,8 @@ import {
   type SQSConsumerDependencies,
   type SQSConsumerOptions,
 } from '../../lib/sqs/AbstractSqsConsumer.ts'
-import { assertQueue, deleteQueue } from '../../lib/utils/sqsUtils.ts'
+import { initSqs } from '../../lib/utils/sqsInitter.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import {
@@ -60,15 +61,17 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
 
   let diContainer: AwilixContainer<Dependencies>
   let sqsClient: SQSClient
+  let testAdmin: TestAwsResourceAdmin
 
   beforeEach(async () => {
     diContainer = await registerDependencies()
     sqsClient = diContainer.cradle.sqsClient
-    await deleteQueue(sqsClient, queueName)
+    testAdmin = diContainer.cradle.testAdmin
+    await testAdmin.deleteQueues(queueName)
   })
 
   afterEach(async () => {
-    await deleteQueue(sqsClient, queueName)
+    await testAdmin.deleteQueues(queueName)
     await diContainer.cradle.awilixManager.executeDispose()
     await diContainer.dispose()
   })
@@ -91,7 +94,7 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       // Wait a bit then create the queue
       await setTimeout(300)
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       // Init should complete successfully
       await initPromise
@@ -133,7 +136,7 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       // Wait a bit then create the queue
       await setTimeout(500)
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       // Init should complete successfully
       await initPromise
@@ -175,7 +178,7 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
   describe('when nonBlocking mode is enabled', () => {
     it('returns immediately when resource is available on first check', async () => {
       // Create queue first
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -218,8 +221,6 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
     it('invokes onQueueReady callback when resource becomes available in background', async () => {
       // We need to test the callback at the initter level since AbstractSqsConsumer
       // doesn't expose the onQueueReady callback directly
-      const { initSqs } = await import('../../lib/utils/sqsInitter.ts')
-
       let callbackInvoked = false
       let callbackArn: string | undefined
 
@@ -250,7 +251,7 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(result.queueArn).toBeUndefined()
 
       // Create queue after init returns
-      await assertQueue(sqsClient, { QueueName: queueName })
+      await testAdmin.createQueue(queueName)
 
       // Wait for background polling to detect the queue
       await setTimeout(200)

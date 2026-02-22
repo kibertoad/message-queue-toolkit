@@ -27,8 +27,6 @@
         "test:coverage": "npm run test -- --coverage",
         "lint": "biome check . && tsc",
         "lint:fix": "biome check --write .",
-        "docker:start": "docker compose up -d --quiet-pull localstack",
-        "docker:stop": "docker compose down",
         "prepublishOnly": "npm run lint && npm run build"
     },
     "dependencies": {},
@@ -43,8 +41,9 @@
         "@lokalise/tsconfig": "^3.0.0",
         "@types/node": "^25.0.2",
         "@vitest/coverage-v8": "^4.0.15",
+        "fauxqs": "^1.9.3",
         "rimraf": "^6.0.1",
-        "typescript": "^5.9.2",
+        "typescript": "^5.9.3",
         "vitest": "^4.0.15"
     },
     "homepage": "https://github.com/kibertoad/message-queue-toolkit",
