@@ -187,8 +187,8 @@ export async function findSubscriptionByTopicAndQueue(
  * Calculates the size of an outgoing SNS message.
  *
  * SNS imposes a 256 KB limit on the total size of a message, which includes both the message body and any metadata (attributes).
- * This function currently computes the size based solely on the message body, as no attributes are included at this time.
- * For future updates, if message attributes are added, their sizes should also be considered.
+ * This function computes the size based solely on the message body. The reserved buffer for message attributes and overhead
+ * is accounted for in SNS_MESSAGE_ATTRIBUTE_BUFFER, which is subtracted from SNS_MESSAGE_HARD_LIMIT to derive SNS_MESSAGE_MAX_SIZE.
  *
  * Reference: https://docs.aws.amazon.com/sns/latest/dg/sns-message-attributes.html
  *
