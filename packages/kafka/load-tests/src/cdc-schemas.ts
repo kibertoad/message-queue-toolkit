@@ -1,5 +1,5 @@
-import z from 'zod/v4'
 import type { TopicConfig } from '@message-queue-toolkit/kafka'
+import z from 'zod/v4'
 
 const eventRowSchema = z.object({
   id: z.string(),

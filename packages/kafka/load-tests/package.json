@@ -1,43 +1,43 @@
 {
-  "name": "@message-queue-toolkit/kafka-load-tests",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "lint:types": "tsc -noEmit",
-    "docker:start": "docker compose up -d --wait",
-    "docker:stop": "docker compose down -v",
-    "load:cdc": "node src/run.ts",
-    "load:cdc:light": "node src/run.ts --rate 100 --duration 30",
-    "load:cdc:medium": "node src/run.ts --rate 1000 --duration 60",
-    "load:cdc:heavy": "node src/run.ts --rate 5000 --duration 120",
-    "load:cdc:batch": "node src/run-batch.ts",
-    "load:cdc:batch:light": "node src/run-batch.ts --rate 100 --duration 30",
-    "load:cdc:batch:medium": "node src/run-batch.ts --rate 1000 --duration 60",
-    "load:cdc:batch:heavy": "node src/run-batch.ts --rate 5000 --duration 120",
-    "load:direct": "node src/run-direct.ts",
-    "load:direct:light": "node src/run-direct.ts --rate 100 --duration 30",
-    "load:direct:medium": "node src/run-direct.ts --rate 1000 --duration 60",
-    "load:direct:heavy": "node src/run-direct.ts --rate 5000 --duration 120",
-    "load:direct:batch": "node src/run-direct-batch.ts",
-    "load:direct:batch:light": "node src/run-direct-batch.ts --rate 100 --duration 30",
-    "load:direct:batch:medium": "node src/run-direct-batch.ts --rate 1000 --duration 60",
-    "load:direct:batch:heavy": "node src/run-direct-batch.ts --rate 5000 --duration 120"
-  },
-  "dependencies": {
-    "@message-queue-toolkit/kafka": "file:../../kafka",
-    "@message-queue-toolkit/core": "file:../../core",
-    "@message-queue-toolkit/schemas": "file:../../schemas",
-    "@lokalise/node-core": "^14.2.0",
-    "@platformatic/kafka": "1.28.0",
-    "pg": "^8.19.0",
-    "zod": "^4.0.17"
-  },
-  "devDependencies": {
-    "@types/pg": "^8.16.0",
-    "typescript": "^5.9.3"
-  },
-  "overrides": {
-    "zod": "$zod"
-  }
+    "name": "@message-queue-toolkit/kafka-load-tests",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "lint:types": "tsc -noEmit",
+        "docker:start": "docker compose up -d --wait",
+        "docker:stop": "docker compose down -v",
+        "load:cdc": "node src/run.ts",
+        "load:cdc:light": "node src/run.ts --rate 100 --duration 30",
+        "load:cdc:medium": "node src/run.ts --rate 1000 --duration 60",
+        "load:cdc:heavy": "node src/run.ts --rate 5000 --duration 120",
+        "load:cdc:batch": "node src/run-batch.ts",
+        "load:cdc:batch:light": "node src/run-batch.ts --rate 100 --duration 30",
+        "load:cdc:batch:medium": "node src/run-batch.ts --rate 1000 --duration 60",
+        "load:cdc:batch:heavy": "node src/run-batch.ts --rate 5000 --duration 120",
+        "load:direct": "node src/run-direct.ts",
+        "load:direct:light": "node src/run-direct.ts --rate 100 --duration 30",
+        "load:direct:medium": "node src/run-direct.ts --rate 1000 --duration 60",
+        "load:direct:heavy": "node src/run-direct.ts --rate 5000 --duration 120",
+        "load:direct:batch": "node src/run-direct-batch.ts",
+        "load:direct:batch:light": "node src/run-direct-batch.ts --rate 100 --duration 30",
+        "load:direct:batch:medium": "node src/run-direct-batch.ts --rate 1000 --duration 60",
+        "load:direct:batch:heavy": "node src/run-direct-batch.ts --rate 5000 --duration 120"
+    },
+    "dependencies": {
+        "@message-queue-toolkit/kafka": "file:../../kafka",
+        "@message-queue-toolkit/core": "file:../../core",
+        "@message-queue-toolkit/schemas": "file:../../schemas",
+        "@lokalise/node-core": "^14.2.0",
+        "@platformatic/kafka": "1.28.0",
+        "pg": "^8.19.0",
+        "zod": "^4.0.17"
+    },
+    "devDependencies": {
+        "@types/pg": "^8.16.0",
+        "typescript": "^5.9.3"
+    },
+    "overrides": {
+        "zod": "$zod"
+    }
 }

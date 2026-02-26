@@ -34,7 +34,9 @@ function generateOrder(index: number): DirectOrder {
 export async function runDirectLoadTest(options: LoadTestOptions): Promise<void> {
   const { rate, duration, batchSize } = options
 
-  console.log(`Starting direct Kafka load test: ${rate} msgs/sec, ${duration}s duration, batch=${batchSize}`)
+  console.log(
+    `Starting direct Kafka load test: ${rate} msgs/sec, ${duration}s duration, batch=${batchSize}`,
+  )
 
   const metrics = new MetricsCollector()
   const publisher = new DirectPublisher()
@@ -51,9 +53,7 @@ export async function runDirectLoadTest(options: LoadTestOptions): Promise<void>
   // Generate load
   const totalMessages = rate * duration
 
-  console.log(
-    `Publishing ${totalMessages.toLocaleString()} total messages at ${rate}/sec`,
-  )
+  console.log(`Publishing ${totalMessages.toLocaleString()} total messages at ${rate}/sec`)
 
   const loadStartTime = Date.now()
   let totalPublished = 0
@@ -72,7 +72,9 @@ export async function runDirectLoadTest(options: LoadTestOptions): Promise<void>
         promises.push(publisher.publish('direct-events', generateEvent(totalPublished + i)))
       }
       for (let i = 0; i < orderCount; i++) {
-        promises.push(publisher.publish('direct-orders', generateOrder(totalPublished + eventCount + i)))
+        promises.push(
+          publisher.publish('direct-orders', generateOrder(totalPublished + eventCount + i)),
+        )
       }
       await Promise.all(promises)
       totalPublished += currentBatch
@@ -95,10 +97,7 @@ export async function runDirectLoadTest(options: LoadTestOptions): Promise<void>
 
   // Wait for consumer to drain
   const drainStart = Date.now()
-  while (
-    metrics.backlog > 0 &&
-    Date.now() - drainStart < config.drainTimeoutMs
-  ) {
+  while (metrics.backlog > 0 && Date.now() - drainStart < config.drainTimeoutMs) {
     await setTimeout(500)
   }
 

@@ -1,6 +1,6 @@
 import { setTimeout } from 'node:timers/promises'
-import { config } from './config.ts'
 import { CdcBatchConsumer } from './cdc-batch-consumer.ts'
+import { config } from './config.ts'
 import { CrdbClient } from './crdb-client.ts'
 import { MetricsCollector } from './metrics-collector.ts'
 
@@ -15,7 +15,9 @@ export interface BatchLoadTestOptions {
 export async function runBatchLoadTest(options: BatchLoadTestOptions): Promise<void> {
   const { rate, duration, batchSize, consumerBatchSize, consumerBatchTimeoutMs } = options
 
-  console.log(`Starting CDC batch load test: ${rate} rows/sec, ${duration}s duration, insert batch=${batchSize}, consumer batch=${consumerBatchSize}, timeout=${consumerBatchTimeoutMs}ms`)
+  console.log(
+    `Starting CDC batch load test: ${rate} rows/sec, ${duration}s duration, insert batch=${batchSize}, consumer batch=${consumerBatchSize}, timeout=${consumerBatchTimeoutMs}ms`,
+  )
 
   const metrics = new MetricsCollector()
   const crdb = new CrdbClient()
@@ -49,13 +51,12 @@ export async function runBatchLoadTest(options: BatchLoadTestOptions): Promise<v
     totalInserted += currentBatch
     inflight++
 
-    Promise.all([
-      crdb.insertEvents(eventCount),
-      crdb.insertOrders(orderCount),
-    ])
+    Promise.all([crdb.insertEvents(eventCount), crdb.insertOrders(orderCount)])
       .then(() => metrics.recordProduced(currentBatch))
       .catch((err) => console.error('Insert error:', err))
-      .finally(() => { inflight-- })
+      .finally(() => {
+        inflight--
+      })
 
     if (rate > 0) {
       const elapsed = Date.now() - loadStartTime

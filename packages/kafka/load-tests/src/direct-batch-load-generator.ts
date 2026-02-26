@@ -36,7 +36,9 @@ function generateOrder(index: number): DirectOrder {
 export async function runDirectBatchLoadTest(options: BatchLoadTestOptions): Promise<void> {
   const { rate, duration, batchSize, consumerBatchSize, consumerBatchTimeoutMs } = options
 
-  console.log(`Starting direct Kafka batch load test: ${rate} msgs/sec, ${duration}s duration, publish batch=${batchSize}, consumer batch=${consumerBatchSize}, timeout=${consumerBatchTimeoutMs}ms`)
+  console.log(
+    `Starting direct Kafka batch load test: ${rate} msgs/sec, ${duration}s duration, publish batch=${batchSize}, consumer batch=${consumerBatchSize}, timeout=${consumerBatchTimeoutMs}ms`,
+  )
 
   const metrics = new MetricsCollector()
   const publisher = new DirectPublisher()
@@ -67,7 +69,9 @@ export async function runDirectBatchLoadTest(options: BatchLoadTestOptions): Pro
         promises.push(publisher.publish('direct-events', generateEvent(totalPublished + i)))
       }
       for (let i = 0; i < orderCount; i++) {
-        promises.push(publisher.publish('direct-orders', generateOrder(totalPublished + eventCount + i)))
+        promises.push(
+          publisher.publish('direct-orders', generateOrder(totalPublished + eventCount + i)),
+        )
       }
       await Promise.all(promises)
       totalPublished += currentBatch

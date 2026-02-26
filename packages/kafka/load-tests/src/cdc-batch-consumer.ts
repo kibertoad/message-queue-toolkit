@@ -6,15 +6,25 @@ import {
   KafkaHandlerConfig,
   KafkaHandlerRoutingBuilder,
 } from '@message-queue-toolkit/kafka'
+import {
+  CDC_EVENT_SCHEMA,
+  CDC_ORDER_SCHEMA,
+  type CDC_TOPICS_CONFIG,
+  type CdcEvent,
+  type CdcOrder,
+} from './cdc-schemas.ts'
 import { config } from './config.ts'
-import { CDC_EVENT_SCHEMA, CDC_ORDER_SCHEMA, CDC_TOPICS_CONFIG, type CdcEvent, type CdcOrder } from './cdc-schemas.ts'
 import type { MetricsCollector } from './metrics-collector.ts'
 
 type ExecutionContext = {
   metrics: MetricsCollector
 }
 
-export class CdcBatchConsumer extends AbstractKafkaConsumer<typeof CDC_TOPICS_CONFIG, ExecutionContext, true> {
+export class CdcBatchConsumer extends AbstractKafkaConsumer<
+  typeof CDC_TOPICS_CONFIG,
+  ExecutionContext,
+  true
+> {
   constructor(metrics: MetricsCollector, batchSize = 50, timeoutMs = 200) {
     const deps: KafkaConsumerDependencies = {
       logger: globalLogger,
@@ -44,7 +54,9 @@ export class CdcBatchConsumer extends AbstractKafkaConsumer<typeof CDC_TOPICS_CO
           .addConfig(
             'events',
             new KafkaHandlerConfig(CDC_EVENT_SCHEMA, (messages, ctx) => {
-              console.log(`[${new Date().toISOString()}] [batch-handler] events batch received: ${messages.length} messages`)
+              console.log(
+                `[${new Date().toISOString()}] [batch-handler] events batch received: ${messages.length} messages`,
+              )
               for (const message of messages) {
                 const value = message.value as CdcEvent
                 if (!value.after) continue // skip resolved heartbeats
@@ -60,7 +72,9 @@ export class CdcBatchConsumer extends AbstractKafkaConsumer<typeof CDC_TOPICS_CO
           .addConfig(
             'orders',
             new KafkaHandlerConfig(CDC_ORDER_SCHEMA, (messages, ctx) => {
-              console.log(`[${new Date().toISOString()}] [batch-handler] orders batch received: ${messages.length} messages`)
+              console.log(
+                `[${new Date().toISOString()}] [batch-handler] orders batch received: ${messages.length} messages`,
+              )
               for (const message of messages) {
                 const value = message.value as CdcOrder
                 if (!value.after) continue // skip resolved heartbeats

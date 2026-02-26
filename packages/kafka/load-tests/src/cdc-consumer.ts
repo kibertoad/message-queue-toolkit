@@ -6,8 +6,14 @@ import {
   KafkaHandlerConfig,
   KafkaHandlerRoutingBuilder,
 } from '@message-queue-toolkit/kafka'
+import {
+  CDC_EVENT_SCHEMA,
+  CDC_ORDER_SCHEMA,
+  type CDC_TOPICS_CONFIG,
+  type CdcEvent,
+  type CdcOrder,
+} from './cdc-schemas.ts'
 import { config } from './config.ts'
-import { CDC_EVENT_SCHEMA, CDC_ORDER_SCHEMA, CDC_TOPICS_CONFIG, type CdcEvent, type CdcOrder } from './cdc-schemas.ts'
 import type { MetricsCollector } from './metrics-collector.ts'
 
 type ExecutionContext = {
@@ -36,7 +42,11 @@ export class CdcConsumer extends AbstractKafkaConsumer<typeof CDC_TOPICS_CONFIG,
         },
         groupId: `cdc-load-test-${randomUUID()}`,
         batchProcessingEnabled: false,
-        handlers: new KafkaHandlerRoutingBuilder<typeof CDC_TOPICS_CONFIG, ExecutionContext, false>()
+        handlers: new KafkaHandlerRoutingBuilder<
+          typeof CDC_TOPICS_CONFIG,
+          ExecutionContext,
+          false
+        >()
           .addConfig(
             'events',
             new KafkaHandlerConfig(CDC_EVENT_SCHEMA, (message, ctx) => {

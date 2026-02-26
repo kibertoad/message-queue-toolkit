@@ -1,5 +1,5 @@
-import z from 'zod/v4'
 import type { TopicConfig } from '@message-queue-toolkit/kafka'
+import z from 'zod/v4'
 
 export const DIRECT_EVENT_SCHEMA = z.object({
   id: z.string(),

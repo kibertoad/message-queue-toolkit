@@ -40,7 +40,9 @@ export class CrdbClient {
 
     for (let i = 0; i < count; i++) {
       const offset = i * 3
-      placeholders.push(`(gen_random_uuid(), $${offset + 1}::STRING, $${offset + 2}::DECIMAL, $${offset + 3}::STRING, now())`)
+      placeholders.push(
+        `(gen_random_uuid(), $${offset + 1}::STRING, $${offset + 2}::DECIMAL, $${offset + 3}::STRING, now())`,
+      )
       values.push(
         `customer-${(i % 100).toString().padStart(3, '0')}`,
         (Math.random() * 1000).toFixed(2),

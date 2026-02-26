@@ -1,6 +1,6 @@
 import { setTimeout } from 'node:timers/promises'
-import { config } from './config.ts'
 import { CdcConsumer } from './cdc-consumer.ts'
+import { config } from './config.ts'
 import { CrdbClient } from './crdb-client.ts'
 import { MetricsCollector } from './metrics-collector.ts'
 
@@ -55,13 +55,12 @@ export async function runLoadTest(options: LoadTestOptions): Promise<void> {
     totalInserted += currentBatch
     inflight++
 
-    Promise.all([
-      crdb.insertEvents(eventCount),
-      crdb.insertOrders(orderCount),
-    ])
+    Promise.all([crdb.insertEvents(eventCount), crdb.insertOrders(orderCount)])
       .then(() => metrics.recordProduced(currentBatch))
       .catch((err) => console.error('Insert error:', err))
-      .finally(() => { inflight-- })
+      .finally(() => {
+        inflight--
+      })
 
     // Throttle to target rate (0 = no throttle = max speed)
     if (rate > 0) {
@@ -84,10 +83,7 @@ export async function runLoadTest(options: LoadTestOptions): Promise<void> {
 
   // Wait for consumer to drain
   const drainStart = Date.now()
-  while (
-    metrics.backlog > 0 &&
-    Date.now() - drainStart < config.drainTimeoutMs
-  ) {
+  while (metrics.backlog > 0 && Date.now() - drainStart < config.drainTimeoutMs) {
     await setTimeout(500)
   }
 

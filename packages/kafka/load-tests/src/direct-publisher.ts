@@ -1,9 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { globalLogger } from '@lokalise/node-core'
-import {
-  AbstractKafkaPublisher,
-  type KafkaDependencies,
-} from '@message-queue-toolkit/kafka'
+import { AbstractKafkaPublisher, type KafkaDependencies } from '@message-queue-toolkit/kafka'
 import { config } from './config.ts'
 import { DIRECT_TOPICS_CONFIG } from './direct-schemas.ts'
 
