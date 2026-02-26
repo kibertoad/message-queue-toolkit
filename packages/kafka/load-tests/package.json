@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "postinstall": "rm -rf node_modules/zod",
     "lint:types": "tsc -noEmit",
     "docker:start": "docker compose up -d --wait",
     "docker:stop": "docker compose down -v",
@@ -30,7 +29,7 @@
     "@message-queue-toolkit/core": "file:../../core",
     "@message-queue-toolkit/schemas": "file:../../schemas",
     "@lokalise/node-core": "^14.2.0",
-    "@platformatic/kafka": "^1.28.0",
+    "@platformatic/kafka": "1.28.0",
     "pg": "^8.19.0",
     "zod": "^4.0.17"
   },
