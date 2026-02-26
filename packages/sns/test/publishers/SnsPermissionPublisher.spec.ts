@@ -4,18 +4,19 @@ import type { STSClient } from '@aws-sdk/client-sts'
 import type { InternalError } from '@lokalise/node-core'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { SQSMessage } from '@message-queue-toolkit/sqs'
-import { assertQueue, deleteQueue, FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
+import { FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { deserializeSNSMessage } from '../../lib/utils/snsMessageDeserializer.ts'
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber.ts'
-import { assertTopic, deleteTopic, getTopicAttributes } from '../../lib/utils/snsUtils.ts'
+import { assertTopic, getTopicAttributes } from '../../lib/utils/snsUtils.ts'
 import type {
   PERMISSIONS_ADD_MESSAGE_TYPE,
   PERMISSIONS_MESSAGE_TYPE,
 } from '../consumers/userConsumerSchemas.ts'
 import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SnsPermissionPublisher } from './SnsPermissionPublisher.ts'
@@ -27,15 +28,17 @@ describe('SnsPermissionPublisher', () => {
     let diContainer: AwilixContainer<Dependencies>
     let snsClient: SNSClient
     let stsClient: STSClient
+    let testAdmin: TestAwsResourceAdmin
 
     beforeAll(async () => {
       diContainer = await registerDependencies()
       snsClient = diContainer.cradle.snsClient
       stsClient = diContainer.cradle.stsClient
+      testAdmin = diContainer.cradle.testAdmin
     })
 
     beforeEach(async () => {
-      await deleteTopic(snsClient, stsClient, topicNome)
+      await testAdmin.deleteTopics(topicNome)
     })
 
     it('sets correct policy when policy fields are set', async () => {
@@ -89,9 +92,7 @@ describe('SnsPermissionPublisher', () => {
     })
 
     it('does not create a new queue when queue locator is passed', async () => {
-      const arn = await assertTopic(snsClient, stsClient, {
-        Name: topicNome,
-      })
+      const arn = await testAdmin.createTopic(topicNome)
 
       const newPublisher = new SnsPermissionPublisher(diContainer.cradle, {
         locatorConfig: {
@@ -182,6 +183,7 @@ describe('SnsPermissionPublisher', () => {
     let sqsClient: SQSClient
     let snsClient: SNSClient
     let stsClient: STSClient
+    let testAdmin: TestAwsResourceAdmin
 
     let consumer: Consumer
 
@@ -190,10 +192,11 @@ describe('SnsPermissionPublisher', () => {
       sqsClient = diContainer.cradle.sqsClient
       snsClient = diContainer.cradle.snsClient
       stsClient = diContainer.cradle.stsClient
+      testAdmin = diContainer.cradle.testAdmin
       await diContainer.cradle.permissionConsumer.close()
 
-      await deleteQueue(sqsClient, queueName)
-      await deleteTopic(snsClient, stsClient, SnsPermissionPublisher.TOPIC_NAME)
+      await testAdmin.deleteQueues(queueName)
+      await testAdmin.deleteTopics(SnsPermissionPublisher.TOPIC_NAME)
     })
 
     afterEach(async () => {
@@ -211,9 +214,7 @@ describe('SnsPermissionPublisher', () => {
         timestamp: new Date().toISOString(),
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
-      const { queueUrl } = await assertQueue(sqsClient, {
-        QueueName: queueName,
-      })
+      const { queueUrl } = await testAdmin.createQueue(queueName)
 
       await subscribeToTopic(
         sqsClient,
@@ -274,9 +275,7 @@ describe('SnsPermissionPublisher', () => {
         messageType: 'add',
       } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
-      const { queueUrl } = await assertQueue(sqsClient, {
-        QueueName: queueName,
-      })
+      const { queueUrl } = await testAdmin.createQueue(queueName)
 
       await subscribeToTopic(
         sqsClient,

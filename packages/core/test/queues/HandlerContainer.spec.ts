@@ -106,20 +106,6 @@ describe('MessageHandlerConfigBuilder', () => {
       expect(config.messageLogFormatter).toBe(messageLogFormatter)
       expect(config.preHandlers).toEqual([])
     })
-
-    it('should use default log formatter when not provided', () => {
-      const handler = () => Promise.resolve({ result: 'success' as const })
-
-      const config = new MessageHandlerConfig(USER_MESSAGE_SCHEMA, handler)
-
-      const testMessage: UserMessage = {
-        type: 'user.created',
-        userId: '123',
-        email: 'test@example.com',
-      }
-
-      expect(config.messageLogFormatter(testMessage)).toEqual(testMessage)
-    })
   })
 })
 

@@ -9,7 +9,9 @@ import type { SQSMessage } from '../types/MessageTypes.ts'
 import { deleteSqs, initSqs } from '../utils/sqsInitter.ts'
 
 // https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html
-export const SQS_MESSAGE_MAX_SIZE = 256 * 1024 // 256KB
+export const SQS_MESSAGE_HARD_LIMIT = 1024 * 1024 // 1 MiB - AWS SQS total message size limit (body + attributes)
+export const SQS_MESSAGE_ATTRIBUTE_BUFFER = 30 * 1024 // 30KB - reserved space for message attributes and overhead
+export const SQS_MESSAGE_MAX_SIZE = SQS_MESSAGE_HARD_LIMIT - SQS_MESSAGE_ATTRIBUTE_BUFFER // 994KB - maximum allowed message body size
 export const SQS_RESOURCE_ANY = Symbol('any')
 export const SQS_RESOURCE_CURRENT_QUEUE = Symbol('current_queue')
 

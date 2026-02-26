@@ -19,6 +19,7 @@ export type {
 export { AbstractSnsSqsConsumer } from './sns/AbstractSnsSqsConsumer.ts'
 export * from './sns/CommonSnsPublisherFactory.ts'
 export { FakeConsumer } from './sns/fakes/FakeConsumer.ts'
+export { TestSnsPublisher, type TestSnsPublishOptions } from './sns/fakes/TestSnsPublisher.ts'
 export * from './sns/SnsPublisherManager.ts'
 export type { CommonMessage } from './types/MessageTypes.ts'
 export {

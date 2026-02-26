@@ -130,7 +130,7 @@ export abstract class AbstractKafkaConsumer<
     this.consumer.on('consumer:group:join', (_) =>
       this.logger.debug(logDetails, 'Consumer is joining a group'),
     )
-    this.consumer.on('consumer:rejoin', (_) =>
+    this.consumer.on('consumer:group:rejoin', () =>
       this.logger.debug(logDetails, 'Consumer is re-joining a group after a rebalance'),
     )
     this.consumer.on('consumer:group:leave', (_) =>

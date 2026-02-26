@@ -274,9 +274,9 @@ export async function deleteQueue(
 /**
  * Calculates the size of an outgoing SQS message.
  *
- * SQS imposes a 256 KB limit on the total size of a message, which includes both the message body and any metadata (attributes).
- * This function currently computes the size based solely on the message body, as no attributes are included at this time.
- * For future updates, if message attributes are added, their sizes should also be considered.
+ * SQS imposes a 1 MiB limit on the total size of a message, which includes both the message body and any metadata (attributes).
+ * This function computes the size based solely on the message body. The reserved buffer for message attributes and overhead
+ * is accounted for in SQS_MESSAGE_ATTRIBUTE_BUFFER, which is subtracted from SQS_MESSAGE_HARD_LIMIT to derive SQS_MESSAGE_MAX_SIZE.
  *
  * Reference: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-message-metadata.html#sqs-message-attributes
  */

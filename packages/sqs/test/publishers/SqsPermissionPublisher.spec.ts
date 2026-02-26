@@ -11,9 +11,10 @@ import {
 } from '../../lib/sqs/AbstractSqsService.ts'
 import type { SQSMessage } from '../../lib/types/MessageTypes.ts'
 import { deserializeSQSMessage } from '../../lib/utils/sqsMessageDeserializer.ts'
-import { assertQueue, deleteQueue, getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
+import { getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas.ts'
 import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SqsPermissionPublisher } from './SqsPermissionPublisher.ts'
@@ -25,10 +26,12 @@ describe('SqsPermissionPublisher', () => {
 
     let diContainer: AwilixContainer<Dependencies>
     let sqsClient: SQSClient
+    let testAdmin: TestAwsResourceAdmin
     beforeEach(async () => {
       diContainer = await registerDependencies()
       sqsClient = diContainer.cradle.sqsClient
-      await deleteQueue(sqsClient, queueName)
+      testAdmin = diContainer.cradle.testAdmin
+      await testAdmin.deleteQueues(queueName)
     })
 
     afterEach(async () => {
@@ -47,9 +50,7 @@ describe('SqsPermissionPublisher', () => {
     })
 
     it('does not create a new queue when queue locator is passed', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: queueName,
-      })
+      await testAdmin.createQueue(queueName)
 
       const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
         locatorConfig: {
@@ -62,9 +63,7 @@ describe('SqsPermissionPublisher', () => {
     })
 
     it('resolves existing queue by name', async () => {
-      await assertQueue(sqsClient, {
-        QueueName: queueName,
-      })
+      await testAdmin.createQueue(queueName)
 
       const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
         locatorConfig: {
@@ -78,9 +77,8 @@ describe('SqsPermissionPublisher', () => {
 
     describe('attributes update', () => {
       it('updates existing queue when one with different attributes exist', async () => {
-        await assertQueue(sqsClient, {
-          QueueName: queueName,
-          Attributes: {
+        await testAdmin.createQueue(queueName, {
+          attributes: {
             KmsMasterKeyId: 'somevalue',
           },
         })
@@ -117,9 +115,8 @@ describe('SqsPermissionPublisher', () => {
       })
 
       it('does not update existing queue when attributes did not change', async () => {
-        await assertQueue(sqsClient, {
-          QueueName: queueName,
-          Attributes: {
+        await testAdmin.createQueue(queueName, {
+          attributes: {
             KmsMasterKeyId: 'somevalue',
           },
         })
@@ -172,8 +169,7 @@ describe('SqsPermissionPublisher', () => {
           cc: 'some-cc',
         }
 
-        const assertResult = await assertQueue(sqsClient, {
-          QueueName: queueName,
+        const assertResult = await testAdmin.createQueue(queueName, {
           tags: initialTags,
         })
         const preTags = await getTags(assertResult.queueUrl)
@@ -219,8 +215,7 @@ describe('SqsPermissionPublisher', () => {
           leftover: 'some-leftover',
         }
 
-        const assertResult = await assertQueue(sqsClient, {
-          QueueName: queueName,
+        const assertResult = await testAdmin.createQueue(queueName, {
           tags: initialTags,
         })
         const preTags = await getTags(assertResult.queueUrl)
@@ -440,9 +435,7 @@ describe('SqsPermissionPublisher', () => {
 
     it('publish a message auto-filling internal properties', async () => {
       const QueueName = 'auto-filling_test_queue'
-      const { queueUrl } = await assertQueue(diContainer.cradle.sqsClient, {
-        QueueName,
-      })
+      const { queueUrl } = await diContainer.cradle.testAdmin.createQueue(QueueName)
 
       const permissionPublisher = new SqsPermissionPublisher(diContainer.cradle, {
         creationConfig: {

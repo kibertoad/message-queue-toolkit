@@ -4,7 +4,7 @@ import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer.ts'
-import { deleteQueue } from '../../lib/utils/sqsUtils.ts'
+import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import {
@@ -18,6 +18,7 @@ import { SqsEventBridgeConsumer } from './SqsEventBridgeConsumer.ts'
 describe('SqsEventBridgeConsumer', () => {
   let diContainer: AwilixContainer<Dependencies>
   let sqsClient: SQSClient
+  let testAdmin: TestAwsResourceAdmin
   let consumer: SqsEventBridgeConsumer
   let executionContext: EventBridgeTestContext
 
@@ -29,6 +30,7 @@ describe('SqsEventBridgeConsumer', () => {
 
     diContainer = await registerDependencies()
     sqsClient = diContainer.cradle.sqsClient
+    testAdmin = diContainer.cradle.testAdmin
 
     consumer = new SqsEventBridgeConsumer(diContainer.cradle, executionContext)
     await consumer.start()
@@ -36,7 +38,7 @@ describe('SqsEventBridgeConsumer', () => {
 
   afterEach(async () => {
     await consumer.close()
-    await deleteQueue(sqsClient, SqsEventBridgeConsumer.QUEUE_NAME)
+    await testAdmin.deleteQueues(SqsEventBridgeConsumer.QUEUE_NAME)
     await diContainer.cradle.awilixManager.executeDispose()
     await diContainer.dispose()
   })
@@ -253,7 +255,7 @@ describe('SqsEventBridgeConsumer', () => {
 
     // Cleanup
     await failingConsumer.close()
-    await deleteQueue(sqsClient, failingConsumer.queueProps.name)
+    await testAdmin.deleteQueues(failingConsumer.queueProps.name)
   }, 10000) // 10 second timeout
 
   it('should handle multiple EventBridge events', async () => {

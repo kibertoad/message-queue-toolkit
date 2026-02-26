@@ -10,7 +10,9 @@ import type { SNS_MESSAGE_BODY_TYPE } from '../types/MessageTypes.ts'
 import { deleteSns, initSns } from '../utils/snsInitter.ts'
 
 // https://docs.aws.amazon.com/general/latest/gr/sns.html
-export const SNS_MESSAGE_MAX_SIZE = 256 * 1024 // 256KB
+export const SNS_MESSAGE_HARD_LIMIT = 256 * 1024 // 256KB - AWS SNS total message size limit (body + attributes)
+export const SNS_MESSAGE_ATTRIBUTE_BUFFER = 30 * 1024 // 30KB - reserved space for message attributes and overhead
+export const SNS_MESSAGE_MAX_SIZE = SNS_MESSAGE_HARD_LIMIT - SNS_MESSAGE_ATTRIBUTE_BUFFER // 226KB - maximum allowed message body size
 
 export type SNSDependencies = QueueDependencies & {
   snsClient: SNSClient

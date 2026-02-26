@@ -6,9 +6,14 @@
 
 Useful utilities, interfaces and base classes for message queue handling.
 
+> **Note:** Node.js 20 is no longer officially supported. It is likely to work, but we are no longer maintaining it.
+Please use a later version of Node.js.
+
 ## Overview
 
-`message-queue-toolkit ` is an abstraction over several different queue systems, which implements common deserialization, validation and error handling logic. The library provides utilities, interfaces and base classes to build the support for any queue system you may need in your service.
+`message-queue-toolkit ` is an abstraction over several different queue systems, which implements common deserialization,
+validation and error handling logic. The library provides utilities, interfaces and base classes to build the support for
+any queue system you may need in your service.
 
 It consists of the following submodules:
 
@@ -40,7 +45,8 @@ They implement the following public methods:
         * `policyConfig` - SQS only - configuration for queue access policies (see [SQS Policy Configuration](#sqs-policy-configuration) for more information);
         * `deletionConfig` - automatic cleanup of resources;
         * `handlerSpy` - allow awaiting certain messages to be published (see [Handler Spies](#handler-spies) for more information);
-        * `logMessages` - add logs for processed messages.
+        * `logMessages` - add debug logs for processed messages. When enabled, logs structured metadata including message id, type, timestamps, and queue name. For privacy reasons, the full message payload is not logged by default. See [Message Logging](#message-logging) for more details.
+        * `messageMetadataField` - which field in the message contains metadata for logging purposes (by default it is `metadata`).
         * `payloadStoreConfig` - configuration for payload offloading. This option enables the external storage of large message payloads to comply with message size limitations of the queue system. For more details on setting this up, see [Payload Offloading](#payload-offloading).
         * `messageDeduplicationConfig` - configuration for store-based message deduplication on publisher level. For more details on setting this up, see [Publisher-level store-based-message deduplication](#publisher-level-store-based-message-deduplication).
         * `enablePublisherDeduplication` - enable store-based publisher-level deduplication. For more details on setting this up, see [Publisher-level store-based-message deduplication](#publisher-level-store-based-message-deduplication).
@@ -110,7 +116,8 @@ Multi-schema consumers support multiple message types via handler configs. They 
         * `consumerOverrides` – available only for SQS consumers;
         * `deadLetterQueue` - available only for SQS and SNS consumers (see [Dead Letter Queue](#dead-letter-queue) for more information);
         * `handlerSpy` - allow awaiting certain messages to be published (see [Handler Spies](#handler-spies) for more information);
-        * `logMessages` - add logs for processed messages.
+        * `logMessages` - add debug logs for processed messages. When enabled, logs structured metadata including message id, type, timestamps, and queue name. For privacy reasons, the full message payload is not logged by default. To include custom message data in logs, configure `messageLogFormatter` on your handlers. See [Message Logging](#message-logging) for more details.
+        * `messageMetadataField` - which field in the message contains metadata for logging purposes (by default it is `metadata`).
         * `payloadStoreConfig` - configuration for payload offloading. This option enables the external storage of large message payloads to comply with message size limitations of the queue system. For more details on setting this up, see [Payload Offloading](#payload-offloading).
         * `concurrentConsumersAmount` - configuration for specifying the number of concurrent consumers to create. Available only for SQS and SNS consumers
         * `messageDeduplicationConfig` - configuration for store-based message deduplication on consumer level. For more details on setting this up, see [Consumer-level store-based-message deduplication](#consumer-level-store-based-message-deduplication).
@@ -173,7 +180,9 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
                         preHandlerBarrier: async (message) => {
                             // do barrier check here
                             return true
-                        }
+                        },
+                        // Optional: customize what message data is logged (see Message Logging section)
+                        messageLogFormatter: (message) => ({ id: message.id, type: message.type }),
                     },
                 )
                 .addConfig(PERMISSIONS_REMOVE_MESSAGE_SCHEMA, 
@@ -642,6 +651,56 @@ const result = await myConsumer.handlerSpy.waitForMessageWithId('1')
 expect(result.processingResult).toEqual({ status: 'consumed' })
 ```
 
+## Message Logging
+
+When `logMessages` is enabled, processed messages are logged at the `debug` level with structured metadata. For privacy reasons, the full message payload is **not logged by default** to avoid exposing sensitive data.
+
+### What is logged by default
+
+Each log entry includes processed message metadata:
+- `messageId` - unique identifier of the message
+- `messageType` - type of the message
+- `queueName` - name of the queue or topic
+- `messageTimestamp` - when the message was originally sent
+- `messageProcessingStartTimestamp` - when processing started
+- `messageProcessingEndTimestamp` - when processing completed
+- `messageDeduplicationId` - deduplication id (if deduplication is enabled)
+- `messageMetadata` - contents of the metadata field (configurable via `messageMetadataField`)
+- `processingResult` - outcome of processing (e.g., `{ status: 'consumed' }` or `{ status: 'published' }`)
+
+### Custom message logging with messageLogFormatter
+
+If you need to include additional message data in logs, you can configure a `messageLogFormatter` on your handler. This formatter receives the message and returns the data to be logged:
+
+```typescript
+new MessageHandlerConfigBuilder<SupportedMessages, ExecutionContext>()
+    .addConfig(
+        MY_MESSAGE_SCHEMA,
+        async (message, context) => {
+            // handler logic
+            return { result: 'success' }
+        },
+        {
+            // Only log specific fields, excluding sensitive data
+            messageLogFormatter: (message) => ({
+                id: message.id,
+                type: message.type,
+                // Exclude sensitive fields like email, password, etc.
+            }),
+        },
+    )
+    .build()
+```
+
+When a `messageLogFormatter` is provided, its output is included in the log under the `message` key alongside the processed message metadata.
+
+### Configuration options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `logMessages` | `false` | Enable debug logging for processed messages |
+| `messageMetadataField` | `'metadata'` | Field in the message containing metadata to include in logs |
+
 ## Payload Offloading
 Payload offloading allows you to manage large message payloads by storing them in external storage, bypassing any message size restrictions imposed by queue systems.
 
@@ -773,6 +832,7 @@ It needs to implement the following methods:
   - `messageProcessingStartTimestamp` - the timestamp when the processing of the message started
   - `messageProcessingEndTimestamp` - the timestamp when the processing of the message finished
   - `messageDeduplicationId` - the deduplication id of the message, in case deduplication is enabled
+  - `messageMetadata` - contents of the message metadata field (configurable via `messageMetadataField`)
 
 See [@message-queue-toolkit/metrics](packages/metrics/README.md) for concrete implementations
 

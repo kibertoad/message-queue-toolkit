@@ -88,12 +88,6 @@ export abstract class AbstractAmqpPublisher<
       return
     }
 
-    if (this.logMessages) {
-      const messageType = this.resolveMessageTypeFromMessage(message) ?? 'unknown'
-      const resolvedLogMessage = this.resolveMessageLog(message, messageType)
-      this.logMessage(resolvedLogMessage)
-    }
-
     message = this.updateInternalProperties(message)
 
     try {

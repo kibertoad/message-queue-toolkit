@@ -47,13 +47,20 @@ describe('PermissionPublisher', () => {
       publisher.publish(message)
 
       await waitAndRetry(() => {
-        return logger.loggedMessages.length === 2
+        return logger.loggedMessages.length === 3
       })
 
-      expect(logger.loggedMessages[1]).toEqual({
-        id: '1',
-        messageType: 'add',
-      })
+      expect(logger.loggedMessages).toMatchObject([
+        'Propagating new connection across 0 receivers',
+        'timestamp not defined, adding it automatically',
+        {
+          processedMessageMetadata: expect.objectContaining({
+            messageId: '1',
+            messageType: 'add',
+            processingResult: { status: 'published' },
+          }),
+        },
+      ])
     })
   })
 
