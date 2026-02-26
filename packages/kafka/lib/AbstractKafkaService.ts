@@ -20,7 +20,6 @@ import type {
   DeserializedMessage,
   KafkaConfig,
   KafkaDependencies,
-  RequestContext,
   SupportedMessageValues,
   TopicConfig,
 } from './types.ts'
