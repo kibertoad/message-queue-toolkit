@@ -236,4 +236,143 @@ describe('KafkaMessageBatchStream', () => {
     expect(messages[6]!.partition).toBe(0)
     expect(messages[7]!.partition).toBe(1)
   })
+
+  describe('backpressure', () => {
+    it('should pause writes when the readable buffer is full', async () => {
+      // With batchSize=1, each message is immediately flushed to the readable buffer.
+      // The objectMode readableHighWaterMark defaults to 16:
+      // push() returns false on the 16th flush, causing the _write callback to be held
+      // until _read() signals the downstream is ready again.
+      const batchStream = new KafkaMessageBatchStream<any>({
+        batchSize: 1,
+        timeoutMilliseconds: 10000,
+      })
+
+      const processedmessages = new Set<number>()
+      // Write 15 messages: push() returns true for each (buffer 1→15, below HWM of 16)
+      for (let i = 0; i < 15; i++) {
+        await new Promise<void>((resolve) =>
+          batchStream.write({ id: i, topic: 'test', partition: 0 }, () => {
+            processedmessages.add(i)
+            resolve()
+          }),
+        )
+      }
+
+      // 16th write fills the buffer to HWM: push() returns false, callback is held
+      let sixteenthWriteCompleted = false
+      batchStream.write({ id: 15, topic: 'test', partition: 0 }, () => {
+        processedmessages.add(15)
+        sixteenthWriteCompleted = true
+      })
+
+      await setTimeout(10)
+      expect(processedmessages.size).toEqual(15)
+      expect(sixteenthWriteCompleted).toBe(false) // write is paused by backpressure
+
+      // Consuming one item triggers _read(), releasing the held callback
+      batchStream.read()
+
+      await setTimeout(10)
+      expect(processedmessages.size).toEqual(16)
+      expect(sixteenthWriteCompleted).toBe(true) // write resumes
+    })
+
+    it('should deliver all messages without loss when the consumer is slow', async () => {
+      // 20 messages with batchSize=1 generates 20 batches.
+      // HWM is 16, so batches 17-20 are held until the consumer drains the buffer,
+      // verifying that backpressure does not cause message loss.
+      const topic = 'test-topic'
+      const totalMessages = 20
+      const messages = Array.from({ length: totalMessages }, (_, i) => ({
+        id: i,
+        topic,
+        partition: 0,
+      }))
+
+      const batchStream = new KafkaMessageBatchStream<any>({
+        batchSize: 1,
+        timeoutMilliseconds: 10000,
+      })
+
+      const receivedIds: number[] = []
+      let resolveAll!: () => void
+      const allReceived = new Promise<void>((resolve) => {
+        resolveAll = resolve
+      })
+
+      // Slow consumer: each batch takes longer than writes are produced
+      const consume = async () => {
+        for await (const batch of batchStream) {
+          await setTimeout(10)
+          for (const msg of batch) receivedIds.push(msg.id)
+          if (receivedIds.length >= totalMessages) {
+            resolveAll()
+            break
+          }
+        }
+      }
+      void consume()
+
+      for (const msg of messages) batchStream.write(msg)
+
+      await allReceived
+      expect(receivedIds).toHaveLength(totalMessages)
+      expect(receivedIds).toEqual(messages.map((m) => m.id))
+    })
+
+    it('should defer timeout flush when backpressured and flush once consumer reads', () => {
+      vi.useFakeTimers()
+
+      const topic = 'test-topic'
+      const batchStream = new KafkaMessageBatchStream<any>({
+        batchSize: 1000, // large: only timeout-based flushes
+        timeoutMilliseconds: 100,
+      })
+
+      // Mock push() to simulate a full readable buffer on the first flush
+      let simulateBackpressure = true
+      const originalPush = batchStream.push.bind(batchStream)
+      vi.spyOn(batchStream, 'push').mockImplementation((chunk) => {
+        originalPush(chunk) // still push the data to the buffer
+        return !simulateBackpressure // return false to signal backpressure
+      })
+
+      // No 'data' listener: stream stays in paused mode so _read() is only
+      // triggered when batchStream.read() is called explicitly
+
+      // Write 5 messages: they accumulate in this.messages, a timeout is scheduled
+      for (let i = 0; i < 5; i++) {
+        batchStream.write({ id: i, topic, partition: 0 })
+      }
+
+      // First timeout fires: flushMessages() → push() returns false → isBackPreassured = true
+      vi.advanceTimersByTime(100)
+      expect(batchStream.readableLength).toBe(1) // 1 batch buffered (the 5 messages)
+
+      // Write 3 more messages: they accumulate in this.messages while backpressured
+      for (let i = 5; i < 8; i++) {
+        batchStream.write({ id: i, topic, partition: 0 })
+      }
+
+      // Second timeout fires: isBackPreassured is true → reschedules several times without flushing
+      vi.advanceTimersByTime(300)
+      expect(batchStream.readableLength).toBe(1) // unchanged: no new flush happened
+
+      // Consumer reads one item → triggers _read() → isBackPreassured = false
+      simulateBackpressure = false
+      const firstBatch = batchStream.read()
+      expect(firstBatch).toHaveLength(5)
+      expect(batchStream.readableLength).toBe(0)
+
+      // Third timeout fires: isBackPreassured is false → flushes the 3 accumulated messages
+      vi.advanceTimersByTime(100)
+      expect(batchStream.readableLength).toBe(1) // new batch pushed
+
+      const secondBatch = batchStream.read()
+      expect(secondBatch).toHaveLength(3) // messages 5–7
+
+      vi.useRealTimers()
+    })
+  })
 })

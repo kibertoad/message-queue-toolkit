@@ -51,12 +51,14 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
   private readonly messages: TMessage[]
   private existingTimeout: NodeJS.Timeout | undefined
   private pendingCallback: CallbackFunction | undefined
+  private isBackPreassured: boolean
 
   constructor(options: KafkaMessageBatchOptions) {
     super({ objectMode: true })
     this.batchSize = options.batchSize
     this.timeout = options.timeoutMilliseconds
     this.messages = []
+    this.isBackPreassured = false
   }
 
   /**
@@ -65,6 +67,7 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
    * by calling the pending callback that was held during backpressure.
    */
   override _read() {
+    this.isBackPreassured = false
     if (!this.pendingCallback) return
 
     const cb = this.pendingCallback
@@ -104,9 +107,14 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
     callback()
   }
 
-  private flushMessages() {
+  private flushMessages(): boolean {
     clearTimeout(this.existingTimeout)
     this.existingTimeout = undefined
+
+    if (this.isBackPreassured) {
+      this.existingTimeout = setTimeout(() => this.flushMessages(), this.timeout)
+      return false
+    }
 
     // Extract all accumulated messages and clear the array
     const messageBatch = this.messages.splice(0, this.messages.length)
@@ -119,11 +127,16 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
       messagesByTopicPartition[key].push(message)
     }
 
-    // Push each topic-partition batch and track backpressure
+    // Push each topic-partition batch and track backpressure.
+    // All batches must be pushed regardless: messages were already splice'd from the buffer,
+    // so breaking early would lose them. Once push() returns false, subsequent calls in the
+    // same tick also return false, so the last value correctly reflects backpressure.
     let canContinue = true
     for (const messagesForKey of Object.values(messagesByTopicPartition)) {
       canContinue = this.push(messagesForKey)
     }
+
+    if (!canContinue) this.isBackPreassured = true
 
     return canContinue
   }
