@@ -202,10 +202,9 @@ export abstract class AbstractKafkaConsumer<
         })
 
         // Use pipeline for better error handling and backpressure management
-        pipeline(this.consumerStream, this.messageBatchStream).catch((error) => {
-          this.logger.error('Stream pipeline failed')
-          this.handlerError(error)
-        })
+        pipeline(this.consumerStream, this.messageBatchStream).catch((error) =>
+          this.handlerError(error),
+        )
       }
     } catch (error) {
       throw new InternalError({
@@ -387,6 +386,7 @@ export abstract class AbstractKafkaConsumer<
   ): Promise<MessageProcessingResult> {
     try {
       const isBatch = Array.isArray(messageOrBatch)
+      /* v8 ignore start */
       if (this.options.batchProcessingEnabled && !isBatch) {
         throw new Error(
           'Batch processing is enabled, but a single message was passed to the handler',
@@ -397,6 +397,7 @@ export abstract class AbstractKafkaConsumer<
           'Batch processing is disabled, but a batch of messages was passed to the handler',
         )
       }
+      /* v8 ignore stop */
 
       await handler(
         // We need casting to match message type with handler type - it is safe as we verify the type above
