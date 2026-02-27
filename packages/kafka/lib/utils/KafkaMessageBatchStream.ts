@@ -116,6 +116,7 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
     // If there are remaining messages -> skip them
     // As they are not committed, the next consumer will process them
     this.messages = []
+    this.push(null)
     callback()
   }
 
