@@ -33,6 +33,18 @@ CREATE TABLE IF NOT EXISTS orders (
 
 SET CLUSTER SETTING kv.rangefeed.enabled = true;
 
+SQL
+
+# Check for existing running changefeeds before creating a new one
+EXISTING=$(/cockroach/cockroach sql --insecure --host="$CRDB_HOST" --port="$CRDB_PORT" \
+  --format=csv -e "SELECT count(*) FROM [SHOW CHANGEFEED JOBS] WHERE status = 'running'" 2>/dev/null | tail -1)
+
+if [ "${EXISTING:-0}" -gt 0 ]; then
+  echo "Changefeed already exists, skipping creation."
+else
+  /cockroach/cockroach sql --insecure --host="$CRDB_HOST" --port="$CRDB_PORT" <<'SQL'
+USE loadtest;
+
 CREATE CHANGEFEED FOR events, orders
   INTO 'kafka://kafka:9093'
   WITH format = json,
@@ -40,7 +52,8 @@ CREATE CHANGEFEED FOR events, orders
        resolved = '5s',
        diff,
        kafka_sink_config = '{"Flush":{"MaxMessages":100,"Frequency":"500ms"}}';
-
 SQL
+  echo "Changefeed created successfully."
+fi
 
-echo "Database, tables, and changefeed created successfully."
+echo "Database and tables initialized successfully."

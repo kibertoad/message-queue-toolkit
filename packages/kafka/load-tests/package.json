@@ -24,6 +24,9 @@
         "load:direct:batch:medium": "node src/run-direct-batch.ts --rate 1000 --duration 60",
         "load:direct:batch:heavy": "node src/run-direct-batch.ts --rate 5000 --duration 120"
     },
+    "engines": {
+        "node": ">=22.18.0"
+    },
     "dependencies": {
         "@message-queue-toolkit/kafka": "file:../../kafka",
         "@message-queue-toolkit/core": "file:../../core",
@@ -36,8 +39,5 @@
     "devDependencies": {
         "@types/pg": "^8.16.0",
         "typescript": "^5.9.3"
-    },
-    "overrides": {
-        "zod": "$zod"
     }
 }
