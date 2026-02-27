@@ -7,7 +7,7 @@
         "@lokalise/biome-config/configs/biome-package.jsonc"
     ],
     "files": {
-        "includes": ["**", "!.turbo", "!**/dist", "!**/coverage"]
+        "includes": ["**", "!.turbo", "!**/dist", "!**/coverage", "!**/load-tests"]
     },
   "linter": {
     "rules": {
