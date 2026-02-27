@@ -198,6 +198,7 @@ export abstract class AbstractKafkaConsumer<
         >({
           batchSize: this.options.batchProcessingOptions.batchSize,
           timeoutMilliseconds: this.options.batchProcessingOptions.timeoutMilliseconds,
+          readableHighWaterMark: this.options.batchProcessingOptions.readableHighWaterMark,
         })
 
         // Use pipeline for better error handling and backpressure management.
