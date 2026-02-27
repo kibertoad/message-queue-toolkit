@@ -191,7 +191,6 @@ export abstract class AbstractKafkaConsumer<
       })
 
       this.consumerStream = await this.consumer.consume({ ...consumeOptions, topics })
-      this.consumerStream.on('error', (error) => this.handlerError(error))
 
       if (this.options.batchProcessingEnabled && this.options.batchProcessingOptions) {
         this.messageBatchStream = new KafkaMessageBatchStream<
@@ -201,10 +200,13 @@ export abstract class AbstractKafkaConsumer<
           timeoutMilliseconds: this.options.batchProcessingOptions.timeoutMilliseconds,
         })
 
-        // Use pipeline for better error handling and backpressure management
+        // Use pipeline for better error handling and backpressure management.
+        // pipeline() internally listens for errors on all streams, so no separate
         pipeline(this.consumerStream, this.messageBatchStream).catch((error) =>
           this.handlerError(error),
         )
+      } else {
+        this.consumerStream.on('error', (error) => this.handlerError(error))
       }
     } catch (error) {
       throw new InternalError({
