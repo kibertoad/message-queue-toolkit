@@ -110,8 +110,12 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
   }
 
   override _final(callback: CallbackFunction) {
-    this.flushMessages()
-    this.push(null) // Signal end-of-stream to the readable side
+    // Clean timeout
+    clearTimeout(this.existingTimeout)
+    this.existingTimeout = undefined
+    // If there are remaining messages -> skip them
+    // As they are not committed, the next consumer will process them
+    this.messages = []
     callback()
   }
 
