@@ -51,14 +51,14 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
   private readonly messages: TMessage[]
   private existingTimeout: NodeJS.Timeout | undefined
   private pendingCallback: CallbackFunction | undefined
-  private isBackPreassured: boolean
+  private isBackPressured: boolean
 
   constructor(options: KafkaMessageBatchOptions) {
     super({ objectMode: true })
     this.batchSize = options.batchSize
     this.timeout = options.timeoutMilliseconds
     this.messages = []
-    this.isBackPreassured = false
+    this.isBackPressured = false
   }
 
   /**
@@ -67,7 +67,7 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
    * by calling the pending callback that was held during backpressure.
    */
   override _read() {
-    this.isBackPreassured = false
+    this.isBackPressured = false
     if (!this.pendingCallback) return
 
     const cb = this.pendingCallback
@@ -111,7 +111,7 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
     clearTimeout(this.existingTimeout)
     this.existingTimeout = undefined
 
-    if (this.isBackPreassured) {
+    if (this.isBackPressured) {
       this.existingTimeout = setTimeout(() => this.flushMessages(), this.timeout)
       return false
     }
@@ -136,7 +136,7 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
       canContinue = this.push(messagesForKey)
     }
 
-    if (!canContinue) this.isBackPreassured = true
+    if (!canContinue) this.isBackPressured = true
 
     return canContinue
   }
