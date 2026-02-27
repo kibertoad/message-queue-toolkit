@@ -11,6 +11,14 @@ export type KafkaMessageBatchOptions = {
   batchSize: number
   /** Time in milliseconds to wait before flushing incomplete batches */
   timeoutMilliseconds: number
+  /**
+   * Maximum number of topic-partition batches to buffer on the readable side before signaling backpressure.
+   * Each unit represents one array of messages belonging to the same topic-partition, produced per flush.
+   * A single flush may push multiple such arrays (one per distinct topic-partition in the accumulated batch).
+   * Defaults to Node.js object-mode default (16). Lower values trigger backpressure sooner,
+   * reducing downstream memory pressure at the cost of more frequent flow-control cycles.
+   */
+  readableHighWaterMark?: number
 }
 
 /**
@@ -48,13 +56,13 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
   private readonly batchSize: number
   private readonly timeout: number
 
-  private readonly messages: TMessage[]
+  private messages: TMessage[]
   private existingTimeout: NodeJS.Timeout | undefined
   private pendingCallback: CallbackFunction | undefined
   private isBackPressured: boolean
 
   constructor(options: KafkaMessageBatchOptions) {
-    super({ objectMode: true })
+    super({ objectMode: true, readableHighWaterMark: options.readableHighWaterMark })
     this.batchSize = options.batchSize
     this.timeout = options.timeoutMilliseconds
     this.messages = []
