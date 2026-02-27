@@ -321,6 +321,32 @@ describe('KafkaMessageBatchStream', () => {
       expect(receivedIds).toEqual(messages.map((m) => m.id))
     })
 
+    it('should respect a custom readableHighWaterMark', async () => {
+      // With readableHighWaterMark=1 and batchSize=1, push() returns false after the
+      // very first item in the readable buffer, triggering backpressure immediately.
+      const batchStream = new KafkaMessageBatchStream<any>({
+        batchSize: 1,
+        timeoutMilliseconds: 10000,
+        readableHighWaterMark: 1,
+      })
+
+      // First write: flushed immediately, buffer reaches HWM=1, push() returns false
+      // → _write callback is held by backpressure
+      let firstWriteCompleted = false
+      batchStream.write({ id: 0, topic: 'test', partition: 0 }, () => {
+        firstWriteCompleted = true
+      })
+
+      await setTimeout(10)
+      expect(firstWriteCompleted).toBe(false) // held by backpressure
+
+      // Consuming one item triggers _read(), releasing the held callback
+      batchStream.read()
+
+      await setTimeout(10)
+      expect(firstWriteCompleted).toBe(true) // write resumes
+    })
+
     it('should defer timeout flush when backpressured and flush once consumer reads', () => {
       vi.useFakeTimers()
 
