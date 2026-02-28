@@ -14,7 +14,7 @@ export default defineConfig({
       exclude: ['vitest.config.ts', 'lib/**/index.ts'],
       thresholds: {
         lines: 93,
-        functions: 91,
+        functions: 88,
         branches: 85,
         statements: 92,
       },

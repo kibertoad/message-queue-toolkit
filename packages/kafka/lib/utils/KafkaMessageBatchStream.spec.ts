@@ -1,6 +1,5 @@
 import { setTimeout } from 'node:timers/promises'
-import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
-import { KafkaMessageBatchStream, type MessageBatch } from './KafkaMessageBatchStream.ts'
+import { KafkaMessageBatchStream } from './KafkaMessageBatchStream.ts'
 
 describe('KafkaMessageBatchStream', () => {
   it('should batch messages based on batch size', async () => {
@@ -14,27 +13,25 @@ describe('KafkaMessageBatchStream', () => {
     }))
 
     // When
-    const receivedBatches: MessageBatch<any>[] = []
+    const receivedBatches: any[][] = []
 
     let resolvePromise: () => void
     const dataFetchingPromise = new Promise<void>((resolve) => {
       resolvePromise = resolve
     })
 
-    const batchStream = new KafkaMessageBatchStream<any>(
-      (batch) => {
-        receivedBatches.push(batch)
-        // We expect 3 batches and the last message waiting in the stream
-        if (receivedBatches.length >= 3) {
-          resolvePromise()
-        }
-        return Promise.resolve()
-      },
-      {
-        batchSize: 3,
-        timeoutMilliseconds: 10000,
-      },
-    ) // Setting big timeout to check batch size only
+    const batchStream = new KafkaMessageBatchStream<any>({
+      batchSize: 3,
+      timeoutMilliseconds: 10000,
+    }) // Setting big timeout to check batch size only
+
+    batchStream.on('data', (batch) => {
+      receivedBatches.push(batch)
+      // We expect 3 batches and the last message waiting in the stream
+      if (receivedBatches.length >= 3) {
+        resolvePromise()
+      }
+    })
 
     for (const message of messages) {
       batchStream.write(message)
@@ -44,9 +41,9 @@ describe('KafkaMessageBatchStream', () => {
 
     // Then
     expect(receivedBatches).toEqual([
-      { topic, partition: 0, messages: [messages[0], messages[1], messages[2]] },
-      { topic, partition: 0, messages: [messages[3], messages[4], messages[5]] },
-      { topic, partition: 0, messages: [messages[6], messages[7], messages[8]] },
+      [messages[0], messages[1], messages[2]],
+      [messages[3], messages[4], messages[5]],
+      [messages[6], messages[7], messages[8]],
     ])
   })
 
@@ -61,18 +58,16 @@ describe('KafkaMessageBatchStream', () => {
     }))
 
     // When
-    const receivedBatches: MessageBatch<any>[] = []
+    const receivedBatches: any[][] = []
 
-    const batchStream = new KafkaMessageBatchStream<any>(
-      (batch) => {
-        receivedBatches.push(batch)
-        return Promise.resolve()
-      },
-      {
-        batchSize: 1000,
-        timeoutMilliseconds: 100,
-      },
-    ) // Setting big batch size to check timeout only
+    const batchStream = new KafkaMessageBatchStream<any>({
+      batchSize: 1000,
+      timeoutMilliseconds: 100,
+    }) // Setting big batch size to check timeout only
+
+    batchStream.on('data', (batch) => {
+      receivedBatches.push(batch)
+    })
 
     for (const message of messages) {
       batchStream.write(message)
@@ -82,7 +77,7 @@ describe('KafkaMessageBatchStream', () => {
     await setTimeout(150)
 
     // Then
-    expect(receivedBatches).toEqual([{ topic, partition: 0, messages }])
+    expect(receivedBatches).toEqual([messages])
   })
 
   it('should support multiple topics and partitions', async () => {
@@ -120,27 +115,24 @@ describe('KafkaMessageBatchStream', () => {
       resolvePromise = resolve
     })
 
-    const batchStream = new KafkaMessageBatchStream<{ topic: string; partition: number }>(
-      (batch) => {
-        const key = `${batch.topic}:${batch.partition}`
-        if (!receivedBatchesByTopicPartition[key]) {
-          receivedBatchesByTopicPartition[key] = []
-        }
-        receivedBatchesByTopicPartition[key]!.push(batch.messages)
+    const batchStream = new KafkaMessageBatchStream<{ topic: string; partition: number }>({
+      batchSize: 2,
+      timeoutMilliseconds: 10000,
+    }) // Setting big timeout to check batch size only
 
-        // We expect 5 batches and last message waiting in the stream
-        receivedMessagesCounter++
-        if (receivedMessagesCounter >= 5) {
-          resolvePromise()
-        }
+    batchStream.on('data', (batch) => {
+      const key = `${batch[0]!.topic}:${batch[0]!.partition}`
+      if (!receivedBatchesByTopicPartition[key]) {
+        receivedBatchesByTopicPartition[key] = []
+      }
+      receivedBatchesByTopicPartition[key]!.push(batch)
 
-        return Promise.resolve()
-      },
-      {
-        batchSize: 2,
-        timeoutMilliseconds: 10000,
-      },
-    ) // Setting big timeout to check batch size only
+      // We expect 5 batches and last message waiting in the stream
+      receivedMessagesCounter++
+      if (receivedMessagesCounter >= 5) {
+        resolvePromise()
+      }
+    })
 
     for (const message of messages) {
       batchStream.write(message)
@@ -199,23 +191,20 @@ describe('KafkaMessageBatchStream', () => {
       resolvePromise = resolve
     })
 
-    const batchStream = new KafkaMessageBatchStream<{ topic: string; partition: number }>(
-      (batch) => {
-        receivedBatches.push(batch)
+    const batchStream = new KafkaMessageBatchStream<{ topic: string; partition: number }>({
+      batchSize: 2,
+      timeoutMilliseconds: 10000,
+    }) // Setting big timeout to check batch size only
 
-        // We expect 4 batches (2 per partition)
-        receivedBatchesCounter++
-        if (receivedBatchesCounter >= 4) {
-          resolvePromise()
-        }
+    batchStream.on('data', (batch) => {
+      receivedBatches.push(batch)
 
-        return Promise.resolve()
-      },
-      {
-        batchSize: 2,
-        timeoutMilliseconds: 10000,
-      },
-    ) // Setting big timeout to check batch size only
+      // We expect 6 batches due to cross-partition accumulation with batchSize=2
+      receivedBatchesCounter++
+      if (receivedBatchesCounter >= 6) {
+        resolvePromise()
+      }
+    })
 
     for (const message of messages) {
       batchStream.write(message)
@@ -224,76 +213,192 @@ describe('KafkaMessageBatchStream', () => {
     await dataFetchingPromise
 
     // Then
+    // With batchSize=2, messages accumulate across all partitions:
+    // - write(msg[0], msg[1]) → flush → [msg[0], msg[1]] (partition 0)
+    // - write(msg[2], msg[3]) → flush → [msg[2]] (partition 0) and [msg[3]] (partition 1)
+    // - write(msg[4], msg[5]) → flush → [msg[4], msg[5]] (partition 1)
+    // - write(msg[6], msg[7]) → flush → [msg[6]] (partition 0) and [msg[7]] (partition 1)
     expect(receivedBatches).toEqual([
-      { topic, partition: 0, messages: [messages[0], messages[1]] },
-      { topic, partition: 1, messages: [messages[3], messages[4]] },
-      { topic, partition: 0, messages: [messages[2], messages[6]] },
-      { topic, partition: 1, messages: [messages[5], messages[7]] },
+      [messages[0], messages[1]], // partition 0
+      [messages[2]], // partition 0
+      [messages[3]], // partition 1
+      [messages[4], messages[5]], // partition 1
+      [messages[6]], // partition 0
+      [messages[7]], // partition 1
     ])
+
+    expect(messages[0]!.partition).toBe(0)
+    expect(messages[1]!.partition).toBe(0)
+    expect(messages[2]!.partition).toBe(0)
+    expect(messages[3]!.partition).toBe(1)
+    expect(messages[4]!.partition).toBe(1)
+    expect(messages[5]!.partition).toBe(1)
+    expect(messages[6]!.partition).toBe(0)
+    expect(messages[7]!.partition).toBe(1)
   })
 
-  it('should handle backpressure correctly when timeout flush is slow', async () => {
-    // Given
-    const topic = 'test-topic'
-    const messages = Array.from({ length: 6 }, (_, i) => ({
-      id: i + 1,
-      content: `Message ${i + 1}`,
-      topic,
-      partition: 0,
-    }))
+  describe('backpressure', () => {
+    it('should pause writes when the readable buffer is full', async () => {
+      // With batchSize=1, each message is immediately flushed to the readable buffer.
+      // The objectMode readableHighWaterMark defaults to 16:
+      // push() returns false on the 16th flush, causing the _write callback to be held
+      // until _read() signals the downstream is ready again.
+      const batchStream = new KafkaMessageBatchStream<any>({
+        batchSize: 1,
+        timeoutMilliseconds: 10000,
+      })
 
-    const batchStartTimes: number[] = [] // Track start times of batch processing
-    const batchEndTimes: number[] = [] // Track end times of batch processing
-    const batchMessageCounts: number[] = [] // Track number of messages per batch
-    let maxConcurrentBatches = 0 // Track max concurrent batches
+      const processedmessages = new Set<number>()
+      // Write 15 messages: push() returns true for each (buffer 1→15, below HWM of 16)
+      for (let i = 0; i < 15; i++) {
+        await new Promise<void>((resolve) =>
+          batchStream.write({ id: i, topic: 'test', partition: 0 }, () => {
+            processedmessages.add(i)
+            resolve()
+          }),
+        )
+      }
 
-    let batchesProcessing = 0
-    const batchStream = new KafkaMessageBatchStream<any>(
-      async (batch) => {
-        batchStartTimes.push(Date.now())
-        batchMessageCounts.push(batch.messages.length)
+      // 16th write fills the buffer to HWM: push() returns false, callback is held
+      let sixteenthWriteCompleted = false
+      batchStream.write({ id: 15, topic: 'test', partition: 0 }, () => {
+        processedmessages.add(15)
+        sixteenthWriteCompleted = true
+      })
 
-        batchesProcessing++
-        maxConcurrentBatches = Math.max(maxConcurrentBatches, batchesProcessing)
+      await setTimeout(10)
+      expect(processedmessages.size).toEqual(15)
+      expect(sixteenthWriteCompleted).toBe(false) // write is paused by backpressure
 
-        // Simulate batch processing (50ms per batch)
-        await setTimeout(50)
+      // Consuming one item triggers _read(), releasing the held callback
+      batchStream.read()
 
-        batchEndTimes.push(Date.now())
-        batchesProcessing--
-      },
-      {
-        batchSize: 1000, // Large batch size to never trigger size-based flushing
-        timeoutMilliseconds: 10, // Short timeout to trigger flush after each message
-      },
-    )
+      await setTimeout(10)
+      expect(processedmessages.size).toEqual(16)
+      expect(sixteenthWriteCompleted).toBe(true) // write resumes
+    })
 
-    // When: Write messages with 20ms delay between them
-    // Since processing (50ms) is slower than message arrival + timeout, backpressure causes accumulation
-    for (const message of messages) {
-      batchStream.write(message)
-      await setTimeout(20)
-    }
+    it('should deliver all messages without loss when the consumer is slow', async () => {
+      // 20 messages with batchSize=1 generates 20 batches.
+      // HWM is 16, so batches 17-20 are held until the consumer drains the buffer,
+      // verifying that backpressure does not cause message loss.
+      const topic = 'test-topic'
+      const totalMessages = 20
+      const messages = Array.from({ length: totalMessages }, (_, i) => ({
+        id: i,
+        topic,
+        partition: 0,
+      }))
 
-    // Then
-    // Wait until all 3 batches have been processed
-    await waitAndRetry(() => batchMessageCounts.length >= 3, 500, 20)
+      const batchStream = new KafkaMessageBatchStream<any>({
+        batchSize: 1,
+        timeoutMilliseconds: 10000,
+      })
 
-    // Backpressure causes messages to accumulate while previous batch processes:
-    // - Batch 1: Message 1 (flushed at 10ms timeout)
-    // - Batch 2: Messages 2-4 (accumulated during Batch 1 processing, including Message 4 arriving at ~60ms)
-    // - Batch 3: Messages 5-6 (accumulated during Batch 2 processing)
-    expect(batchMessageCounts).toEqual([1, 3, 2])
+      const receivedIds: number[] = []
+      let resolveAll!: () => void
+      const allReceived = new Promise<void>((resolve) => {
+        resolveAll = resolve
+      })
 
-    // Verify that batches never processed in parallel (backpressure working)
-    expect(maxConcurrentBatches).toBe(1) // Should never process more than 1 batch at a time
+      // Slow consumer: each batch takes longer than writes are produced
+      const consume = async () => {
+        for await (const batch of batchStream) {
+          await setTimeout(10)
+          for (const msg of batch) receivedIds.push(msg.id)
+          if (receivedIds.length >= totalMessages) {
+            resolveAll()
+            break
+          }
+        }
+      }
+      void consume()
 
-    // Verify that batches were processed sequentially (each starts after previous ends)
-    for (let i = 1; i < batchStartTimes.length; i++) {
-      const previousEndTime = batchEndTimes[i - 1]
-      const currentStartTime = batchStartTimes[i]
-      // The current batch must start after the previous batch finished
-      expect(currentStartTime).toBeGreaterThanOrEqual(previousEndTime ?? 0)
-    }
+      for (const msg of messages) batchStream.write(msg)
+
+      await allReceived
+      expect(receivedIds).toHaveLength(totalMessages)
+      expect(receivedIds).toEqual(messages.map((m) => m.id))
+    })
+
+    it('should respect a custom readableHighWaterMark', async () => {
+      // With readableHighWaterMark=1 and batchSize=1, push() returns false after the
+      // very first item in the readable buffer, triggering backpressure immediately.
+      const batchStream = new KafkaMessageBatchStream<any>({
+        batchSize: 1,
+        timeoutMilliseconds: 10000,
+        readableHighWaterMark: 1,
+      })
+
+      // First write: flushed immediately, buffer reaches HWM=1, push() returns false
+      // → _write callback is held by backpressure
+      let firstWriteCompleted = false
+      batchStream.write({ id: 0, topic: 'test', partition: 0 }, () => {
+        firstWriteCompleted = true
+      })
+
+      await setTimeout(10)
+      expect(firstWriteCompleted).toBe(false) // held by backpressure
+
+      // Consuming one item triggers _read(), releasing the held callback
+      batchStream.read()
+
+      await setTimeout(10)
+      expect(firstWriteCompleted).toBe(true) // write resumes
+    })
+
+    it('should defer timeout flush when backpressured and flush once consumer reads', () => {
+      vi.useFakeTimers()
+
+      const topic = 'test-topic'
+      const batchStream = new KafkaMessageBatchStream<any>({
+        batchSize: 1000, // large: only timeout-based flushes
+        timeoutMilliseconds: 100,
+      })
+
+      // Mock push() to simulate a full readable buffer on the first flush
+      let simulateBackpressure = true
+      const originalPush = batchStream.push.bind(batchStream)
+      vi.spyOn(batchStream, 'push').mockImplementation((chunk) => {
+        originalPush(chunk) // still push the data to the buffer
+        return !simulateBackpressure // return false to signal backpressure
+      })
+
+      // No 'data' listener: stream stays in paused mode so _read() is only
+      // triggered when batchStream.read() is called explicitly
+
+      // Write 5 messages: they accumulate in this.messages, a timeout is scheduled
+      for (let i = 0; i < 5; i++) {
+        batchStream.write({ id: i, topic, partition: 0 })
+      }
+
+      // First timeout fires: flushMessages() → push() returns false → isBackPreassured = true
+      vi.advanceTimersByTime(100)
+      expect(batchStream.readableLength).toBe(1) // 1 batch buffered (the 5 messages)
+
+      // Write 3 more messages: they accumulate in this.messages while backpressured
+      for (let i = 5; i < 8; i++) {
+        batchStream.write({ id: i, topic, partition: 0 })
+      }
+
+      // Second timeout fires: isBackPreassured is true → reschedules several times without flushing
+      vi.advanceTimersByTime(300)
+      expect(batchStream.readableLength).toBe(1) // unchanged: no new flush happened
+
+      // Consumer reads one item → triggers _read() → isBackPreassured = false
+      simulateBackpressure = false
+      const firstBatch = batchStream.read()
+      expect(firstBatch).toHaveLength(5)
+      expect(batchStream.readableLength).toBe(0)
+
+      // Third timeout fires: isBackPreassured is false → flushes the 3 accumulated messages
+      vi.advanceTimersByTime(100)
+      expect(batchStream.readableLength).toBe(1) // new batch pushed
+
+      const secondBatch = batchStream.read()
+      expect(secondBatch).toHaveLength(3) // messages 5–7
+
+      vi.useRealTimers()
+    })
   })
 })

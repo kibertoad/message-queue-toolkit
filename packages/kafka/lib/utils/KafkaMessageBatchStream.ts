@@ -1,122 +1,158 @@
-import { Transform } from 'node:stream'
+import { Duplex } from 'node:stream'
 
-// Topic and partition are required for the stream to work properly
+type CallbackFunction = (error?: Error | null) => void
 type MessageWithTopicAndPartition = { topic: string; partition: number }
 
+/**
+ * Options for configuring the KafkaMessageBatchStream behavior.
+ */
 export type KafkaMessageBatchOptions = {
+  /** Maximum number of messages to accumulate across all partitions before flushing */
   batchSize: number
+  /** Time in milliseconds to wait before flushing incomplete batches */
   timeoutMilliseconds: number
+  /**
+   * Maximum number of topic-partition batches to buffer on the readable side before signaling backpressure.
+   * Each unit represents one array of messages belonging to the same topic-partition, produced per flush.
+   * A single flush may push multiple such arrays (one per distinct topic-partition in the accumulated batch).
+   * Defaults to Node.js object-mode default (16). Lower values trigger backpressure sooner,
+   * reducing downstream memory pressure at the cost of more frequent flow-control cycles.
+   */
+  readableHighWaterMark?: number
 }
 
-export type MessageBatch<TMessage> = { topic: string; partition: number; messages: TMessage[] }
-export type OnMessageBatchCallback<TMessage> = (batch: MessageBatch<TMessage>) => Promise<void>
+/**
+ * Interface extending Duplex to provide strong typing for the 'data' event.
+ * The stream emits arrays of messages grouped by topic-partition.
+ */
+export interface KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartition>
+  extends Duplex {
+  // biome-ignore lint/suspicious/noExplicitAny: compatible with Duplex definition
+  on(event: string | symbol, listener: (...args: any[]) => void): this
+  /** Listen for batches of messages from the same topic-partition */
+  on(event: 'data', listener: (chunk: TMessage[]) => void): this
+  push(chunk: TMessage[] | null): boolean
+}
 
 /**
- * Collects messages in batches based on provided batchSize and flushes them when messages amount or timeout is reached.
+ * A Duplex stream that batches Kafka messages based on size and timeout constraints.
  *
- * This implementation uses Transform stream which properly handles backpressure by design.
- * When the downstream consumer is slow, the stream will automatically pause accepting new messages
- * until the consumer catches up, preventing memory leaks and OOM errors.
+ * Key features:
+ * - Accumulates messages across all partitions up to `batchSize` for true memory control
+ * - Groups messages by topic-partition when flushing
+ * - Implements backpressure: pauses input when downstream consumers are overwhelmed
+ * - Auto-flushes on timeout to prevent messages from waiting indefinitely
+ *
+ * @example
+ * ```typescript
+ * const batchStream = new KafkaMessageBatchStream({ batchSize: 100, timeoutMilliseconds: 1000 })
+ * batchStream.on('data', (batch) => {
+ *   console.log(`Received ${batch.length} messages from ${batch[0].topic}:${batch[0].partition}`)
+ * })
+ * ```
  */
-export class KafkaMessageBatchStream<
-  TMessage extends MessageWithTopicAndPartition,
-> extends Transform {
-  private readonly onBatch: OnMessageBatchCallback<TMessage>
+// biome-ignore lint/suspicious/noUnsafeDeclarationMerging: merging interface with class to add strong typing for 'data' event
+export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartition> extends Duplex {
   private readonly batchSize: number
   private readonly timeout: number
 
-  private readonly currentBatchPerTopicPartition: Record<string, TMessage[]>
-  private readonly batchTimeoutPerTopicPartition: Record<string, NodeJS.Timeout | undefined>
+  private messages: TMessage[]
+  private existingTimeout: NodeJS.Timeout | undefined
+  private pendingCallback: CallbackFunction | undefined
+  private isBackPressured: boolean
 
-  private readonly timeoutProcessingPromises: Map<string, Promise<void>> = new Map()
-
-  constructor(
-    onBatch: OnMessageBatchCallback<TMessage>,
-    options: { batchSize: number; timeoutMilliseconds: number },
-  ) {
-    super({ objectMode: true })
-    this.onBatch = onBatch
+  constructor(options: KafkaMessageBatchOptions) {
+    super({ objectMode: true, readableHighWaterMark: options.readableHighWaterMark })
     this.batchSize = options.batchSize
     this.timeout = options.timeoutMilliseconds
-    this.currentBatchPerTopicPartition = {}
-    this.batchTimeoutPerTopicPartition = {}
+    this.messages = []
+    this.isBackPressured = false
   }
 
-  override async _transform(message: TMessage, _encoding: BufferEncoding, callback: () => void) {
-    const key = getTopicPartitionKey(message.topic, message.partition)
+  /**
+   * Called when the downstream consumer is ready to receive more data.
+   * This is the backpressure release mechanism: we resume the writable side
+   * by calling the pending callback that was held during backpressure.
+   */
+  override _read() {
+    this.isBackPressured = false
+    if (!this.pendingCallback) return
 
-    // Wait for all pending timeout flushes to complete to maintain backpressure
-    if (this.timeoutProcessingPromises.size > 0) {
-      // Capture a snapshot of current promises to avoid race conditions with new timeouts
-      const promiseEntries = Array.from(this.timeoutProcessingPromises.entries())
-      // Wait for all to complete and then clean up from the map
-      await Promise.all(
-        promiseEntries.map(([k, p]) => p.finally(() => this.timeoutProcessingPromises.delete(k))),
-      )
+    const cb = this.pendingCallback
+    this.pendingCallback = undefined
+    cb() // Resume the writable side
+  }
+
+  /**
+   * Writes a message to the stream.
+   * Messages accumulate until batchSize is reached or timeout expires.
+   * Implements backpressure by holding the callback when downstream cannot consume.
+   */
+  override _write(message: TMessage, _encoding: BufferEncoding, callback: CallbackFunction) {
+    let canContinue = true
+
+    try {
+      this.messages.push(message)
+
+      if (this.messages.length >= this.batchSize) {
+        // Batch is full, flush immediately
+        canContinue = this.flushMessages()
+      } else {
+        // Start/continue the timeout for partial batches
+        // Using ??= ensures we only set one timeout at a time
+        this.existingTimeout ??= setTimeout(() => this.flushMessages(), this.timeout)
+      }
+    } finally {
+      // Backpressure handling: hold the callback if push() returned false
+      if (!canContinue) this.pendingCallback = callback
+      else callback()
     }
+  }
 
-    // Accumulate the message
-    if (!this.currentBatchPerTopicPartition[key]) this.currentBatchPerTopicPartition[key] = []
-    this.currentBatchPerTopicPartition[key].push(message)
-
-    // Check if the batch is complete by size
-    if (this.currentBatchPerTopicPartition[key].length >= this.batchSize) {
-      await this.flushCurrentBatchMessages(message.topic, message.partition)
-      callback()
-      return
-    }
-
-    // Start timeout for this partition if not already started
-    if (!this.batchTimeoutPerTopicPartition[key]) {
-      this.batchTimeoutPerTopicPartition[key] = setTimeout(
-        () =>
-          this.timeoutProcessingPromises.set(
-            key,
-            this.flushCurrentBatchMessages(message.topic, message.partition),
-          ),
-        this.timeout,
-      )
-    }
-
+  override _final(callback: CallbackFunction) {
+    // Clean timeout
+    clearTimeout(this.existingTimeout)
+    this.existingTimeout = undefined
+    // If there are remaining messages -> skip them
+    // As they are not committed, the next consumer will process them
+    this.messages = []
+    this.push(null)
     callback()
   }
 
-  // Flush all remaining batches when stream is closing
-  override async _flush(callback: () => void) {
-    await this.flushAllBatches()
-    callback()
-  }
+  private flushMessages(): boolean {
+    clearTimeout(this.existingTimeout)
+    this.existingTimeout = undefined
 
-  private async flushAllBatches() {
-    for (const key of Object.keys(this.currentBatchPerTopicPartition)) {
-      const { topic, partition } = splitTopicPartitionKey(key)
-      await this.flushCurrentBatchMessages(topic, partition)
-    }
-  }
-
-  private async flushCurrentBatchMessages(topic: string, partition: number) {
-    const key = getTopicPartitionKey(topic, partition)
-
-    // Clear timeout
-    if (this.batchTimeoutPerTopicPartition[key]) {
-      clearTimeout(this.batchTimeoutPerTopicPartition[key])
-      this.batchTimeoutPerTopicPartition[key] = undefined
+    if (this.isBackPressured) {
+      this.existingTimeout = setTimeout(() => this.flushMessages(), this.timeout)
+      return false
     }
 
-    const messages = this.currentBatchPerTopicPartition[key] ?? []
+    // Extract all accumulated messages and clear the array
+    const messageBatch = this.messages.splice(0, this.messages.length)
 
-    // Push the batch downstream
-    await this.onBatch({ topic, partition, messages })
-    this.currentBatchPerTopicPartition[key] = []
+    // Group by topic-partition to maintain commit guarantees
+    const messagesByTopicPartition: Record<string, TMessage[]> = {}
+    for (const message of messageBatch) {
+      const key = getTopicPartitionKey(message.topic, message.partition)
+      if (!messagesByTopicPartition[key]) messagesByTopicPartition[key] = []
+      messagesByTopicPartition[key].push(message)
+    }
+
+    // Push each topic-partition batch and track backpressure.
+    // All batches must be pushed regardless: messages were already splice'd from the buffer,
+    // so breaking early would lose them. Once push() returns false, subsequent calls in the
+    // same tick also return false, so the last value correctly reflects backpressure.
+    let canContinue = true
+    for (const messagesForKey of Object.values(messagesByTopicPartition)) {
+      canContinue = this.push(messagesForKey)
+    }
+
+    if (!canContinue) this.isBackPressured = true
+
+    return canContinue
   }
 }
 
 const getTopicPartitionKey = (topic: string, partition: number): string => `${topic}:${partition}`
-const splitTopicPartitionKey = (key: string): { topic: string; partition: number } => {
-  const [topic, partition] = key.split(':')
-  /* v8 ignore start */
-  if (!topic || !partition) throw new Error('Invalid topic-partition key format')
-  /* v8 ignore stop */
-
-  return { topic, partition: Number.parseInt(partition, 10) }
-}
