@@ -53,7 +53,7 @@
         "@message-queue-toolkit/sqs": "*",
         "@types/node": "^25.0.2",
         "@vitest/coverage-v8": "^4.0.15",
-        "awilix": "^12.1.1",
+        "awilix": "^13.0.1",
         "awilix-manager": "^6.1.0",
         "fauxqs": "^2.0.0",
         "ioredis": "^5.7.0",
