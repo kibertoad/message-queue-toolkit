@@ -202,7 +202,7 @@ export abstract class AbstractKafkaConsumer<
         })
 
         // Use pipeline for better error handling and backpressure management.
-        // pipeline() internally listens for errors on all streams, so no separate
+        // pipeline() internally listens for errors on all streams
         pipeline(this.consumerStream, this.messageBatchStream).catch((error) =>
           this.handlerError(error),
         )
