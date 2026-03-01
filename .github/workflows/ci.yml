@@ -105,6 +105,15 @@ jobs:
       package_name: ${{ matrix.package-name }}
       queue_backend: ${{ matrix.queue-backend }}
 
+  kafkajs:
+    strategy:
+      matrix:
+        node-version: [22.x, 24.x]
+    uses: ./.github/workflows/ci.common.yml
+    with:
+      package_name: '@message-queue-toolkit/kafkajs'
+      node_version: ${{ matrix.node-version }}
+
   automerge:
     needs: [general, aws-packages]
     if: always() && (needs.general.result == 'success' || needs.general.result == 'skipped') && (needs.aws-packages.result == 'success' || needs.aws-packages.result == 'skipped')

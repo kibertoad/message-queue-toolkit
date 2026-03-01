@@ -1,6 +1,6 @@
-# Kafka
+# KafkaJS
 
-This library provides utilities for implementing Kafka consumers and publishers using the [@platformatic/kafka](https://github.com/platformatic/kafka) client library.
+This library provides utilities for implementing Kafka consumers and publishers using the [KafkaJS](https://kafka.js.org/) client library.
 While following the same patterns as other message broker implementations,
 Kafka's unique characteristics require some specific adaptations in the publisher and consumer definitions.
 
@@ -9,7 +9,7 @@ Kafka's unique characteristics require some specific adaptations in the publishe
 ## Installation
 
 ```bash
-npm install @message-queue-toolkit/kafka @platformatic/kafka
+npm install @message-queue-toolkit/kafkajs kafkajs
 ```
 
 ## Publishers
@@ -17,27 +17,13 @@ npm install @message-queue-toolkit/kafka @platformatic/kafka
 Use `AbstractKafkaPublisher` as a base class for publisher implementation.
 
 ```typescript
-import { AbstractKafkaPublisher } from '@message-queue-toolkit/kafka'
-import type { KafkaDependencies, TopicConfig } from '@message-queue-toolkit/kafka'
-import { z } from 'zod'
-
-const MY_MESSAGE_SCHEMA = z.object({
-  id: z.string(),
-  type: z.literal('my.event'),
-  payload: z.object({
-    userId: z.string(),
-  }),
-})
-
-const MY_TOPICS_CONFIG = [
-  { topic: 'my-topic', schema: MY_MESSAGE_SCHEMA },
-] as const satisfies TopicConfig[]
+import { AbstractKafkaPublisher } from '@message-queue-toolkit/kafkajs'
 
 export class MyPublisher extends AbstractKafkaPublisher<typeof MY_TOPICS_CONFIG> {
   constructor(dependencies: KafkaDependencies) {
     super(dependencies, {
       kafka: {
-        bootstrapBrokers: ['localhost:9092'],
+        brokers: ['localhost:9092'],
         clientId: 'my-app',
       },
       topicsConfig: MY_TOPICS_CONFIG,
@@ -45,16 +31,6 @@ export class MyPublisher extends AbstractKafkaPublisher<typeof MY_TOPICS_CONFIG>
     })
   }
 }
-
-// Usage
-const publisher = new MyPublisher(dependencies)
-await publisher.init()
-await publisher.publish('my-topic', {
-  id: '123',
-  type: 'my.event',
-  payload: { userId: 'user-1' },
-})
-await publisher.close()
 ```
 
 See [test publisher](test/publisher/PermissionPublisher.ts) for an example of implementation.
@@ -64,117 +40,38 @@ See [test publisher](test/publisher/PermissionPublisher.ts) for an example of im
 Use `AbstractKafkaConsumer` as a base class for consumer implementation.
 
 ```typescript
-import {
-  AbstractKafkaConsumer,
-  KafkaHandlerConfig,
-  KafkaHandlerRoutingBuilder
-} from '@message-queue-toolkit/kafka'
-import type { KafkaConsumerDependencies, TopicConfig } from '@message-queue-toolkit/kafka'
+import { AbstractKafkaConsumer, KafkaHandlerConfig, KafkaHandlerRoutingBuilder } from '@message-queue-toolkit/kafkajs'
 
-type MyExecutionContext = {
-  userService: UserService
-}
-
-export class MyConsumer extends AbstractKafkaConsumer<
-  typeof MY_TOPICS_CONFIG,
-  MyExecutionContext,
-  false
-> {
-  constructor(
-    dependencies: KafkaConsumerDependencies,
-    executionContext: MyExecutionContext,
-  ) {
+export class MyConsumer extends AbstractKafkaConsumer<typeof MY_TOPICS_CONFIG, MyExecutionContext> {
+  constructor(dependencies: KafkaConsumerDependencies) {
     super(
       dependencies,
       {
         kafka: {
-          bootstrapBrokers: ['localhost:9092'],
+          brokers: ['localhost:9092'],
           clientId: 'my-app',
         },
         groupId: 'my-consumer-group',
         batchProcessingEnabled: false,
-        handlers: new KafkaHandlerRoutingBuilder<
-          typeof MY_TOPICS_CONFIG,
-          MyExecutionContext,
-          false
-        >()
-          .addConfig(
-            'my-topic',
-            new KafkaHandlerConfig(MY_MESSAGE_SCHEMA, async (message, context) => {
-              // Handle message
-              console.log('Received:', message.value)
-              await context.userService.processEvent(message.value.payload.userId)
-            }),
-          )
+        handlers: new KafkaHandlerRoutingBuilder<typeof MY_TOPICS_CONFIG, MyExecutionContext, false>()
+          .addConfig('my-topic', new KafkaHandlerConfig(MY_SCHEMA, (message, context) => {
+            // Handle message
+          }))
           .build(),
       },
       executionContext,
     )
   }
 }
-
-// Usage
-const consumer = new MyConsumer(dependencies, { userService })
-await consumer.init()
-// Consumer is now running and processing messages
-// ...
-await consumer.close()
 ```
 
 See [test consumer](test/consumer/PermissionConsumer.ts) for an example of implementation.
 
 ## Batch Processing
 
-Kafka supports batch processing for improved throughput. To enable it, set `batchProcessingEnabled` to `true` and 
-configure `batchProcessingOptions`.
+Kafka supports batch processing for improved throughput. To enable it, set `batchProcessingEnabled` to `true` and configure `batchProcessingOptions`.
 
 When batch processing is enabled, message handlers receive an array of messages instead of a single message.
-
-```typescript
-export class MyBatchConsumer extends AbstractKafkaConsumer<
-  typeof MY_TOPICS_CONFIG,
-  MyExecutionContext,
-  true  // Enable batch processing
-> {
-  constructor(
-    dependencies: KafkaConsumerDependencies,
-    executionContext: MyExecutionContext,
-  ) {
-    super(
-      dependencies,
-      {
-        kafka: {
-          bootstrapBrokers: ['localhost:9092'],
-          clientId: 'my-app',
-        },
-        groupId: 'my-batch-consumer-group',
-        batchProcessingEnabled: true,
-        batchProcessingOptions: {
-          batchSize: 100,
-          timeoutMilliseconds: 5000,
-        },
-        handlers: new KafkaHandlerRoutingBuilder<
-          typeof MY_TOPICS_CONFIG,
-          MyExecutionContext,
-          true
-        >()
-          .addConfig(
-            'my-topic',
-            new KafkaHandlerConfig(MY_MESSAGE_SCHEMA, async (messages, context) => {
-              // Handle batch of messages
-              console.log(`Processing batch of ${messages.length} messages`)
-              for (const message of messages) {
-                await context.userService.processEvent(message.value.payload.userId)
-              }
-            }),
-          )
-          .build(),
-      },
-      executionContext,
-    )
-  }
-}
-```
 
 ### Configuration Options
 
@@ -197,25 +94,26 @@ See [test batch consumer](test/consumer/PermissionBatchConsumer.ts) for an examp
 
 ```typescript
 type KafkaConfig = {
-  bootstrapBrokers: string[]    // List of Kafka broker addresses
-  clientId: string              // Client identifier
-  ssl?: boolean | TLSConfig     // SSL configuration
-  sasl?: SASLOptions            // SASL authentication
-  connectTimeout?: number       // Connection timeout in ms
+  brokers: string[]           // List of Kafka broker addresses
+  clientId: string            // Client identifier
+  ssl?: boolean | TLSConfig   // SSL configuration
+  sasl?: SASLOptions          // SASL authentication
+  connectionTimeout?: number   // Connection timeout in ms
+  requestTimeout?: number      // Request timeout in ms
+  retry?: RetryOptions        // Retry configuration
 }
 ```
 
 ### Publisher Options
 
-- `kafka` - Kafka connection configuration
 - `topicsConfig` - Array of topic configurations with schemas
 - `autocreateTopics` - Whether to auto-create topics (default: false)
+- `producerConfig` - Additional KafkaJS producer configuration
 
 ### Consumer Options
 
-- `kafka` - Kafka connection configuration
 - `groupId` - Consumer group ID (required)
-- `handlers` - Handler routing configuration built with `KafkaHandlerRoutingBuilder`
+- `handlers` - Handler routing configuration
 - `batchProcessingEnabled` - Enable batch processing (default: false)
 - `batchProcessingOptions` - Batch configuration (required if batch processing enabled)
 - `autocreateTopics` - Whether to auto-create topics (default: false)
@@ -273,3 +171,19 @@ const result = await consumer.handlerSpy.waitForMessageWithId('message-123', 'co
 // Check if a message was processed without waiting
 const check = consumer.handlerSpy.checkForMessage({ type: 'my.event' })
 ```
+
+## Differences from @message-queue-toolkit/kafka
+
+This package uses [KafkaJS](https://kafka.js.org/) as the underlying Kafka client instead of [@platformatic/kafka](https://github.com/platformatic/kafka). Key differences:
+
+| Feature | @message-queue-toolkit/kafka | @message-queue-toolkit/kafkajs |
+|---------|------------------------------|--------------------------------|
+| Broker config | `bootstrapBrokers` | `brokers` |
+| Client library | @platformatic/kafka | kafkajs |
+| Stream-based | Yes (uses Node.js streams) | No (callback-based) |
+| Node.js requirement | >= 22.14.0 | >= 22.14.0 |
+
+Choose this package if you:
+- Are already using KafkaJS in your project
+- Need compatibility with KafkaJS plugins and ecosystem
+- Prefer the KafkaJS API style

@@ -137,6 +137,10 @@ jobs:
               - 'packages/kafka/lib/**'
               - 'packages/kafka/package.json'
               - 'packages/kafka/README.md'
+            pkg_kafkajs:
+              - 'packages/kafkajs/lib/**'
+              - 'packages/kafkajs/package.json'
+              - 'packages/kafkajs/README.md'
             pkg_gcp_pubsub:
               - 'packages/gcp-pubsub/lib/**'
               - 'packages/gcp-pubsub/package.json'
@@ -177,6 +181,7 @@ jobs:
             ["pkg_sqs"]="sqs"
             ["pkg_sns"]="sns"
             ["pkg_kafka"]="kafka"
+            ["pkg_kafkajs"]="kafkajs"
             ["pkg_gcp_pubsub"]="gcp-pubsub"
             ["pkg_gcs_payload_store"]="gcs-payload-store"
             ["pkg_s3_payload_store"]="s3-payload-store"
