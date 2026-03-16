@@ -21,6 +21,7 @@ describe('PrometheusMessageErrorCounter', () => {
       {
         name: 'test_metric',
         helpDescription: 'test description',
+        labelNames: ['errorReason'],
         messageVersion: (metadata: ProcessedMessageMetadata<TestMessage>) => {
           registeredMessages.push(metadata) // Mocking it to check if value is registered properly
           return undefined
@@ -84,6 +85,7 @@ describe('PrometheusMessageErrorCounter', () => {
       {
         name: 'Test metric',
         helpDescription: 'test description',
+        labelNames: ['errorReason'],
       },
       promClient,
     )
@@ -118,6 +120,7 @@ describe('PrometheusMessageErrorCounter', () => {
       {
         name: 'Test metric',
         helpDescription: 'test description',
+        labelNames: ['errorReason'],
       },
       promClient,
     )
@@ -148,6 +151,7 @@ describe('PrometheusMessageErrorCounter', () => {
             "errorReason": "handlerError",
             "messageType": "test",
             "queue": "test-queue",
+            "result": "error",
             "version": undefined,
           },
           "value": 1,
@@ -164,6 +168,7 @@ describe('PrometheusMessageErrorCounter', () => {
       {
         name: 'Test metric',
         helpDescription: 'test description',
+        labelNames: ['errorReason'],
         messageVersion: (metadata: ProcessedMessageMetadata<TestMessage>) =>
           metadata.message?.metadata?.schemaVersion,
       },
@@ -210,6 +215,7 @@ describe('PrometheusMessageErrorCounter', () => {
             "errorReason": "retryLaterExceeded",
             "messageType": "test",
             "queue": "test-queue",
+            "result": "error",
             "version": undefined,
           },
           "value": 1,
@@ -219,6 +225,7 @@ describe('PrometheusMessageErrorCounter', () => {
             "errorReason": "retryLaterExceeded",
             "messageType": "test",
             "queue": "test-queue",
+            "result": "error",
             "version": "1.0.0",
           },
           "value": 1,

@@ -9,8 +9,11 @@ import type { MessageVersionGeneratingFunction, PrometheusMetricParams } from '.
 export abstract class PrometheusMessageMetric<
   MessagePayload extends object,
   MetricType extends Metric,
-  MetricParams extends
-    PrometheusMetricParams<MessagePayload> = PrometheusMetricParams<MessagePayload>,
+  Labels extends string = never,
+  MetricParams extends PrometheusMetricParams<MessagePayload, Labels> = PrometheusMetricParams<
+    MessagePayload,
+    Labels
+  >,
 > implements MessageMetricsManager<MessagePayload>
 {
   /** Fallbacks to null if metrics are disabled on app level */
@@ -18,7 +21,7 @@ export abstract class PrometheusMessageMetric<
 
   protected readonly messageVersionGeneratingFunction: MessageVersionGeneratingFunction<MessagePayload>
 
-  private readonly metricParams: MetricParams
+  protected readonly metricParams: MetricParams
 
   /**
    * @param metricParams - metrics parameters (see PrometheusMetricParams)
