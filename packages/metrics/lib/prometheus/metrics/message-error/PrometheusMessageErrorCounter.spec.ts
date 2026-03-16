@@ -151,6 +151,7 @@ describe('PrometheusMessageErrorCounter', () => {
             "errorReason": "handlerError",
             "messageType": "test",
             "queue": "test-queue",
+            "result": "error",
             "version": undefined,
           },
           "value": 1,

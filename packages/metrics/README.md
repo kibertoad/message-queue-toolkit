@@ -117,11 +117,24 @@ Use `Counter` to count message events. Base labels registered on every increment
 | `messageType` | Message type identifier |
 | `version` | Resolved message version |
 | `queue` | Queue or topic name |
+| `result` | Processing result status (`consumed`, `published`, `retryLater`, `error`) |
 
 #### Built-in implementations
 
+**`PrometheusMessageResultCounter`**
+Counts all processed messages using only the built-in base labels. No extra configuration needed.
+
+```ts
+import { PrometheusMessageResultCounter } from '@message-queue-toolkit/metrics'
+
+const metric = new PrometheusMessageResultCounter({
+  name: 'messages_total',
+  helpDescription: 'Number of messages processed',
+})
+```
+
 **`PrometheusMessageErrorCounter`**
-Counts messages that result in an error. Adds an `errorReason` label. Skips non-error messages.
+Counts only messages that result in an error. Adds an `errorReason` label. Skips all non-error messages.
 
 ```ts
 import { PrometheusMessageErrorCounter } from '@message-queue-toolkit/metrics'
@@ -133,65 +146,44 @@ const metric = new PrometheusMessageErrorCounter({
 })
 ```
 
-**`PrometheusMessageByStatusCounter`**
-Counts all messages, labelled by their processing result status.
-
-```ts
-import { PrometheusMessageByStatusCounter } from '@message-queue-toolkit/metrics'
-
-const metric = new PrometheusMessageByStatusCounter({
-  name: 'messages_by_status_total',
-  helpDescription: 'Number of messages processed, by result status',
-  labelNames: ['resultStatus'],
-})
-```
-
-Adds a `resultStatus` label with values: `consumed`, `published`, `retryLater`, `error`.
-
 #### Custom counter with extra labels
 
-Extend `PrometheusMessageCounter` and implement `calculateCount` and `getLabelValuesForProcessedMessage`:
+Extend `PrometheusMessageCounter` and implement `calculateCount`. Override `getLabelValuesForProcessedMessage` when adding custom labels:
 
 ```ts
 import { PrometheusMessageCounter } from '@message-queue-toolkit/metrics'
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import type { LabelValues } from 'prom-client'
 
-class MyRetryCounter extends PrometheusMessageCounter<MyMessage, 'reason'> {
-  protected calculateCount(metadata: ProcessedMessageMetadata<MyMessage>): number | null {
-    return metadata.processingResult.status === 'retryLater' ? 1 : null
+class MyRegionCounter extends PrometheusMessageCounter<MyMessage, 'region'> {
+  protected calculateCount(): number | null {
+    return 1
   }
 
-  protected getLabelValuesForProcessedMessage(
+  protected override getLabelValuesForProcessedMessage(
     metadata: ProcessedMessageMetadata<MyMessage>,
-  ): LabelValues<'reason'> {
-    return { reason: metadata.processingResult.status === 'retryLater'
-      ? metadata.processingResult.retryReason
-      : 'unknown' }
+  ): LabelValues<'region'> {
+    return { region: metadata.message.region }
   }
 }
 
-const metric = new MyRetryCounter({
-  name: 'message_retries_total',
-  helpDescription: 'Number of messages scheduled for retry',
-  labelNames: ['reason'],
+const metric = new MyRegionCounter({
+  name: 'messages_by_region_total',
+  helpDescription: 'Number of messages processed, by region',
+  labelNames: ['region'],
 })
 ```
 
-When no custom labels are needed, omit `labelNames`:
+When no custom labels are needed, omit `labelNames` and skip overriding `getLabelValuesForProcessedMessage`:
 
 ```ts
-class MySimpleCounter extends PrometheusMessageCounter<MyMessage> {
+class MyConsumedCounter extends PrometheusMessageCounter<MyMessage> {
   protected calculateCount(metadata: ProcessedMessageMetadata<MyMessage>): number | null {
     return metadata.processingResult.status === 'consumed' ? 1 : null
   }
-
-  protected getLabelValuesForProcessedMessage(): LabelValues<never> {
-    return {}
-  }
 }
 
-const metric = new MySimpleCounter({
+const metric = new MyConsumedCounter({
   name: 'messages_consumed_total',
   helpDescription: 'Number of successfully consumed messages',
 })
@@ -207,8 +199,8 @@ const metric = new MySimpleCounter({
 import {
   MessageMultiMetricManager,
   PrometheusMessageProcessingTimeMetric,
+  PrometheusMessageResultCounter,
   PrometheusMessageErrorCounter,
-  PrometheusMessageByStatusCounter,
 } from '@message-queue-toolkit/metrics'
 
 const metricsManager = new MessageMultiMetricManager([
@@ -217,15 +209,14 @@ const metricsManager = new MessageMultiMetricManager([
     helpDescription: 'Message processing time',
     buckets: [10, 50, 100, 500, 1000],
   }),
+  new PrometheusMessageResultCounter({
+    name: 'messages_total',
+    helpDescription: 'Messages processed',
+  }),
   new PrometheusMessageErrorCounter({
     name: 'message_errors_total',
     helpDescription: 'Messages that failed processing',
     labelNames: ['errorReason'],
-  }),
-  new PrometheusMessageByStatusCounter({
-    name: 'messages_by_status_total',
-    helpDescription: 'Messages processed by status',
-    labelNames: ['resultStatus'],
   }),
 ])
 

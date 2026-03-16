@@ -73,6 +73,7 @@ describe('PrometheusMessageCounter', () => {
             "labels": {
               "messageType": "test",
               "queue": "test-queue",
+              "result": "consumed",
               "version": undefined,
             },
             "value": 1,

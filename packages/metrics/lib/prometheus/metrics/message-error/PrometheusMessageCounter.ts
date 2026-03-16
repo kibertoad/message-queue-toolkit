@@ -15,17 +15,23 @@ export abstract class PrometheusMessageCounter<
   Labels extends string = never,
 > extends PrometheusMessageMetric<
   MessagePayload,
-  Counter<'queue' | 'messageType' | 'version' | Labels>,
+  Counter<'queue' | 'messageType' | 'version' | 'result' | Labels>,
   PrometheusMetricCounterParams<MessagePayload, Labels>
 > {
   protected createMetric(
     client: typeof promClient,
     metricParams: PrometheusMetricParams<MessagePayload>,
-  ): Counter<'queue' | 'messageType' | 'version' | Labels> {
+  ): Counter<'queue' | 'messageType' | 'version' | 'result' | Labels> {
     return new client.Counter({
       name: metricParams.name,
       help: metricParams.helpDescription,
-      labelNames: ['queue', 'messageType', 'version', ...(this.metricParams.labelNames ?? [])],
+      labelNames: [
+        'queue',
+        'messageType',
+        'version',
+        'result',
+        ...(this.metricParams.labelNames ?? []),
+      ],
     })
   }
 
@@ -37,9 +43,10 @@ export abstract class PrometheusMessageCounter<
       {
         queue: metadata.queueName,
         messageType: metadata.messageType,
+        result: metadata.processingResult.status,
         version: this.messageVersionGeneratingFunction(metadata),
         ...this.getLabelValuesForProcessedMessage(metadata),
-      } as LabelValues<'queue' | 'messageType' | 'version' | Labels>,
+      } as LabelValues<'queue' | 'messageType' | 'version' | 'result' | Labels>,
       count,
     )
   }

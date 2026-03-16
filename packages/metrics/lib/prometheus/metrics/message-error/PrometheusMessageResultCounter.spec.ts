@@ -47,7 +47,7 @@ describe('PrometheusMessageResultCounter', () => {
     // Given
     const counterCalls = mockCounterCalls()
     const metric = new PrometheusMessageResultCounter<TestMessage>(
-      { name: 'test_metric', helpDescription: 'test', labelNames: ['result'] },
+      { name: 'test_metric', helpDescription: 'test' },
       promClient,
     )
 
@@ -58,7 +58,7 @@ describe('PrometheusMessageResultCounter', () => {
 
     // Then
     expect(counterCalls).toHaveLength(1)
-    expect(counterCalls[0]?.labels).toMatchObject({ resultStatus: processingResult.status })
+    expect(counterCalls[0]?.labels).toMatchObject({ result: processingResult.status })
     expect(counterCalls[0]?.value).toBe(1)
   })
 
@@ -66,7 +66,7 @@ describe('PrometheusMessageResultCounter', () => {
     // Given
     const counterCalls = mockCounterCalls()
     const metric = new PrometheusMessageResultCounter<TestMessage>(
-      { name: 'test_metric', helpDescription: 'test', labelNames: ['result'] },
+      { name: 'test_metric', helpDescription: 'test' },
       promClient,
     )
 
@@ -85,7 +85,7 @@ describe('PrometheusMessageResultCounter', () => {
           "labels": {
             "messageType": "test",
             "queue": "my-queue",
-            "resultStatus": "consumed",
+            "result": "consumed",
             "version": undefined,
           },
           "value": 1,
@@ -101,7 +101,6 @@ describe('PrometheusMessageResultCounter', () => {
       {
         name: 'test_metric',
         helpDescription: 'test',
-        labelNames: ['result'],
         messageVersion: (metadata) => metadata.message?.metadata?.schemaVersion,
       },
       promClient,
@@ -125,7 +124,7 @@ describe('PrometheusMessageResultCounter', () => {
           "labels": {
             "messageType": "test",
             "queue": "test-queue",
-            "resultStatus": "consumed",
+            "result": "consumed",
             "version": undefined,
           },
           "value": 1,
@@ -134,7 +133,7 @@ describe('PrometheusMessageResultCounter', () => {
           "labels": {
             "messageType": "test",
             "queue": "test-queue",
-            "resultStatus": "consumed",
+            "result": "consumed",
             "version": "2.0.0",
           },
           "value": 1,
