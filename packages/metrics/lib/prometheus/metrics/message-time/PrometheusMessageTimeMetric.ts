@@ -1,28 +1,42 @@
 import type { MakeRequired } from '@lokalise/universal-ts-utils/node'
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import type promClient from 'prom-client'
-import type { Histogram } from 'prom-client'
+import type { Histogram, LabelValues } from 'prom-client'
 import { PrometheusMessageMetric } from '../../PrometheusMessageMetric.ts'
 import type { PrometheusMetricParams } from '../../types.ts'
 
+export type PrometheusMetricTimeParams<
+  MessagePayload extends object,
+  Labels extends string = never,
+> = MakeRequired<PrometheusMetricParams<MessagePayload>, 'buckets'> &
+  ([Labels] extends [never] ? { labelNames?: never[] } : { labelNames: Labels[] })
+
 export abstract class PrometheusMessageTimeMetric<
   MessagePayload extends object,
+  Labels extends string = never,
 > extends PrometheusMessageMetric<
   MessagePayload,
-  Histogram<'messageType' | 'version' | 'queue' | 'result'>,
-  MakeRequired<PrometheusMetricParams<MessagePayload>, 'buckets'>
+  Histogram<'messageType' | 'version' | 'queue' | 'result' | Labels>,
+  PrometheusMetricTimeParams<MessagePayload, Labels>
 > {
   protected createMetric(
     client: typeof promClient,
-    metricParams: MakeRequired<PrometheusMetricParams<MessagePayload>, 'buckets'>,
-  ): Histogram<'messageType' | 'version' | 'queue' | 'result'> {
+    metricParams: PrometheusMetricTimeParams<MessagePayload, Labels>,
+  ): Histogram<'messageType' | 'version' | 'queue' | 'result' | Labels> {
     return new client.Histogram({
       name: metricParams.name,
       help: metricParams.helpDescription,
       buckets: metricParams.buckets,
-      labelNames: ['messageType', 'version', 'queue', 'result'],
+      labelNames: [
+        'messageType',
+        'version',
+        'queue',
+        'result',
+        ...(this.metricParams.labelNames ?? []),
+      ],
     })
   }
+
   registerProcessedMessage(metadata: ProcessedMessageMetadata<MessagePayload>): void {
     const observedValue: number | null = this.calculateObservedValue(metadata)
 
@@ -35,9 +49,16 @@ export abstract class PrometheusMessageTimeMetric<
         version: this.messageVersionGeneratingFunction(metadata),
         queue: metadata.queueName,
         result: metadata.processingResult.status,
-      },
+        ...this.getLabelValuesForProcessedMessage(metadata),
+      } as LabelValues<'messageType' | 'version' | 'queue' | 'result' | Labels>,
       observedValue,
     )
+  }
+
+  protected getLabelValuesForProcessedMessage(
+    _metadata: ProcessedMessageMetadata<MessagePayload>,
+  ): LabelValues<Labels> {
+    return {} as LabelValues<Labels>
   }
 
   protected abstract calculateObservedValue(
