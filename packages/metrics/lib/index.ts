@@ -1,4 +1,5 @@
 export * from './MessageMultiMetricManager.ts'
+export * from './prometheus/metrics/message-error/PrometheusMessageByStatusCounter.ts'
 export * from './prometheus/metrics/message-error/PrometheusMessageCounter.ts'
 export * from './prometheus/metrics/message-error/PrometheusMessageErrorCounter.ts'
 export * from './prometheus/metrics/message-time/PrometheusMessageLifetimeMetric.ts'
