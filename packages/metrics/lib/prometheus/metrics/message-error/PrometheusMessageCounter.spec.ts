@@ -11,10 +11,6 @@ type TestMessage = {
 
 // Concrete implementation with no custom labels
 class TestCounter extends PrometheusMessageCounter<TestMessage> {
-  protected getLabelValuesForProcessedMessage(): LabelValues<never> {
-    return {}
-  }
-
   protected calculateCount(metadata: ProcessedMessageMetadata<TestMessage>): number | null {
     return metadata.processingResult.status === 'consumed' ? 1 : null
   }
@@ -22,7 +18,7 @@ class TestCounter extends PrometheusMessageCounter<TestMessage> {
 
 // Concrete implementation with custom labels
 class TestCounterWithLabels extends PrometheusMessageCounter<TestMessage, 'result'> {
-  protected getLabelValuesForProcessedMessage(
+  protected override getLabelValuesForProcessedMessage(
     metadata: ProcessedMessageMetadata<TestMessage>,
   ): LabelValues<'result'> {
     return { result: metadata.processingResult.status }
