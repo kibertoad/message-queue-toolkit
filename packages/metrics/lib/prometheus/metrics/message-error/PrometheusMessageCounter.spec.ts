@@ -17,11 +17,11 @@ class TestCounter extends PrometheusMessageCounter<TestMessage> {
 }
 
 // Concrete implementation with custom labels
-class TestCounterWithLabels extends PrometheusMessageCounter<TestMessage, 'result'> {
+class TestCounterWithLabels extends PrometheusMessageCounter<TestMessage, 'test'> {
   protected override getLabelValuesForProcessedMessage(
-    metadata: ProcessedMessageMetadata<TestMessage>,
-  ): LabelValues<'result'> {
-    return { result: metadata.processingResult.status }
+    _metadata: ProcessedMessageMetadata<TestMessage>,
+  ): LabelValues<'test'> {
+    return { test: 'test' }
   }
 
   protected calculateCount(): number | null {
@@ -109,7 +109,7 @@ describe('PrometheusMessageCounter', () => {
     // Given
     const counterCalls = mockCounterCalls()
     const metric = new TestCounterWithLabels(
-      { name: 'test_counter_labels', helpDescription: 'test', labelNames: ['result'] },
+      { name: 'test_counter_labels', helpDescription: 'test', labelNames: ['test'] },
       promClient,
     )
     const message: TestMessage = { id: '1', messageType: 'test' }
@@ -134,6 +134,7 @@ describe('PrometheusMessageCounter', () => {
             "messageType": "test",
             "queue": "test-queue",
             "result": "consumed",
+            "test": "test",
             "version": undefined,
           },
           "value": 1,

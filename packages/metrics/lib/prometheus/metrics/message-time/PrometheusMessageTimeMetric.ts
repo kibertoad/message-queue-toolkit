@@ -1,4 +1,3 @@
-import type { MakeRequired } from '@lokalise/universal-ts-utils/node'
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import type promClient from 'prom-client'
 import type { Histogram, LabelValues } from 'prom-client'
@@ -8,8 +7,7 @@ import type { PrometheusMetricParams } from '../../types.ts'
 export type PrometheusMetricTimeParams<
   MessagePayload extends object,
   Labels extends string = never,
-> = MakeRequired<PrometheusMetricParams<MessagePayload>, 'buckets'> &
-  ([Labels] extends [never] ? { labelNames?: never[] } : { labelNames: Labels[] })
+> = PrometheusMetricParams<MessagePayload, Labels> & { buckets: number[] }
 
 export abstract class PrometheusMessageTimeMetric<
   MessagePayload extends object,
@@ -17,6 +15,7 @@ export abstract class PrometheusMessageTimeMetric<
 > extends PrometheusMessageMetric<
   MessagePayload,
   Histogram<'messageType' | 'version' | 'queue' | 'result' | Labels>,
+  Labels,
   PrometheusMetricTimeParams<MessagePayload, Labels>
 > {
   protected createMetric(

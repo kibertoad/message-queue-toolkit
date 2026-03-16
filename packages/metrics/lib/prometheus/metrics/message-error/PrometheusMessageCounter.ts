@@ -4,23 +4,17 @@ import type { Counter, LabelValues } from 'prom-client'
 import { PrometheusMessageMetric } from '../../PrometheusMessageMetric.ts'
 import type { PrometheusMetricParams } from '../../types.ts'
 
-export type PrometheusMetricCounterParams<
-  MessagePayload extends object,
-  Labels extends string = never,
-> = PrometheusMetricParams<MessagePayload> &
-  ([Labels] extends [never] ? { labelNames?: never[] } : { labelNames: Labels[] })
-
 export abstract class PrometheusMessageCounter<
   MessagePayload extends object,
   Labels extends string = never,
 > extends PrometheusMessageMetric<
   MessagePayload,
   Counter<'queue' | 'messageType' | 'version' | 'result' | Labels>,
-  PrometheusMetricCounterParams<MessagePayload, Labels>
+  Labels
 > {
   protected createMetric(
     client: typeof promClient,
-    metricParams: PrometheusMetricParams<MessagePayload>,
+    metricParams: PrometheusMetricParams<MessagePayload, Labels>,
   ): Counter<'queue' | 'messageType' | 'version' | 'result' | Labels> {
     return new client.Counter({
       name: metricParams.name,
