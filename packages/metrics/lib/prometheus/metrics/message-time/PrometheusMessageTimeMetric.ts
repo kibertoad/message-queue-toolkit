@@ -2,7 +2,7 @@ import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import type promClient from 'prom-client'
 import type { Histogram, LabelValues } from 'prom-client'
 import { PrometheusMessageMetric } from '../../PrometheusMessageMetric.ts'
-import type { PrometheusMetricParams } from '../../types.ts'
+import type { DefaultLabels, PrometheusMetricParams } from '../../types.ts'
 
 export type PrometheusMetricTimeParams<
   MessagePayload extends object,
@@ -14,14 +14,14 @@ export abstract class PrometheusMessageTimeMetric<
   Labels extends string = never,
 > extends PrometheusMessageMetric<
   MessagePayload,
-  Histogram<'messageType' | 'version' | 'queue' | 'result' | Labels>,
+  Histogram<DefaultLabels | Labels>,
   Labels,
   PrometheusMetricTimeParams<MessagePayload, Labels>
 > {
   protected createMetric(
     client: typeof promClient,
     metricParams: PrometheusMetricTimeParams<MessagePayload, Labels>,
-  ): Histogram<'messageType' | 'version' | 'queue' | 'result' | Labels> {
+  ): Histogram<DefaultLabels | Labels> {
     return new client.Histogram({
       name: metricParams.name,
       help: metricParams.helpDescription,
@@ -49,7 +49,7 @@ export abstract class PrometheusMessageTimeMetric<
         queue: metadata.queueName,
         result: metadata.processingResult.status,
         ...this.getLabelValuesForProcessedMessage(metadata),
-      } as LabelValues<'messageType' | 'version' | 'queue' | 'result' | Labels>,
+      } as LabelValues<DefaultLabels | Labels>,
       observedValue,
     )
   }
