@@ -7,11 +7,7 @@ import type { DefaultLabels, PrometheusMetricParams } from '../../types.ts'
 export abstract class PrometheusMessageCounter<
   MessagePayload extends object,
   Labels extends string = never,
-> extends PrometheusMessageMetric<
-  MessagePayload,
-  Counter<DefaultLabels | Labels>,
-  Labels
-> {
+> extends PrometheusMessageMetric<MessagePayload, Counter<DefaultLabels | Labels>, Labels> {
   protected createMetric(
     client: typeof promClient,
     metricParams: PrometheusMetricParams<MessagePayload, Labels>,
@@ -19,7 +15,13 @@ export abstract class PrometheusMessageCounter<
     return new client.Counter({
       name: metricParams.name,
       help: metricParams.helpDescription,
-      labelNames: ['queue', 'messageType', 'version', 'result', ...(this.metricParams.labelNames ?? [])],
+      labelNames: [
+        'queue',
+        'messageType',
+        'version',
+        'result',
+        ...(this.metricParams.labelNames ?? []),
+      ],
     })
   }
 
