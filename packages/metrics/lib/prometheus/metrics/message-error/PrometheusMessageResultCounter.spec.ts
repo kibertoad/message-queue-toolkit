@@ -2,7 +2,7 @@ import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import type { Counter } from 'prom-client'
 import * as promClient from 'prom-client'
 import { describe, expect, it, vi } from 'vitest'
-import { PrometheusMessageByStatusCounter } from './PrometheusMessageByStatusCounter.ts'
+import { PrometheusMessageResultCounter } from './PrometheusMessageResultCounter.ts'
 
 type TestMessage = {
   id: string
@@ -37,7 +37,7 @@ const buildMetadata = (
   ...overrides,
 })
 
-describe('PrometheusMessageByStatusCounter', () => {
+describe('PrometheusMessageResultCounter', () => {
   it.each([
     { status: 'consumed' },
     { status: 'published' },
@@ -46,8 +46,8 @@ describe('PrometheusMessageByStatusCounter', () => {
   ] as const)('registers resultStatus label for %o', (processingResult) => {
     // Given
     const counterCalls = mockCounterCalls()
-    const metric = new PrometheusMessageByStatusCounter<TestMessage>(
-      { name: 'test_metric', helpDescription: 'test', labelNames: ['resultStatus'] },
+    const metric = new PrometheusMessageResultCounter<TestMessage>(
+      { name: 'test_metric', helpDescription: 'test', labelNames: ['result'] },
       promClient,
     )
 
@@ -65,8 +65,8 @@ describe('PrometheusMessageByStatusCounter', () => {
   it('registers base labels alongside resultStatus', () => {
     // Given
     const counterCalls = mockCounterCalls()
-    const metric = new PrometheusMessageByStatusCounter<TestMessage>(
-      { name: 'test_metric', helpDescription: 'test', labelNames: ['resultStatus'] },
+    const metric = new PrometheusMessageResultCounter<TestMessage>(
+      { name: 'test_metric', helpDescription: 'test', labelNames: ['result'] },
       promClient,
     )
 
@@ -97,11 +97,11 @@ describe('PrometheusMessageByStatusCounter', () => {
   it('resolves version from message metadata', () => {
     // Given
     const counterCalls = mockCounterCalls()
-    const metric = new PrometheusMessageByStatusCounter<TestMessage>(
+    const metric = new PrometheusMessageResultCounter<TestMessage>(
       {
         name: 'test_metric',
         helpDescription: 'test',
-        labelNames: ['resultStatus'],
+        labelNames: ['result'],
         messageVersion: (metadata) => metadata.message?.metadata?.schemaVersion,
       },
       promClient,

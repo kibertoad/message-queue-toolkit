@@ -2,14 +2,14 @@ import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import type { LabelValues } from 'prom-client'
 import { PrometheusMessageCounter } from './PrometheusMessageCounter.ts'
 
-export class PrometheusMessageByStatusCounter<
+export class PrometheusMessageResultCounter<
   MessagePayload extends object,
-> extends PrometheusMessageCounter<MessagePayload, 'resultStatus'> {
+> extends PrometheusMessageCounter<MessagePayload, 'result'> {
   protected override getLabelValuesForProcessedMessage(
     metadata: ProcessedMessageMetadata<MessagePayload>,
-  ): LabelValues<'resultStatus'> {
+  ): LabelValues<'result'> {
     return {
-      resultStatus: metadata.processingResult.status,
+      result: metadata.processingResult.status,
     }
   }
 
