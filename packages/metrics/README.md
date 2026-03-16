@@ -41,6 +41,7 @@ All metrics accept `PrometheusMetricParams`:
 | `helpDescription` | `string` | yes | Prometheus metric description |
 | `buckets` | `number[]` | histograms only | Histogram bucket boundaries |
 | `messageVersion` | `string \| (metadata) => string \| undefined` | no | Static version string or function to extract version from message metadata |
+| `labelNames` | `Labels[]` | when `Labels` is specified | Names of the custom labels to register. Must not overlap with `DefaultLabels` (`queue`, `messageType`, `version`, `result`) — TypeScript enforces this at compile time |
 
 An optional second argument accepts a custom `prom-client` instance (useful for testing or multi-registry setups).
 
@@ -81,7 +82,7 @@ Skips observation if `messageTimestamp` is not available.
 
 #### Custom histogram with extra labels
 
-Extend `PrometheusMessageTimeMetric` to add custom labels. Pass `labelNames` in the params and override `getLabelValuesForProcessedMessage`:
+Extend `PrometheusMessageTimeMetric` to add custom labels. Pass `labelNames` in the params and override `getLabelValuesForProcessedMessage`. Custom label names must not conflict with `DefaultLabels` — using a reserved name (e.g. `'result'`) will produce a TypeScript compile error:
 
 ```ts
 import { PrometheusMessageTimeMetric } from '@message-queue-toolkit/metrics'
@@ -148,7 +149,7 @@ const metric = new PrometheusMessageErrorCounter({
 
 #### Custom counter with extra labels
 
-Extend `PrometheusMessageCounter` and implement `calculateCount`. Override `getLabelValuesForProcessedMessage` when adding custom labels:
+Extend `PrometheusMessageCounter` and implement `calculateCount`. Override `getLabelValuesForProcessedMessage` when adding custom labels. Same as histograms, custom label names must not conflict with `DefaultLabels`:
 
 ```ts
 import { PrometheusMessageCounter } from '@message-queue-toolkit/metrics'
