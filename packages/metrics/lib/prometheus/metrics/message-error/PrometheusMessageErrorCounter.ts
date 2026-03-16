@@ -9,7 +9,7 @@ export class PrometheusMessageErrorCounter<
 > extends PrometheusMessageCounter<MessagePayload, 'errorReason'> {
   constructor(
     metricParams: Omit<PrometheusMetricParams<MessagePayload, 'errorReason'>, 'labelNames'>,
-    client: typeof promClient,
+    client?: typeof promClient,
   ) {
     super({ ...metricParams, labelNames: ['errorReason'] }, client)
   }
