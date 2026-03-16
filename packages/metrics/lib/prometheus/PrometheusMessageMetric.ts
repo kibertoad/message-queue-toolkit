@@ -18,7 +18,7 @@ export abstract class PrometheusMessageMetric<
 
   protected readonly messageVersionGeneratingFunction: MessageVersionGeneratingFunction<MessagePayload>
 
-  private readonly metricParams: MetricParams
+  protected readonly metricParams: MetricParams
 
   /**
    * @param metricParams - metrics parameters (see PrometheusMetricParams)
