@@ -5,7 +5,7 @@ import { PrometheusMessageCounter } from './PrometheusMessageCounter.ts'
 export class PrometheusMessageErrorCounter<
   MessagePayload extends object,
 > extends PrometheusMessageCounter<MessagePayload, 'errorReason'> {
-  protected getLabelValuesForProcessedMessage(
+  protected override getLabelValuesForProcessedMessage(
     metadata: ProcessedMessageMetadata<MessagePayload>,
   ): LabelValues<'errorReason'> {
     return {

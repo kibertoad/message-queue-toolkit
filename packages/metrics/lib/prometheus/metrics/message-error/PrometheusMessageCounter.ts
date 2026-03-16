@@ -44,9 +44,11 @@ export abstract class PrometheusMessageCounter<
     )
   }
 
-  protected abstract getLabelValuesForProcessedMessage(
-    metadata: ProcessedMessageMetadata<MessagePayload>,
-  ): LabelValues<Labels>
+  protected getLabelValuesForProcessedMessage(
+    _metadata: ProcessedMessageMetadata<MessagePayload>,
+  ): LabelValues<Labels> {
+    return {} as LabelValues<Labels>
+  }
 
   protected abstract calculateCount(
     metadata: ProcessedMessageMetadata<MessagePayload>,
