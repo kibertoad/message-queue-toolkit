@@ -35,6 +35,13 @@ export type HandlerSpyParams = {
   messageIdField?: string
 }
 
+export type SpyResultCounts = {
+  consumed: number
+  published: number
+  retryLater: number
+  error: number
+}
+
 export type SpyResultInput<MessagePayloadSchemas extends object> = {
   message: MessagePayloadSchemas | null
   processingResult: MessageProcessingResult
@@ -87,12 +94,14 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
   private readonly messageBuffer: Fifo<SpyResultInput<any>>
   private readonly messageIdField: keyof MessagePayloadSchemas
   private readonly spyPromises: SpyPromiseMetadata<MessagePayloadSchemas>[]
+  private _counts: SpyResultCounts
 
   constructor(params: HandlerSpyParams = {}) {
     this.messageBuffer = new Fifo(params.bufferSize ?? 100)
     // @ts-expect-error
     this.messageIdField = params.messageIdField ?? 'id'
     this.spyPromises = []
+    this._counts = { consumed: 0, published: 0, retryLater: 0, error: 0 }
   }
 
   private messageMatchesFilter<T extends object>(
@@ -159,8 +168,13 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
     return spyPromise
   }
 
+  get counts(): SpyResultCounts {
+    return { ...this._counts }
+  }
+
   clear() {
     this.messageBuffer.clear()
+    this._counts = { consumed: 0, published: 0, retryLater: 0, error: 0 }
   }
 
   getAllReceivedMessages(): SpyResultOutput<MessagePayloadSchemas>[] {
@@ -198,6 +212,8 @@ export class HandlerSpy<MessagePayloadSchemas extends object> {
                 : resolvedMessageType,
           },
         } as SpyResultOutput<MessagePayloadSchemas>)
+
+    this._counts[processingResult.processingResult.status]++
 
     const cacheId = `${resolvedMessageId}-${Date.now()}-${(Math.random() + 1)
       .toString(36)

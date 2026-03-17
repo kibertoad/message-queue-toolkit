@@ -651,6 +651,22 @@ const result = await myConsumer.handlerSpy.waitForMessageWithId('1')
 expect(result.processingResult).toEqual({ status: 'consumed' })
 ```
 
+### Counters
+
+For load-testing scenarios where retaining all messages in the buffer may be too memory-intensive, handler spies provide lightweight counters that track how many messages were processed with each status:
+
+```ts
+const counts = myConsumer.handlerSpy.counts
+// {
+//   consumed: 150,
+//   published: 0,
+//   retryLater: 3,
+//   error: 1,
+// }
+```
+
+Counters are incremented for every processed message regardless of `bufferSize`, so you get accurate statistics even when older messages have been evicted from the buffer. Calling `clear()` resets both the buffer and the counters.
+
 ## Message Logging
 
 When `logMessages` is enabled, processed messages are logged at the `debug` level with structured metadata. For privacy reasons, the full message payload is **not logged by default** to avoid exposing sensitive data.

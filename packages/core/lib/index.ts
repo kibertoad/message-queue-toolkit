@@ -69,6 +69,7 @@ export {
   type HandlerSpyParams,
   type PublicHandlerSpy,
   resolveHandlerSpy,
+  type SpyResultCounts,
   type SpyResultInput,
   TYPE_NOT_RESOLVED,
 } from './queues/HandlerSpy.ts'
