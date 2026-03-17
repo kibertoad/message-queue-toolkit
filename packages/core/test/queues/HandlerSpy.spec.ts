@@ -429,6 +429,139 @@ describe('HandlerSpy', () => {
     })
   })
 
+  describe('counts', () => {
+    it('Starts with all zeroes', () => {
+      const spy = new HandlerSpy<Message>()
+
+      expect(spy.counts).toEqual({
+        consumed: 0,
+        published: 0,
+        retryLater: 0,
+        error: 0,
+      })
+    })
+
+    it('Increments consumed counter', () => {
+      const spy = new HandlerSpy<Message>()
+
+      spy.addProcessedMessage(
+        { processingResult: { status: 'consumed' }, message: TEST_MESSAGE },
+        undefined,
+        'test.type',
+      )
+
+      expect(spy.counts.consumed).toBe(1)
+      expect(spy.counts.error).toBe(0)
+    })
+
+    it('Increments error counter', () => {
+      const spy = new HandlerSpy<Message>()
+
+      spy.addProcessedMessage(
+        { processingResult: { status: 'error', errorReason: 'invalidMessage' }, message: null },
+        'abc',
+        TYPE_NOT_RESOLVED,
+      )
+
+      expect(spy.counts.error).toBe(1)
+      expect(spy.counts.consumed).toBe(0)
+    })
+
+    it('Increments retryLater counter', () => {
+      const spy = new HandlerSpy<Message>()
+
+      spy.addProcessedMessage(
+        { processingResult: { status: 'retryLater' }, message: TEST_MESSAGE },
+        undefined,
+        'test.type',
+      )
+
+      expect(spy.counts.retryLater).toBe(1)
+    })
+
+    it('Increments published counter', () => {
+      const spy = new HandlerSpy<Message>()
+
+      spy.addProcessedMessage(
+        { processingResult: { status: 'published' }, message: TEST_MESSAGE },
+        undefined,
+        'test.type',
+      )
+
+      expect(spy.counts.published).toBe(1)
+    })
+
+    it('Tracks multiple statuses correctly', () => {
+      const spy = new HandlerSpy<Message>()
+
+      spy.addProcessedMessage(
+        { processingResult: { status: 'consumed' }, message: TEST_MESSAGE },
+        undefined,
+        'test.type',
+      )
+      spy.addProcessedMessage(
+        { processingResult: { status: 'consumed' }, message: TEST_MESSAGE_2 },
+        undefined,
+        'test.type',
+      )
+      spy.addProcessedMessage(
+        { processingResult: { status: 'error', errorReason: 'handlerError' }, message: null },
+        'err1',
+        TYPE_NOT_RESOLVED,
+      )
+      spy.addProcessedMessage(
+        { processingResult: { status: 'retryLater' }, message: TEST_MESSAGE },
+        undefined,
+        'test.type',
+      )
+
+      expect(spy.counts).toEqual({
+        consumed: 2,
+        published: 0,
+        retryLater: 1,
+        error: 1,
+      })
+    })
+
+    it('Resets counts on clear', () => {
+      const spy = new HandlerSpy<Message>()
+
+      spy.addProcessedMessage(
+        { processingResult: { status: 'consumed' }, message: TEST_MESSAGE },
+        undefined,
+        'test.type',
+      )
+      spy.addProcessedMessage(
+        { processingResult: { status: 'error', errorReason: 'invalidMessage' }, message: null },
+        'abc',
+        TYPE_NOT_RESOLVED,
+      )
+
+      spy.clear()
+
+      expect(spy.counts).toEqual({
+        consumed: 0,
+        published: 0,
+        retryLater: 0,
+        error: 0,
+      })
+    })
+
+    it('Returns a copy, not a reference', () => {
+      const spy = new HandlerSpy<Message>()
+
+      const countsBefore = spy.counts
+      spy.addProcessedMessage(
+        { processingResult: { status: 'consumed' }, message: TEST_MESSAGE },
+        undefined,
+        'test.type',
+      )
+
+      expect(countsBefore.consumed).toBe(0)
+      expect(spy.counts.consumed).toBe(1)
+    })
+  })
+
   describe('isHandlerSpy', () => {
     it('HandlerSpy returns true', () => {
       const spy = new HandlerSpy<Message>()
