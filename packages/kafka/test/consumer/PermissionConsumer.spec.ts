@@ -65,7 +65,7 @@ describe('PermissionConsumer', () => {
       // Given
       consumer = new PermissionConsumer(testContext.cradle, { handlers: {} })
       // When - Then
-      await expect(consumer.close()).resolves.not.toThrowError()
+      await expect(consumer.close()).resolves.not.toThrow()
     })
 
     it('should not fail on init if it is already initiated', async () => {
@@ -75,7 +75,7 @@ describe('PermissionConsumer', () => {
       await consumer.init()
 
       // Then
-      await expect(consumer.init()).resolves.not.toThrowError()
+      await expect(consumer.init()).resolves.not.toThrow()
     })
 
     it('should fail if kafka is not available', async () => {
@@ -110,7 +110,7 @@ describe('PermissionConsumer', () => {
       consumer = new PermissionConsumer(testContext.cradle)
 
       // When - Then
-      await expect(consumer.init()).resolves.not.toThrowError()
+      await expect(consumer.init()).resolves.not.toThrow()
     })
   })
 
