@@ -189,10 +189,10 @@ export abstract class AbstractKafkaConsumer<
         // pipeline() internally listens for errors on all streams and rejects if any stream errors.
         // The .catch() here reports the error; reconnection is handled by handleStream's .catch() below.
         pipeline(this.consumerStream, this.messageBatchStream).catch((error) =>
-          this.handlerError(error),
+          this.handleError(error),
         )
       } else {
-        this.consumerStream.on('error', (error) => this.handlerError(error))
+        this.consumerStream.on('error', (error) => this.handleError(error))
       }
     } catch (error) {
       throw new InternalError({
@@ -254,7 +254,7 @@ export abstract class AbstractKafkaConsumer<
       }
     }
 
-    this.handlerError(new Error('Consumer failed to reconnect after max attempts'), {
+    this.handleError(new Error('Consumer failed to reconnect after max attempts'), {
       maxAttempts: MAX_RECONNECT_ATTEMPTS,
     })
   }
@@ -332,7 +332,7 @@ export abstract class AbstractKafkaConsumer<
       const parseResult = handlerConfig.schema.safeParse(message.value)
 
       if (!parseResult.success) {
-        this.handlerError(parseResult.error, {
+        this.handleError(parseResult.error, {
           topic: message.topic,
           message: stringValueSerializer(message.value),
         })
@@ -408,7 +408,7 @@ export abstract class AbstractKafkaConsumer<
       const errorContext = Array.isArray(messageOrBatch)
         ? { batchSize: messageOrBatch.length }
         : { message: stringValueSerializer(messageOrBatch.value) }
-      this.handlerError(error, { topic, ...errorContext })
+      this.handleError(error, { topic, ...errorContext })
     }
 
     return { status: 'error', errorReason: 'handlerError' }
@@ -451,8 +451,9 @@ export abstract class AbstractKafkaConsumer<
       this.logger.debug(logDetails, 'Message committed successfully')
     } catch (error) {
       this.logger.debug(logDetails, 'Message commit failed')
-      if (error instanceof ResponseError) return this.handleResponseErrorOnCommit(error)
-      this.handlerError(error)
+      return error instanceof ResponseError
+        ? this.handleResponseErrorOnCommit(error)
+        : this.handleError(error)
     }
   }
 
@@ -475,7 +476,7 @@ export abstract class AbstractKafkaConsumer<
           `Failed to commit message: ${error.message}`,
         )
       } else {
-        this.handlerError(error)
+        this.handleError(error)
       }
     }
   }

@@ -125,9 +125,9 @@ export abstract class AbstractKafkaService<
     }
   }
 
-  protected handlerError(error: unknown, context: Record<string, unknown> = {}): void {
+  protected handleError(error: unknown, context: Record<string, unknown> = {}): void {
     const resolvedErrorLog = resolveGlobalErrorLogObject(error)
-    this.logger.error({ ...resolvedErrorLog, ...context })
+    this.logger.error({ ...resolvedErrorLog, ...context, origin: this.constructor.name })
     if (isError(error))
       this.errorReporter.report({
         error,
