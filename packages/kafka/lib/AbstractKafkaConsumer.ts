@@ -201,7 +201,11 @@ export abstract class AbstractKafkaConsumer<
 
     this.handleStream(
       this.messageBatchStream ? this.messageBatchStream : this.consumerStream,
-    ).catch((error) => this.handlerError(error))
+    ).catch(async () => {
+      // TODO: PoC for testing -> we will refine it once we validate this works + add tests
+      await this.close()
+      await this.init()
+    })
   }
 
   private async handleStream(
