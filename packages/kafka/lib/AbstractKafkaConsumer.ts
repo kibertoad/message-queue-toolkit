@@ -94,7 +94,7 @@ export abstract class AbstractKafkaConsumer<
   TopicsConfig,
   KafkaConsumerOptions<TopicsConfig, ExecutionContext, BatchProcessingEnabled>
 > {
-  private readonly consumer: Consumer<string, object, string, string>
+  private consumer?: Consumer<string, object, string, string>
   private consumerStream?: MessagesStream<string, object, string, string>
   private messageBatchStream?: KafkaMessageBatchStream<
     DeserializedMessage<SupportedMessageValues<TopicsConfig>>
@@ -109,45 +109,15 @@ export abstract class AbstractKafkaConsumer<
     executionContext: ExecutionContext,
   ) {
     super(dependencies, options)
-
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.executionContext = executionContext
-
-    this.consumer = new Consumer({
-      ...this.options.kafka,
-      ...this.options,
-      autocommit: false, // Handling commits manually
-      deserializers: {
-        key: stringDeserializer,
-        value: safeJsonDeserializer,
-        headerKey: stringDeserializer,
-        headerValue: stringDeserializer,
-      },
-    })
-
-    const logDetails = { origin: this.constructor.name, groupId: this.options.groupId }
-    /* v8 ignore start */
-    this.consumer.on('consumer:group:join', (_) =>
-      this.logger.debug(logDetails, 'Consumer is joining a group'),
-    )
-    this.consumer.on('consumer:group:rejoin', () =>
-      this.logger.debug(logDetails, 'Consumer is re-joining a group after a rebalance'),
-    )
-    this.consumer.on('consumer:group:leave', (_) =>
-      this.logger.debug(logDetails, 'Consumer is leaving the group'),
-    )
-    this.consumer.on('consumer:group:rebalance', (_) =>
-      this.logger.debug(logDetails, 'Group is rebalancing'),
-    )
-    /* v8 ignore stop */
   }
 
   /**
    * Returns true if all client's connections are currently connected and the client is connected to at least one broker.
    */
   get isConnected(): boolean {
-    // Streams are created only when init method was called
-    if (!this.consumerStream && !this.messageBatchStream) return false
+    if (!this.consumer) return false
     try {
       return this.consumer.isConnected()
       /* v8 ignore start */
@@ -163,8 +133,7 @@ export abstract class AbstractKafkaConsumer<
    * This method will return `false` during consumer group rebalancing.
    */
   get isActive(): boolean {
-    // Streams are created only when init method was called
-    if (!this.consumerStream && !this.messageBatchStream) return false
+    if (!this.consumer) return false
     try {
       return this.consumer.isActive()
       /* v8 ignore start */
@@ -176,9 +145,22 @@ export abstract class AbstractKafkaConsumer<
   }
 
   async init(): Promise<void> {
-    if (this.consumerStream) return Promise.resolve()
+    if (this.consumer) return Promise.resolve()
+
     const topics = Object.keys(this.options.handlers)
     if (topics.length === 0) throw new Error('At least one topic must be defined')
+
+    this.consumer = new Consumer({
+      ...this.options.kafka,
+      ...this.options,
+      autocommit: false, // Handling commits manually
+      deserializers: {
+        key: stringDeserializer,
+        value: safeJsonDeserializer,
+        headerKey: stringDeserializer,
+        headerValue: stringDeserializer,
+      },
+    })
 
     try {
       const { handlers: _, ...consumeOptions } = this.options // Handlers cannot be passed to consume method
@@ -236,23 +218,17 @@ export abstract class AbstractKafkaConsumer<
   }
 
   async close(): Promise<void> {
-    if (!this.consumerStream && !this.messageBatchStream) {
-      // Leaving the group in case consumer joined but streams were not created
-      if (this.isActive) this.consumer.leaveGroup()
-      return
-    }
+    await this.consumerStream?.close()
+    this.consumerStream = undefined
 
-    if (this.consumerStream) {
-      await this.consumerStream.close()
-      this.consumerStream = undefined
-    }
+    await new Promise((resolve) =>
+      this.messageBatchStream ? this.messageBatchStream?.end(resolve) : resolve(undefined),
+    )
+    this.messageBatchStream = undefined
 
-    if (this.messageBatchStream) {
-      await new Promise((resolve) => this.messageBatchStream?.end(resolve))
-      this.messageBatchStream = undefined
-    }
-
-    await this.consumer.close()
+    this.consumer?.leaveGroup()
+    await this.consumer?.close()
+    this.consumer = undefined
   }
 
   private async consume(
