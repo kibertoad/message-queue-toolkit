@@ -217,28 +217,21 @@ export abstract class AbstractKafkaConsumer<
       })
     }
 
-    if (this.messageBatchStream) {
-      this.handleSyncStreamBatch(this.messageBatchStream).catch((error) => this.handlerError(error))
-    } else {
-      this.handleSyncStream(this.consumerStream).catch((error) => this.handlerError(error))
-    }
+    this.handleStream(
+      this.messageBatchStream ? this.messageBatchStream : this.consumerStream,
+    ).catch((error) => this.handlerError(error))
   }
 
-  private async handleSyncStream(
-    stream: MessagesStream<string, object, string, string>,
-  ): Promise<void> {
-    for await (const message of stream) {
+  private async handleStream(
+    stream:
+      | MessagesStream<string, object, string, string>
+      | KafkaMessageBatchStream<DeserializedMessage<SupportedMessageValues<TopicsConfig>>>,
+  ) {
+    for await (const messageOrBatch of stream) {
       await this.consume(
-        message.topic,
-        message as DeserializedMessage<SupportedMessageValues<TopicsConfig>>,
+        Array.isArray(messageOrBatch) ? messageOrBatch[0].topic : messageOrBatch.topic,
+        messageOrBatch,
       )
-    }
-  }
-  private async handleSyncStreamBatch(
-    stream: KafkaMessageBatchStream<DeserializedMessage<SupportedMessageValues<TopicsConfig>>>,
-  ): Promise<void> {
-    for await (const messageBatch of stream) {
-      await this.consume(messageBatch[0].topic, messageBatch)
     }
   }
 
