@@ -235,7 +235,7 @@ export abstract class AbstractKafkaConsumer<
   }
 
   private async reconnect(error: unknown): Promise<void> {
-    this.logger.warn(
+    this.logger.info(
       { origin: this.constructor.name, error: resolveGlobalErrorLogObject(error) },
       'Stream error detected, attempting to reconnect',
     )
@@ -248,7 +248,7 @@ export abstract class AbstractKafkaConsumer<
         return
       } catch (error) {
         this.logger.warn(
-          { origin: this.constructor.name, attempt, error: resolveGlobalErrorLogObject(error) },
+          { origin: this.constructor.name, attempt, maxAttempts: MAX_RECONNECT_ATTEMPTS, error: resolveGlobalErrorLogObject(error) },
           'Reconnect attempt failed',
         )
       }
