@@ -262,18 +262,14 @@ export abstract class AbstractKafkaConsumer<
     await this.consumer.close()
   }
 
-  private resolveHandler(topic: SupportedTopics<TopicsConfig>) {
-    return this.options.handlers[topic]
-  }
-
   private async consume(
-    topic: string,
+    topic: SupportedTopics<TopicsConfig>,
     messageOrBatch: MessageOrBatch<SupportedMessageValues<TopicsConfig>>,
   ): Promise<void> {
     const messageProcessingStartTimestamp = Date.now()
     this.logger.debug({ origin: this.constructor.name, topic }, 'Consuming message(s)')
 
-    const handlerConfig = this.resolveHandler(topic)
+    const handlerConfig = this.options.handlers[topic]
 
     // if there is no handler for the message, we ignore it (simulating subscription)
     if (!handlerConfig) return this.commit(messageOrBatch)
@@ -435,27 +431,26 @@ export abstract class AbstractKafkaConsumer<
     }
   }
 
-  private commit(messageOrBatch: MessageOrBatch<SupportedMessageValues<TopicsConfig>>) {
+  private async commit(messageOrBatch: MessageOrBatch<SupportedMessageValues<TopicsConfig>>) {
+    let messageToCommit: DeserializedMessage<SupportedMessageValues<TopicsConfig>>
     if (Array.isArray(messageOrBatch)) {
       if (messageOrBatch.length === 0) return Promise.resolve()
 
       // biome-ignore lint/style/noNonNullAssertion: we check the length above
-      return this.commitMessage(messageOrBatch[messageOrBatch.length - 1]!)
+      messageToCommit = messageOrBatch[messageOrBatch.length - 1]!
     } else {
-      return this.commitMessage(messageOrBatch)
+      messageToCommit = messageOrBatch
     }
-  }
 
-  private async commitMessage(message: DeserializedMessage<SupportedMessageValues<TopicsConfig>>) {
     const logDetails = {
-      topic: message.topic,
-      offset: message.offset,
-      timestamp: message.timestamp,
+      topic: messageToCommit.topic,
+      offset: messageToCommit.offset,
+      timestamp: messageToCommit.timestamp,
     }
     this.logger.debug(logDetails, 'Trying to commit message')
 
     try {
-      await message.commit()
+      await messageToCommit.commit()
       this.logger.debug(logDetails, 'Message committed successfully')
     } catch (error) {
       this.logger.debug(logDetails, 'Message commit failed')
