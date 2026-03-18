@@ -3,6 +3,7 @@ import { pipeline } from 'node:stream/promises'
 import { setTimeout } from 'node:timers/promises'
 import {
   InternalError,
+  resolveGlobalErrorLogObject,
   stringValueSerializer,
   type TransactionObservabilityManager,
 } from '@lokalise/node-core'
@@ -85,6 +86,7 @@ TODO: Proper retry mechanism + DLQ -> https://lokalise.atlassian.net/browse/EDEX
 In the meantime, we will retry in memory up to 3 times
  */
 const MAX_IN_MEMORY_RETRIES = 3
+const MAX_RECONNECT_ATTEMPTS = 5
 
 export abstract class AbstractKafkaConsumer<
   TopicsConfig extends TopicConfig[],
@@ -184,7 +186,8 @@ export abstract class AbstractKafkaConsumer<
         })
 
         // Use pipeline for better error handling and backpressure management.
-        // pipeline() internally listens for errors on all streams
+        // pipeline() internally listens for errors on all streams and rejects if any stream errors.
+        // The .catch() here reports the error; reconnection is handled by handleStream's .catch() below.
         pipeline(this.consumerStream, this.messageBatchStream).catch((error) =>
           this.handlerError(error),
         )
@@ -201,11 +204,7 @@ export abstract class AbstractKafkaConsumer<
 
     this.handleStream(
       this.messageBatchStream ? this.messageBatchStream : this.consumerStream,
-    ).catch(async () => {
-      // TODO: PoC for testing -> we will refine it once we validate this works + add tests
-      await this.close()
-      await this.init()
-    })
+    ).catch((error) => this.reconnect(error))
   }
 
   private async handleStream(
@@ -233,6 +232,31 @@ export abstract class AbstractKafkaConsumer<
     this.consumer?.leaveGroup()
     await this.consumer?.close()
     this.consumer = undefined
+  }
+
+  private async reconnect(error: unknown): Promise<void> {
+    this.logger.warn(
+      { origin: this.constructor.name, error: resolveGlobalErrorLogObject(error) },
+      'Stream error detected, attempting to reconnect',
+    )
+
+    for (let attempt = 0; attempt < MAX_RECONNECT_ATTEMPTS; attempt++) {
+      try {
+        await this.close()
+        await setTimeout(Math.pow(2, attempt) * 1000) // Backoff delay starting with 1s
+        await this.init()
+        return
+      } catch (error) {
+        this.logger.warn(
+          { origin: this.constructor.name, attempt, error: resolveGlobalErrorLogObject(error) },
+          'Reconnect attempt failed',
+        )
+      }
+    }
+
+    this.handlerError(new Error('Consumer failed to reconnect after max attempts'), {
+      maxAttempts: MAX_RECONNECT_ATTEMPTS,
+    })
   }
 
   private async consume(
