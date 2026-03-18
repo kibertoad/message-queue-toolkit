@@ -236,7 +236,7 @@ export abstract class AbstractKafkaConsumer<
 
   private async reconnect(error: unknown): Promise<void> {
     this.logger.info(
-      { origin: this.constructor.name, error: resolveGlobalErrorLogObject(error) },
+      { error: resolveGlobalErrorLogObject(error) },
       'Stream error detected, attempting to reconnect',
     )
 
@@ -248,7 +248,7 @@ export abstract class AbstractKafkaConsumer<
         return
       } catch (error) {
         this.logger.warn(
-          { origin: this.constructor.name, attempt, maxAttempts: MAX_RECONNECT_ATTEMPTS, error: resolveGlobalErrorLogObject(error) },
+          { attempt, maxAttempts: MAX_RECONNECT_ATTEMPTS, error: resolveGlobalErrorLogObject(error) },
           'Reconnect attempt failed',
         )
       }
@@ -264,7 +264,7 @@ export abstract class AbstractKafkaConsumer<
     messageOrBatch: MessageOrBatch<SupportedMessageValues<TopicsConfig>>,
   ): Promise<void> {
     const messageProcessingStartTimestamp = Date.now()
-    this.logger.debug({ origin: this.constructor.name, topic }, 'Consuming message(s)')
+    this.logger.debug({ topic }, 'Consuming message(s)')
 
     const handlerConfig = this.options.handlers[topic]
 
@@ -278,11 +278,11 @@ export abstract class AbstractKafkaConsumer<
     )
 
     if (!validMessages.length) {
-      this.logger.debug({ origin: this.constructor.name, topic }, 'Received not valid message(s)')
+      this.logger.debug({ topic }, 'Received not valid message(s)')
       return this.commit(messageOrBatch)
     } else {
       this.logger.debug(
-        { origin: this.constructor.name, topic, validMessagesCount: validMessages.length },
+        { topic, validMessagesCount: validMessages.length },
         'Received valid message(s) to process',
       )
     }
