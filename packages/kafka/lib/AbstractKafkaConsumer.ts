@@ -236,8 +236,11 @@ export abstract class AbstractKafkaConsumer<
     )
     this.messageBatchStream = undefined
 
-    this.consumer.leaveGroup()
-    await this.consumer.close()
+    try {
+      await this.consumer.close()
+    } catch {
+      // Ignoring errors at this stage
+    }
     this.consumer = undefined
   }
 
