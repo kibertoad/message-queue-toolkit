@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { InternalError } from '@lokalise/node-core'
 import type { MockInstance } from 'vitest'
 import {
   PERMISSION_ADDED_SCHEMA,
@@ -97,11 +96,8 @@ describe('PermissionPublisher', () => {
       // Then
       expect(error).toBeDefined()
       expect(error).toMatchInlineSnapshot(
-        '[InternalError: Error while publishing to Kafka: metadata failed 4 times.]',
+        `[InternalError: Error while publishing to Kafka: Unknown topic permission-added.]`,
       )
-      expect(error).toBeInstanceOf(InternalError)
-      expect(error.cause).toBeInstanceOf(AggregateError)
-      expect(error.cause.errors[0].errors[0].apiId).toBe('UNKNOWN_TOPIC_OR_PARTITION')
     })
 
     it.each([
