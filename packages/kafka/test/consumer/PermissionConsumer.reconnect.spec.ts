@@ -25,7 +25,7 @@ describe('PermissionConsumer - reconnect', () => {
     ;(consumer as any).consumerStream.destroy()
   }
 
-  it('should call close and init again after stream error', async () => {
+  it('should try to reconnect', async () => {
     // Given
     await consumer.init()
 

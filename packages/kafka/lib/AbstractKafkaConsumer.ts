@@ -264,6 +264,7 @@ export abstract class AbstractKafkaConsumer<
       }
     }
 
+    await this.close() // closing in case something is open after last init call
     this.isReconnecting = false
     this.handleError(new Error('Consumer failed to reconnect after max attempts'), {
       maxAttempts: MAX_RECONNECT_ATTEMPTS,
