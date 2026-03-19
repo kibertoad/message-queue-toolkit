@@ -44,5 +44,36 @@ describe('PermissionConsumer - reconnect', () => {
     expect(closeSpy).toHaveBeenCalledTimes(1)
     expect(initSpy).toHaveBeenCalledTimes(1)
     expect(consumer.isActive).toBe(true)
+    expect(consumer.isConnected).toBe(true)
+  })
+
+  it('should handle errors on reconnection', { timeout: 40_000 }, async () => {
+    // Given
+    await consumer.init()
+
+    const closeSpy = vi.spyOn(consumer, 'close')
+    const initSpy = vi.spyOn(consumer, 'init').mockRejectedValue(new Error('Kafka unavailable'))
+    const errorReporterSpy = vi.spyOn(testContext.cradle.errorReporter, 'report')
+
+    // When - trigger stream error which starts the reconnect loop
+    simulateStreamError()
+
+    // Wait for all 5 attempts to exhaust (1+2+4+8+16 = 31s of backoff)
+    await waitAndRetry(() => errorReporterSpy.mock.calls.length > 0, 500, 65)
+
+    // Then
+    expect(errorReporterSpy).toHaveBeenCalledOnce()
+    expect(errorReporterSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          message: 'Consumer failed to reconnect after max attempts',
+        }),
+      }),
+    )
+
+    expect(initSpy).toHaveBeenCalledTimes(5)
+    expect(closeSpy).toHaveBeenCalledTimes(6) // Retries + final clean-up
+    expect(consumer.isConnected).toBe(false)
+    expect(consumer.isActive).toBe(false)
   })
 })
