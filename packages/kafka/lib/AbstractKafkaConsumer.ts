@@ -226,6 +226,8 @@ export abstract class AbstractKafkaConsumer<
   }
 
   async close(): Promise<void> {
+    if (!this.consumer) return Promise.resolve()
+
     await this.consumerStream?.close()
     this.consumerStream = undefined
 
@@ -234,8 +236,8 @@ export abstract class AbstractKafkaConsumer<
     )
     this.messageBatchStream = undefined
 
-    this.consumer?.leaveGroup()
-    await this.consumer?.close()
+    this.consumer.leaveGroup()
+    await this.consumer.close()
     this.consumer = undefined
   }
 
