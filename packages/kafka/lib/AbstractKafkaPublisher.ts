@@ -122,10 +122,9 @@ export abstract class AbstractKafkaPublisher<
     } catch (error) {
       const errorDetails = {
         topic,
-        publisher: this.constructor.name,
         message: stringValueSerializer(message),
       }
-      this.handlerError(error, errorDetails)
+      this.handleError(error, errorDetails)
       throw new InternalError({
         message: `Error while publishing to Kafka: ${(error as Error).message}`,
         errorCode: 'KAFKA_PUBLISH_ERROR',

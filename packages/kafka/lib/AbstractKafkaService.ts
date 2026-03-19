@@ -56,7 +56,7 @@ export abstract class AbstractKafkaService<
   protected readonly _handlerSpy?: HandlerSpy<SupportedMessageValues<TopicsConfig>>
 
   constructor(dependencies: KafkaDependencies, options: KafkaOptions) {
-    this.logger = dependencies.logger
+    this.logger = dependencies.logger.child({ origin: this.constructor.name })
     this.errorReporter = dependencies.errorReporter
     this.messageMetricsManager = dependencies.messageMetricsManager
     this.options = { ...options, messageIdField: options.messageIdField ?? 'id' }
@@ -125,7 +125,7 @@ export abstract class AbstractKafkaService<
     }
   }
 
-  protected handlerError(error: unknown, context: Record<string, unknown> = {}): void {
+  protected handleError(error: unknown, context: Record<string, unknown> = {}): void {
     const resolvedErrorLog = resolveGlobalErrorLogObject(error)
     this.logger.error({ ...resolvedErrorLog, ...context })
     if (isError(error))
