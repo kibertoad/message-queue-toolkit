@@ -101,6 +101,7 @@ export abstract class AbstractKafkaConsumer<
   private messageBatchStream?: KafkaMessageBatchStream<
     DeserializedMessage<SupportedMessageValues<TopicsConfig>>
   >
+  private isReconnecting: boolean
 
   private readonly transactionObservabilityManager: TransactionObservabilityManager
   private readonly executionContext: ExecutionContext
@@ -113,13 +114,16 @@ export abstract class AbstractKafkaConsumer<
     super(dependencies, options)
     this.transactionObservabilityManager = dependencies.transactionObservabilityManager
     this.executionContext = executionContext
+
+    this.isReconnecting = false
   }
 
   /**
-   * Returns true if all client's connections are currently connected and the client is connected to at least one broker.
+   * Returns `true` if all client connections are currently active and the client is connected to at least one broker.
+   * During a reconnect attempt, returns `true` until all reconnect attempts are exhausted.
    */
   get isConnected(): boolean {
-    if (!this.consumer) return false
+    if (!this.consumer) return this.isReconnecting
     try {
       return this.consumer.isConnected()
       /* v8 ignore start */
@@ -131,11 +135,12 @@ export abstract class AbstractKafkaConsumer<
   }
 
   /**
-   * Returns `true` if the consumer is not closed, and it is currently an active member of a consumer group.
-   * This method will return `false` during consumer group rebalancing.
+   * Returns `true` if the consumer is not closed and is an active member of a consumer group.
+   * Returns `false` during consumer group rebalancing.
+   * During a reconnect attempt, returns `true` until all reconnect attempts are exhausted.
    */
   get isActive(): boolean {
-    if (!this.consumer) return false
+    if (!this.consumer) return this.isReconnecting
     try {
       return this.consumer.isActive()
       /* v8 ignore start */
@@ -234,6 +239,7 @@ export abstract class AbstractKafkaConsumer<
   }
 
   private async reconnect(error: unknown): Promise<void> {
+    this.isReconnecting = true
     this.logger.info(
       { error: resolveGlobalErrorLogObject(error) },
       'Stream error detected, attempting to reconnect',
@@ -244,6 +250,7 @@ export abstract class AbstractKafkaConsumer<
         await this.close()
         await setTimeout(Math.pow(2, attempt) * 1000) // Backoff delay starting with 1s
         await this.init()
+        this.isReconnecting = false
         return
       } catch (error) {
         this.logger.warn(
@@ -257,6 +264,7 @@ export abstract class AbstractKafkaConsumer<
       }
     }
 
+    this.isReconnecting = false
     this.handleError(new Error('Consumer failed to reconnect after max attempts'), {
       maxAttempts: MAX_RECONNECT_ATTEMPTS,
     })

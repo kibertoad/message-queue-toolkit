@@ -37,7 +37,8 @@ describe('PermissionConsumer - reconnect', () => {
 
     // Then - reconnect should trigger close and init
     await waitAndRetry(() => closeSpy.mock.calls.length === 1)
-    expect(consumer.isActive).toBe(false)
+    expect(consumer.isActive).toBe(true)
+    expect(consumer.isConnected).toBe(true)
     await waitAndRetry(() => initSpy.mock.calls.length === 1, 100, 15)
 
     expect(closeSpy).toHaveBeenCalledTimes(1)
