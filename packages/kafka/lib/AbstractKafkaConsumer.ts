@@ -247,7 +247,11 @@ export abstract class AbstractKafkaConsumer<
         return
       } catch (error) {
         this.logger.warn(
-          { attempt, maxAttempts: MAX_RECONNECT_ATTEMPTS, error: resolveGlobalErrorLogObject(error) },
+          {
+            attempt,
+            maxAttempts: MAX_RECONNECT_ATTEMPTS,
+            error: resolveGlobalErrorLogObject(error),
+          },
           'Reconnect attempt failed',
         )
       }
