@@ -12,6 +12,10 @@ describe('PermissionConsumer - reconnect', () => {
     consumer = new PermissionConsumer(testContext.cradle)
   })
 
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
   afterEach(async () => {
     await consumer.close()
   })
