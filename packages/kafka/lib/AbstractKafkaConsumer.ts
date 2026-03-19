@@ -157,6 +157,7 @@ export abstract class AbstractKafkaConsumer<
     const topics = Object.keys(this.options.handlers)
     if (topics.length === 0) throw new Error('At least one topic must be defined')
 
+    // Consumer needs to be recreated; once you call close, it ends in a final state, so we need to start from scratch
     this.consumer = new Consumer({
       ...this.options.kafka,
       ...this.options,
