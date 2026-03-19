@@ -200,6 +200,7 @@ export abstract class AbstractKafkaConsumer<
         this.consumerStream.on('error', (error) => this.handleError(error))
       }
     } catch (error) {
+      await this.close() // clean-up
       throw new InternalError({
         message: 'Consumer init failed',
         errorCode: 'KAFKA_CONSUMER_INIT_ERROR',
