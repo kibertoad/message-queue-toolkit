@@ -33,7 +33,7 @@
     "peerDependencies": {
         "@message-queue-toolkit/core": ">=25.0.0",
         "@message-queue-toolkit/schemas": ">=7.0.0",
-        "amqplib": "^0.10.8",
+        "amqplib": "^1.0.3",
         "zod": ">=3.25.76 <5.0.0"
     },
     "devDependencies": {
@@ -44,7 +44,7 @@
         "@types/amqplib": "0.10.8",
         "@types/node": "^25.0.2",
         "@vitest/coverage-v8": "^4.0.15",
-        "amqplib": "^0.10.8",
+        "amqplib": "^1.0.3",
         "awilix": "^13.0.3",
         "awilix-manager": "^6.1.0",
         "rimraf": "^6.0.1",
