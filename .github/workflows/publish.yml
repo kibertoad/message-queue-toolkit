@@ -112,7 +112,7 @@ jobs:
 
       - id: filter
         if: steps.skip-check.outputs.should_skip != 'true' && steps.pr-info.outputs.should_publish == 'true'
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           base: ${{ github.event.before }}
           ref: ${{ github.sha }}
