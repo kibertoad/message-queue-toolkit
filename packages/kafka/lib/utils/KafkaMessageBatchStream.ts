@@ -123,14 +123,6 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
     callback()
   }
 
-  public getPendingCount(): number {
-    return this.messages.length
-  }
-
-  public hasPendingCallback(): boolean {
-    return this.pendingCallback !== undefined
-  }
-
   private flushMessages(): boolean {
     clearTimeout(this.existingTimeout)
     this.existingTimeout = undefined
