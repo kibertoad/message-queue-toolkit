@@ -104,7 +104,7 @@ export async function registerDependencies(
     eagerInject: true,
   })
 
-  const diConfig = {
+  const diConfig: DiConfig = {
     logger: asFunction(() => {
       return TestLogger
     }, SINGLETON_CONFIG),
@@ -116,6 +116,7 @@ export async function registerDependencies(
         return new AmqpConnectionManager(config, logger)
       },
       {
+        lifetime: Lifetime.SINGLETON,
         asyncInit: 'init',
         asyncDispose: 'close',
         asyncDisposePriority: 1,
@@ -216,7 +217,7 @@ export async function registerDependencies(
         report: () => {},
       } satisfies ErrorReporter
     }, SINGLETON_CONFIG),
-  } satisfies DiConfig
+  }
   diContainer.register(diConfig)
 
   for (const [dependencyKey, dependencyValue] of Object.entries(dependencyOverrides)) {

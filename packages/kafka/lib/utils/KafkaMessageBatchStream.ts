@@ -104,11 +104,8 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
       }
     } finally {
       // Backpressure handling: hold the callback if push() returned false
-      if (!canContinue) {
-        this.pendingCallback = callback
-      } else {
-        callback()
-      }
+      if (!canContinue) this.pendingCallback = callback
+      else callback()
     }
   }
 
@@ -126,6 +123,7 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
   private flushMessages(): boolean {
     clearTimeout(this.existingTimeout)
     this.existingTimeout = undefined
+
     if (this.isBackPressured) {
       this.existingTimeout = setTimeout(() => this.flushMessages(), this.timeout)
       return false
