@@ -94,7 +94,7 @@ export async function registerDependencies(
   dependencyOverrides: DependencyOverrides = {},
   queuesEnabled = true,
 ) {
-  const diContainer = createContainer({
+  const diContainer = createContainer<Dependencies>({
     injectionMode: 'PROXY',
   })
   const awilixManager = new AwilixManager({
@@ -104,7 +104,7 @@ export async function registerDependencies(
     eagerInject: true,
   })
 
-  const diConfig: DiConfig = {
+  const diConfig = {
     logger: asFunction(() => {
       return TestLogger
     }, SINGLETON_CONFIG),
@@ -116,7 +116,6 @@ export async function registerDependencies(
         return new AmqpConnectionManager(config, logger)
       },
       {
-        lifetime: Lifetime.SINGLETON,
         asyncInit: 'init',
         asyncDispose: 'close',
         asyncDisposePriority: 1,
@@ -217,7 +216,7 @@ export async function registerDependencies(
         report: () => {},
       } satisfies ErrorReporter
     }, SINGLETON_CONFIG),
-  }
+  } satisfies DiConfig
   diContainer.register(diConfig)
 
   for (const [dependencyKey, dependencyValue] of Object.entries(dependencyOverrides)) {

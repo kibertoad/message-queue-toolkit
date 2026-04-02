@@ -61,6 +61,19 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
   private pendingCallback: CallbackFunction | undefined
   private isBackPressured: boolean
 
+  // Debug counters for diagnosing flow issues
+  public readonly debug = {
+    writeCalls: 0,
+    readCalls: 0,
+    flushCalls: 0,
+    pushCalls: 0,
+    pushBackpressured: 0,
+    callbacksHeld: 0,
+    callbacksReleased: 0,
+    flushDeferredByBackpressure: 0,
+    finalCalled: false,
+  }
+
   constructor(options: KafkaMessageBatchOptions) {
     super({ objectMode: true, readableHighWaterMark: options.readableHighWaterMark })
     this.batchSize = options.batchSize
@@ -75,9 +88,11 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
    * by calling the pending callback that was held during backpressure.
    */
   override _read() {
+    this.debug.readCalls++
     this.isBackPressured = false
     if (!this.pendingCallback) return
 
+    this.debug.callbacksReleased++
     const cb = this.pendingCallback
     this.pendingCallback = undefined
     cb() // Resume the writable side
@@ -89,6 +104,7 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
    * Implements backpressure by holding the callback when downstream cannot consume.
    */
   override _write(message: TMessage, _encoding: BufferEncoding, callback: CallbackFunction) {
+    this.debug.writeCalls++
     let canContinue = true
 
     try {
@@ -104,12 +120,17 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
       }
     } finally {
       // Backpressure handling: hold the callback if push() returned false
-      if (!canContinue) this.pendingCallback = callback
-      else callback()
+      if (!canContinue) {
+        this.debug.callbacksHeld++
+        this.pendingCallback = callback
+      } else {
+        callback()
+      }
     }
   }
 
   override _final(callback: CallbackFunction) {
+    this.debug.finalCalled = true
     // Clean timeout
     clearTimeout(this.existingTimeout)
     this.existingTimeout = undefined
@@ -120,11 +141,21 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
     callback()
   }
 
+  public getPendingCount(): number {
+    return this.messages.length
+  }
+
+  public hasPendingCallback(): boolean {
+    return this.pendingCallback !== undefined
+  }
+
   private flushMessages(): boolean {
     clearTimeout(this.existingTimeout)
     this.existingTimeout = undefined
+    this.debug.flushCalls++
 
     if (this.isBackPressured) {
+      this.debug.flushDeferredByBackpressure++
       this.existingTimeout = setTimeout(() => this.flushMessages(), this.timeout)
       return false
     }
@@ -146,7 +177,9 @@ export class KafkaMessageBatchStream<TMessage extends MessageWithTopicAndPartiti
     // same tick also return false, so the last value correctly reflects backpressure.
     let canContinue = true
     for (const messagesForKey of Object.values(messagesByTopicPartition)) {
+      this.debug.pushCalls++
       canContinue = this.push(messagesForKey)
+      if (!canContinue) this.debug.pushBackpressured++
     }
 
     if (!canContinue) this.isBackPressured = true
