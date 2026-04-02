@@ -25,7 +25,7 @@ export type DependencyOverrides = Partial<DiConfig>
 const TestLogger: CommonLogger = console
 
 export async function registerDependencies(dependencyOverrides: DependencyOverrides = {}) {
-  const diContainer = createContainer({
+  const diContainer = createContainer<Dependencies>({
     injectionMode: 'PROXY',
   })
   const awilixManager = new AwilixManager({

@@ -34,7 +34,7 @@ type Dependencies = {
 }
 
 export const createTestContext = async (): Promise<TestContext> => {
-  const diContainer = createContainer({
+  const diContainer = createContainer<Dependencies>({
     injectionMode: 'PROXY',
   })
   const awilixManager = new AwilixManager({
