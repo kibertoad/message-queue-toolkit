@@ -289,111 +289,109 @@ describe('PubSubPermissionConsumer - Subscription Retry', () => {
       await deletePubSubTopicAndSubscription(pubSubClient, TOPIC_NAME, SUBSCRIPTION_NAME)
     })
 
-    it(
-      'resubscribes after subscription is temporarily unavailable',
-      { timeout: 30000 },
-      async () => {
-        expect.assertions(2)
+    it('resubscribes after subscription is temporarily unavailable', {
+      timeout: 30000,
+    }, async () => {
+      expect.assertions(2)
 
-        const consumer = new PubSubPermissionConsumer(diContainer.cradle, {
-          creationConfig: {
-            topic: { name: TOPIC_NAME },
-            subscription: { name: SUBSCRIPTION_NAME },
-          },
-          subscriptionRetryOptions: {
-            maxRetries: 5,
-            baseRetryDelayMs: 500,
-            maxRetryDelayMs: 2000,
-          },
-        })
-        const publisher = new PubSubPermissionPublisher(diContainer.cradle, {
-          creationConfig: {
-            topic: { name: TOPIC_NAME },
-          },
-        })
+      const consumer = new PubSubPermissionConsumer(diContainer.cradle, {
+        creationConfig: {
+          topic: { name: TOPIC_NAME },
+          subscription: { name: SUBSCRIPTION_NAME },
+        },
+        subscriptionRetryOptions: {
+          maxRetries: 5,
+          baseRetryDelayMs: 500,
+          maxRetryDelayMs: 2000,
+        },
+      })
+      const publisher = new PubSubPermissionPublisher(diContainer.cradle, {
+        creationConfig: {
+          topic: { name: TOPIC_NAME },
+        },
+      })
 
-        try {
-          await consumer.start()
-          await publisher.init()
+      try {
+        await consumer.start()
+        await publisher.init()
 
-          // Verify consumer is working initially
-          const message1 = {
-            id: 'reconnect-test-1',
-            messageType: 'add' as const,
-            timestamp: new Date().toISOString(),
-            userIds: ['user1'],
-          }
-
-          await publisher.publish(message1)
-          await consumer.handlerSpy.waitForMessageWithId('reconnect-test-1', 'consumed')
-          expect(consumer.addCounter).toBe(1)
-
-          // Delete the subscription while consumer is running
-          await deletePubSubSubscription(pubSubClient, TOPIC_NAME, SUBSCRIPTION_NAME)
-
-          // Wait for consumer to detect the error and reconnect
-          // The consumer should automatically recreate the subscription via creationConfig
-          await setTimeout(5000)
-
-          // Verify consumer can process messages after reconnection
-          const message2 = {
-            id: 'reconnect-test-2',
-            messageType: 'add' as const,
-            timestamp: new Date().toISOString(),
-            userIds: ['user2'],
-          }
-
-          await publisher.publish(message2)
-          await consumer.handlerSpy.waitForMessageWithId('reconnect-test-2', 'consumed')
-          expect(consumer.addCounter).toBe(2)
-        } finally {
-          await consumer.close()
-          await publisher.close()
-        }
-      },
-    )
-
-    it(
-      'retries initialization when subscription does not exist initially',
-      { timeout: 20000 },
-      async () => {
-        expect.assertions(1)
-
-        // First create the topic only (no subscription)
-        const topic = pubSubClient.topic(TOPIC_NAME)
-        const [topicExists] = await topic.exists()
-        if (!topicExists) {
-          await topic.create()
+        // Verify consumer is working initially
+        const message1 = {
+          id: 'reconnect-test-1',
+          messageType: 'add' as const,
+          timestamp: new Date().toISOString(),
+          userIds: ['user1'],
         }
 
-        const consumer = new PubSubPermissionConsumer(diContainer.cradle, {
-          locatorConfig: {
-            topicName: TOPIC_NAME,
-            subscriptionName: SUBSCRIPTION_NAME,
-          },
-          subscriptionRetryOptions: {
-            maxRetries: 5,
-            baseRetryDelayMs: 500,
-            maxRetryDelayMs: 2000,
-          },
-        })
+        await publisher.publish(message1)
+        await consumer.handlerSpy.waitForMessageWithId('reconnect-test-1', 'consumed')
+        expect(consumer.addCounter).toBe(1)
 
-        // Create subscription after a delay (simulating eventual consistency)
-        globalThis.setTimeout(async () => {
-          await topic.createSubscription(SUBSCRIPTION_NAME)
-        }, 1500)
+        // Delete the subscription while consumer is running
+        await deletePubSubSubscription(pubSubClient, TOPIC_NAME, SUBSCRIPTION_NAME)
 
-        try {
-          // This should retry and eventually succeed when subscription is created
-          await consumer.start()
+        // Wait for consumer to detect the error and reconnect
+        // The consumer should automatically recreate the subscription via creationConfig
+        await setTimeout(5000)
 
-          // @ts-expect-error - accessing private field for testing
-          expect(consumer.isConsuming).toBe(true)
-        } finally {
-          await consumer.close()
+        // Verify consumer can process messages after reconnection
+        const message2 = {
+          id: 'reconnect-test-2',
+          messageType: 'add' as const,
+          timestamp: new Date().toISOString(),
+          userIds: ['user2'],
         }
-      },
-    )
+
+        await publisher.publish(message2)
+        await consumer.handlerSpy.waitForMessageWithId('reconnect-test-2', 'consumed')
+        expect(consumer.addCounter).toBe(2)
+      } finally {
+        await consumer.close()
+        await publisher.close()
+      }
+    })
+
+    it('retries initialization when subscription does not exist initially', {
+      timeout: 20000,
+    }, async () => {
+      expect.assertions(1)
+
+      // First create the topic only (no subscription)
+      const topic = pubSubClient.topic(TOPIC_NAME)
+      const [topicExists] = await topic.exists()
+      if (!topicExists) {
+        await topic.create()
+      }
+
+      const consumer = new PubSubPermissionConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName: TOPIC_NAME,
+          subscriptionName: SUBSCRIPTION_NAME,
+        },
+        subscriptionRetryOptions: {
+          maxRetries: 5,
+          baseRetryDelayMs: 500,
+          maxRetryDelayMs: 2000,
+        },
+      })
+
+      // Create subscription after a delay (simulating eventual consistency)
+      globalThis.setTimeout(() => {
+        topic.createSubscription(SUBSCRIPTION_NAME).catch((err) => {
+          expect.unreachable(`Failed to create subscription in delayed callback: ${err}`)
+        })
+      }, 1500)
+
+      try {
+        // This should retry and eventually succeed when subscription is created
+        await consumer.start()
+
+        // @ts-expect-error - accessing private field for testing
+        expect(consumer.isConsuming).toBe(true)
+      } finally {
+        await consumer.close()
+      }
+    })
 
     it('does not attempt reconnection after close is called', { timeout: 15000 }, async () => {
       expect.assertions(4)

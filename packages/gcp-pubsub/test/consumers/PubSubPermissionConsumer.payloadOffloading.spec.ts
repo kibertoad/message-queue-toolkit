@@ -125,89 +125,85 @@ describe('PubSubPermissionConsumer - Payload Offloading', () => {
       expect(consumer.addCounter).toBe(1)
     })
 
-    it(
-      'consumes offloaded message with array field and validates schema correctly',
-      { timeout: 10000 },
-      async () => {
-        // Create a large array of userIds to trigger offloading (need > 10MB)
-        // Each userId needs to be ~1000 chars to make 10,500 items exceed 10MB
-        const largeUserIdArray = Array.from(
-          { length: 10500 },
-          (_, i) => `user-${i}-${'x'.repeat(1000)}`,
+    it('consumes offloaded message with array field and validates schema correctly', {
+      timeout: 10000,
+    }, async () => {
+      // Create a large array of userIds to trigger offloading (need > 10MB)
+      // Each userId needs to be ~1000 chars to make 10,500 items exceed 10MB
+      const largeUserIdArray = Array.from(
+        { length: 10500 },
+        (_, i) => `user-${i}-${'x'.repeat(1000)}`,
+      )
+
+      const message = {
+        id: 'large-array-message-1',
+        messageType: 'add',
+        timestamp: new Date().toISOString(),
+        userIds: largeUserIdArray,
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+      // Verify the message is large enough to trigger offloading
+      expect(JSON.stringify(message).length).toBeGreaterThan(largeMessageSizeThreshold)
+
+      await publisher.publish(message)
+
+      // Wait for the message to be consumed
+      const consumptionResult = await consumer.handlerSpy.waitForMessageWithId(
+        message.id,
+        'consumed',
+      )
+
+      // Verify the full payload was received including the large array
+      expect(consumptionResult.message).toMatchObject({
+        id: message.id,
+        messageType: message.messageType,
+        userIds: largeUserIdArray,
+      })
+      expect(consumptionResult.message.userIds).toHaveLength(largeUserIdArray.length)
+      expect(consumer.addCounter).toBe(1)
+    })
+
+    it('validates schema correctly after retrieving offloaded payload', {
+      timeout: 10000,
+    }, async () => {
+      // Create a message with metadata that will be validated against the schema
+      const message = {
+        id: 'schema-validation-1',
+        messageType: 'add',
+        timestamp: new Date().toISOString(),
+        metadata: {
+          largeField: 'x'.repeat(largeMessageSizeThreshold + 1000),
+        },
+        userIds: ['test-user'],
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+      expect(JSON.stringify(message).length).toBeGreaterThan(largeMessageSizeThreshold)
+
+      await publisher.publish(message)
+
+      const consumptionResult = await consumer.handlerSpy.waitForMessageWithId(
+        message.id,
+        'consumed',
+      )
+
+      // Verify all fields were properly deserialized and validated
+      expect(consumptionResult.message).toMatchObject({
+        id: message.id,
+        messageType: message.messageType,
+        userIds: message.userIds,
+        metadata: {
+          largeField: message.metadata.largeField,
+        },
+      })
+
+      // Type guard to access metadata property
+      if (consumptionResult.message.messageType === 'add') {
+        expect(consumptionResult.message.metadata?.largeField).toHaveLength(
+          message.metadata.largeField.length,
         )
-
-        const message = {
-          id: 'large-array-message-1',
-          messageType: 'add',
-          timestamp: new Date().toISOString(),
-          userIds: largeUserIdArray,
-        } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
-
-        // Verify the message is large enough to trigger offloading
-        expect(JSON.stringify(message).length).toBeGreaterThan(largeMessageSizeThreshold)
-
-        await publisher.publish(message)
-
-        // Wait for the message to be consumed
-        const consumptionResult = await consumer.handlerSpy.waitForMessageWithId(
-          message.id,
-          'consumed',
-        )
-
-        // Verify the full payload was received including the large array
-        expect(consumptionResult.message).toMatchObject({
-          id: message.id,
-          messageType: message.messageType,
-          userIds: largeUserIdArray,
-        })
-        expect(consumptionResult.message.userIds).toHaveLength(largeUserIdArray.length)
-        expect(consumer.addCounter).toBe(1)
-      },
-    )
-
-    it(
-      'validates schema correctly after retrieving offloaded payload',
-      { timeout: 10000 },
-      async () => {
-        // Create a message with metadata that will be validated against the schema
-        const message = {
-          id: 'schema-validation-1',
-          messageType: 'add',
-          timestamp: new Date().toISOString(),
-          metadata: {
-            largeField: 'x'.repeat(largeMessageSizeThreshold + 1000),
-          },
-          userIds: ['test-user'],
-        } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
-
-        expect(JSON.stringify(message).length).toBeGreaterThan(largeMessageSizeThreshold)
-
-        await publisher.publish(message)
-
-        const consumptionResult = await consumer.handlerSpy.waitForMessageWithId(
-          message.id,
-          'consumed',
-        )
-
-        // Verify all fields were properly deserialized and validated
-        expect(consumptionResult.message).toMatchObject({
-          id: message.id,
-          messageType: message.messageType,
-          userIds: message.userIds,
-          metadata: {
-            largeField: message.metadata.largeField,
-          },
-        })
-
-        // Type guard to access metadata property
-        if (consumptionResult.message.messageType === 'add') {
-          expect(consumptionResult.message.metadata?.largeField).toHaveLength(
-            message.metadata.largeField.length,
-          )
-        }
-        expect(consumer.addCounter).toBe(1)
-      },
-    )
+      }
+      expect(consumer.addCounter).toBe(1)
+    })
   })
 
   describe('payload retrieval errors', () => {

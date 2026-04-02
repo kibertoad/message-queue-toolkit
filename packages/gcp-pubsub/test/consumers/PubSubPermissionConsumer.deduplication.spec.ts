@@ -230,32 +230,30 @@ describe('PubSubPermissionConsumer - Deduplication', () => {
       expect(consumer.addCounter).toBe(1)
     })
 
-    it(
-      'processes message when lock acquisition has non-timeout error',
-      { timeout: 15000 },
-      async () => {
-        const messageId = randomUUID()
+    it('processes message when lock acquisition has non-timeout error', {
+      timeout: 15000,
+    }, async () => {
+      const messageId = randomUUID()
 
-        // Mock acquireLock to simulate a non-timeout error (e.g., Redis connection error)
-        // Non-timeout errors are swallowed and message is processed normally
-        vi.spyOn(messageDeduplicationStore, 'acquireLock').mockResolvedValue({
-          error: new Error('Redis connection error'),
-        })
+      // Mock acquireLock to simulate a non-timeout error (e.g., Redis connection error)
+      // Non-timeout errors are swallowed and message is processed normally
+      vi.spyOn(messageDeduplicationStore, 'acquireLock').mockResolvedValue({
+        error: new Error('Redis connection error'),
+      })
 
-        const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
-          id: messageId,
-          messageType: 'add',
-          timestamp: new Date().toISOString(),
-          userIds: ['user1'],
-        }
+      const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
+        id: messageId,
+        messageType: 'add',
+        timestamp: new Date().toISOString(),
+        userIds: ['user1'],
+      }
 
-        await publisher.publish(message)
+      await publisher.publish(message)
 
-        // Message should be processed even though lock acquisition failed
-        const result = await consumer.handlerSpy.waitForMessageWithId(messageId, 'consumed')
-        expect(result.processingResult.status).toBe('consumed')
-        expect(consumer.addCounter).toBe(1)
-      },
-    )
+      // Message should be processed even though lock acquisition failed
+      const result = await consumer.handlerSpy.waitForMessageWithId(messageId, 'consumed')
+      expect(result.processingResult.status).toBe('consumed')
+      expect(consumer.addCounter).toBe(1)
+    })
   })
 })

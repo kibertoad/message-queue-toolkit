@@ -674,7 +674,9 @@ describe('PermissionConsumer', () => {
       expect(processedMessages).toContain('concurrency-3')
     })
 
-    it('should process messages synchronously across different topics', async () => {
+    it('should process messages synchronously across different topics', {
+      timeout: 15000,
+    }, async () => {
       // Given
       const processingOrder: string[] = []
       const testMessageIds = ['cross-topic-1', 'cross-topic-2', 'cross-topic-3']

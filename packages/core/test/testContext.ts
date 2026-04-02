@@ -44,7 +44,7 @@ export const TestEvents = {
 export type TestEventsType = (typeof TestEvents)[keyof typeof TestEvents][]
 
 export async function registerDependencies(dependencyOverrides: DependencyOverrides = {}) {
-  const diContainer = createContainer({
+  const diContainer = createContainer<Dependencies>({
     injectionMode: 'PROXY',
   })
   const awilixManager = new AwilixManager({

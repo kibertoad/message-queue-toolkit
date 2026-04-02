@@ -67,7 +67,7 @@ export async function registerDependencies(
   dependencyOverrides: DependencyOverrides = {},
   queuesEnabled = true,
 ) {
-  const diContainer = createContainer({
+  const diContainer = createContainer<Dependencies>({
     injectionMode: 'PROXY',
   })
   const awilixManager = new AwilixManager({

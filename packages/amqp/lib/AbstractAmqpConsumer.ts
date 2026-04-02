@@ -306,7 +306,7 @@ export abstract class AbstractAmqpConsumer<
     }
 
     // Empty content for whatever reason
-    if (!resolveMessageResult.result || !resolveMessageResult.result.body) {
+    if (!resolveMessageResult.result?.body) {
       return ABORT_EARLY_EITHER
     }
 
@@ -347,7 +347,7 @@ export abstract class AbstractAmqpConsumer<
     const resolvedMessage = resolveMessageResult.result
 
     // Empty content for whatever reason
-    if (!resolvedMessage || !resolvedMessage.body) return ABORT_EARLY_EITHER
+    if (!resolvedMessage?.body) return ABORT_EARLY_EITHER
 
     // @ts-expect-error
     if (this.messageIdField in resolvedMessage.body) {
