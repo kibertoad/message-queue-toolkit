@@ -8,6 +8,12 @@ services:
     volumes:
       - rabbit_data:/var/lib/rabbitmq
     restart: on-failure
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   redis:
     image: redis:6.2.7-alpine
