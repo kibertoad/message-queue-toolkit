@@ -376,8 +376,10 @@ describe('PubSubPermissionConsumer - Subscription Retry', () => {
       })
 
       // Create subscription after a delay (simulating eventual consistency)
-      globalThis.setTimeout(async () => {
-        await topic.createSubscription(SUBSCRIPTION_NAME)
+      globalThis.setTimeout(() => {
+        topic.createSubscription(SUBSCRIPTION_NAME).catch((err) => {
+          expect.unreachable(`Failed to create subscription in delayed callback: ${err}`)
+        })
       }, 1500)
 
       try {
