@@ -1,14 +1,14 @@
 import type { S3ClientConfig } from '@aws-sdk/client-s3'
 import type { SNSClientConfig } from '@aws-sdk/client-sns'
 import type { SQSClientConfig } from '@aws-sdk/client-sqs'
+import type { STSClientConfig } from '@aws-sdk/client-sts'
 import { createLocalhostHandler } from 'fauxqs'
-
 import { getPort } from './fauxqsInstance.ts'
 
 const isLocalstack = process.env.QUEUE_BACKEND === 'localstack'
 const port = getPort()
 
-export const TEST_AWS_CONFIG: SNSClientConfig & SQSClientConfig = {
+export const TEST_AWS_CONFIG: SNSClientConfig & SQSClientConfig & STSClientConfig = {
   endpoint: `http://localhost:${port}`,
   region: 'eu-west-1',
   credentials: {
