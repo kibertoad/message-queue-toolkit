@@ -242,9 +242,11 @@ export abstract class AbstractKafkaConsumer<
       await this.consumer.close()
     } catch (err) {
       // Reporting error but not throwing further
-      this.logger.warn(resolveGlobalErrorLogObject(err), 'Error while closing Kafka consumer')
+      const resolvedErrorLog = resolveGlobalErrorLogObject(err)
+      this.logger.warn(resolvedErrorLog, 'Error while closing Kafka consumer')
       this.errorReporter.report({
         error: isError(err) ? err : new Error('Unknown error while closing Kafka consumer'),
+        context: resolvedErrorLog,
       })
     }
     this.consumer = undefined
