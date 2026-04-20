@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
 import { setTimeout } from 'node:timers/promises'
 import {
-  InternalError, isError,
+  InternalError,
+  isError,
   resolveGlobalErrorLogObject,
   stringValueSerializer,
   type TransactionObservabilityManager,
@@ -243,7 +244,7 @@ export abstract class AbstractKafkaConsumer<
       // Reporting error but not throwing further
       this.logger.warn(resolveGlobalErrorLogObject(err), 'Error while closing Kafka consumer')
       this.errorReporter.report({
-        error: isError(err) ? err : new Error('Unknown error while closing Kafka consumer')
+        error: isError(err) ? err : new Error('Unknown error while closing Kafka consumer'),
       })
     }
     this.consumer = undefined
