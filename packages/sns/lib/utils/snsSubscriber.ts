@@ -93,12 +93,13 @@ export async function subscribeToTopic(
         ? topicConfiguration.Name
         : topicConfiguration.topicName
     }": ${err.message}`
-    logger.error(errMessage)
 
     if (
       subscriptionConfiguration.updateAttributesIfExists &&
       err.message.indexOf('Subscription already exists with different attributes') !== -1
     ) {
+      logger.warn(`${errMessage}. Trying to update subscription`)
+
       const result = await tryToUpdateSubscription(
         snsClient,
         topicArn,
@@ -115,6 +116,8 @@ export async function subscribeToTopic(
       }
 
       logger.error('Failed to update subscription')
+    } else {
+      logger.error(errMessage)
     }
 
     throw new InternalError({
