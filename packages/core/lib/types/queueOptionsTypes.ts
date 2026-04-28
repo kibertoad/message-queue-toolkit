@@ -118,12 +118,17 @@ export type CommonQueueOptions = {
    * @deprecated Removed in core 25.x. Use `messageTypeResolver: { messageTypePath: '<field>' }`
    * (or `{ literal: '<type>' }` / `{ resolver: fn }`) instead. See UPGRADING.md.
    *
-   * Typed as `never` so callers that still pass it get a compile-time error rather than
-   * a silent runtime drop. Notably, leaving this set on a publisher with payload offloading
-   * causes the message `type` field to be stripped from the offloaded SNS body, which then
-   * silently fails any downstream subscription whose FilterPolicy filters on `type`.
+   * Typed as a removal-marker string literal so callers passing the legacy option get a
+   * compile-time error whose diagnostic shows the migration hint, rather than a silent
+   * runtime drop. Leaving this set on a publisher with payload offloading causes the
+   * message `type` field to be stripped from the offloaded SNS body, which then silently
+   * fails any downstream subscription whose FilterPolicy filters on `type`.
+   *
+   * Note: passing `messageTypeField: undefined` still type-checks (without
+   * `exactOptionalPropertyTypes`), but `undefined` is operationally identical to omitting
+   * the field, so this guard catches the realistic regression (`messageTypeField: '<name>'`).
    */
-  messageTypeField?: never
+  messageTypeField?: '__REMOVED_USE_messageTypeResolver_INSTEAD__'
   messageIdField?: string
   messageTimestampField?: string
   messageDeduplicationIdField?: string
