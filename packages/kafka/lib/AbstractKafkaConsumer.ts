@@ -172,7 +172,12 @@ export abstract class AbstractKafkaConsumer<
     })
 
     try {
-      const { handlers: _, ...consumeOptions } = this.options // Handlers cannot be passed to consume method
+      // `kafka` is excluded so that connection-level options (including function-valued ones such
+      // as SASL/OAUTHBEARER token providers used for AWS MSK IAM) are not forwarded into
+      // `consume()`. `MessagesStream` runs `structuredClone` on the consume options and would
+      // throw `DataCloneError` if any function reached it. See:
+      // https://github.com/platformatic/kafka/blob/main/src/clients/consumer/messages-stream.ts
+      const { handlers: _, kafka: __, ...consumeOptions } = this.options // Handlers cannot be passed to consume method
 
       // https://github.com/platformatic/kafka/blob/main/docs/consumer.md#my-consumer-is-not-receiving-any-message-when-the-application-restarts
       await this.consumer.joinGroup({
