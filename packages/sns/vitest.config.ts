@@ -9,6 +9,10 @@ export default defineConfig({
     pool: 'threads',
     maxWorkers: 1,
     setupFiles: ['test/utils/vitest.setup.ts'],
+    typecheck: {
+      enabled: true,
+      include: ['**/*.types.spec.ts'],
+    },
     coverage: {
       provider: 'v8',
       include: ['lib/**/*.ts'],

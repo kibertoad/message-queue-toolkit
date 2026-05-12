@@ -710,13 +710,21 @@ export abstract class AbstractQueueService<
       [this.messageDeduplicationOptionsField]: message[this.messageDeduplicationOptionsField],
     }
 
-    // Preserve message type field if using messageTypePath resolver (supports nested paths)
-    if (this.messageTypeResolver && isMessageTypePathConfig(this.messageTypeResolver)) {
-      const messageTypePath = this.messageTypeResolver.messageTypePath
-      const typeValue = getProperty(message, messageTypePath)
-      if (typeValue !== undefined) {
-        setProperty(result, messageTypePath, typeValue)
-      }
+    // Preserve the message type field through offloading. We default to the conventional
+    // top-level `type` path so that routing/identity fields are handled consistently with
+    // `messageIdField`/`messageTimestampField`/etc., which have defaulted names ('id',
+    // 'timestamp', ...) and are always copied across when present. Without this fallback,
+    // `messageTypeResolver` modes that don't specify a body path (no resolver, `literal`,
+    // or `resolver`) silently strip `type` from the offloaded SNS body, which then breaks
+    // any downstream subscription whose FilterPolicy filters on `type`
+    // (FilterPolicyScope: 'MessageBody').
+    const typePath =
+      this.messageTypeResolver && isMessageTypePathConfig(this.messageTypeResolver)
+        ? this.messageTypeResolver.messageTypePath
+        : 'type'
+    const typeValue = getProperty(message, typePath)
+    if (typeValue !== undefined) {
+      setProperty(result, typePath, typeValue)
     }
 
     return result

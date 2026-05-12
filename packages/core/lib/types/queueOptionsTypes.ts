@@ -114,6 +114,21 @@ export type CommonQueueOptions = {
    * }
    */
   messageTypeResolver?: MessageTypeResolverConfig
+  /**
+   * @deprecated Removed in core 25.x. Use `messageTypeResolver: { messageTypePath: '<field>' }`
+   * (or `{ literal: '<type>' }` / `{ resolver: fn }`) instead. See UPGRADING.md.
+   *
+   * Typed as a removal-marker string literal so callers passing the legacy option get a
+   * compile-time error whose diagnostic shows the migration hint at the call site, even
+   * across long `Omit`/`&`/generic chains where excess-property check no longer fires
+   * (the realistic regression: `messageTypeField: '<name>'` flowing through e.g. the
+   * `SnsPublisherManager.newPublisherOptions` chain).
+   *
+   * Note: passing `messageTypeField: undefined` still type-checks (without
+   * `exactOptionalPropertyTypes`), but `undefined` is operationally identical to omitting
+   * the field, so this guard catches the realistic regression (`messageTypeField: '<name>'`).
+   */
+  messageTypeField?: '__REMOVED_USE_messageTypeResolver_INSTEAD__'
   messageIdField?: string
   messageTimestampField?: string
   messageDeduplicationIdField?: string
