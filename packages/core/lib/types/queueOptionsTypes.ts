@@ -119,10 +119,10 @@ export type CommonQueueOptions = {
    * (or `{ literal: '<type>' }` / `{ resolver: fn }`) instead. See UPGRADING.md.
    *
    * Typed as a removal-marker string literal so callers passing the legacy option get a
-   * compile-time error whose diagnostic shows the migration hint, rather than a silent
-   * runtime drop. Leaving this set on a publisher with payload offloading causes the
-   * message `type` field to be stripped from the offloaded SNS body, which then silently
-   * fails any downstream subscription whose FilterPolicy filters on `type`.
+   * compile-time error whose diagnostic shows the migration hint at the call site, even
+   * across long `Omit`/`&`/generic chains where excess-property check no longer fires
+   * (the realistic regression: `messageTypeField: '<name>'` flowing through e.g. the
+   * `SnsPublisherManager.newPublisherOptions` chain).
    *
    * Note: passing `messageTypeField: undefined` still type-checks (without
    * `exactOptionalPropertyTypes`), but `undefined` is operationally identical to omitting

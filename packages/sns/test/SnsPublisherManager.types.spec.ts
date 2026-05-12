@@ -13,8 +13,6 @@
  * ```
  *
  * This must now fail at compile time.
- *
- * Run with: npx tsc --noEmit
  */
 import { describe, it } from 'vitest'
 import type { SNSPublisherOptions } from '../lib/sns/AbstractSnsPublisher.ts'
