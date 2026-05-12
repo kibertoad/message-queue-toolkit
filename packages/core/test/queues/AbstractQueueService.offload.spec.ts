@@ -9,8 +9,7 @@
  * present-on-offloaded, regardless of which `messageTypeResolver` mode (or absence) is
  * configured. Otherwise large messages get silently dropped by SNS subscription filters.
  */
-import type { CommonLogger, ErrorReporter } from '@lokalise/node-core'
-import type { Either } from '@lokalise/node-core'
+import type { CommonLogger, Either, ErrorReporter } from '@lokalise/node-core'
 import { describe, expect, it } from 'vitest'
 import type { ZodSchema } from 'zod/v4'
 import type { MessageInvalidFormatError, MessageValidationError } from '../../lib/errors/Errors.ts'
@@ -20,6 +19,7 @@ import {
   AbstractQueueService,
   type ResolvedMessage,
 } from '../../lib/queues/AbstractQueueService.ts'
+import type { BarrierResult } from '../../lib/queues/HandlerContainer.ts'
 import type { MessageTypeResolverConfig } from '../../lib/queues/MessageTypeResolver.ts'
 import type { QueueDependencies } from '../../lib/types/queueOptionsTypes.ts'
 
@@ -46,10 +46,7 @@ class TestQueueService extends AbstractQueueService<
   protected processPrehandlers(): Promise<undefined> {
     throw new Error('not used in this test')
   }
-  protected preHandlerBarrier<BarrierOutput>(): Promise<{
-    isPassing: boolean
-    output?: BarrierOutput
-  }> {
+  protected preHandlerBarrier<BarrierOutput>(): Promise<BarrierResult<BarrierOutput>> {
     throw new Error('not used in this test')
   }
   processMessage(): Promise<Either<'retryLater', 'success'>> {
@@ -108,7 +105,10 @@ const baseMessage: TestMessage = {
 describe('AbstractQueueService.offloadMessagePayloadIfNeeded — `type` preservation', () => {
   it('preserves `type` when no messageTypeResolver is configured', async () => {
     const svc = buildService(undefined)
-    const result = (await svc.callOffload(baseMessage, () => 9999)) as OffloadedPayloadPointerPayload
+    const result = (await svc.callOffload(
+      baseMessage,
+      () => 9999,
+    )) as OffloadedPayloadPointerPayload
     expect((result as unknown as TestMessage).type).toBe('order.created')
     expect(result.payloadRef?.id).toBe('payload-id-1')
     expect(result.id).toBe('msg-1')
@@ -117,19 +117,28 @@ describe('AbstractQueueService.offloadMessagePayloadIfNeeded — `type` preserva
 
   it('preserves `type` when messageTypeResolver is `literal` mode', async () => {
     const svc = buildService({ literal: 'order.created' })
-    const result = (await svc.callOffload(baseMessage, () => 9999)) as OffloadedPayloadPointerPayload
+    const result = (await svc.callOffload(
+      baseMessage,
+      () => 9999,
+    )) as OffloadedPayloadPointerPayload
     expect((result as unknown as TestMessage).type).toBe('order.created')
   })
 
   it('preserves `type` when messageTypeResolver is custom `resolver` mode', async () => {
     const svc = buildService({ resolver: () => 'order.created' })
-    const result = (await svc.callOffload(baseMessage, () => 9999)) as OffloadedPayloadPointerPayload
+    const result = (await svc.callOffload(
+      baseMessage,
+      () => 9999,
+    )) as OffloadedPayloadPointerPayload
     expect((result as unknown as TestMessage).type).toBe('order.created')
   })
 
   it('preserves `type` at the configured path when messageTypeResolver is `messageTypePath`', async () => {
     const svc = buildService({ messageTypePath: 'type' })
-    const result = (await svc.callOffload(baseMessage, () => 9999)) as OffloadedPayloadPointerPayload
+    const result = (await svc.callOffload(
+      baseMessage,
+      () => 9999,
+    )) as OffloadedPayloadPointerPayload
     expect((result as unknown as TestMessage).type).toBe('order.created')
   })
 
