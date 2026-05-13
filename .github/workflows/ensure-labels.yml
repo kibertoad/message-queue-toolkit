@@ -12,10 +12,14 @@ on:
       - labeled
       - unlabeled
 
+permissions: {}
+
 jobs:
   ensure_labels:
     name: Ensure PR has proper labeling
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
     steps:
       - name: Check one of required labels are set
         uses: docker://agilepathway/pull-request-label-checker:v1.6.65
