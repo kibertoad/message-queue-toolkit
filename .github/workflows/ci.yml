@@ -6,10 +6,14 @@ on:
       - main
   pull_request:
 
+permissions: {}
+
 jobs:
   changed-files-job:
     name: Get changed packages
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       packages: ${{ steps.detect.outputs.packages }}
       aws_packages: ${{ steps.detect.outputs.aws_packages }}
@@ -82,6 +86,8 @@ jobs:
   general:
     needs: [changed-files-job]
     if: needs.changed-files-job.outputs.packages != '[]'
+    permissions:
+      contents: read
     strategy:
       matrix:
         node-version: [22.x, 24.x]
@@ -94,6 +100,8 @@ jobs:
   aws-packages:
     needs: [changed-files-job]
     if: needs.changed-files-job.outputs.aws_packages != '[]'
+    permissions:
+      contents: read
     strategy:
       matrix:
         node-version: [22.x, 24.x]
@@ -113,6 +121,6 @@ jobs:
       pull-requests: write
       contents: write
     steps:
-      - uses: fastify/github-action-merge-dependabot@v3
+      - uses: fastify/github-action-merge-dependabot@59fc8817458fac20df8884576cfe69dbb77c9a07 # v3.9.1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
