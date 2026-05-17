@@ -1,7 +1,6 @@
 {
     "name": "@message-queue-toolkit/parent",
     "version": "1.0.0",
-    "workspaces": ["packages/*"],
     "scripts": {
         "build": "turbo run build",
         "lint": "turbo run lint --continue",
@@ -17,5 +16,5 @@
     "devDependencies": {
         "turbo": "^2.8.10"
     },
-    "packageManager": "npm@10.7.0"
+    "packageManager": "pnpm@11.1.2"
 }
