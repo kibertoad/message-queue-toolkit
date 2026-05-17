@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
 import { setTimeout } from 'node:timers/promises'
 import {
+  copyWithoutUndefined,
   InternalError,
   isError,
   resolveGlobalErrorLogObject,
@@ -43,7 +44,6 @@ import {
   KafkaMessageBatchStream,
 } from './utils/KafkaMessageBatchStream.ts'
 import { safeJsonDeserializer } from './utils/safeJsonDeserializer.ts'
-import { stripUndefined } from './utils/stripUndefined.ts'
 
 export type KafkaConsumerDependencies = KafkaDependencies &
   Pick<QueueConsumerDependencies, 'transactionObservabilityManager'>
@@ -166,7 +166,7 @@ export abstract class AbstractKafkaConsumer<
     // (see https://github.com/platformatic/kafka/issues/288), so leaving them in would silently re-apply defaults
     // for connection-level options (e.g. requestTimeout) that callers expected to be controlled by `this.options.kafka`.
     this.consumer = new Consumer({
-      ...stripUndefined({ ...this.options.kafka, ...this.options }),
+      ...copyWithoutUndefined({ ...this.options.kafka, ...this.options }),
       autocommit: false, // Handling commits manually
       deserializers: {
         key: stringDeserializer,

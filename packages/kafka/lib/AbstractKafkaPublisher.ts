@@ -1,4 +1,4 @@
-import { InternalError, stringValueSerializer } from '@lokalise/node-core'
+import { copyWithoutUndefined, InternalError, stringValueSerializer } from '@lokalise/node-core'
 import { MessageSchemaContainer } from '@message-queue-toolkit/core'
 import {
   jsonSerializer,
@@ -16,7 +16,6 @@ import type {
   SupportedTopics,
   TopicConfig,
 } from './types.ts'
-import { stripUndefined } from './utils/stripUndefined.ts'
 
 export type KafkaPublisherOptions<TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
   Omit<ProduceOptions<string, object, string, string>, 'serializers'> & {
@@ -55,7 +54,7 @@ export abstract class AbstractKafkaPublisher<
     // (see https://github.com/platformatic/kafka/issues/288), so leaving them in would silently re-apply defaults
     // for connection-level options (e.g. requestTimeout) that callers expected to be controlled by `this.options.kafka`.
     this.producer = new Producer({
-      ...stripUndefined({ ...this.options.kafka, ...this.options }),
+      ...copyWithoutUndefined({ ...this.options.kafka, ...this.options }),
       serializers: {
         key: stringSerializer,
         value: jsonSerializer,
