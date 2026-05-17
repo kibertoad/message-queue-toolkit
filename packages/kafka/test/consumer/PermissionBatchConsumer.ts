@@ -32,6 +32,7 @@ type PermissionBatchConsumerOptions = Partial<
     | 'headerRequestIdField'
     | 'messageIdField'
     | 'batchProcessingOptions'
+    | 'retries'
   >
 >
 
@@ -81,6 +82,7 @@ export class PermissionBatchConsumer extends AbstractKafkaConsumer<
         handlerSpy: options.handlerSpy ?? true,
         headerRequestIdField: options.headerRequestIdField,
         messageIdField: options.messageIdField,
+        retries: options.retries,
       },
       {
         incrementAmount: 0,

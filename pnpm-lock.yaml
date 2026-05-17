@@ -231,7 +231,7 @@ importers:
         specifier: ^4.5.1
         version: 4.10.0
       '@platformatic/kafka':
-        specifier: ^2.0.1
+        specifier: ^2.1.0
         version: 2.1.0
     devDependencies:
       '@biomejs/biome':

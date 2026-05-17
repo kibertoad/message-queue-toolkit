@@ -43,6 +43,7 @@ import {
   KafkaMessageBatchStream,
 } from './utils/KafkaMessageBatchStream.ts'
 import { safeJsonDeserializer } from './utils/safeJsonDeserializer.ts'
+import { stripUndefined } from './utils/stripUndefined.ts'
 
 export type KafkaConsumerDependencies = KafkaDependencies &
   Pick<QueueConsumerDependencies, 'transactionObservabilityManager'>
@@ -124,7 +125,8 @@ export abstract class AbstractKafkaConsumer<
    * During a reconnect attempt, returns `true` until all reconnect attempts are exhausted.
    */
   get isConnected(): boolean {
-    if (!this.consumer) return this.isReconnecting
+    if (this.isReconnecting) return true
+    if (!this.consumer) return false
     try {
       return this.consumer.isConnected()
       /* v8 ignore start */
@@ -141,7 +143,8 @@ export abstract class AbstractKafkaConsumer<
    * During a reconnect attempt, returns `true` until all reconnect attempts are exhausted.
    */
   get isActive(): boolean {
-    if (!this.consumer) return this.isReconnecting
+    if (this.isReconnecting) return true
+    if (!this.consumer) return false
     try {
       return this.consumer.isActive()
       /* v8 ignore start */
@@ -158,10 +161,12 @@ export abstract class AbstractKafkaConsumer<
     const topics = Object.keys(this.options.handlers)
     if (topics.length === 0) throw new Error('At least one topic must be defined')
 
-    // Consumer needs to be recreated; once you call close, it ends in a final state, so we need to start from scratch
+    // Consumer needs to be recreated; once you call close, it ends in a final state, so we need to start from scratch.
+    // Undefined values must be stripped: as of @platformatic/kafka 2.1.0 they no longer override library defaults
+    // (see https://github.com/platformatic/kafka/issues/288), so leaving them in would silently re-apply defaults
+    // for connection-level options (e.g. requestTimeout) that callers expected to be controlled by `this.options.kafka`.
     this.consumer = new Consumer({
-      ...this.options.kafka,
-      ...this.options,
+      ...stripUndefined({ ...this.options.kafka, ...this.options }),
       autocommit: false, // Handling commits manually
       deserializers: {
         key: stringDeserializer,
@@ -258,6 +263,9 @@ export abstract class AbstractKafkaConsumer<
   }
 
   private async reconnect(error: unknown): Promise<void> {
+    // Guard against re-entry: spurious stream errors (e.g. "Premature close" emitted by an
+    // already-being-replaced stream) must not start a second reconnect loop in parallel.
+    if (this.isReconnecting) return
     this.isReconnecting = true
     this.logger.info(
       { error: resolveGlobalErrorLogObject(error) },

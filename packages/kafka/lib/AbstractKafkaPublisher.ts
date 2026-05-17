@@ -16,6 +16,7 @@ import type {
   SupportedTopics,
   TopicConfig,
 } from './types.ts'
+import { stripUndefined } from './utils/stripUndefined.ts'
 
 export type KafkaPublisherOptions<TopicsConfig extends TopicConfig[]> = BaseKafkaOptions &
   Omit<ProduceOptions<string, object, string, string>, 'serializers'> & {
@@ -50,9 +51,11 @@ export abstract class AbstractKafkaPublisher<
       })
     }
 
+    // Undefined values must be stripped: as of @platformatic/kafka 2.1.0 they no longer override library defaults
+    // (see https://github.com/platformatic/kafka/issues/288), so leaving them in would silently re-apply defaults
+    // for connection-level options (e.g. requestTimeout) that callers expected to be controlled by `this.options.kafka`.
     this.producer = new Producer({
-      ...this.options.kafka,
-      ...this.options,
+      ...stripUndefined({ ...this.options.kafka, ...this.options }),
       serializers: {
         key: stringSerializer,
         value: jsonSerializer,
