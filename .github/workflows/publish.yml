@@ -300,7 +300,7 @@ jobs:
         with:
           node-version: 24.x
           registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
+          package-manager-cache: false
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
@@ -323,7 +323,10 @@ jobs:
             echo "Bumping version for $PKG_NAME..."
             cd "packages/$PKG_NAME"
             OLD_VERSION=$(node -p "require('./package.json').version")
-            pnpm version "$BUMP" --no-git-tag-version
+            # Use npm version (not pnpm version) — pnpm 11 enforces a clean
+            # working tree even with --no-git-tag-version, which breaks after
+            # the first package bump dirties the tree.
+            npm version "$BUMP" --no-git-tag-version
             NEW_VERSION=$(node -p "require('./package.json').version")
             echo "  $OLD_VERSION -> $NEW_VERSION"
 
