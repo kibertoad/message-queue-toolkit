@@ -1,7 +1,7 @@
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest'
 
 import type { SQSConsumerDependencies } from '../../lib/sqs/AbstractSqsConsumer.ts'
 import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer.ts'
@@ -46,7 +46,7 @@ describe('AbstractSqsConsumer polling wait time wiring', () => {
   const queueName = 'pollingWaitTimeQueue'
 
   let diContainer: AwilixContainer<Dependencies>
-  let createSpy: ReturnType<typeof vi.spyOn>
+  let createSpy: MockInstance<typeof Consumer.create>
 
   beforeEach(async () => {
     diContainer = await registerDependencies()
@@ -84,6 +84,7 @@ describe('AbstractSqsConsumer polling wait time wiring', () => {
 
     await consumer.start()
 
+    expect(createSpy).toHaveBeenCalledTimes(1)
     expect(createSpy.mock.calls[0]?.[0]).toMatchObject({ waitTimeSeconds: 0 })
 
     await consumer.close()
@@ -94,8 +95,30 @@ describe('AbstractSqsConsumer polling wait time wiring', () => {
 
     await consumer.start()
 
+    expect(createSpy).toHaveBeenCalledTimes(1)
     expect(createSpy.mock.calls[0]?.[0]).toMatchObject({ waitTimeSeconds: 5 })
 
     await consumer.close()
+  })
+
+  it('accepts the AWS upper bound of 20 (long polling max)', async () => {
+    const consumer = new MinimalSqsConsumer(diContainer.cradle, queueName, 20)
+
+    await consumer.start()
+
+    expect(createSpy).toHaveBeenCalledTimes(1)
+    expect(createSpy.mock.calls[0]?.[0]).toMatchObject({ waitTimeSeconds: 20 })
+
+    await consumer.close()
+  })
+
+  it.each([
+    ['above the upper bound', 21],
+    ['negative', -1],
+    ['fractional', 1.5],
+    ['NaN', Number.NaN],
+  ])('throws on invalid consumerPollingWaitTimeSeconds (%s)', (_label, value) => {
+    expect(() => new MinimalSqsConsumer(diContainer.cradle, queueName, value)).toThrow(RangeError)
+    expect(createSpy).not.toHaveBeenCalled()
   })
 })
