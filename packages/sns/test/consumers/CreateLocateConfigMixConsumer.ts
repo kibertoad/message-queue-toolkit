@@ -28,6 +28,7 @@ export class CreateLocateConfigMixConsumer extends AbstractSnsSqsConsumer<
       dependencies,
       {
         handlerSpy: true,
+        consumerPollingWaitTimeSeconds: 0,
         handlers: new MessageHandlerConfigBuilder<
           SupportedMessages,
           ExecutionContext,

@@ -27,6 +27,7 @@ type SqsPermissionConsumerOptions = Pick<
   | 'deletionConfig'
   | 'deadLetterQueue'
   | 'consumerOverrides'
+  | 'consumerPollingWaitTimeSeconds'
   | 'maxRetryDuration'
   | 'payloadStoreConfig'
   | 'messageDeduplicationConfig'
@@ -121,6 +122,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
         consumerOverrides: options.consumerOverrides ?? {
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
         },
+        consumerPollingWaitTimeSeconds: options.consumerPollingWaitTimeSeconds ?? 0,
         concurrentConsumersAmount: options.concurrentConsumersAmount,
         maxRetryDuration: options.maxRetryDuration,
         payloadStoreConfig: options.payloadStoreConfig,
