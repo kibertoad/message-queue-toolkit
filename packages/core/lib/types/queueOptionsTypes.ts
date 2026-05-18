@@ -1,5 +1,6 @@
 import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod/v4'
+import type { MessageCodec } from '../codec/messageCodec.ts'
 import type { MessageDeduplicationConfig } from '../message-deduplication/messageDeduplicationTypes.ts'
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes.ts'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer.ts'
@@ -139,6 +140,14 @@ export type CommonQueueOptions = {
   deletionConfig?: DeletionConfig
   payloadStoreConfig?: PayloadStoreConfig
   messageDeduplicationConfig?: MessageDeduplicationConfig
+  /**
+   * Codec to use for compressing outgoing messages and decompressing incoming messages.
+   * When set on a publisher, messages are compressed before sending.
+   * When set on a consumer, it signals that incoming messages may be compressed.
+   * Compressed messages are self-describing (the codec is embedded in the message envelope),
+   * so consumers can decompress even without this option explicitly set.
+   */
+  codec?: MessageCodec
 }
 
 export type CommonCreationConfigType = {

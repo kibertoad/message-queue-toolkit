@@ -6,6 +6,7 @@ import {
   type AsyncPublisher,
   type BarrierResult,
   DeduplicationRequesterEnum,
+  isOffloadedPayloadPointerPayload,
   type MessageInvalidFormatError,
   type MessageSchemaContainer,
   type MessageValidationError,
@@ -13,7 +14,7 @@ import {
   type QueuePublisherOptions,
   type ResolvedMessage,
 } from '@message-queue-toolkit/core'
-import { resolveOutgoingMessageAttributes } from '@message-queue-toolkit/sqs'
+import { compressMessageBody, resolveOutgoingMessageAttributes } from '@message-queue-toolkit/sqs'
 
 import { calculateOutgoingMessageSize, validateFifoTopicName } from '../utils/snsUtils.ts'
 
@@ -211,8 +212,13 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     options: SNSMessageOptions,
   ): Promise<void> {
     const attributes = resolveOutgoingMessageAttributes<MessageAttributeValue>(payload)
+    const jsonBody = JSON.stringify(payload)
+    const body =
+      this.codec && !isOffloadedPayloadPointerPayload(payload)
+        ? await compressMessageBody(jsonBody, this.codec)
+        : jsonBody
     const command = new PublishCommand({
-      Message: JSON.stringify(payload),
+      Message: body,
       MessageAttributes: attributes,
       TopicArn: this.topicArn,
       ...options,

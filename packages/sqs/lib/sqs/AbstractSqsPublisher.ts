@@ -6,6 +6,7 @@ import {
   type AsyncPublisher,
   type BarrierResult,
   DeduplicationRequesterEnum,
+  isOffloadedPayloadPointerPayload,
   type MessageInvalidFormatError,
   type MessageSchemaContainer,
   type MessageValidationError,
@@ -14,6 +15,7 @@ import {
   type ResolvedMessage,
 } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod/v4'
+import { compressMessageBody } from '../codec/sqsCodecHandler.ts'
 
 import type { SQSMessage } from '../types/MessageTypes.ts'
 import { resolveOutgoingMessageAttributes } from '../utils/messageUtils.ts'
@@ -204,11 +206,16 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     options: SQSMessageOptions,
   ): Promise<void> {
     const attributes = resolveOutgoingMessageAttributes<MessageAttributeValue>(payload)
+    const jsonBody = JSON.stringify(payload)
+    const body =
+      this.codec && !isOffloadedPayloadPointerPayload(payload)
+        ? await compressMessageBody(jsonBody, this.codec)
+        : jsonBody
 
     // Options are already resolved in publish() before offloading
     const command = new SendMessageCommand({
       QueueUrl: this.queueUrl,
-      MessageBody: JSON.stringify(payload),
+      MessageBody: body,
       MessageAttributes: attributes,
       ...options,
     })
