@@ -1,3 +1,11 @@
+export {
+  type CodecEnvelope,
+  compressMessageBody,
+  decompressMessageBody,
+  isCodecEnvelope,
+  type MessageCodec,
+  SUPPORTED_CODECS,
+} from './codec/messageCodec.ts'
 export { DoNotProcessMessageError } from './errors/DoNotProcessError.ts'
 export {
   isMessageError,

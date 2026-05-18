@@ -5,7 +5,9 @@ import { InternalError } from '@lokalise/node-core'
 import {
   type AsyncPublisher,
   type BarrierResult,
+  compressMessageBody,
   DeduplicationRequesterEnum,
+  isOffloadedPayloadPointerPayload,
   type MessageInvalidFormatError,
   type MessageSchemaContainer,
   type MessageValidationError,
@@ -211,8 +213,13 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     options: SNSMessageOptions,
   ): Promise<void> {
     const attributes = resolveOutgoingMessageAttributes<MessageAttributeValue>(payload)
+    const jsonBody = JSON.stringify(payload)
+    const body =
+      this.codec && !isOffloadedPayloadPointerPayload(payload)
+        ? await compressMessageBody(jsonBody, this.codec)
+        : jsonBody
     const command = new PublishCommand({
-      Message: JSON.stringify(payload),
+      Message: body,
       MessageAttributes: attributes,
       TopicArn: this.topicArn,
       ...options,

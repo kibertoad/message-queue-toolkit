@@ -6,6 +6,7 @@ packages:
 # pnpm 11 auto-appends new entries here whenever a dep has scripts, prompting
 # an explicit decision per package.
 allowBuilds:
+  '@mongodb-js/zstd': true
   msgpackr-extract: false
   protobufjs: false
 

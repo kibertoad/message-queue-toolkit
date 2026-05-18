@@ -31,6 +31,7 @@ type SqsPermissionConsumerOptions = Pick<
   | 'payloadStoreConfig'
   | 'messageDeduplicationConfig'
   | 'enableConsumerDeduplication'
+  | 'codec'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -126,6 +127,7 @@ export class SqsPermissionConsumer extends AbstractSqsConsumer<
         payloadStoreConfig: options.payloadStoreConfig,
         messageDeduplicationConfig: options.messageDeduplicationConfig,
         enableConsumerDeduplication: options.enableConsumerDeduplication,
+        codec: options.codec,
         messageDeduplicationIdField: 'deduplicationId',
         messageDeduplicationOptionsField: 'deduplicationOptions',
         handlers: new MessageHandlerConfigBuilder<

@@ -10,7 +10,9 @@ import {
   type BarrierResult,
   type DeadLetterQueueOptions,
   DeduplicationRequesterEnum,
+  decompressMessageBody,
   HandlerContainer,
+  isCodecEnvelope,
   isMessageError,
   type MessageSchemaContainer,
   noopReleasableLock,
@@ -891,6 +893,15 @@ export abstract class AbstractSqsConsumer<
         return ABORT_EARLY_EITHER
       }
       resolveMessageResult.result.body = retrieveOffloadedMessagePayloadResult.result
+    } else if (isCodecEnvelope(resolveMessageResult.result.body)) {
+      try {
+        resolveMessageResult.result.body = await decompressMessageBody(
+          resolveMessageResult.result.body,
+        )
+      } catch (err) {
+        this.handleError(err as Error)
+        return ABORT_EARLY_EITHER
+      }
     }
 
     return resolveMessageResult

@@ -14,6 +14,7 @@ import {
 } from '@message-queue-toolkit/schemas'
 import { getProperty, setProperty } from 'dot-prop'
 import type { ZodSchema, ZodType } from 'zod/v4'
+import type { MessageCodec } from '../codec/messageCodec.ts'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors.ts'
 import {
   type AcquireLockTimeoutError,
@@ -135,6 +136,7 @@ export abstract class AbstractQueueService<
   protected readonly messageDeduplicationConfig?: MessageDeduplicationConfig
   protected readonly messageMetricsManager?: MessageMetricsManager<MessagePayloadSchemas>
   protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
+  protected readonly codec?: MessageCodec
 
   protected isInitted: boolean
 
@@ -172,6 +174,7 @@ export abstract class AbstractQueueService<
         }
       : undefined
     this.messageDeduplicationConfig = options.messageDeduplicationConfig
+    this.codec = options.codec
 
     this.logMessages = options.logMessages ?? false
     this._handlerSpy = resolveHandlerSpy<MessagePayloadSchemas>(options)

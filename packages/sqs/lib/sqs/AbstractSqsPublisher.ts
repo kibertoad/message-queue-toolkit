@@ -5,7 +5,9 @@ import { InternalError } from '@lokalise/node-core'
 import {
   type AsyncPublisher,
   type BarrierResult,
+  compressMessageBody,
   DeduplicationRequesterEnum,
+  isOffloadedPayloadPointerPayload,
   type MessageInvalidFormatError,
   type MessageSchemaContainer,
   type MessageValidationError,
@@ -204,11 +206,16 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     options: SQSMessageOptions,
   ): Promise<void> {
     const attributes = resolveOutgoingMessageAttributes<MessageAttributeValue>(payload)
+    const jsonBody = JSON.stringify(payload)
+    const body =
+      this.codec && !isOffloadedPayloadPointerPayload(payload)
+        ? await compressMessageBody(jsonBody, this.codec)
+        : jsonBody
 
     // Options are already resolved in publish() before offloading
     const command = new SendMessageCommand({
       QueueUrl: this.queueUrl,
-      MessageBody: JSON.stringify(payload),
+      MessageBody: body,
       MessageAttributes: attributes,
       ...options,
     })
