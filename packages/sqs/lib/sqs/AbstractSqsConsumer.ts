@@ -46,6 +46,7 @@ const DEFAULT_MAX_RETRY_DURATION = 4 * 24 * 60 * 60 // 4 days in seconds
 const DEFAULT_BARRIER_SLEEP_CHECK_INTERVAL_IN_MSECS = 5000 // 5 seconds in milliseconds
 const DEFAULT_BARRIER_VISIBILITY_EXTENSION_INTERVAL_IN_MSECS = 30000 // 30 seconds in milliseconds
 const DEFAULT_BARRIER_VISIBILITY_TIMEOUT_IN_SECONDS = 90 // 90 seconds
+const DEFAULT_CONSUMER_POLLING_WAIT_TIME_SECONDS = 20 // 20 seconds (full SQS long-polling)
 
 type SQSDeadLetterQueueOptions = {
   redrivePolicy: {
@@ -72,8 +73,23 @@ type SQSConsumerCommonOptions<
   SQSQueueLocatorType
 > & {
   /**
-   * Omitting properties which will be set internally ins this class
-   * `visibilityTimeout` is also omitted to avoid conflicts with queue config
+   * Wait time in seconds the consumer passes to SQS ReceiveMessage (long-polling).
+   * AWS allows 0–20. Defaults to 20 (full long polling), which is almost always
+   * what you want in production — it cuts empty-receive cost, AWS API churn,
+   * and tail latency compared to short polling.
+   *
+   * Set to 0 to opt into short polling. Common reasons:
+   *   - Test suites asserting on "message was NOT processed" scenarios that
+   *     should not block 20s per poll cycle.
+   *   - Prod workloads where per-poll latency genuinely matters more than
+   *     long-poll efficiency (rare).
+   */
+  consumerPollingWaitTimeSeconds?: number
+
+  /**
+   * Omitting properties which will be set internally in this class.
+   * `visibilityTimeout` is omitted to avoid conflicts with queue config.
+   * `waitTimeSeconds` is omitted in favor of `consumerPollingWaitTimeSeconds`.
    */
   consumerOverrides?: Omit<
     ConsumerOptions,
@@ -82,6 +98,7 @@ type SQSConsumerCommonOptions<
     | 'handler'
     | 'handleMessageBatch'
     | 'visibilityTimeout'
+    | 'waitTimeSeconds'
     | 'messageAttributeNames'
     | 'messageSystemAttributeNames'
     | 'attributeNames'
@@ -193,6 +210,7 @@ export abstract class AbstractSqsConsumer<
   private readonly barrierSleepCheckIntervalInMsecs: number
   private readonly barrierVisibilityExtensionIntervalInMsecs: number
   private readonly barrierVisibilityTimeoutInSeconds: number
+  private readonly consumerPollingWaitTimeSeconds: number
 
   protected deadLetterQueueUrl?: string
   protected readonly errorResolver: ErrorResolver
@@ -228,6 +246,8 @@ export abstract class AbstractSqsConsumer<
       DEFAULT_BARRIER_VISIBILITY_EXTENSION_INTERVAL_IN_MSECS
     this.barrierVisibilityTimeoutInSeconds =
       fifoOptions.barrierVisibilityTimeoutInSeconds ?? DEFAULT_BARRIER_VISIBILITY_TIMEOUT_IN_SECONDS
+    this.consumerPollingWaitTimeSeconds =
+      options.consumerPollingWaitTimeSeconds ?? DEFAULT_CONSUMER_POLLING_WAIT_TIME_SECONDS
     this.executionContext = executionContext
     this.consumers = []
     this.concurrentConsumersAmount = options.concurrentConsumersAmount ?? 1
@@ -312,6 +332,7 @@ export abstract class AbstractSqsConsumer<
       sqs: this.sqsClient,
       queueUrl: this.queueUrl,
       visibilityTimeout: options.visibilityTimeout,
+      waitTimeSeconds: this.consumerPollingWaitTimeSeconds,
       messageAttributeNames: [`${PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX}*`],
       // For FIFO queues, request system attributes needed for retry (MessageGroupId and MessageDeduplicationId)
       messageSystemAttributeNames: this.isFifoQueue

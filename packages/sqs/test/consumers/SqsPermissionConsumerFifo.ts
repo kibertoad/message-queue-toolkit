@@ -125,6 +125,7 @@ export class SqsPermissionConsumerFifo extends AbstractSqsConsumer<
         consumerOverrides: options.consumerOverrides ?? {
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
         },
+        consumerPollingWaitTimeSeconds: options.consumerPollingWaitTimeSeconds ?? 0,
         concurrentConsumersAmount: options.concurrentConsumersAmount,
         maxRetryDuration: options.maxRetryDuration,
         barrierSleepCheckIntervalInMsecs: options.barrierSleepCheckIntervalInMsecs,

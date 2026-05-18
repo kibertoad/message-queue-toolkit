@@ -740,6 +740,7 @@ SNS consumers use the same options as SQS consumers, plus SNS-specific subscript
   concurrentConsumersAmount: 1,
   maxRetryDuration: 345600,  // 4 days
   deadLetterQueue: { /* ... */ },
+  consumerPollingWaitTimeSeconds: 20,  // long polling default; set to 0 to short-poll (e.g. in tests)
   consumerOverrides: { /* ... */ },
   // ... see SQS README for full list
 }

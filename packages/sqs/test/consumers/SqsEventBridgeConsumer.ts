@@ -60,6 +60,9 @@ export class SqsEventBridgeConsumer extends AbstractSqsConsumer<
         // Enable handler spy for testing
         handlerSpy: true,
 
+        // Short-poll in tests; the toolkit default is 20s long-polling.
+        consumerPollingWaitTimeSeconds: 0,
+
         // Handler configuration
         // Handlers receive the full EventBridge envelope and can access message.detail
         handlers: new MessageHandlerConfigBuilder<
