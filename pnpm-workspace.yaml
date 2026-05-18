@@ -1,6 +1,14 @@
 packages:
   - 'packages/*'
 
+# Disallow every dependency from running install/build scripts. Each entry
+# must be set to `false` to silently skip the script, or `true` to allow it.
+# pnpm 11 auto-appends new entries here whenever a dep has scripts, prompting
+# an explicit decision per package.
+allowBuilds:
+  msgpackr-extract: false
+  protobufjs: false
+
 # Hoist all dependencies to the workspace root to preserve npm-compatible
 # resolution behavior for transitive deps used directly in test files.
 shamefullyHoist: true

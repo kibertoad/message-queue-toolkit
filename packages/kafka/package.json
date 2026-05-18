@@ -51,8 +51,8 @@
         "prepublishOnly": "pnpm run lint && pnpm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^14.2.0",
-        "@lokalise/universal-ts-utils": "^4.5.1",
+        "@lokalise/node-core": "^14.8.1",
+        "@lokalise/universal-ts-utils": "^4.10.0",
         "@platformatic/kafka": "^2.1.0"
     },
     "peerDependencies": {
