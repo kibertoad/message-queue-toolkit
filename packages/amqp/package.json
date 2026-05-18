@@ -42,7 +42,7 @@
     "devDependencies": {
         "@biomejs/biome": "^2.3.8",
         "@lokalise/biome-config": "^3.1.0",
-        "@lokalise/tsconfig": "^3.0.0",
+        "@lokalise/tsconfig": "^4.0.0",
         "@message-queue-toolkit/core": "*",
         "@types/amqplib": "0.10.8",
         "@types/node": "^25.5.0",
