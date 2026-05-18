@@ -225,10 +225,10 @@ importers:
   packages/kafka:
     dependencies:
       '@lokalise/node-core':
-        specifier: ^14.2.0
+        specifier: ^14.8.1
         version: 14.8.1(zod@4.4.3)
       '@lokalise/universal-ts-utils':
-        specifier: ^4.5.1
+        specifier: ^4.10.0
         version: 4.10.0
       '@platformatic/kafka':
         specifier: ^2.1.0

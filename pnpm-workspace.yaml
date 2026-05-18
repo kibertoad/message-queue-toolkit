@@ -1,6 +1,19 @@
 packages:
   - 'packages/*'
 
+# Disallow every dependency from running install/build scripts.
+onlyBuiltDependencies: []
+
+# Acknowledge dependencies whose build scripts are intentionally skipped so
+# pnpm does not emit ERR_PNPM_IGNORED_BUILDS on install.
+ignoredBuiltDependencies:
+  - msgpackr-extract
+  - protobufjs
+
 # Hoist all dependencies to the workspace root to preserve npm-compatible
 # resolution behavior for transitive deps used directly in test files.
 shamefullyHoist: true
+
+allowBuilds:
+  msgpackr-extract: set this to true or false
+  protobufjs: set this to true or false
