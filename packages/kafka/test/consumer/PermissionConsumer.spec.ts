@@ -87,6 +87,8 @@ describe('PermissionConsumer', () => {
           clientId: randomUUID(),
           connectTimeout: 10, // Short timeout to trigger failure quick
         },
+        // platformatic-kafka >= 2.1.0 retries group ops by default; disable to fail fast
+        retries: 0,
       })
 
       // When - Then

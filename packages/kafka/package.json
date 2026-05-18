@@ -40,20 +40,20 @@
         "./package.json": "./package.json"
     },
     "scripts": {
-        "build": "npm run clean && tsc --project tsconfig.build.json",
+        "build": "pnpm run clean && tsc --project tsconfig.build.json",
         "clean": "rimraf dist",
         "test": "vitest run --typecheck",
-        "test:coverage": "npm run test -- --coverage",
+        "test:coverage": "pnpm run test --coverage",
         "lint": "biome check . && tsc",
         "lint:fix": "biome check --write .",
         "docker:start": "docker compose up -d kafka",
         "docker:stop": "docker compose down",
-        "prepublishOnly": "npm run lint && npm run build"
+        "prepublishOnly": "pnpm run lint && pnpm run build"
     },
     "dependencies": {
         "@lokalise/node-core": "^14.2.0",
         "@lokalise/universal-ts-utils": "^4.5.1",
-        "@platformatic/kafka": "^2.0.1"
+        "@platformatic/kafka": "^2.1.0"
     },
     "peerDependencies": {
         "@message-queue-toolkit/core": ">=23.0.0",

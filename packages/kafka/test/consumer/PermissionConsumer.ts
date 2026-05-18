@@ -31,6 +31,7 @@ type PermissionConsumerOptions = Partial<
     | 'handlers'
     | 'headerRequestIdField'
     | 'messageIdField'
+    | 'retries'
   >
 >
 
@@ -75,6 +76,7 @@ export class PermissionConsumer extends AbstractKafkaConsumer<
         handlerSpy: options.handlerSpy ?? true,
         headerRequestIdField: options.headerRequestIdField,
         messageIdField: options.messageIdField,
+        retries: options.retries,
         maxWaitTime: 5,
       },
       {

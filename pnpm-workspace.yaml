@@ -1,0 +1,6 @@
+packages:
+  - 'packages/*'
+
+# Hoist all dependencies to the workspace root to preserve npm-compatible
+# resolution behavior for transitive deps used directly in test files.
+shamefullyHoist: true
