@@ -1,5 +1,3 @@
-import { compress, decompress } from '@mongodb-js/zstd'
-
 export const SUPPORTED_CODECS = ['zstd'] as const
 export type MessageCodec = (typeof SUPPORTED_CODECS)[number]
 
@@ -11,33 +9,19 @@ export type CodecEnvelope = {
   [DATA_FIELD]: string
 }
 
+export interface MessageCodecHandler {
+  compress(data: Buffer): Promise<Buffer>
+  decompress(data: Buffer): Promise<Buffer>
+}
+
 export function isCodecEnvelope(value: unknown): value is CodecEnvelope {
+  const record = value as Record<string, unknown>
   return (
     typeof value === 'object' &&
     value !== null &&
     CODEC_FIELD in value &&
     DATA_FIELD in value &&
-    SUPPORTED_CODECS.includes((value as Record<string, unknown>)[CODEC_FIELD] as MessageCodec)
+    SUPPORTED_CODECS.includes(record[CODEC_FIELD] as MessageCodec) &&
+    typeof record[DATA_FIELD] === 'string'
   )
-}
-
-export async function compressMessageBody(jsonBody: string, codec: MessageCodec): Promise<string> {
-  if (codec === 'zstd') {
-    const compressed = await compress(Buffer.from(jsonBody, 'utf8'))
-    const envelope: CodecEnvelope = {
-      [CODEC_FIELD]: codec,
-      [DATA_FIELD]: compressed.toString('base64'),
-    }
-    return JSON.stringify(envelope)
-  }
-  throw new Error(`Unsupported codec: ${codec}`)
-}
-
-export async function decompressMessageBody(envelope: CodecEnvelope): Promise<unknown> {
-  if (envelope[CODEC_FIELD] === 'zstd') {
-    const compressed = Buffer.from(envelope[DATA_FIELD], 'base64')
-    const decompressed = await decompress(compressed)
-    return JSON.parse(decompressed.toString('utf8'))
-  }
-  throw new Error(`Unsupported codec: ${envelope[CODEC_FIELD]}`)
 }

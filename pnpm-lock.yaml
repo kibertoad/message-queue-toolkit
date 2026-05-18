@@ -75,9 +75,6 @@ importers:
       '@message-queue-toolkit/schemas':
         specifier: ^7.0.0
         version: 7.1.0(zod@4.4.3)
-      '@mongodb-js/zstd':
-        specifier: ^7.0.0
-        version: 7.0.0
       dot-prop:
         specifier: ^10.1.0
         version: 10.1.0
@@ -548,6 +545,9 @@ importers:
       '@lokalise/node-core':
         specifier: ^14.6.1
         version: 14.8.1(zod@4.4.3)
+      '@mongodb-js/zstd':
+        specifier: ^7.0.0
+        version: 7.0.0
       sqs-consumer:
         specifier: ^15.0.1
         version: 15.0.1(@aws-sdk/client-sqs@3.1048.0)

@@ -1,8 +1,8 @@
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
-import { compressMessageBody } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { compressMessageBody } from '../../lib/codec/sqsCodecHandler.ts'
 
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
@@ -102,9 +102,20 @@ describe('SqsPermissionConsumer - zstd codec', () => {
   })
 
   it('consumer without codec option still decompresses zstd messages (auto-detection)', async () => {
+    // Use a dedicated queue so only autoConsumer polls it — avoids both the race
+    // condition (shared queue) and localstack long-poll timing issues (abort + restart)
+    const autoQueueName = `${SqsPermissionConsumer.QUEUE_NAME}-auto-detect`
+    await testAdmin.deleteQueues(autoQueueName)
+
+    const autoPublisher = new SqsPermissionPublisher(diContainer.cradle, {
+      codec: 'zstd',
+      creationConfig: { queue: { QueueName: autoQueueName } },
+    })
+    await autoPublisher.init()
+
     // Consumer without codec — auto-detects from envelope __codec field
     const autoConsumer = new SqsPermissionConsumer(diContainer.cradle, {
-      locatorConfig: { queueUrl: consumer.queueProps.url },
+      creationConfig: { queue: { QueueName: autoQueueName } },
       deletionConfig: { deleteIfExists: false },
     })
     await autoConsumer.start()
@@ -113,11 +124,12 @@ describe('SqsPermissionConsumer - zstd codec', () => {
       id: 'codec-auto-detect-1',
       messageType: 'add',
     }
-    await publisher.publish(message)
+    await autoPublisher.publish(message)
 
     const result = await autoConsumer.handlerSpy.waitForMessageWithId(message.id, 'consumed')
     expect(result.message).toMatchObject(message)
 
+    await autoPublisher.close()
     await autoConsumer.close(true)
-  })
+  }, 15000)
 })

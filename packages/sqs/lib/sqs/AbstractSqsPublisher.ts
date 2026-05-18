@@ -5,7 +5,6 @@ import { InternalError } from '@lokalise/node-core'
 import {
   type AsyncPublisher,
   type BarrierResult,
-  compressMessageBody,
   DeduplicationRequesterEnum,
   isOffloadedPayloadPointerPayload,
   type MessageInvalidFormatError,
@@ -16,6 +15,7 @@ import {
   type ResolvedMessage,
 } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod/v4'
+import { compressMessageBody } from '../codec/sqsCodecHandler.ts'
 
 import type { SQSMessage } from '../types/MessageTypes.ts'
 import { resolveOutgoingMessageAttributes } from '../utils/messageUtils.ts'

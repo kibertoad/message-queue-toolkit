@@ -29,6 +29,7 @@
     },
     "dependencies": {
         "@lokalise/node-core": "^14.6.1",
+        "@mongodb-js/zstd": "^7.0.0",
         "sqs-consumer": "^15.0.1"
     },
     "peerDependencies": {

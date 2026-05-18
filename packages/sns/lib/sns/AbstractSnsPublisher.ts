@@ -5,7 +5,6 @@ import { InternalError } from '@lokalise/node-core'
 import {
   type AsyncPublisher,
   type BarrierResult,
-  compressMessageBody,
   DeduplicationRequesterEnum,
   isOffloadedPayloadPointerPayload,
   type MessageInvalidFormatError,
@@ -15,7 +14,7 @@ import {
   type QueuePublisherOptions,
   type ResolvedMessage,
 } from '@message-queue-toolkit/core'
-import { resolveOutgoingMessageAttributes } from '@message-queue-toolkit/sqs'
+import { compressMessageBody, resolveOutgoingMessageAttributes } from '@message-queue-toolkit/sqs'
 
 import { calculateOutgoingMessageSize, validateFifoTopicName } from '../utils/snsUtils.ts'
 

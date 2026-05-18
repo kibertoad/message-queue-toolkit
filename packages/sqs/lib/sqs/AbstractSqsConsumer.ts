@@ -10,7 +10,6 @@ import {
   type BarrierResult,
   type DeadLetterQueueOptions,
   DeduplicationRequesterEnum,
-  decompressMessageBody,
   HandlerContainer,
   isCodecEnvelope,
   isMessageError,
@@ -28,6 +27,7 @@ import {
 import type { ConsumerOptions } from 'sqs-consumer'
 import { Consumer } from 'sqs-consumer'
 import type { ZodSchema } from 'zod/v4'
+import { decompressMessageBody } from '../codec/sqsCodecHandler.ts'
 import type { SQSMessage } from '../types/MessageTypes.ts'
 import { hasOffloadedPayload } from '../utils/messageUtils.ts'
 import { deleteSqs, initSqs } from '../utils/sqsInitter.ts'
@@ -880,7 +880,7 @@ export abstract class AbstractSqsConsumer<
     }
 
     // Empty content for whatever reason
-    if (!resolveMessageResult.result || !resolveMessageResult.result.body) {
+    if (!resolveMessageResult.result?.body) {
       return ABORT_EARLY_EITHER
     }
 
@@ -916,7 +916,7 @@ export abstract class AbstractSqsConsumer<
     const resolvedMessage = resolveMessageResult.result
 
     // Empty content for whatever reason
-    if (!resolvedMessage || !resolvedMessage.body) return ABORT_EARLY_EITHER
+    if (!resolvedMessage?.body) return ABORT_EARLY_EITHER
 
     // @ts-expect-error
     if (this.messageIdField in resolvedMessage.body) {
