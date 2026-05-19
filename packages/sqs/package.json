@@ -19,6 +19,7 @@
     "scripts": {
         "build": "pnpm run clean && tsc --project tsconfig.build.json",
         "clean": "rimraf dist",
+        "bench": "vitest run --config vitest.bench.config.ts --reporter=verbose",
         "test": "vitest",
         "test:coverage": "pnpm run test --coverage",
         "lint": "biome check && tsc",
