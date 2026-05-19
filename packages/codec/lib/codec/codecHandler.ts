@@ -3,6 +3,13 @@ import zlib from 'node:zlib'
 import type { CodecEnvelope, MessageCodec, MessageCodecHandler } from '@message-queue-toolkit/core'
 import { MessageCodecEnum } from '@message-queue-toolkit/core'
 
+if (typeof zlib.zstdCompress !== 'function' || typeof zlib.zstdDecompress !== 'function') {
+  throw new Error(
+    'zlib.zstdCompress and zlib.zstdDecompress are not available in this Node.js version. ' +
+      '@message-queue-toolkit/codec requires Node.js >=22.15.0 or >=23.8.0.',
+  )
+}
+
 const zstdCompress = promisify(zlib.zstdCompress)
 const zstdDecompress = promisify(zlib.zstdDecompress)
 

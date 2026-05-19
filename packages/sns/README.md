@@ -59,7 +59,7 @@ npm install @message-queue-toolkit/sns @message-queue-toolkit/sqs @message-queue
 - ✅ **Handler spies** for testing
 - ✅ **Pre-handlers and barriers** for complex message processing
 - ✅ **Cross-account and cross-region publishing**
-- ✅ **Message compression** with zstd via Node.js built-in `zlib` (Node.js 22+ required)
+- ✅ **Message compression** with zstd via Node.js built-in `zlib` (Node.js >=22.15.0 required)
 
 ## Core Concepts
 
@@ -685,7 +685,7 @@ await consumer.start()
   // Optional - Payload Offloading (same as SQS)
   payloadStoreConfig: { /* ... */ },
 
-  // Optional - Compression (Node.js 22+ required)
+  // Optional - Compression (Node.js >=22.15.0 required)
   codec: MessageCodecEnum.ZSTD,        // Compress every outgoing message with zstd
 
   // Optional - Deletion

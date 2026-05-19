@@ -10,7 +10,7 @@ This package provides the concrete codec implementations (e.g. zstd) used by the
 npm install @message-queue-toolkit/codec @message-queue-toolkit/core
 ```
 
-> **Requirements:** Node.js 22+ (uses the built-in `zlib` zstd support).
+> **Requirements:** Node.js >=22.15.0 (uses the built-in `zlib` zstd support).
 
 ## Usage
 

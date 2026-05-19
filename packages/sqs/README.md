@@ -64,7 +64,7 @@ npm install @message-queue-toolkit/sqs @message-queue-toolkit/core
 - ✅ **Handler spies** for testing
 - ✅ **Pre-handlers and barriers** for complex message processing
 - ✅ **Automatic queue creation** with validation
-- ✅ **Message compression** with zstd via Node.js built-in `zlib` (Node.js 22+ required)
+- ✅ **Message compression** with zstd via Node.js built-in `zlib` (Node.js >=22.15.0 required)
 
 ## Core Concepts
 
@@ -463,7 +463,7 @@ When using `locatorConfig`, you connect to an existing queue without creating it
     maxPayloadSize: 1024 * 1024,       // 1 MiB
   },
 
-  // Optional - Compression (Node.js 22+ required)
+  // Optional - Compression (Node.js >=22.15.0 required)
   codec: MessageCodecEnum.ZSTD,        // Compress every outgoing message with zstd
 
   // Optional - Deletion
@@ -537,7 +537,7 @@ When using `locatorConfig`, you connect to an existing queue without creating it
     payloadStore: s3Store,
   },
 
-  // Optional - Compression (Node.js 22+ required)
+  // Optional - Compression (Node.js >=22.15.0 required)
   // Auto-detection is always active: consumers decompress codec envelopes
   // even without this option set.
   codec: MessageCodecEnum.ZSTD,
@@ -804,7 +804,7 @@ await publisher.publish({
 
 ### Message Compression
 
-Compress message bodies with zstd using the Node.js built-in `zlib` module. Requires **Node.js 22+**.
+Compress message bodies with zstd using the Node.js built-in `zlib` module. Requires **Node.js >=22.15.0**.
 
 The codec implementation lives in the separate [`@message-queue-toolkit/codec`](../codec/README.md) package, which must be installed alongside this package when using compression.
 

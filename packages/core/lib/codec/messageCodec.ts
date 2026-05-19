@@ -11,7 +11,7 @@ type ObjectValues<T> = T[keyof T]
  * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD })
  */
 export const MessageCodecEnum = {
-  /** zstd compression via Node.js built-in `zlib` (requires Node.js 22+). */
+  /** zstd compression via Node.js built-in `zlib` (requires Node.js >=22.15.0). */
   ZSTD: 'zstd',
 } as const
 export type MessageCodec = ObjectValues<typeof MessageCodecEnum>

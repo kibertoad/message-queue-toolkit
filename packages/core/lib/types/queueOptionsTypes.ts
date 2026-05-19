@@ -149,7 +149,7 @@ export type CommonQueueOptions = {
    *   Even without this option, consumers auto-detect and decompress any message
    *   that carries a codec envelope, so mixed queues work transparently.
    *
-   * Uses Node.js built-in `zlib` zstd support — **requires Node.js 22+**.
+   * Uses Node.js built-in `zlib` zstd support — **requires Node.js >=22.15.0** (or >=23.8.0).
    *
    * @example
    * import { MessageCodecEnum } from '@message-queue-toolkit/core'

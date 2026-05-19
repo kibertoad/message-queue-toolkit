@@ -23,6 +23,9 @@
         "lint:fix": "biome check --write .",
         "prepublishOnly": "pnpm run lint && pnpm run build"
     },
+    "engines": {
+        "node": ">=22.15.0"
+    },
     "peerDependencies": {
         "@message-queue-toolkit/core": ">=25.0.0"
     },
