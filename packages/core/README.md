@@ -641,6 +641,17 @@ class MyPayloadStore implements PayloadStore {
 }
 ```
 
+#### Interaction with codec (compression)
+
+When both `codec` and `payloadStoreConfig` are set on a publisher, compression and offloading work together with a single compression pass:
+
+1. The message is compressed **once** at publish time.
+2. The **compressed** size is compared against `messageSizeThreshold`.
+3. If the compressed size exceeds the threshold, the raw compressed bytes are stored in the payload store. The codec name is written to `payloadRef.codec` so the consumer knows how to decompress after retrieval.
+4. If the compressed size fits within the threshold, the message is sent inline as a self-describing codec envelope — S3 is never touched.
+
+This means compression can prevent offloading entirely for messages that are large before compression but small after.
+
 ## API Reference
 
 ### Types

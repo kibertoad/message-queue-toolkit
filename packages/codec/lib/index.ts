@@ -1,4 +1,5 @@
 export {
+  buildCodecEnvelope,
   compressMessageBody,
   decompressMessageBody,
   resolveCodecHandler,

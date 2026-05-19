@@ -69,11 +69,12 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
       const parsedMessage = messageSchemaResult.result.parse(message)
 
       message = this.updateInternalProperties(message)
-      const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(message, () => {
-        // Calculate message size for PubSub
-        const messageData = Buffer.from(JSON.stringify(message))
-        return messageData.length
-      })
+      const maybeOffloadedPayloadMessage =
+        (await this.offloadPayload(message, () => {
+          // Calculate message size for PubSub
+          const messageData = Buffer.from(JSON.stringify(message))
+          return messageData.length
+        })) ?? message
 
       if (
         this.isDeduplicationEnabledForMessage(parsedMessage) &&

@@ -1,5 +1,6 @@
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import { compressMessageBody } from '@message-queue-toolkit/codec'
+import { MessageCodecEnum } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -29,11 +30,11 @@ describe('SqsPermissionConsumer - zstd codec', () => {
     await testAdmin.deleteQueues(SqsPermissionConsumer.QUEUE_NAME)
 
     consumer = new SqsPermissionConsumer(diContainer.cradle, {
-      codec: 'zstd',
+      codec: MessageCodecEnum.ZSTD,
       deletionConfig: { deleteIfExists: false },
     })
     publisher = new SqsPermissionPublisher(diContainer.cradle, {
-      codec: 'zstd',
+      codec: MessageCodecEnum.ZSTD,
     })
 
     await consumer.start()
@@ -89,7 +90,7 @@ describe('SqsPermissionConsumer - zstd codec', () => {
     }
 
     // Simulate a publisher that compressed the message itself
-    const compressedBody = await compressMessageBody(JSON.stringify(message), 'zstd')
+    const compressedBody = await compressMessageBody(JSON.stringify(message), MessageCodecEnum.ZSTD)
     await diContainer.cradle.sqsClient.send(
       new SendMessageCommand({
         QueueUrl: consumer.queueProps.url,
@@ -108,7 +109,7 @@ describe('SqsPermissionConsumer - zstd codec', () => {
     await testAdmin.deleteQueues(autoQueueName)
 
     const autoPublisher = new SqsPermissionPublisher(diContainer.cradle, {
-      codec: 'zstd',
+      codec: MessageCodecEnum.ZSTD,
       creationConfig: { queue: { QueueName: autoQueueName } },
     })
     await autoPublisher.init()

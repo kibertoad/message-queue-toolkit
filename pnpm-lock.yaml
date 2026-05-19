@@ -174,14 +174,14 @@ importers:
         specifier: ^3.0.0
         version: 3.1.0
       '@message-queue-toolkit/core':
-        specifier: '*'
-        version: 25.5.0(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../core
       '@message-queue-toolkit/gcs-payload-store':
         specifier: '*'
-        version: 1.0.0(@google-cloud/storage@7.19.0)(@message-queue-toolkit/core@25.5.0(zod@4.4.3))
+        version: 1.0.0(@google-cloud/storage@7.19.0)(@message-queue-toolkit/core@packages+core)
       '@message-queue-toolkit/redis-message-deduplication-store':
         specifier: '*'
-        version: 2.0.2(@message-queue-toolkit/core@25.5.0(zod@4.4.3))(ioredis@5.10.1)(zod@4.4.3)
+        version: 2.0.2(@message-queue-toolkit/core@packages+core)(ioredis@5.10.1)(zod@4.4.3)
       '@message-queue-toolkit/schemas':
         specifier: '*'
         version: 7.1.0(zod@4.4.3)
@@ -3374,15 +3374,15 @@ snapshots:
       toad-cache: 3.7.0
       zod: 4.4.3
 
-  '@message-queue-toolkit/gcs-payload-store@1.0.0(@google-cloud/storage@7.19.0)(@message-queue-toolkit/core@25.5.0(zod@4.4.3))':
+  '@message-queue-toolkit/gcs-payload-store@1.0.0(@google-cloud/storage@7.19.0)(@message-queue-toolkit/core@packages+core)':
     dependencies:
       '@google-cloud/storage': 7.19.0
-      '@message-queue-toolkit/core': 25.5.0(zod@4.4.3)
+      '@message-queue-toolkit/core': link:packages/core
 
-  '@message-queue-toolkit/redis-message-deduplication-store@2.0.2(@message-queue-toolkit/core@25.5.0(zod@4.4.3))(ioredis@5.10.1)(zod@4.4.3)':
+  '@message-queue-toolkit/redis-message-deduplication-store@2.0.2(@message-queue-toolkit/core@packages+core)(ioredis@5.10.1)(zod@4.4.3)':
     dependencies:
       '@lokalise/node-core': 14.8.1(zod@4.4.3)
-      '@message-queue-toolkit/core': 25.5.0(zod@4.4.3)
+      '@message-queue-toolkit/core': link:packages/core
       ioredis: 5.10.1
       redis-semaphore: 5.7.0(ioredis@5.10.1)
     transitivePeerDependencies:

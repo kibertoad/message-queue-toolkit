@@ -1,6 +1,6 @@
 import type { Readable } from 'node:stream'
 
-export async function streamWithKnownSizeToString(stream: Readable, size: number): Promise<string> {
+export async function streamWithKnownSizeToBuffer(stream: Readable, size: number): Promise<Buffer> {
   const buffer = Buffer.alloc(size)
   let offset = 0
 
@@ -14,5 +14,10 @@ export async function streamWithKnownSizeToString(stream: Readable, size: number
     offset += chunkBuffer.length
   }
 
-  return buffer.toString('utf8', 0, offset)
+  return buffer.subarray(0, offset)
+}
+
+export async function streamWithKnownSizeToString(stream: Readable, size: number): Promise<string> {
+  const buffer = await streamWithKnownSizeToBuffer(stream, size)
+  return buffer.toString('utf8')
 }

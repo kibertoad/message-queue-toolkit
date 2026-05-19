@@ -33,6 +33,14 @@ export function resolveCodecHandler(codec: MessageCodec): MessageCodecHandler {
 export async function compressMessageBody(jsonBody: string, codec: MessageCodec): Promise<string> {
   const handler = resolveCodecHandler(codec)
   const compressed = await handler.compress(Buffer.from(jsonBody, 'utf8'))
+  return buildCodecEnvelope(compressed, codec)
+}
+
+/**
+ * Wraps an already-compressed buffer in a codec envelope string.
+ * Use this when you have pre-compressed bytes and want to avoid compressing twice.
+ */
+export function buildCodecEnvelope(compressed: Buffer, codec: MessageCodec): string {
   const envelope: CodecEnvelope = {
     __codec: codec,
     __data: compressed.toString('base64'),

@@ -2,12 +2,11 @@ import type { MessageAttributeValue } from '@aws-sdk/client-sns'
 import { PublishCommand } from '@aws-sdk/client-sns'
 import type { Either } from '@lokalise/node-core'
 import { InternalError } from '@lokalise/node-core'
-import { compressMessageBody } from '@message-queue-toolkit/codec'
+import { buildCodecEnvelope, resolveCodecHandler } from '@message-queue-toolkit/codec'
 import {
   type AsyncPublisher,
   type BarrierResult,
   DeduplicationRequesterEnum,
-  isOffloadedPayloadPointerPayload,
   type MessageInvalidFormatError,
   type MessageSchemaContainer,
   type MessageValidationError,
@@ -133,10 +132,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
       // (offloaded payload won't have user fields needed for messageGroupIdField)
       const resolvedOptions = this.resolveFifoOptions(updatedMessage, options)
 
-      const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(
-        updatedMessage,
-        () => calculateOutgoingMessageSize(updatedMessage),
-      )
+      const { payload, preBuiltBody } = await this.prepareOutgoingPayload(updatedMessage)
 
       if (
         this.isDeduplicationEnabledForMessage(parsedMessage) &&
@@ -152,7 +148,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         return
       }
 
-      await this.sendMessage(maybeOffloadedPayloadMessage, resolvedOptions)
+      await this.sendMessage(payload, resolvedOptions, preBuiltBody)
 
       this.handleMessageProcessed({
         message: parsedMessage,
@@ -208,16 +204,49 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     return this.isDeduplicationEnabled && super.isDeduplicationEnabledForMessage(message)
   }
 
+  /**
+   * Compresses (when codec is set) or offloads (when store is configured) the message.
+   * Returns the payload to send and an optional pre-built body string.
+   * When preBuiltBody is set, it is a ready-to-send codec envelope — sendMessage must use it as-is.
+   */
+  private async prepareOutgoingPayload(message: MessagePayloadType): Promise<{
+    payload: MessagePayloadType | OffloadedPayloadPointerPayload
+    preBuiltBody?: string
+  }> {
+    const codec = this.codec
+
+    if (codec) {
+      // Compress once up-front, then decide: offload the compressed bytes or send inline.
+      const compressed = await resolveCodecHandler(codec).compress(
+        Buffer.from(JSON.stringify(message), 'utf8'),
+      )
+
+      if (
+        this.payloadStoreConfig &&
+        compressed.byteLength > this.payloadStoreConfig.messageSizeThreshold
+      ) {
+        return { payload: await this.offloadCompressedPayload(message, compressed, codec) }
+      }
+
+      return { payload: message, preBuiltBody: buildCodecEnvelope(compressed, codec) }
+    }
+
+    return {
+      payload:
+        (await this.offloadPayload(message, () => calculateOutgoingMessageSize(message))) ??
+        message,
+    }
+  }
+
   protected async sendMessage(
     payload: MessagePayloadType | OffloadedPayloadPointerPayload,
     options: SNSMessageOptions,
+    preBuiltBody?: string,
   ): Promise<void> {
     const attributes = resolveOutgoingMessageAttributes<MessageAttributeValue>(payload)
-    const jsonBody = JSON.stringify(payload)
-    const body =
-      this.codec && !isOffloadedPayloadPointerPayload(payload)
-        ? await compressMessageBody(jsonBody, this.codec)
-        : jsonBody
+    // preBuiltBody is set when codec is active and the payload was not offloaded —
+    // it contains the already-compressed codec envelope, so we skip re-serialization.
+    const body = preBuiltBody ?? JSON.stringify(payload)
     const command = new PublishCommand({
       Message: body,
       MessageAttributes: attributes,

@@ -5,7 +5,7 @@ import {
   SetQueueAttributesCommand,
 } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
-import { decompressMessageBody } from '@message-queue-toolkit/codec'
+import { decompressMessageBody, resolveCodecHandler } from '@message-queue-toolkit/codec'
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import {
   type BarrierResult,
@@ -924,6 +924,10 @@ export abstract class AbstractSqsConsumer<
     if (hasOffloadedPayload(resolveMessageResult.result)) {
       const retrieveOffloadedMessagePayloadResult = await this.retrieveOffloadedMessagePayload(
         resolveMessageResult.result.body,
+        (codec, data) => {
+          const handler = resolveCodecHandler(codec as Parameters<typeof resolveCodecHandler>[0])
+          return handler.decompress(data)
+        },
       )
       if (retrieveOffloadedMessagePayloadResult.error) {
         this.handleError(retrieveOffloadedMessagePayloadResult.error)

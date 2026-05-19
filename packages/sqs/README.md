@@ -799,13 +799,20 @@ await publisher.publish({
 })
 ```
 
-**How it works:**
+**How it works (without codec):**
 1. Publisher checks message size before sending
-2. If size exceeds `maxPayloadSize`, stores payload in S3
-3. Replaces payload with pointer: `{ _offloadedPayload: { bucketName, key, size } }`
-4. Sends pointer message to SQS
-5. Consumer detects pointer, fetches payload from S3
-6. Processes message with full payload
+2. If size exceeds `messageSizeThreshold`, serializes and stores payload in S3
+3. Sends a lightweight pointer message to SQS instead
+4. Consumer detects the pointer, fetches payload from S3
+5. Processes message with full payload
+
+**How it works (with codec — compress + offload):**
+1. Publisher compresses the serialized message with zstd **once**, up-front
+2. If the **compressed** size exceeds `messageSizeThreshold`, stores the compressed bytes in S3 and sends a pointer
+3. If the compressed size fits within the threshold, sends the message inline as a codec envelope
+4. Consumer fetches the pointer payload as raw bytes, decompresses, then processes as normal
+
+The codec embedded in `payloadRef.codec` tells the consumer which algorithm to use — no `codec` option is needed on the consumer.
 
 **Note:** Payload cleanup is the responsibility of the store (e.g., S3 lifecycle policies).
 
@@ -860,7 +867,9 @@ class MyConsumer extends AbstractSqsConsumer<SupportedMessages, ExecutionContext
 #### Notes
 
 - Compression is applied **after** schema validation and **before** the SQS `SendMessage` call.
-- Compressed payloads are still subject to the SQS 256 KB message size limit. For large messages that remain oversized after compression, combine with [Payload Offloading](#payload-offloading).
+- The message is compressed **exactly once**, regardless of whether payload offloading is also configured. When both features are active: the payload is compressed first, and the decision to offload is made against the compressed size (not the raw size). This means smaller payloads after compression may stay inline and never touch S3.
+- The compressed bytes are **never re-compressed** when sent inline — the codec envelope is built directly from the first (and only) compression pass.
+- Compressed payloads are still subject to the SQS 256 KB message size limit. For messages that remain oversized after compression, combine with [Payload Offloading](#payload-offloading). The compressed payload is then stored in S3 and the `payloadRef.codec` field records the algorithm so the consumer can decompress after retrieval without any extra configuration.
 - Uses `MessageCodecEnum.ZSTD` (value `'zstd'`). You can use the string literal or the enum — both satisfy the `MessageCodec` type.
 
 ### Message Handlers

@@ -11,6 +11,12 @@ export const PAYLOAD_REF_SCHEMA = z.object({
   store: z.string().min(1),
   /** Size of the payload in bytes */
   size: z.number().int().positive(),
+  /**
+   * Codec used to compress the stored payload.
+   * When set, the stored bytes are raw compressed binary (not base64 JSON).
+   * The consumer must decompress using this codec before parsing.
+   */
+  codec: z.string().optional(),
 })
 
 export type PayloadRef = z.output<typeof PAYLOAD_REF_SCHEMA>

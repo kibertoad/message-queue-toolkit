@@ -1,3 +1,4 @@
+import { Readable } from 'node:stream'
 import { types } from 'node:util'
 import {
   type CommonLogger,
@@ -49,7 +50,7 @@ import type {
   QueueOptions,
 } from '../types/queueOptionsTypes.ts'
 import { isRetryDateExceeded } from '../utils/dateUtils.ts'
-import { streamWithKnownSizeToString } from '../utils/streamUtils.ts'
+import { streamWithKnownSizeToBuffer, streamWithKnownSizeToString } from '../utils/streamUtils.ts'
 import { toDatePreprocessor } from '../utils/toDateProcessor.ts'
 import type {
   BarrierCallback,
@@ -660,24 +661,72 @@ export abstract class AbstractQueueService<
   }
 
   /**
-   * Offload message payload to an external store if it exceeds the threshold.
-   * Returns a special type that contains a pointer to the offloaded payload or the original payload if it was not offloaded.
-   * Requires message size as only the implementation knows how to calculate it.
+   * Builds an OffloadedPayloadPointerPayload from the given message and storage metadata.
+   * Copies identity fields and preserves the message type field through offloading.
+   *
+   * We default to the conventional top-level `type` path so that routing/identity fields are
+   * handled consistently with `messageIdField`/`messageTimestampField`/etc. Without this
+   * fallback, `messageTypeResolver` modes that don't specify a body path silently strip `type`
+   * from the offloaded body, breaking downstream SNS subscription FilterPolicy filters.
+   */
+  private buildPointer(
+    message: MessagePayloadSchemas,
+    payloadId: string,
+    storeName: string,
+    size: number,
+    codec?: MessageCodec,
+  ): OffloadedPayloadPointerPayload {
+    const result: OffloadedPayloadPointerPayload = {
+      payloadRef: {
+        id: payloadId,
+        store: storeName,
+        size,
+        ...(codec ? { codec } : {}),
+      },
+      offloadedPayloadPointer: payloadId,
+      offloadedPayloadSize: size,
+      // @ts-expect-error
+      [this.messageIdField]: message[this.messageIdField],
+      // @ts-expect-error
+      [this.messageTimestampField]: message[this.messageTimestampField],
+      // @ts-expect-error
+      [this.messageDeduplicationIdField]: message[this.messageDeduplicationIdField],
+      // @ts-expect-error
+      [this.messageDeduplicationOptionsField]: message[this.messageDeduplicationOptionsField],
+    }
+
+    const typePath =
+      this.messageTypeResolver && isMessageTypePathConfig(this.messageTypeResolver)
+        ? this.messageTypeResolver.messageTypePath
+        : 'type'
+    const typeValue = getProperty(message, typePath)
+    if (typeValue !== undefined) {
+      setProperty(result, typePath, typeValue)
+    }
+
+    return result
+  }
+
+  /**
+   * Offloads the message payload to the configured store if it exceeds the size threshold.
+   * Returns null if no offloading is needed (store not configured or message fits within threshold).
    *
    * For multi-store configuration, uses the configured outgoingStore.
    * For single-store configuration, uses the single store.
    *
-   * The returned payload includes both the new payloadRef format and legacy fields for backward compatibility.
+   * The returned pointer includes both the new payloadRef format and legacy fields for backward
+   * compatibility. The message type field is always preserved through offloading.
    */
-  protected async offloadMessagePayloadIfNeeded(
+  protected async offloadPayload(
     message: MessagePayloadSchemas,
     messageSizeFn: () => number,
-  ): Promise<MessagePayloadSchemas | OffloadedPayloadPointerPayload> {
-    if (
-      !this.payloadStoreConfig ||
-      messageSizeFn() <= this.payloadStoreConfig.messageSizeThreshold
-    ) {
-      return message
+  ): Promise<OffloadedPayloadPointerPayload | null> {
+    if (!this.payloadStoreConfig) {
+      return null
+    }
+
+    if (messageSizeFn() <= this.payloadStoreConfig.messageSizeThreshold) {
+      return null
     }
 
     const { store, storeName } = this.resolveOutgoingStore()
@@ -692,45 +741,34 @@ export abstract class AbstractQueueService<
       }
     }
 
-    // Return message with both new and legacy formats for backward compatibility
-    const result: OffloadedPayloadPointerPayload = {
-      // Extended payload reference format
-      payloadRef: {
-        id: payloadId,
-        store: storeName,
-        size: serializedPayload.size,
-      },
-      // Legacy format for backward compatibility
-      offloadedPayloadPointer: payloadId,
-      offloadedPayloadSize: serializedPayload.size,
-      // @ts-expect-error
-      [this.messageIdField]: message[this.messageIdField],
-      // @ts-expect-error
-      [this.messageTimestampField]: message[this.messageTimestampField],
-      // @ts-expect-error
-      [this.messageDeduplicationIdField]: message[this.messageDeduplicationIdField],
-      // @ts-expect-error
-      [this.messageDeduplicationOptionsField]: message[this.messageDeduplicationOptionsField],
+    return this.buildPointer(message, payloadId, storeName, serializedPayload.size)
+  }
+
+  /**
+   * Stores an already-compressed payload in the configured store.
+   * The `codec` name is recorded in payloadRef so the consumer can decompress after retrieval.
+   *
+   * The threshold check is NOT performed here — callers must decide whether to offload.
+   * Use this when compression has already been done and the compressed size exceeds the threshold.
+   *
+   * @throws Error if payload store is not configured
+   */
+  protected async offloadCompressedPayload(
+    message: MessagePayloadSchemas,
+    compressed: Buffer,
+    codec: MessageCodec,
+  ): Promise<OffloadedPayloadPointerPayload> {
+    if (!this.payloadStoreConfig) {
+      throw new Error('Payload store is not configured')
     }
 
-    // Preserve the message type field through offloading. We default to the conventional
-    // top-level `type` path so that routing/identity fields are handled consistently with
-    // `messageIdField`/`messageTimestampField`/etc., which have defaulted names ('id',
-    // 'timestamp', ...) and are always copied across when present. Without this fallback,
-    // `messageTypeResolver` modes that don't specify a body path (no resolver, `literal`,
-    // or `resolver`) silently strip `type` from the offloaded SNS body, which then breaks
-    // any downstream subscription whose FilterPolicy filters on `type`
-    // (FilterPolicyScope: 'MessageBody').
-    const typePath =
-      this.messageTypeResolver && isMessageTypePathConfig(this.messageTypeResolver)
-        ? this.messageTypeResolver.messageTypePath
-        : 'type'
-    const typeValue = getProperty(message, typePath)
-    if (typeValue !== undefined) {
-      setProperty(result, typePath, typeValue)
-    }
+    const { store, storeName } = this.resolveOutgoingStore()
+    const payloadId = await store.storePayload({
+      value: Readable.from(compressed),
+      size: compressed.byteLength,
+    })
 
-    return result
+    return this.buildPointer(message, payloadId, storeName, compressed.byteLength, codec)
   }
 
   /**
@@ -738,9 +776,13 @@ export abstract class AbstractQueueService<
    * Returns the original payload or an error if the payload was not found or could not be parsed.
    *
    * Supports both new multi-store format (payloadRef) and legacy format (offloadedPayloadPointer).
+   *
+   * When `decompress` is provided and the pointer's `payloadRef.codec` matches, the fetched bytes
+   * are treated as raw compressed binary and decompressed before JSON parsing.
    */
   protected async retrieveOffloadedMessagePayload(
     maybeOffloadedPayloadPointerPayload: unknown,
+    decompress?: (codec: string, data: Buffer) => Promise<Buffer>,
   ): Promise<Either<Error, unknown>> {
     if (!this.payloadStoreConfig) {
       return {
@@ -787,6 +829,24 @@ export abstract class AbstractQueueService<
     if (serializedOffloadedPayloadReadable === null) {
       return {
         error: new Error(`Payload with key ${payloadId} was not found in the store`),
+      }
+    }
+
+    const codec = parsedPayload.payloadRef?.codec
+    if (codec && decompress) {
+      try {
+        const compressedBuffer = await streamWithKnownSizeToBuffer(
+          serializedOffloadedPayloadReadable,
+          payloadSize,
+        )
+        const decompressed = await decompress(codec, compressedBuffer)
+        return { result: JSON.parse(decompressed.toString('utf8')) }
+      } catch (e) {
+        return {
+          error: new Error(`Failed to decompress offloaded payload with codec "${codec}"`, {
+            cause: e,
+          }),
+        }
       }
     }
 

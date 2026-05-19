@@ -40,7 +40,7 @@
         "@biomejs/biome": "^2.3.8",
         "@lokalise/biome-config": "^3.1.0",
         "@lokalise/tsconfig": "^3.0.0",
-        "@message-queue-toolkit/core": "*",
+        "@message-queue-toolkit/core": "workspace:*",
         "@message-queue-toolkit/gcs-payload-store": "*",
         "@message-queue-toolkit/redis-message-deduplication-store": "*",
         "@message-queue-toolkit/schemas": "*",

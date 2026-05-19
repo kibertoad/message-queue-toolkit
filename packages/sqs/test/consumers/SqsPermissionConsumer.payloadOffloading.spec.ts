@@ -1,7 +1,7 @@
 import type { S3 } from '@aws-sdk/client-s3'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { SinglePayloadStoreConfig } from '@message-queue-toolkit/core'
-import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
+import { MessageCodecEnum, MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
@@ -400,4 +400,111 @@ describe('SqsPermissionConsumer - nested messageTypePath with payload offloading
       await publisher.close()
     })
   })
+})
+
+describe('SqsPermissionConsumer - codec + payload offloading', () => {
+  const s3BucketName = 'test-bucket-codec'
+  // Threshold low enough that even a small compressed payload triggers offloading
+  const smallThreshold = 10
+
+  let diContainer: AwilixContainer<Dependencies>
+  let s3: S3
+  let testAdmin: TestAwsResourceAdmin
+  let payloadStoreConfig: SinglePayloadStoreConfig
+
+  beforeAll(async () => {
+    diContainer = await registerDependencies({
+      permissionPublisher: asValue(() => undefined),
+      permissionConsumer: asValue(() => undefined),
+    })
+    s3 = diContainer.cradle.s3
+    testAdmin = diContainer.cradle.testAdmin
+
+    await testAdmin.createBucket(s3BucketName)
+    payloadStoreConfig = {
+      messageSizeThreshold: smallThreshold,
+      store: new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketName }),
+      storeName: 's3',
+    }
+  })
+
+  afterAll(async () => {
+    await testAdmin.emptyBuckets(s3BucketName)
+    const { awilixManager } = diContainer.cradle
+    await awilixManager.executeDispose()
+    await diContainer.dispose()
+  })
+
+  it('compresses payload, offloads to S3 as raw binary, and consumer decompresses correctly', async () => {
+    const queueName = 'codec-offload-roundtrip'
+    await testAdmin.deleteQueues(queueName)
+
+    const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
+      id: 'codec-offload-1',
+      messageType: 'add',
+      metadata: { info: 'compressed and offloaded' },
+    }
+
+    const publisher = new SqsPermissionPublisher(diContainer.cradle, {
+      codec: MessageCodecEnum.ZSTD,
+      payloadStoreConfig,
+      creationConfig: { queue: { QueueName: queueName } },
+    })
+    // No codec on consumer — codec is read from payloadRef.codec in the pointer
+    const consumer = new SqsPermissionConsumer(diContainer.cradle, {
+      payloadStoreConfig,
+      creationConfig: { queue: { QueueName: queueName } },
+      deletionConfig: { deleteIfExists: false },
+    })
+
+    await publisher.init()
+    await consumer.start()
+
+    await publisher.publish(message)
+
+    // Verify payload was offloaded to S3
+    const s3Keys = await waitForS3Objects(s3, s3BucketName, 1, 5000)
+    expect(s3Keys.length).toBeGreaterThan(0)
+
+    // Verify consumer receives the correct decompressed payload
+    const result = await consumer.handlerSpy.waitForMessageWithId(message.id, 'consumed')
+    expect(result.message).toMatchObject(message)
+
+    await publisher.close()
+    await consumer.close(true)
+  }, 30_000)
+
+  it('consumer without explicit codec still decompresses codec-offloaded payload', async () => {
+    const queueName = 'codec-offload-auto-detect'
+    await testAdmin.deleteQueues(queueName)
+
+    const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
+      id: 'codec-offload-auto-1',
+      messageType: 'add',
+      metadata: { info: 'auto-detect codec from pointer' },
+    }
+
+    const publisher = new SqsPermissionPublisher(diContainer.cradle, {
+      codec: MessageCodecEnum.ZSTD,
+      payloadStoreConfig,
+      creationConfig: { queue: { QueueName: queueName } },
+    })
+    // Consumer has no explicit codec — should still work because codec comes from payloadRef.codec
+    const consumer = new SqsPermissionConsumer(diContainer.cradle, {
+      payloadStoreConfig,
+      creationConfig: { queue: { QueueName: queueName } },
+      deletionConfig: { deleteIfExists: false },
+    })
+
+    await publisher.init()
+    await consumer.start()
+
+    await publisher.publish(message)
+
+    const result = await consumer.handlerSpy.waitForMessageWithId(message.id, 'consumed')
+    expect(result.message).toMatchObject(message)
+
+    await publisher.close()
+    await consumer.close(true)
+  }, 30_000)
 })

@@ -1,5 +1,5 @@
 /**
- * Regression tests for `AbstractQueueService.offloadMessagePayloadIfNeeded`.
+ * Regression tests for `AbstractQueueService.offloadPayload`.
  *
  * Identity fields (`messageIdField`, `messageTimestampField`, `messageDeduplicationIdField`,
  * `messageDeduplicationOptionsField`) all have defaulted names ('id', 'timestamp', ...) and
@@ -58,7 +58,7 @@ class TestQueueService extends AbstractQueueService<
 
   // Expose protected method for direct testing.
   public callOffload(message: TestMessage, sizeFn: () => number) {
-    return this.offloadMessagePayloadIfNeeded(message, sizeFn)
+    return this.offloadPayload(message, sizeFn)
   }
 }
 
@@ -102,7 +102,7 @@ const baseMessage: TestMessage = {
   payload: { large: 'data' },
 }
 
-describe('AbstractQueueService.offloadMessagePayloadIfNeeded — `type` preservation', () => {
+describe('AbstractQueueService.offloadPayload — `type` preservation', () => {
   it('preserves `type` when no messageTypeResolver is configured', async () => {
     const svc = buildService(undefined)
     const result = (await svc.callOffload(
