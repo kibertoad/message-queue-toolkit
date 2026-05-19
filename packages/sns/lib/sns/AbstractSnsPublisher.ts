@@ -2,6 +2,7 @@ import type { MessageAttributeValue } from '@aws-sdk/client-sns'
 import { PublishCommand } from '@aws-sdk/client-sns'
 import type { Either } from '@lokalise/node-core'
 import { InternalError } from '@lokalise/node-core'
+import { compressMessageBody } from '@message-queue-toolkit/codec'
 import {
   type AsyncPublisher,
   type BarrierResult,
@@ -14,7 +15,7 @@ import {
   type QueuePublisherOptions,
   type ResolvedMessage,
 } from '@message-queue-toolkit/core'
-import { compressMessageBody, resolveOutgoingMessageAttributes } from '@message-queue-toolkit/sqs'
+import { resolveOutgoingMessageAttributes } from '@message-queue-toolkit/sqs'
 
 import { calculateOutgoingMessageSize, validateFifoTopicName } from '../utils/snsUtils.ts'
 

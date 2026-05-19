@@ -1,8 +1,8 @@
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
+import { compressMessageBody } from '@message-queue-toolkit/codec'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { compressMessageBody } from '../../lib/codec/sqsCodecHandler.ts'
 
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'

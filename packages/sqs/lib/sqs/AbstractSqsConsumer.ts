@@ -5,6 +5,7 @@ import {
   SetQueueAttributesCommand,
 } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
+import { decompressMessageBody } from '@message-queue-toolkit/codec'
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import {
   type BarrierResult,
@@ -27,7 +28,6 @@ import {
 import type { ConsumerOptions } from 'sqs-consumer'
 import { Consumer } from 'sqs-consumer'
 import type { ZodSchema } from 'zod/v4'
-import { decompressMessageBody } from '../codec/sqsCodecHandler.ts'
 import type { SQSMessage } from '../types/MessageTypes.ts'
 import { hasOffloadedPayload } from '../utils/messageUtils.ts'
 import { deleteSqs, initSqs } from '../utils/sqsInitter.ts'

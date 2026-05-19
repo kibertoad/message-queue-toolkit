@@ -2,6 +2,7 @@ import type { MessageAttributeValue } from '@aws-sdk/client-sqs'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
 import { InternalError } from '@lokalise/node-core'
+import { compressMessageBody } from '@message-queue-toolkit/codec'
 import {
   type AsyncPublisher,
   type BarrierResult,
@@ -15,7 +16,6 @@ import {
   type ResolvedMessage,
 } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod/v4'
-import { compressMessageBody } from '../codec/sqsCodecHandler.ts'
 
 import type { SQSMessage } from '../types/MessageTypes.ts'
 import { resolveOutgoingMessageAttributes } from '../utils/messageUtils.ts'

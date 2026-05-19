@@ -43,6 +43,7 @@ npm install @message-queue-toolkit/sns @message-queue-toolkit/sqs @message-queue
 - `@aws-sdk/client-sqs` - AWS SDK for SQS (required for consumers)
 - `@aws-sdk/client-sts` - AWS SDK for STS (for ARN resolution)
 - `zod` - Schema validation
+- `@message-queue-toolkit/codec` - Required when using message compression
 
 ## Features
 

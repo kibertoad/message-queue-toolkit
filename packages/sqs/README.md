@@ -49,6 +49,7 @@ npm install @message-queue-toolkit/sqs @message-queue-toolkit/core
 **Peer Dependencies:**
 - `@aws-sdk/client-sqs` - AWS SDK for SQS
 - `zod` - Schema validation
+- `@message-queue-toolkit/codec` - Required when using message compression
 
 ## Features
 
@@ -804,6 +805,12 @@ await publisher.publish({
 ### Message Compression
 
 Compress message bodies with zstd using the Node.js built-in `zlib` module. Requires **Node.js 22+**.
+
+The codec implementation lives in the separate [`@message-queue-toolkit/codec`](../codec/README.md) package, which must be installed alongside this package when using compression.
+
+```bash
+npm install @message-queue-toolkit/codec
+```
 
 Compressed messages are **self-describing**: the codec is embedded in the message envelope (`{ __codec: 'zstd', __data: '<base64>' }`), so a consumer without `codec` set will still decompress automatically via envelope detection. This allows a gradual rollout — enable compression on the publisher first, consumers adapt without configuration changes.
 
