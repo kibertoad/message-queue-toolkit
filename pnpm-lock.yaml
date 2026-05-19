@@ -486,7 +486,7 @@ importers:
         specifier: ^3.812.0
         version: 3.1048.0
       '@aws-sdk/client-sqs':
-        specifier: ^3.812.0
+        specifier: ^3.1034.0
         version: 3.1048.0
       '@biomejs/biome':
         specifier: ^2.3.6
@@ -507,8 +507,8 @@ importers:
         specifier: '*'
         version: 3.0.0(@aws-sdk/client-s3@3.1048.0)(@message-queue-toolkit/core@25.5.0(zod@4.4.3))
       '@message-queue-toolkit/sqs':
-        specifier: '*'
-        version: 24.2.1(@aws-sdk/client-sqs@3.1048.0)(@message-queue-toolkit/core@25.5.0(zod@4.4.3))(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../sqs
       '@types/node':
         specifier: ^25.0.2
         version: 25.8.0
@@ -553,7 +553,7 @@ importers:
         specifier: ^3.812.0
         version: 3.1048.0
       '@aws-sdk/client-sqs':
-        specifier: ^3.812.0
+        specifier: ^3.1034.0
         version: 3.1048.0
       '@biomejs/biome':
         specifier: ^2.3.8
@@ -1000,13 +1000,6 @@ packages:
   '@message-queue-toolkit/schemas@7.1.0':
     resolution: {integrity: sha512-JAzSQAHouympK/cEDBxsfEuS2Ifu1pv0a/NRvhNWfFlgW0TmsWT7SkYNERA7x89OK7PGk9PyDN88cV9l0gZ22Q==}
     peerDependencies:
-      zod: '>=3.25.76 <5.0.0'
-
-  '@message-queue-toolkit/sqs@24.2.1':
-    resolution: {integrity: sha512-R3+XSzvBUStsjbjKWtTIb64PD/4+cUM0CrqiATuPj4XUK0WTzCYhHF42okk+6k1Nv5H3U7P1gGXgeotBGRKadg==}
-    peerDependencies:
-      '@aws-sdk/client-sqs': ^3.632.0
-      '@message-queue-toolkit/core': '>=25.0.0'
       zod: '>=3.25.76 <5.0.0'
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3':
@@ -2460,12 +2453,6 @@ packages:
     resolution: {integrity: sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==}
     engines: {node: '>= 10.x'}
 
-  sqs-consumer@14.2.8:
-    resolution: {integrity: sha512-Iq3AdASfsxY2s3KL88aPRGgvST3gviZphL5teTKxUqDZzXRIB8s6SWATft+v7YaGMspCs8BwrOKo9vD6ltcJmw==}
-    engines: {node: '>=20.0.0'}
-    peerDependencies:
-      '@aws-sdk/client-sqs': ^3.1018.0
-
   sqs-consumer@15.0.1:
     resolution: {integrity: sha512-cDcSkekXxhLMn3u+FSnAG3Ryh6jwHMPna1/oqs2dUL0gvUXOLLMa2Yzu0K4QqwVyaH0MDZw1IU7+W+W618/xcw==}
     engines: {node: '>=22.0.0'}
@@ -3386,16 +3373,6 @@ snapshots:
   '@message-queue-toolkit/schemas@7.1.0(zod@4.4.3)':
     dependencies:
       zod: 4.4.3
-
-  '@message-queue-toolkit/sqs@24.2.1(@aws-sdk/client-sqs@3.1048.0)(@message-queue-toolkit/core@25.5.0(zod@4.4.3))(zod@4.4.3)':
-    dependencies:
-      '@aws-sdk/client-sqs': 3.1048.0
-      '@lokalise/node-core': 14.8.1(zod@4.4.3)
-      '@message-queue-toolkit/core': 25.5.0(zod@4.4.3)
-      sqs-consumer: 14.2.8(@aws-sdk/client-sqs@3.1048.0)
-      zod: 4.4.3
-    transitivePeerDependencies:
-      - supports-color
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3':
     optional: true
@@ -4806,13 +4783,6 @@ snapshots:
   source-map-js@1.2.1: {}
 
   split2@4.2.0: {}
-
-  sqs-consumer@14.2.8(@aws-sdk/client-sqs@3.1048.0):
-    dependencies:
-      '@aws-sdk/client-sqs': 3.1048.0
-      debug: 4.4.3
-    transitivePeerDependencies:
-      - supports-color
 
   sqs-consumer@15.0.1(@aws-sdk/client-sqs@3.1048.0):
     dependencies:

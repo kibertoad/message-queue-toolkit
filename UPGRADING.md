@@ -8,6 +8,12 @@
 
 - **`HandlerSpy.addProcessedMessage` signature changed**: The `addProcessedMessage` method now requires a `messageType` parameter. This is an internal API change - if you're using `HandlerSpy` directly (outside of the built-in queue services), you'll need to update your calls. The library's queue services handle this automatically.
 
+- **SQS / SNS-SQS consumers now explicitly default to long polling (`waitTimeSeconds = 20`)**: Previously the toolkit relied on `sqs-consumer`'s implicit library default. The wait time is now a first-class option, `consumerPollingWaitTimeSeconds`, on `SQSConsumerOptions` (also inherited by `SNSSQSConsumerOptions`). Behavior is unchanged for existing users on the default — but you can now explicitly set `consumerPollingWaitTimeSeconds: 0` to opt into short polling (useful for tests asserting on "message was NOT processed" scenarios, or for niche prod workloads where per-poll latency matters more than long-poll efficiency). `waitTimeSeconds` has been removed from the `consumerOverrides` passthrough type — if you previously set `consumerOverrides: { waitTimeSeconds: N }`, move it to the top-level `consumerPollingWaitTimeSeconds: N`.
+
+- **`@aws-sdk/client-sqs` peer floor bumped to `^3.1034.0`** in `@message-queue-toolkit/sqs` and `@message-queue-toolkit/sns`. Driven by `sqs-consumer@15`, which is the version both packages already depend on. If you were installing the toolkit alongside `@aws-sdk/client-sqs` below `3.1034.0`, upgrade your SDK to silence the peer warning.
+
+- **Minimum Node.js raised to `>=22.0.0`** in `@message-queue-toolkit/sqs` and `@message-queue-toolkit/sns`. Driven by `sqs-consumer@15`'s LTS-only support policy. The toolkit's CI matrix has been on Node 22+ for some time, so this only formalizes what was already required.
+
 ### Migration Steps
 
 #### Replacing `messageTypeField` with `messageTypeResolver`
