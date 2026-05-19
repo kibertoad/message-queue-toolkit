@@ -44,7 +44,7 @@ const original = await decompressMessageBody(JSON.parse(compressed))
 When you have pre-compressed bytes (e.g., from `resolveCodecHandler(codec).compress(...)`) and want to produce the envelope string without compressing again:
 
 ```typescript
-import { buildCodecEnvelope } from '@message-queue-toolkit/codec'
+import { buildCodecEnvelope, resolveCodecHandler } from '@message-queue-toolkit/codec'
 import { MessageCodecEnum } from '@message-queue-toolkit/core'
 
 const handler = resolveCodecHandler(MessageCodecEnum.ZSTD)

@@ -1,5 +1,5 @@
 import type { S3 } from '@aws-sdk/client-s3'
-import { SendMessageCommand } from '@aws-sdk/client-sqs'
+import { ReceiveMessageCommand, SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { SinglePayloadStoreConfig } from '@message-queue-toolkit/core'
 import { MessageCodecEnum, MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
@@ -13,7 +13,7 @@ import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer.ts'
 import { AbstractSqsPublisher } from '../../lib/sqs/AbstractSqsPublisher.ts'
 import { SQS_MESSAGE_MAX_SIZE } from '../../lib/sqs/AbstractSqsService.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
-import { putObjectContent, waitForS3Objects } from '../utils/s3Utils.ts'
+import { getObjectBuffer, putObjectContent, waitForS3Objects } from '../utils/s3Utils.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -435,6 +435,54 @@ describe('SqsPermissionConsumer - codec + payload offloading', () => {
     await diContainer.dispose()
   })
 
+  it('S3 object is raw zstd binary and SQS message carries a plain pointer (not a codec envelope)', async () => {
+    // Use an isolated queue with no consumer so we can read the raw SQS message without a race
+    const wireQueueName = 'codec-offload-wire-check'
+    await testAdmin.deleteQueues(wireQueueName)
+
+    const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
+      id: 'codec-offload-wire-1',
+      messageType: 'add',
+      metadata: { info: 'wire format check' },
+    }
+
+    const wirePublisher = new SqsPermissionPublisher(diContainer.cradle, {
+      codec: MessageCodecEnum.ZSTD,
+      payloadStoreConfig,
+      creationConfig: { queue: { QueueName: wireQueueName } },
+    })
+    await wirePublisher.init()
+    await wirePublisher.publish(message)
+
+    // Read the raw SQS message before any consumer touches it
+    const { Messages } = await diContainer.cradle.sqsClient.send(
+      new ReceiveMessageCommand({
+        QueueUrl: wirePublisher.queueProps.url,
+        MaxNumberOfMessages: 1,
+        WaitTimeSeconds: 5,
+      }),
+    )
+    expect(Messages, 'Expected a message to be in the queue').toBeDefined()
+    expect(Messages!.length).toBe(1)
+
+    // SQS body must be a plain JSON pointer — not a codec envelope.
+    // Compressed bytes live in S3; only the pointer is sent inline.
+    const sqsBody = JSON.parse(Messages![0]!.Body!) as Record<string, unknown>
+    expect(sqsBody.__codec, 'SQS body must not be a codec envelope when offloading').toBeUndefined()
+    expect(sqsBody.payloadRef, 'SQS body must contain a payloadRef pointer').toBeDefined()
+    const payloadRef = sqsBody.payloadRef as Record<string, unknown>
+    expect(payloadRef.codec).toBe(MessageCodecEnum.ZSTD)
+
+    // S3 object must be raw compressed binary, not a JSON codec envelope.
+    // zstd frames start with magic number 0xFD2FB528 (little-endian: 28 B5 2F FD).
+    const s3Keys = await waitForS3Objects(s3, s3BucketName, 1, 5000)
+    expect(s3Keys.length).toBeGreaterThan(0)
+    const s3Bytes = await getObjectBuffer(s3, s3BucketName, s3Keys[0]!)
+    expect(s3Bytes.subarray(0, 4)).toEqual(Buffer.from([0x28, 0xb5, 0x2f, 0xfd]))
+
+    await wirePublisher.close()
+  }, 30_000)
+
   it('compresses payload, offloads to S3 as raw binary, and consumer decompresses correctly', async () => {
     const queueName = 'codec-offload-roundtrip'
     await testAdmin.deleteQueues(queueName)
@@ -459,7 +507,6 @@ describe('SqsPermissionConsumer - codec + payload offloading', () => {
 
     await publisher.init()
     await consumer.start()
-
     await publisher.publish(message)
 
     // Verify payload was offloaded to S3

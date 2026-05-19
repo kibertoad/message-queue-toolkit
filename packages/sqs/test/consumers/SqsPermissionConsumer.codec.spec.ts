@@ -1,4 +1,4 @@
-import { SendMessageCommand } from '@aws-sdk/client-sqs'
+import { ReceiveMessageCommand, SendMessageCommand } from '@aws-sdk/client-sqs'
 import { compressMessageBody } from '@message-queue-toolkit/codec'
 import { MessageCodecEnum } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
@@ -63,6 +63,46 @@ describe('SqsPermissionConsumer - zstd codec', () => {
 
     const result = await consumer.handlerSpy.waitForMessageWithId(message.id, 'consumed')
     expect(result.message).toMatchObject(message)
+  })
+
+  it('published SQS message body is a codec envelope containing valid zstd bytes', async () => {
+    // Use an isolated queue with no consumer so we can read the raw message without a race
+    const wireQueueName = `${SqsPermissionConsumer.QUEUE_NAME}-wire-check`
+    await testAdmin.deleteQueues(wireQueueName)
+
+    const wirePublisher = new SqsPermissionPublisher(diContainer.cradle, {
+      codec: MessageCodecEnum.ZSTD,
+      creationConfig: { queue: { QueueName: wireQueueName } },
+    })
+    await wirePublisher.init()
+
+    const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
+      id: 'codec-wire-1',
+      messageType: 'add',
+    }
+    await wirePublisher.publish(message)
+
+    // Read the raw message directly from SQS — no consumer is running on this queue
+    const { Messages } = await diContainer.cradle.sqsClient.send(
+      new ReceiveMessageCommand({
+        QueueUrl: wirePublisher.queueProps.url,
+        MaxNumberOfMessages: 1,
+        WaitTimeSeconds: 5,
+      }),
+    )
+    expect(Messages, 'Expected a message to be in the queue').toBeDefined()
+    expect(Messages!.length).toBe(1)
+
+    // Body must be a self-describing codec envelope, not raw message JSON
+    const envelope = JSON.parse(Messages![0]!.Body!) as Record<string, unknown>
+    expect(envelope.__codec).toBe(MessageCodecEnum.ZSTD)
+    expect(typeof envelope.__data).toBe('string')
+
+    // __data must decode to a valid zstd frame: magic number 0xFD2FB528 (LE → 28 B5 2F FD)
+    const compressed = Buffer.from(envelope.__data as string, 'base64')
+    expect(compressed.subarray(0, 4)).toEqual(Buffer.from([0x28, 0xb5, 0x2f, 0xfd]))
+
+    await wirePublisher.close()
   })
 
   it('consumer correctly handles multiple compressed messages in sequence', async () => {
