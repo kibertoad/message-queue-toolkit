@@ -36,6 +36,9 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Build native dependencies
+        run: pnpm rebuild @mongodb-js/zstd
+
       - name: Build TS
         env:
           PACKAGE_NAME: ${{ inputs.package_name }}
