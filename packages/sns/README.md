@@ -745,6 +745,11 @@ SNS consumers use the same options as SQS consumers, plus SNS-specific subscript
   concurrentConsumersAmount: 1,
   maxRetryDuration: 345600,  // 4 days
   deadLetterQueue: { /* ... */ },
+  // SQS ReceiveMessage WaitTimeSeconds, 0–20. Defaults to 20 (full long polling)
+  // — cuts empty-receive cost, AWS API churn, and tail latency vs. short polling.
+  // Set to 0 to opt into short polling (common in tests asserting on "message
+  // was NOT processed", or for niche workloads where per-poll latency dominates).
+  consumerPollingWaitTimeSeconds: 20,
   consumerOverrides: { /* ... */ },
   // ... see SQS README for full list
 }

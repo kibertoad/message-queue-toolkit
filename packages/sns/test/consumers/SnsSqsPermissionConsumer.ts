@@ -37,6 +37,7 @@ type SnsSqsPermissionConsumerOptions = Pick<
   | 'deletionConfig'
   | 'deadLetterQueue'
   | 'consumerOverrides'
+  | 'consumerPollingWaitTimeSeconds'
   | 'maxRetryDuration'
   | 'payloadStoreConfig'
   | 'concurrentConsumersAmount'
@@ -152,6 +153,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
         consumerOverrides: options.consumerOverrides ?? {
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
         },
+        consumerPollingWaitTimeSeconds: options.consumerPollingWaitTimeSeconds ?? 0,
         deadLetterQueue: options.deadLetterQueue,
         ...(options.locatorConfig
           ? { locatorConfig: options.locatorConfig, creationConfig: options.creationConfig as any }

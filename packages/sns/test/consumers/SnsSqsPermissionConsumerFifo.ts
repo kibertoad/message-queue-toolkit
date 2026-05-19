@@ -143,6 +143,7 @@ export class SnsSqsPermissionConsumerFifo extends AbstractSnsSqsConsumer<
         consumerOverrides: options.consumerOverrides ?? {
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
         },
+        consumerPollingWaitTimeSeconds: options.consumerPollingWaitTimeSeconds ?? 0,
         deadLetterQueue: options.deadLetterQueue,
         ...(options.locatorConfig
           ? { locatorConfig: options.locatorConfig, creationConfig: options.creationConfig as any }

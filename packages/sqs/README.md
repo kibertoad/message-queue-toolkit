@@ -518,6 +518,13 @@ When using `locatorConfig`, you connect to an existing queue without creating it
     },
   },
 
+  // Optional - Long Polling (SQS ReceiveMessage WaitTimeSeconds, 0–20)
+  // Defaults to 20 (full long polling). Cuts empty-receive cost, AWS API
+  // churn, and tail latency vs. short polling. Set to 0 to opt into short
+  // polling — common for tests that assert on "message was NOT processed"
+  // scenarios, or for niche prod workloads where per-poll latency dominates.
+  consumerPollingWaitTimeSeconds: 20,
+
   // Optional - Consumer Behavior
   consumerOverrides: {
     batchSize: 10,                     // Messages per receive (1-10)
