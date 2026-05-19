@@ -141,11 +141,24 @@ export type CommonQueueOptions = {
   payloadStoreConfig?: PayloadStoreConfig
   messageDeduplicationConfig?: MessageDeduplicationConfig
   /**
-   * Codec to use for compressing outgoing messages and decompressing incoming messages.
-   * When set on a publisher, messages are compressed before sending.
-   * When set on a consumer, it signals that incoming messages may be compressed.
-   * Compressed messages are self-describing (the codec is embedded in the message envelope),
-   * so consumers can decompress even without this option explicitly set.
+   * Compression codec applied to message bodies.
+   *
+   * - **Publisher**: every outgoing message body is compressed and wrapped in a
+   *   self-describing envelope `{ __codec: 'zstd', __data: '<base64>' }`.
+   * - **Consumer**: when set, the consumer expects compressed messages.
+   *   Even without this option, consumers auto-detect and decompress any message
+   *   that carries a codec envelope, so mixed queues work transparently.
+   *
+   * Uses Node.js built-in `zlib` zstd support — **requires Node.js 22+**.
+   *
+   * @example
+   * import { MessageCodecEnum } from '@message-queue-toolkit/core'
+   *
+   * // Publisher
+   * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD })
+   *
+   * // Consumer (optional — auto-detection handles it even without this)
+   * new MyConsumer(deps, { codec: MessageCodecEnum.ZSTD })
    */
   codec?: MessageCodec
 }

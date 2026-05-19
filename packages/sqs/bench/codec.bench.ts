@@ -92,115 +92,107 @@ describe('SQS codec benchmarks', () => {
 
   // ── Publish ────────────────────────────────────────────────────────────────
 
-  it(
-    `publish: with vs without zstd  (${N} messages)`,
-    async () => {
-      console.log(`\n${'─'.repeat(72)}`)
-      console.log(`  PUBLISH BENCHMARK  —  ${N} messages per run`)
-      console.log('─'.repeat(72))
+  it(`publish: with vs without zstd  (${N} messages)`, async () => {
+    console.log(`\n${'─'.repeat(72)}`)
+    console.log(`  PUBLISH BENCHMARK  —  ${N} messages per run`)
+    console.log('─'.repeat(72))
 
-      for (const { label, suffix, meta } of CASES) {
-        const plainQ = `bench-pub-plain-${suffix}`
-        const codecQ = `bench-pub-codec-${suffix}`
-        await testAdmin.deleteQueues(plainQ, codecQ)
+    for (const { label, suffix, meta } of CASES) {
+      const plainQ = `bench-pub-plain-${suffix}`
+      const codecQ = `bench-pub-codec-${suffix}`
+      await testAdmin.deleteQueues(plainQ, codecQ)
 
-        const plainMsgs = makeMessages('bpp', N, meta)
-        const codecMsgs = makeMessages('bcp', N, meta)
+      const plainMsgs = makeMessages('bpp', N, meta)
+      const codecMsgs = makeMessages('bcp', N, meta)
 
-        // ── Plain publish ──
-        const plainPub = new SqsPermissionPublisher(diContainer.cradle, {
-          creationConfig: { queue: { QueueName: plainQ } },
-        })
-        await plainPub.init()
-        const t0 = performance.now()
-        for (const msg of plainMsgs) await plainPub.publish(msg)
-        const plainMs = performance.now() - t0
-        await plainPub.close()
+      // ── Plain publish ──
+      const plainPub = new SqsPermissionPublisher(diContainer.cradle, {
+        creationConfig: { queue: { QueueName: plainQ } },
+      })
+      await plainPub.init()
+      const t0 = performance.now()
+      for (const msg of plainMsgs) await plainPub.publish(msg)
+      const plainMs = performance.now() - t0
+      await plainPub.close()
 
-        // ── Codec publish ──
-        const codecPub = new SqsPermissionPublisher(diContainer.cradle, {
-          codec: 'zstd',
-          creationConfig: { queue: { QueueName: codecQ } },
-        })
-        await codecPub.init()
-        const t1 = performance.now()
-        for (const msg of codecMsgs) await codecPub.publish(msg)
-        const codecMs = performance.now() - t1
-        await codecPub.close()
+      // ── Codec publish ──
+      const codecPub = new SqsPermissionPublisher(diContainer.cradle, {
+        codec: 'zstd',
+        creationConfig: { queue: { QueueName: codecQ } },
+      })
+      await codecPub.init()
+      const t1 = performance.now()
+      for (const msg of codecMsgs) await codecPub.publish(msg)
+      const codecMs = performance.now() - t1
+      await codecPub.close()
 
-        await testAdmin.deleteQueues(plainQ, codecQ)
-        printRow(label, N, plainMs, codecMs)
-      }
-    },
-    120_000,
-  )
+      await testAdmin.deleteQueues(plainQ, codecQ)
+      printRow(label, N, plainMs, codecMs)
+    }
+  }, 120_000)
 
   // ── Consume ────────────────────────────────────────────────────────────────
 
-  it(
-    `consume: with vs without zstd  (${N} messages)`,
-    async () => {
-      console.log(`\n${'─'.repeat(72)}`)
-      console.log(`  CONSUME BENCHMARK  —  ${N} messages per run`)
-      console.log('─'.repeat(72))
+  it(`consume: with vs without zstd  (${N} messages)`, async () => {
+    console.log(`\n${'─'.repeat(72)}`)
+    console.log(`  CONSUME BENCHMARK  —  ${N} messages per run`)
+    console.log('─'.repeat(72))
 
-      for (const { label, suffix, meta } of CASES) {
-        const plainQ = `bench-con-plain-${suffix}`
-        const codecQ = `bench-con-codec-${suffix}`
-        await testAdmin.deleteQueues(plainQ, codecQ)
+    for (const { label, suffix, meta } of CASES) {
+      const plainQ = `bench-con-plain-${suffix}`
+      const codecQ = `bench-con-codec-${suffix}`
+      await testAdmin.deleteQueues(plainQ, codecQ)
 
-        const plainMsgs = makeMessages('bpc', N, meta)
-        const codecMsgs = makeMessages('bcc', N, meta)
+      const plainMsgs = makeMessages('bpc', N, meta)
+      const codecMsgs = makeMessages('bcc', N, meta)
 
-        // ── Pre-fill plain queue ──
-        const plainPub = new SqsPermissionPublisher(diContainer.cradle, {
-          creationConfig: { queue: { QueueName: plainQ } },
-        })
-        await plainPub.init()
-        for (const msg of plainMsgs) await plainPub.publish(msg)
-        await plainPub.close()
+      // ── Pre-fill plain queue ──
+      const plainPub = new SqsPermissionPublisher(diContainer.cradle, {
+        creationConfig: { queue: { QueueName: plainQ } },
+      })
+      await plainPub.init()
+      for (const msg of plainMsgs) await plainPub.publish(msg)
+      await plainPub.close()
 
-        // ── Pre-fill codec queue ──
-        const codecPub = new SqsPermissionPublisher(diContainer.cradle, {
-          codec: 'zstd',
-          creationConfig: { queue: { QueueName: codecQ } },
-        })
-        await codecPub.init()
-        for (const msg of codecMsgs) await codecPub.publish(msg)
-        await codecPub.close()
+      // ── Pre-fill codec queue ──
+      const codecPub = new SqsPermissionPublisher(diContainer.cradle, {
+        codec: 'zstd',
+        creationConfig: { queue: { QueueName: codecQ } },
+      })
+      await codecPub.init()
+      for (const msg of codecMsgs) await codecPub.publish(msg)
+      await codecPub.close()
 
-        // ── Measure plain consume ──
-        // deletionConfig: { deleteIfExists: false } preserves the pre-filled queue
-        const plainCon = new SqsPermissionConsumer(diContainer.cradle, {
-          creationConfig: { queue: { QueueName: plainQ } },
-          deletionConfig: { deleteIfExists: false },
-        })
-        await plainCon.start()
-        const t2 = performance.now()
-        await Promise.all(
-          plainMsgs.map((m) => plainCon.handlerSpy.waitForMessageWithId(m.id, 'consumed')),
-        )
-        const plainMs = performance.now() - t2
-        await plainCon.close(true)
+      // ── Measure plain consume ──
+      // deletionConfig: { deleteIfExists: false } preserves the pre-filled queue
+      const plainCon = new SqsPermissionConsumer(diContainer.cradle, {
+        creationConfig: { queue: { QueueName: plainQ } },
+        deletionConfig: { deleteIfExists: false },
+      })
+      await plainCon.start()
+      const t2 = performance.now()
+      await Promise.all(
+        plainMsgs.map((m) => plainCon.handlerSpy.waitForMessageWithId(m.id, 'consumed')),
+      )
+      const plainMs = performance.now() - t2
+      await plainCon.close(true)
 
-        // ── Measure codec consume ──
-        const codecCon = new SqsPermissionConsumer(diContainer.cradle, {
-          codec: 'zstd',
-          creationConfig: { queue: { QueueName: codecQ } },
-          deletionConfig: { deleteIfExists: false },
-        })
-        await codecCon.start()
-        const t3 = performance.now()
-        await Promise.all(
-          codecMsgs.map((m) => codecCon.handlerSpy.waitForMessageWithId(m.id, 'consumed')),
-        )
-        const codecMs = performance.now() - t3
-        await codecCon.close(true)
+      // ── Measure codec consume ──
+      const codecCon = new SqsPermissionConsumer(diContainer.cradle, {
+        codec: 'zstd',
+        creationConfig: { queue: { QueueName: codecQ } },
+        deletionConfig: { deleteIfExists: false },
+      })
+      await codecCon.start()
+      const t3 = performance.now()
+      await Promise.all(
+        codecMsgs.map((m) => codecCon.handlerSpy.waitForMessageWithId(m.id, 'consumed')),
+      )
+      const codecMs = performance.now() - t3
+      await codecCon.close(true)
 
-        await testAdmin.deleteQueues(plainQ, codecQ)
-        printRow(label, N, plainMs, codecMs)
-      }
-    },
-    120_000,
-  )
+      await testAdmin.deleteQueues(plainQ, codecQ)
+      printRow(label, N, plainMs, codecMs)
+    }
+  }, 120_000)
 })

@@ -24,6 +24,7 @@ for publishing and consuming messages from both standard and FIFO SQS queues.
   - [Message Retry Logic](#message-retry-logic)
   - [Message Deduplication](#message-deduplication)
   - [Payload Offloading](#payload-offloading)
+  - [Message Compression](#message-compression)
   - [Message Handlers](#message-handlers)
   - [Pre-handlers and Barriers](#pre-handlers-and-barriers)
   - [Handler Spies](#handler-spies)
@@ -62,6 +63,7 @@ npm install @message-queue-toolkit/sqs @message-queue-toolkit/core
 - ✅ **Handler spies** for testing
 - ✅ **Pre-handlers and barriers** for complex message processing
 - ✅ **Automatic queue creation** with validation
+- ✅ **Message compression** with zstd via Node.js built-in `zlib` (Node.js 22+ required)
 
 ## Core Concepts
 
@@ -460,6 +462,9 @@ When using `locatorConfig`, you connect to an existing queue without creating it
     maxPayloadSize: 1024 * 1024,       // 1 MiB
   },
 
+  // Optional - Compression (Node.js 22+ required)
+  codec: MessageCodecEnum.ZSTD,        // Compress every outgoing message with zstd
+
   // Optional - Deletion
   deletionConfig: {
     deleteIfExists: false,             // Delete queue on init
@@ -530,6 +535,11 @@ When using `locatorConfig`, you connect to an existing queue without creating it
   payloadStoreConfig: {
     payloadStore: s3Store,
   },
+
+  // Optional - Compression (Node.js 22+ required)
+  // Auto-detection is always active: consumers decompress codec envelopes
+  // even without this option set.
+  codec: MessageCodecEnum.ZSTD,
 
   // Optional - Other
   logMessages: false,
@@ -790,6 +800,54 @@ await publisher.publish({
 6. Processes message with full payload
 
 **Note:** Payload cleanup is the responsibility of the store (e.g., S3 lifecycle policies).
+
+### Message Compression
+
+Compress message bodies with zstd using the Node.js built-in `zlib` module. Requires **Node.js 22+**.
+
+Compressed messages are **self-describing**: the codec is embedded in the message envelope (`{ __codec: 'zstd', __data: '<base64>' }`), so a consumer without `codec` set will still decompress automatically via envelope detection. This allows a gradual rollout — enable compression on the publisher first, consumers adapt without configuration changes.
+
+#### Publisher
+
+```typescript
+import { MessageCodecEnum } from '@message-queue-toolkit/core'
+
+class MyPublisher extends AbstractSqsPublisher<SupportedMessages> {
+  constructor(deps: SQSDependencies) {
+    super(deps, {
+      codec: MessageCodecEnum.ZSTD, // compress every outgoing message
+      creationConfig: { queue: { QueueName: 'my-queue' } },
+      // ...
+    })
+  }
+}
+```
+
+#### Consumer
+
+```typescript
+import { MessageCodecEnum } from '@message-queue-toolkit/core'
+
+class MyConsumer extends AbstractSqsConsumer<SupportedMessages, ExecutionContext> {
+  constructor(deps: SQSConsumerDependencies) {
+    super(deps, {
+      // Optional: explicitly declare that messages are compressed.
+      // Without this, consumers still auto-detect and decompress codec envelopes.
+      codec: MessageCodecEnum.ZSTD,
+      creationConfig: { queue: { QueueName: 'my-queue' } },
+      handlers: new MessageHandlerConfigBuilder<SupportedMessages, ExecutionContext>()
+        .addConfig(MySchema, myHandler)
+        .build(),
+    }, executionContext)
+  }
+}
+```
+
+#### Notes
+
+- Compression is applied **after** schema validation and **before** the SQS `SendMessage` call.
+- Compressed payloads are still subject to the SQS 256 KB message size limit. For large messages that remain oversized after compression, combine with [Payload Offloading](#payload-offloading).
+- Uses `MessageCodecEnum.ZSTD` (value `'zstd'`). You can use the string literal or the enum — both satisfy the `MessageCodec` type.
 
 ### Message Handlers
 

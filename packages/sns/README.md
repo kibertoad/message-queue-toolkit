@@ -58,6 +58,7 @@ npm install @message-queue-toolkit/sns @message-queue-toolkit/sqs @message-queue
 - ✅ **Handler spies** for testing
 - ✅ **Pre-handlers and barriers** for complex message processing
 - ✅ **Cross-account and cross-region publishing**
+- ✅ **Message compression** with zstd via Node.js built-in `zlib` (Node.js 22+ required)
 
 ## Core Concepts
 
@@ -683,6 +684,9 @@ await consumer.start()
   // Optional - Payload Offloading (same as SQS)
   payloadStoreConfig: { /* ... */ },
 
+  // Optional - Compression (Node.js 22+ required)
+  codec: MessageCodecEnum.ZSTD,        // Compress every outgoing message with zstd
+
   // Optional - Deletion
   deletionConfig: { /* ... */ },
 }
@@ -1000,6 +1004,7 @@ SNS consumers inherit all advanced features from SQS consumers. See the SQS READ
 - **[Message Retry Logic](../sqs/README.md#message-retry-logic)** - Exponential backoff and retry limits
 - **[Message Deduplication](../sqs/README.md#message-deduplication)** - Publisher and consumer-level deduplication
 - **[Payload Offloading](../sqs/README.md#payload-offloading)** - S3 storage for large messages
+- **[Message Compression](../sqs/README.md#message-compression)** - zstd compression via Node.js built-in `zlib`
 - **[Message Handlers](../sqs/README.md#message-handlers)** - Type-safe handler configuration
 - **[Pre-handlers and Barriers](../sqs/README.md#pre-handlers-and-barriers)** - Middleware and message dependencies
 - **[Handler Spies](../sqs/README.md#handler-spies)** - Testing async message flows

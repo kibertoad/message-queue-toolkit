@@ -1,20 +1,25 @@
+import { promisify } from 'node:util'
+import zlib from 'node:zlib'
 import type { CodecEnvelope, MessageCodec, MessageCodecHandler } from '@message-queue-toolkit/core'
-import { compress, decompress } from '@mongodb-js/zstd'
+import { MessageCodecEnum } from '@message-queue-toolkit/core'
+
+const zstdCompress = promisify(zlib.zstdCompress)
+const zstdDecompress = promisify(zlib.zstdDecompress)
 
 export class ZstdCodecHandler implements MessageCodecHandler {
   compress(data: Buffer): Promise<Buffer> {
-    return compress(data)
+    return zstdCompress(data)
   }
 
   decompress(data: Buffer): Promise<Buffer> {
-    return decompress(data)
+    return zstdDecompress(data)
   }
 }
 
 const ZSTD_HANDLER = new ZstdCodecHandler()
 
 export function resolveCodecHandler(codec: MessageCodec): MessageCodecHandler {
-  if (codec === 'zstd') return ZSTD_HANDLER
+  if (codec === MessageCodecEnum.ZSTD) return ZSTD_HANDLER
   throw new Error(`Unsupported codec: ${codec}`)
 }
 
