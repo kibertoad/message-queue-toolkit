@@ -47,10 +47,26 @@ export class ZstdCodecHandler implements MessageCodecHandler {
 const ZSTD_HANDLER = new ZstdCodecHandler()
 
 /**
+ * Allowed characters for a custom codec name: ASCII letters, digits, hyphens, underscores.
+ * This keeps the name JSON-safe without escaping and makes it a recognisable identifier.
+ */
+const SAFE_CODEC_NAME_RE = /^[A-Za-z0-9_-]+$/
+
+/**
  * Returns the name string that will be written into the `__mqtCodec` field of every envelope.
+ * Throws for custom (object-form) registrations whose name contains characters that would
+ * produce invalid JSON when interpolated raw into the envelope string.
  */
 export function getCodecName(codec: MessageCodecRegistration): string {
-  return typeof codec === 'string' ? codec : codec.name
+  if (typeof codec === 'object') {
+    if (!SAFE_CODEC_NAME_RE.test(codec.name)) {
+      throw new Error(
+        `Invalid codec name "${codec.name}": only ASCII letters, digits, hyphens, and underscores are allowed`,
+      )
+    }
+    return codec.name
+  }
+  return codec
 }
 
 /**
