@@ -797,7 +797,7 @@ export abstract class AbstractQueueService<
         fs.createWriteStream(tmpPath),
       )
 
-      const compressedSize = fs.statSync(tmpPath).size
+      const compressedSize = (await fs.promises.stat(tmpPath)).size
 
       // Compare the envelope wire size (not raw compressed bytes) against the threshold.
       // buildCodecEnvelope produces {"__mqtCodec":"<codecName>","__mqtData":"<base64>"}.
@@ -816,10 +816,10 @@ export abstract class AbstractQueueService<
       }
 
       // Compressed payload fits inline — return the buffer; caller wraps it in a codec envelope.
-      return { compressedBuffer: fs.readFileSync(tmpPath) }
+      return { compressedBuffer: await fs.promises.readFile(tmpPath) }
     } finally {
       try {
-        fs.unlinkSync(tmpPath)
+        await fs.promises.unlink(tmpPath)
       } catch {
         // ignore cleanup errors
       }
