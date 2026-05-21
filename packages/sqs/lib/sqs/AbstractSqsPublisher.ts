@@ -202,6 +202,9 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
    * Compresses (when codec is set) or offloads (when store is configured) the message.
    * Returns the payload to send and an optional pre-built body string.
    * When preBuiltBody is set, it is a ready-to-send codec envelope — sendMessage must use it as-is.
+   *
+   * When both codec and payloadStoreConfig are set, uses a streaming pipeline
+   * (JSON → zstd → temp file → store) to avoid materialising the full payload in memory.
    */
   private async prepareOutgoingPayload(message: MessagePayloadType): Promise<{
     payload: MessagePayloadType | OffloadedPayloadPointerPayload
@@ -210,29 +213,30 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     const codec = this.codec
 
     if (codec) {
+      if (this.payloadStoreConfig) {
+        // Streaming path: avoids 3× buffer materialisation for large payloads.
+        // JSON → zstd → temp file → threshold check → offload or inline envelope.
+        const result = await this.compressAndOffloadPayload(message, codec)
+        if (result.pointer) {
+          return { payload: result.pointer }
+        }
+        return {
+          payload: message,
+          preBuiltBody: buildCodecEnvelope(result.compressedBuffer, codec),
+        }
+      }
+
+      // No offload store — bounded by SQS 256 KB limit, safe to buffer.
       // Serialize once so we can check the raw size before deciding whether to compress.
       const jsonBuffer = Buffer.from(JSON.stringify(message), 'utf8')
 
       // Skip compression for messages below the configured floor — small payloads
       // often grow when compressed, so we send them as plain JSON instead.
       if (jsonBuffer.byteLength < this.skipCompressionBelow) {
-        return {
-          payload:
-            (await this.offloadPayload(message, () => calculateOutgoingMessageSize(message))) ??
-            message,
-        }
+        return { payload: message }
       }
 
-      // Compress once up-front, then decide: offload the compressed bytes or send inline.
       const compressed = await resolveCodecHandler(codec).compress(jsonBuffer)
-
-      if (
-        this.payloadStoreConfig &&
-        compressed.byteLength > this.payloadStoreConfig.messageSizeThreshold
-      ) {
-        return { payload: await this.offloadCompressedPayload(message, compressed, codec) }
-      }
-
       return { payload: message, preBuiltBody: buildCodecEnvelope(compressed, codec) }
     }
 

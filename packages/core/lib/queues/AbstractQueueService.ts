@@ -1,5 +1,10 @@
+import { randomUUID } from 'node:crypto'
+import * as fs from 'node:fs'
+import * as os from 'node:os'
 import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { types } from 'node:util'
+import * as zlib from 'node:zlib'
 import {
   type CommonLogger,
   type Either,
@@ -771,6 +776,74 @@ export abstract class AbstractQueueService<
     })
 
     return this.buildPointer(message, payloadId, storeName, compressed.byteLength, codec)
+  }
+
+  /**
+   * Streaming compress-and-offload path for large payloads (used when both `codec` and
+   * `payloadStoreConfig` are set).
+   *
+   * Avoids the 3× memory materialisation that occurs when doing
+   * JSON.stringify → Buffer → compress(Buffer) before deciding whether to offload.
+   * Instead serializes the payload once via the configured serializer, pipes the stream
+   * through a zstd transform into a temp file, then decides based on the compressed size:
+   *  - Uploads the temp file as a stream when compressed size exceeds `messageSizeThreshold`
+   *  - Returns the small compressed buffer for the caller to wrap in an inline codec envelope
+   *    when compressed size fits within the threshold
+   *
+   * `skipCompressionBelow` is intentionally NOT checked here: when both `codec` and
+   * `payloadStoreConfig` are configured the user explicitly opted into compression, and even
+   * small messages may need to be offloaded (e.g. a very low `messageSizeThreshold`).
+   * The caller is responsible for applying `skipCompressionBelow` on the inline-only path.
+   *
+   * @returns
+   *  - `{ pointer }` — compressed payload was offloaded; use pointer as the message payload
+   *  - `{ compressedBuffer }` — compressed payload fits inline; caller builds the codec envelope
+   */
+  protected async compressAndOffloadPayload(
+    message: MessagePayloadSchemas,
+    codec: MessageCodec,
+  ): Promise<
+    | { pointer: OffloadedPayloadPointerPayload; compressedBuffer?: never }
+    | { compressedBuffer: Buffer; pointer?: never }
+  > {
+    if (!this.payloadStoreConfig) {
+      throw new Error('Payload store is not configured')
+    }
+
+    const serialized = await this.payloadStoreConfig.serializer.serialize(message)
+    const tmpPath = `${os.tmpdir()}/${randomUUID()}.zst`
+
+    try {
+      await pipeline(
+        typeof serialized.value === 'string' ? Readable.from(serialized.value) : serialized.value,
+        zlib.createZstdCompress(),
+        fs.createWriteStream(tmpPath),
+      )
+
+      const compressedSize = fs.statSync(tmpPath).size
+
+      if (compressedSize > this.payloadStoreConfig.messageSizeThreshold) {
+        const { store, storeName } = this.resolveOutgoingStore()
+        const payloadId = await store.storePayload({
+          value: fs.createReadStream(tmpPath),
+          size: compressedSize,
+        })
+        return { pointer: this.buildPointer(message, payloadId, storeName, compressedSize, codec) }
+      }
+
+      // Compressed payload fits inline — return the buffer; caller wraps it in a codec envelope.
+      const compressedBuffer = fs.readFileSync(tmpPath)
+      return { compressedBuffer }
+    } finally {
+      try {
+        fs.unlinkSync(tmpPath)
+      } catch {
+        // ignore cleanup errors
+      }
+      if (isDestroyable(serialized)) {
+        await serialized.destroy()
+      }
+    }
   }
 
   /**
