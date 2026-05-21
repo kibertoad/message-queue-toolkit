@@ -161,6 +161,25 @@ export type CommonQueueOptions = {
    * new MyConsumer(deps, { codec: MessageCodecEnum.ZSTD })
    */
   codec?: MessageCodec
+  /**
+   * Minimum serialized size in bytes a message must reach before compression is applied.
+   * Only meaningful when `codec` is set. Defaults to `512`.
+   *
+   * Small messages often expand rather than shrink when compressed due to algorithm
+   * framing overhead. When the UTF-8 JSON representation of a message is strictly
+   * smaller than this value, the message is sent as plain JSON instead of a codec
+   * envelope, avoiding the compression cost with no loss of correctness.
+   *
+   * Set to `0` to compress every message regardless of size.
+   *
+   * @example
+   * // Compress only messages ≥ 1 KB
+   * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD, skipCompressionBelow: 1024 })
+   *
+   * // Always compress (disable the floor)
+   * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD, skipCompressionBelow: 0 })
+   */
+  skipCompressionBelow?: number
 }
 
 export type CommonCreationConfigType = {

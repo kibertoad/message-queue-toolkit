@@ -641,6 +641,23 @@ class MyPayloadStore implements PayloadStore {
 }
 ```
 
+#### Message compression (codec)
+
+Publishers can compress outgoing messages with zstd by setting `codec` in their options. Requires **Node.js >=22.15.0** and the [`@message-queue-toolkit/codec`](../codec/README.md) package.
+
+```typescript
+import { MessageCodecEnum } from '@message-queue-toolkit/core'
+
+new MyPublisher(deps, {
+  codec: MessageCodecEnum.ZSTD,
+  // Optional: skip compression for messages below this byte threshold (default: 512).
+  // Small messages often expand when compressed; set to 0 to always compress.
+  skipCompressionBelow: 512,
+})
+```
+
+Compressed messages are wrapped in a self-describing envelope `{ __codec: 'zstd', __data: '<base64>' }`. Consumers detect this envelope automatically and decompress transparently — `codec` does not need to be set on the consumer side.
+
 #### Interaction with codec (compression)
 
 When both `codec` and `payloadStoreConfig` are set on a publisher, compression and offloading work together with a single compression pass:

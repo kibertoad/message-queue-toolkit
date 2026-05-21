@@ -871,6 +871,7 @@ class MyConsumer extends AbstractSqsConsumer<SupportedMessages, ExecutionContext
 - The compressed bytes are **never re-compressed** when sent inline — the codec envelope is built directly from the first (and only) compression pass.
 - Compressed payloads are still subject to the SQS 256 KB message size limit. For messages that remain oversized after compression, combine with [Payload Offloading](#payload-offloading). The compressed payload is then stored in S3 and the `payloadRef.codec` field records the algorithm so the consumer can decompress after retrieval without any extra configuration.
 - Uses `MessageCodecEnum.ZSTD` (value `'zstd'`). You can use the string literal or the enum — both satisfy the `MessageCodec` type.
+- **`skipCompressionBelow`** (default `512`): minimum UTF-8 byte size a message must reach before compression is applied. Messages strictly below this threshold are sent as plain JSON — small payloads often expand when compressed due to framing overhead. Set to `0` to compress every message regardless of size. Example: `{ codec: MessageCodecEnum.ZSTD, skipCompressionBelow: 1024 }`.
 
 ### Message Handlers
 

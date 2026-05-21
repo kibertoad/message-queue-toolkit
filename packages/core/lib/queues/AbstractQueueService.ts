@@ -138,6 +138,7 @@ export abstract class AbstractQueueService<
   protected readonly messageMetricsManager?: MessageMetricsManager<MessagePayloadSchemas>
   protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
   protected readonly codec?: MessageCodec
+  protected readonly skipCompressionBelow: number
 
   protected isInitted: boolean
 
@@ -176,6 +177,7 @@ export abstract class AbstractQueueService<
       : undefined
     this.messageDeduplicationConfig = options.messageDeduplicationConfig
     this.codec = options.codec
+    this.skipCompressionBelow = options.skipCompressionBelow ?? 512
 
     this.logMessages = options.logMessages ?? false
     this._handlerSpy = resolveHandlerSpy<MessagePayloadSchemas>(options)

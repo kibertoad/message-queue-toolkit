@@ -210,10 +210,21 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     const codec = this.codec
 
     if (codec) {
+      // Serialize once so we can check the raw size before deciding whether to compress.
+      const jsonBuffer = Buffer.from(JSON.stringify(message), 'utf8')
+
+      // Skip compression for messages below the configured floor — small payloads
+      // often grow when compressed, so we send them as plain JSON instead.
+      if (jsonBuffer.byteLength < this.skipCompressionBelow) {
+        return {
+          payload:
+            (await this.offloadPayload(message, () => calculateOutgoingMessageSize(message))) ??
+            message,
+        }
+      }
+
       // Compress once up-front, then decide: offload the compressed bytes or send inline.
-      const compressed = await resolveCodecHandler(codec).compress(
-        Buffer.from(JSON.stringify(message), 'utf8'),
-      )
+      const compressed = await resolveCodecHandler(codec).compress(jsonBuffer)
 
       if (
         this.payloadStoreConfig &&

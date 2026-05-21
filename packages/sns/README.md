@@ -687,6 +687,7 @@ await consumer.start()
 
   // Optional - Compression (Node.js >=22.15.0 required)
   codec: MessageCodecEnum.ZSTD,        // Compress every outgoing message with zstd
+  skipCompressionBelow: 512,           // Skip compression for messages smaller than 512 bytes (default: 512)
 
   // Optional - Deletion
   deletionConfig: { /* ... */ },
