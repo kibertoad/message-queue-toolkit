@@ -88,9 +88,7 @@ export function buildCodecEnvelope(compressed: Buffer, codecName: string): strin
 
 export async function decompressMessageBody(envelope: CodecEnvelope): Promise<unknown> {
   if (!BASE64_RE.test(envelope.__mqtData)) {
-    throw new Error(
-      `Codec envelope __mqtData is not valid base64 (codec: ${envelope.__mqtCodec})`,
-    )
+    throw new Error(`Codec envelope __mqtData is not valid base64 (codec: ${envelope.__mqtCodec})`)
   }
   const handler = resolveCodecHandler(envelope.__mqtCodec as MessageCodecRegistration)
   const compressed = Buffer.from(envelope.__mqtData, 'base64')

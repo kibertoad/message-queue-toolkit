@@ -42,6 +42,12 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
       MessagePayloadType
     >,
   ) {
+    if (options.codec) {
+      throw new Error(
+        'codec is not supported by AbstractPubSubPublisher. Remove the codec option or use an SQS/SNS publisher.',
+      )
+    }
+
     super(dependencies, options)
 
     this.messageSchemaContainer = this.resolvePublisherMessageSchemaContainer(options)

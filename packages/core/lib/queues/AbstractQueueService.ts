@@ -753,33 +753,6 @@ export abstract class AbstractQueueService<
   }
 
   /**
-   * Stores an already-compressed payload in the configured store.
-   * The `codec` name is recorded in payloadRef so the consumer can decompress after retrieval.
-   *
-   * The threshold check is NOT performed here — callers must decide whether to offload.
-   * Use this when compression has already been done and the compressed size exceeds the threshold.
-   *
-   * @throws Error if payload store is not configured
-   */
-  protected async offloadCompressedPayload(
-    message: MessagePayloadSchemas,
-    compressed: Buffer,
-    codecName: string,
-  ): Promise<OffloadedPayloadPointerPayload> {
-    if (!this.payloadStoreConfig) {
-      throw new Error('Payload store is not configured')
-    }
-
-    const { store, storeName } = this.resolveOutgoingStore()
-    const payloadId = await store.storePayload({
-      value: Readable.from(compressed),
-      size: compressed.byteLength,
-    })
-
-    return this.buildPointer(message, payloadId, storeName, compressed.byteLength, codecName)
-  }
-
-  /**
    * Streaming compress-and-offload path for large payloads (used when both `codec` and
    * `payloadStoreConfig` are set).
    *
@@ -919,11 +892,20 @@ export abstract class AbstractQueueService<
 
     const codec = parsedPayload.payloadRef?.codec
     if (codec && decompress) {
+      // Stream read is kept outside the try/catch so transient retrieval errors (truncated
+      // S3 stream, network blip) propagate as thrown exceptions rather than being caught and
+      // returned as { error }.  The caller (consumer) lets unhandled throws bubble up to
+      // sqs-consumer, which does NOT delete the message — it becomes visible again after the
+      // visibility timeout and is retried.  Only deterministic failures (wrong codec, corrupt
+      // compressed bytes, invalid JSON after decompression) are caught and returned as
+      // { error }, which the consumer treats as a poison message and routes to the DLQ.
+      // This mirrors the non-codec path below, where streamWithKnownSizeToString is also
+      // outside its try/catch for the same reason.
+      const compressedBuffer = await streamWithKnownSizeToBuffer(
+        serializedOffloadedPayloadReadable,
+        payloadSize,
+      )
       try {
-        const compressedBuffer = await streamWithKnownSizeToBuffer(
-          serializedOffloadedPayloadReadable,
-          payloadSize,
-        )
         const decompressed = await decompress(codec, compressedBuffer)
         return { result: JSON.parse(decompressed.toString('utf8')) }
       } catch (e) {

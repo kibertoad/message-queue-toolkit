@@ -1,11 +1,17 @@
 /**
- * Codec benchmarks — publish and consume throughput with vs without zstd compression.
+ * Codec integration benchmarks — publish and consume throughput with vs without zstd compression.
  *
  * Run: pnpm --filter @message-queue-toolkit/sqs bench
  *
  * Each benchmark pre-fills queues (consume) or sends N messages (publish) and
  * measures wall-clock time, reporting msg/s and the overhead percentage.
  * All queues are deleted before and after each case.
+ *
+ * LIMITATION: N=50 against LocalStack means results are dominated by network
+ * round-trips (~5–20 ms each), not compression CPU cost (~0.1–1 ms). These
+ * numbers show end-to-end throughput, not codec overhead. For the codec CPU cost
+ * in isolation see bench/codecMicro.bench.ts, which is assertable in CI.
+ * These integration benchmarks print to console only and cannot catch regressions.
  */
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
@@ -178,8 +184,8 @@ describe('SQS codec benchmarks', () => {
       await plainCon.close(true)
 
       // ── Measure codec consume ──
+      // No codec option needed — consumers auto-detect envelopes from __mqtCodec.
       const codecCon = new SqsPermissionConsumer(diContainer.cradle, {
-        codec: 'zstd',
         creationConfig: { queue: { QueueName: codecQ } },
         deletionConfig: { deleteIfExists: false },
       })

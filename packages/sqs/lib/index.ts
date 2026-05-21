@@ -1,9 +1,3 @@
-export {
-  compressMessageBody,
-  decompressMessageBody,
-  resolveCodecHandler,
-  ZstdCodecHandler,
-} from '@message-queue-toolkit/codec'
 export { SqsConsumerErrorResolver } from './errors/SqsConsumerErrorResolver.ts'
 export { FakeConsumerErrorResolver } from './fakes/FakeConsumerErrorResolver.ts'
 export { TestSqsPublisher, type TestSqsPublishOptions } from './fakes/TestSqsPublisher.ts'

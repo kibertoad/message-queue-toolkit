@@ -14,7 +14,9 @@ export async function streamWithKnownSizeToBuffer(stream: Readable, size: number
     offset += chunkBuffer.length
   }
 
-  return buffer.subarray(0, offset)
+  // Copy only when the stream delivered fewer bytes than expected so the
+  // full backing allocation is not retained via a shared-memory view.
+  return offset === size ? buffer : Buffer.from(buffer.subarray(0, offset))
 }
 
 export async function streamWithKnownSizeToString(stream: Readable, size: number): Promise<string> {

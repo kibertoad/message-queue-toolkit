@@ -8,22 +8,25 @@ describe('isCodecEnvelope — custom knownCodecs', () => {
   const CUSTOM_CODECS = new Set(['lz4', 'brotli'])
 
   it('returns true when the envelope codec is in the supplied knownCodecs set', () => {
-    expect(
-      isCodecEnvelope({ __mqtCodec: 'lz4', __mqtData: VALID_BASE64 }, CUSTOM_CODECS),
-    ).toBe(true)
+    expect(isCodecEnvelope({ __mqtCodec: 'lz4', __mqtData: VALID_BASE64 }, CUSTOM_CODECS)).toBe(
+      true,
+    )
   })
 
   it('returns false for a built-in codec when it is not in the supplied knownCodecs set', () => {
     // zstd is valid with default knownCodecs but must be rejected when not in the custom set
     expect(
-      isCodecEnvelope({ __mqtCodec: MessageCodecEnum.ZSTD, __mqtData: VALID_BASE64 }, CUSTOM_CODECS),
+      isCodecEnvelope(
+        { __mqtCodec: MessageCodecEnum.ZSTD, __mqtData: VALID_BASE64 },
+        CUSTOM_CODECS,
+      ),
     ).toBe(false)
   })
 
   it('returns false for a codec that is in neither the default nor the supplied set', () => {
-    expect(
-      isCodecEnvelope({ __mqtCodec: 'gzip', __mqtData: VALID_BASE64 }, CUSTOM_CODECS),
-    ).toBe(false)
+    expect(isCodecEnvelope({ __mqtCodec: 'gzip', __mqtData: VALID_BASE64 }, CUSTOM_CODECS)).toBe(
+      false,
+    )
   })
 })
 

@@ -6,6 +6,7 @@ import { asClass, asFunction, Lifetime } from 'awilix'
 import { asMockFunction } from 'awilix-manager'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { ZodError } from 'zod/v4'
+import { AbstractAmqpQueuePublisher } from '../../lib/AbstractAmqpQueuePublisher.ts'
 import { deserializeAmqpMessage } from '../../lib/amqpMessageDeserializer.ts'
 import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer.ts'
 import type {
@@ -25,6 +26,17 @@ import { registerDependencies, SINGLETON_CONFIG } from '../utils/testContext.ts'
 import { AmqpPermissionPublisher } from './AmqpPermissionPublisher.ts'
 
 describe('PermissionPublisher', () => {
+  describe('constructor', () => {
+    it('throws when codec option is set (codec is not supported by AMQP publishers)', () => {
+      // AmqpPermissionPublisher strips unknown options before calling super(), so we test
+      // the guard via a minimal pass-through subclass that mirrors real user code.
+      class TestPublisher extends AbstractAmqpQueuePublisher<{ messageType: string }> {}
+      expect(() => new TestPublisher({} as any, { codec: 'zstd' } as any)).toThrow(
+        'codec is not supported by AbstractAmqpPublisher',
+      )
+    })
+  })
+
   describe('logging', () => {
     let logger: FakeLogger
     let diContainer: AwilixContainer<Dependencies>
