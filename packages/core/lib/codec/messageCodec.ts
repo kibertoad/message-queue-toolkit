@@ -16,8 +16,8 @@ export const MessageCodecEnum = {
 } as const
 export type MessageCodec = ObjectValues<typeof MessageCodecEnum>
 
-const CODEC_FIELD = '__codec'
-const DATA_FIELD = '__data'
+const CODEC_FIELD = '__mqtCodec'
+const DATA_FIELD = '__mqtData'
 
 export type CodecEnvelope = {
   [CODEC_FIELD]: MessageCodec

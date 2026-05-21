@@ -468,7 +468,10 @@ describe('SqsPermissionConsumer - codec + payload offloading', () => {
     // SQS body must be a plain JSON pointer — not a codec envelope.
     // Compressed bytes live in S3; only the pointer is sent inline.
     const sqsBody = JSON.parse(Messages![0]!.Body!) as Record<string, unknown>
-    expect(sqsBody.__codec, 'SQS body must not be a codec envelope when offloading').toBeUndefined()
+    expect(
+      sqsBody.__mqtCodec,
+      'SQS body must not be a codec envelope when offloading',
+    ).toBeUndefined()
     expect(sqsBody.payloadRef, 'SQS body must contain a payloadRef pointer').toBeDefined()
     const payloadRef = sqsBody.payloadRef as Record<string, unknown>
     expect(payloadRef.codec).toBe(MessageCodecEnum.ZSTD)

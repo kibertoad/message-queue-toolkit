@@ -84,9 +84,9 @@ describe('SqsPermissionConsumer - zstd codec', () => {
       }),
     )
     const envelope = JSON.parse(wireMessages![0]!.Body!) as Record<string, unknown>
-    expect(envelope.__codec).toBe(MessageCodecEnum.ZSTD)
-    expect(typeof envelope.__data).toBe('string')
-    const compressedBytes = Buffer.from(envelope.__data as string, 'base64')
+    expect(envelope.__mqtCodec).toBe(MessageCodecEnum.ZSTD)
+    expect(typeof envelope.__mqtData).toBe('string')
+    const compressedBytes = Buffer.from(envelope.__mqtData as string, 'base64')
     expect(compressedBytes.subarray(0, 4)).toEqual(Buffer.from([0x28, 0xb5, 0x2f, 0xfd]))
     await wirePublisher.close()
 
@@ -128,11 +128,11 @@ describe('SqsPermissionConsumer - zstd codec', () => {
 
     // Body must be a self-describing codec envelope, not raw message JSON
     const envelope = JSON.parse(Messages![0]!.Body!) as Record<string, unknown>
-    expect(envelope.__codec).toBe(MessageCodecEnum.ZSTD)
-    expect(typeof envelope.__data).toBe('string')
+    expect(envelope.__mqtCodec).toBe(MessageCodecEnum.ZSTD)
+    expect(typeof envelope.__mqtData).toBe('string')
 
-    // __data must decode to a valid zstd frame: magic number 0xFD2FB528 (LE → 28 B5 2F FD)
-    const compressed = Buffer.from(envelope.__data as string, 'base64')
+    // __mqtData must decode to a valid zstd frame: magic number 0xFD2FB528 (LE → 28 B5 2F FD)
+    const compressed = Buffer.from(envelope.__mqtData as string, 'base64')
     expect(compressed.subarray(0, 4)).toEqual(Buffer.from([0x28, 0xb5, 0x2f, 0xfd]))
 
     await wirePublisher.close()
@@ -170,9 +170,9 @@ describe('SqsPermissionConsumer - zstd codec', () => {
     expect(wireMessages).toHaveLength(messages.length)
     for (const raw of wireMessages!) {
       const envelope = JSON.parse(raw.Body!) as Record<string, unknown>
-      expect(envelope.__codec).toBe(MessageCodecEnum.ZSTD)
-      expect(typeof envelope.__data).toBe('string')
-      const compressedBytes = Buffer.from(envelope.__data as string, 'base64')
+      expect(envelope.__mqtCodec).toBe(MessageCodecEnum.ZSTD)
+      expect(typeof envelope.__mqtData).toBe('string')
+      const compressedBytes = Buffer.from(envelope.__mqtData as string, 'base64')
       expect(compressedBytes.subarray(0, 4)).toEqual(Buffer.from([0x28, 0xb5, 0x2f, 0xfd]))
     }
     await wirePublisher.close()
@@ -239,8 +239,8 @@ describe('SqsPermissionConsumer - zstd codec', () => {
       }),
     )
     const envelope = JSON.parse(wireMessages![0]!.Body!) as Record<string, unknown>
-    expect(envelope.__codec).toBe(MessageCodecEnum.ZSTD)
-    expect(typeof envelope.__data).toBe('string')
+    expect(envelope.__mqtCodec).toBe(MessageCodecEnum.ZSTD)
+    expect(typeof envelope.__mqtData).toBe('string')
     await wirePublisher.close()
 
     // Round-trip assertion: consumer WITHOUT codec auto-detects the envelope and decompresses.
@@ -255,7 +255,7 @@ describe('SqsPermissionConsumer - zstd codec', () => {
     })
     await autoPublisher.init()
 
-    // Consumer without codec — auto-detects from envelope __codec field
+    // Consumer without codec — auto-detects from envelope __mqtCodec field
     const autoConsumer = new SqsPermissionConsumer(diContainer.cradle, {
       creationConfig: { queue: { QueueName: autoQueueName } },
       deletionConfig: { deleteIfExists: false },
@@ -319,8 +319,8 @@ describe('SqsPermissionConsumer - skipCompressionBelow', () => {
     expect(Messages!.length).toBe(1)
 
     const body = JSON.parse(Messages![0]!.Body!) as Record<string, unknown>
-    expect(body.__codec).toBeUndefined()
-    expect(body.__data).toBeUndefined()
+    expect(body.__mqtCodec).toBeUndefined()
+    expect(body.__mqtData).toBeUndefined()
     expect(body.id).toBe(message.id)
 
     await wirePublisher.close()
@@ -355,8 +355,8 @@ describe('SqsPermissionConsumer - skipCompressionBelow', () => {
     expect(Messages!.length).toBe(1)
 
     const body = JSON.parse(Messages![0]!.Body!) as Record<string, unknown>
-    expect(body.__codec).toBeUndefined()
-    expect(body.__data).toBeUndefined()
+    expect(body.__mqtCodec).toBeUndefined()
+    expect(body.__mqtData).toBeUndefined()
     expect(body.id).toBe(message.id)
 
     await wirePublisher.close()
@@ -391,8 +391,8 @@ describe('SqsPermissionConsumer - skipCompressionBelow', () => {
     expect(Messages!.length).toBe(1)
 
     const envelope = JSON.parse(Messages![0]!.Body!) as Record<string, unknown>
-    expect(envelope.__codec).toBe(MessageCodecEnum.ZSTD)
-    expect(typeof envelope.__data).toBe('string')
+    expect(envelope.__mqtCodec).toBe(MessageCodecEnum.ZSTD)
+    expect(typeof envelope.__mqtData).toBe('string')
 
     await wirePublisher.close()
   })

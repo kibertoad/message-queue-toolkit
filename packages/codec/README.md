@@ -52,7 +52,7 @@ const compressed: Buffer = await handler.compress(Buffer.from(JSON.stringify(pay
 
 // Build envelope without a second compression pass
 const envelopeString = buildCodecEnvelope(compressed, MessageCodecEnum.ZSTD)
-// → '{"__codec":"zstd","__data":"<base64>"}'
+// → '{"__mqtCodec":"zstd","__mqtData":"<base64>"}'
 ```
 
 ### Custom codec handler
@@ -72,8 +72,8 @@ Compressed messages are wrapped in a self-describing JSON envelope:
 
 ```json
 {
-  "__codec": "zstd",
-  "__data": "<base64-encoded compressed bytes>"
+  "__mqtCodec": "zstd",
+  "__mqtData": "<base64-encoded compressed bytes>"
 }
 ```
 

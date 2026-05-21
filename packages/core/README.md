@@ -656,7 +656,7 @@ new MyPublisher(deps, {
 })
 ```
 
-Compressed messages are wrapped in a self-describing envelope `{ __codec: 'zstd', __data: '<base64>' }`. Consumers detect this envelope automatically and decompress transparently — `codec` does not need to be set on the consumer side.
+Compressed messages are wrapped in a self-describing envelope `{ __mqtCodec: 'zstd', __mqtData: '<base64>' }`. Consumers detect this envelope automatically and decompress transparently — `codec` does not need to be set on the consumer side.
 
 #### Interaction with codec (compression)
 

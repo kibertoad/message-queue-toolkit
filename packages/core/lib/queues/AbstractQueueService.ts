@@ -822,7 +822,12 @@ export abstract class AbstractQueueService<
 
       const compressedSize = fs.statSync(tmpPath).size
 
-      if (compressedSize > this.payloadStoreConfig.messageSizeThreshold) {
+      // Compare the envelope wire size (not raw compressed bytes) against the threshold.
+      // buildCodecEnvelope produces {"__mqtCodec":"<codec>","__mqtData":"<base64>"}.
+      // Base64 expands by ⌈N/3⌉×4; the fixed JSON framing adds 32 chars + codec name length.
+      const envelopeSize = Math.ceil((compressedSize * 4) / 3) + 32 + codec.length
+
+      if (envelopeSize > this.payloadStoreConfig.messageSizeThreshold) {
         const { store, storeName } = this.resolveOutgoingStore()
         const payloadId = await store.storePayload({
           value: fs.createReadStream(tmpPath),

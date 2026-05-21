@@ -826,7 +826,7 @@ The codec implementation lives in the separate [`@message-queue-toolkit/codec`](
 npm install @message-queue-toolkit/codec
 ```
 
-Compressed messages are **self-describing**: the codec is embedded in the message envelope (`{ __codec: 'zstd', __data: '<base64>' }`), so a consumer without `codec` set will still decompress automatically via envelope detection. This allows a gradual rollout — enable compression on the publisher first, consumers adapt without configuration changes.
+Compressed messages are **self-describing**: the codec is embedded in the message envelope (`{ __mqtCodec: 'zstd', __mqtData: '<base64>' }`), so a consumer without `codec` set will still decompress automatically via envelope detection. This allows a gradual rollout — enable compression on the publisher first, consumers adapt without configuration changes.
 
 #### Publisher
 

@@ -144,7 +144,7 @@ export type CommonQueueOptions = {
    * Compression codec applied to message bodies.
    *
    * - **Publisher**: every outgoing message body is compressed and wrapped in a
-   *   self-describing envelope `{ __codec: 'zstd', __data: '<base64>' }`.
+   *   self-describing envelope `{ __mqtCodec: 'zstd', __mqtData: '<base64>' }`.
    * - **Consumer**: when set, the consumer expects compressed messages.
    *   Even without this option, consumers auto-detect and decompress any message
    *   that carries a codec envelope, so mixed queues work transparently.

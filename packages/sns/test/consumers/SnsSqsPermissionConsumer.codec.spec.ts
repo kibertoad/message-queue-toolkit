@@ -83,7 +83,7 @@ describe('SnsSqsPermissionConsumer - zstd codec', () => {
     // Stop the beforeEach consumer so it cannot steal messages from the shared queue
     await consumer.close()
 
-    // Consumer without explicit codec — decompression is auto-detected from envelope __codec field
+    // Consumer without explicit codec — decompression is auto-detected from envelope __mqtCodec field
     const autoConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
       locatorConfig: {
         queueUrl: consumer.subscriptionProps.queueUrl,

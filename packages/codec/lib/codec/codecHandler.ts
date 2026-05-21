@@ -39,18 +39,18 @@ export async function compressMessageBody(jsonBody: string, codec: MessageCodec)
 /**
  * Wraps an already-compressed buffer in a codec envelope string.
  * Use this when you have pre-compressed bytes and want to avoid compressing twice.
+ *
+ * Uses string concatenation instead of JSON.stringify to avoid allocating an
+ * intermediate object — the base64 string and the envelope string are the only
+ * two allocations on the inline path.
  */
 export function buildCodecEnvelope(compressed: Buffer, codec: MessageCodec): string {
-  const envelope: CodecEnvelope = {
-    __codec: codec,
-    __data: compressed.toString('base64'),
-  }
-  return JSON.stringify(envelope)
+  return '{"__mqtCodec":"' + codec + '","__mqtData":"' + compressed.toString('base64') + '"}'
 }
 
 export async function decompressMessageBody(envelope: CodecEnvelope): Promise<unknown> {
-  const handler = resolveCodecHandler(envelope.__codec)
-  const compressed = Buffer.from(envelope.__data, 'base64')
+  const handler = resolveCodecHandler(envelope.__mqtCodec)
+  const compressed = Buffer.from(envelope.__mqtData, 'base64')
   const decompressed = await handler.decompress(compressed)
   return JSON.parse(decompressed.toString('utf8'))
 }
