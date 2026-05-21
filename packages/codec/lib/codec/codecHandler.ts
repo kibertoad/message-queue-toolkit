@@ -8,6 +8,15 @@ import type {
 } from '@message-queue-toolkit/core'
 import { MessageCodecEnum } from '@message-queue-toolkit/core'
 
+/**
+ * Validates that a string is properly-padded base64 before passing it to Buffer.from.
+ * Buffer.from(str, 'base64') silently ignores non-base64 characters, so without this
+ * check a malformed __mqtData field produces garbage bytes and a confusing codec error
+ * instead of a clear "invalid envelope" message.
+ */
+const BASE64_RE =
+  /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})?$/
+
 const ZSTD_UNSUPPORTED_MSG =
   'zlib.zstdCompress and zlib.zstdDecompress are not available in this Node.js version. ' +
   '@message-queue-toolkit/codec requires Node.js >=22.15.0 or >=23.8.0.'
@@ -78,6 +87,11 @@ export function buildCodecEnvelope(compressed: Buffer, codecName: string): strin
 }
 
 export async function decompressMessageBody(envelope: CodecEnvelope): Promise<unknown> {
+  if (!BASE64_RE.test(envelope.__mqtData)) {
+    throw new Error(
+      `Codec envelope __mqtData is not valid base64 (codec: ${envelope.__mqtCodec})`,
+    )
+  }
   const handler = resolveCodecHandler(envelope.__mqtCodec as MessageCodecRegistration)
   const compressed = Buffer.from(envelope.__mqtData, 'base64')
   const decompressed = await handler.decompress(compressed)
