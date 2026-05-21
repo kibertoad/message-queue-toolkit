@@ -5,7 +5,7 @@ import {
   SetQueueAttributesCommand,
 } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
-import { decompressMessageBody, resolveCodecHandler } from '@message-queue-toolkit/codec'
+import { getCodecName, resolveCodecHandler } from '@message-queue-toolkit/codec'
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import {
   type BarrierResult,
@@ -14,6 +14,9 @@ import {
   HandlerContainer,
   isCodecEnvelope,
   isMessageError,
+  KNOWN_CODECS,
+  type MessageCodecHandler,
+  type MessageCodecRegistration,
   type MessageSchemaContainer,
   noopReleasableLock,
   type ParseMessageResult,
@@ -77,16 +80,30 @@ type SQSConsumerCommonOptions<
   PrehandlerOutput,
   CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
   QueueLocatorType extends object = SQSQueueLocatorType,
-> = QueueConsumerOptions<
-  CreationConfigType,
-  QueueLocatorType,
-  SQSDeadLetterQueueOptions,
-  MessagePayloadSchemas,
-  ExecutionContext,
-  PrehandlerOutput,
-  SQSCreationConfig,
-  SQSQueueLocatorType
+> = Omit<
+  QueueConsumerOptions<
+    CreationConfigType,
+    QueueLocatorType,
+    SQSDeadLetterQueueOptions,
+    MessagePayloadSchemas,
+    ExecutionContext,
+    PrehandlerOutput,
+    SQSCreationConfig,
+    SQSQueueLocatorType
+  >,
+  'codec' | 'skipCompressionBelow'
 > & {
+  /**
+   * Additional codecs to register on this consumer.
+   * Built-in codecs (e.g. `MessageCodecEnum.ZSTD`) are always registered automatically.
+   * Any incoming message whose `__mqtCodec` name is not in the registry causes an error.
+   *
+   * Use this to support custom codecs published by a corresponding publisher:
+   * @example
+   * const codec = { name: 'lz4', handler: new MyLz4Handler() }
+   * new MyConsumer(deps, { codecs: [codec] })
+   */
+  codecs?: MessageCodecRegistration[]
   /**
    * Wait time in seconds the consumer passes to SQS ReceiveMessage (long-polling).
    * AWS allows integer values 0–20; anything else throws a RangeError at
@@ -227,6 +244,10 @@ export abstract class AbstractSqsConsumer<
   private readonly barrierVisibilityExtensionIntervalInMsecs: number
   private readonly barrierVisibilityTimeoutInSeconds: number
   private readonly consumerPollingWaitTimeSeconds: number
+  /** Registry of codec name → handler. Seeded from all built-in codecs + options.codecs. */
+  private readonly codecRegistry: ReadonlyMap<string, MessageCodecHandler>
+  /** Precomputed set of codec names in the registry, passed to isCodecEnvelope. */
+  private readonly codecKnownNames: ReadonlySet<string>
 
   protected deadLetterQueueUrl?: string
   protected readonly errorResolver: ErrorResolver
@@ -278,6 +299,16 @@ export abstract class AbstractSqsConsumer<
       messageHandlers: options.handlers,
     })
     this.isDeduplicationEnabled = !!options.enableConsumerDeduplication
+    // Build codec registry: always seed with all built-in codecs, then add user-supplied ones.
+    const registry = new Map<string, MessageCodecHandler>()
+    for (const builtInName of KNOWN_CODECS) {
+      registry.set(builtInName, resolveCodecHandler(builtInName as MessageCodecRegistration))
+    }
+    for (const registration of options.codecs ?? []) {
+      registry.set(getCodecName(registration), resolveCodecHandler(registration))
+    }
+    this.codecRegistry = registry
+    this.codecKnownNames = new Set(registry.keys())
   }
 
   override async init(): Promise<void> {
@@ -924,8 +955,9 @@ export abstract class AbstractSqsConsumer<
     if (hasOffloadedPayload(resolveMessageResult.result)) {
       const retrieveOffloadedMessagePayloadResult = await this.retrieveOffloadedMessagePayload(
         resolveMessageResult.result.body,
-        (codec, data) => {
-          const handler = resolveCodecHandler(codec as Parameters<typeof resolveCodecHandler>[0])
+        (codecName, data) => {
+          const handler = this.codecRegistry.get(codecName)
+          if (!handler) throw new Error(`Unknown codec: ${codecName}`)
           return handler.decompress(data)
         },
       )
@@ -934,10 +966,17 @@ export abstract class AbstractSqsConsumer<
         return ABORT_EARLY_EITHER
       }
       resolveMessageResult.result.body = retrieveOffloadedMessagePayloadResult.result
-    } else if (isCodecEnvelope(resolveMessageResult.result.body)) {
+    } else if (
+      !this.disableCodecAutoDetection &&
+      isCodecEnvelope(resolveMessageResult.result.body, this.codecKnownNames)
+    ) {
       try {
-        resolveMessageResult.result.body = await decompressMessageBody(
-          resolveMessageResult.result.body,
+        const envelope = resolveMessageResult.result.body
+        const handler = this.codecRegistry.get(envelope.__mqtCodec)
+        if (!handler) throw new Error(`Unknown codec: ${envelope.__mqtCodec}`)
+        const compressed = Buffer.from(envelope.__mqtData, 'base64')
+        resolveMessageResult.result.body = JSON.parse(
+          (await handler.decompress(compressed)).toString('utf8'),
         )
       } catch (err) {
         this.handleError(err as Error)

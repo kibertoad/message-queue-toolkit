@@ -4,7 +4,6 @@ import * as os from 'node:os'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { types } from 'node:util'
-import * as zlib from 'node:zlib'
 import {
   type CommonLogger,
   type Either,
@@ -20,7 +19,7 @@ import {
 } from '@message-queue-toolkit/schemas'
 import { getProperty, setProperty } from 'dot-prop'
 import type { ZodSchema, ZodType } from 'zod/v4'
-import type { MessageCodec } from '../codec/messageCodec.ts'
+import type { MessageCodecHandler, MessageCodecRegistration } from '../codec/messageCodec.ts'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors.ts'
 import {
   type AcquireLockTimeoutError,
@@ -142,8 +141,9 @@ export abstract class AbstractQueueService<
   protected readonly messageDeduplicationConfig?: MessageDeduplicationConfig
   protected readonly messageMetricsManager?: MessageMetricsManager<MessagePayloadSchemas>
   protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
-  protected readonly codec?: MessageCodec
+  protected readonly codec?: MessageCodecRegistration
   protected readonly skipCompressionBelow: number
+  protected readonly disableCodecAutoDetection: boolean
 
   protected isInitted: boolean
 
@@ -183,6 +183,7 @@ export abstract class AbstractQueueService<
     this.messageDeduplicationConfig = options.messageDeduplicationConfig
     this.codec = options.codec
     this.skipCompressionBelow = options.skipCompressionBelow ?? 512
+    this.disableCodecAutoDetection = options.disableCodecAutoDetection ?? false
 
     this.logMessages = options.logMessages ?? false
     this._handlerSpy = resolveHandlerSpy<MessagePayloadSchemas>(options)
@@ -681,14 +682,14 @@ export abstract class AbstractQueueService<
     payloadId: string,
     storeName: string,
     size: number,
-    codec?: MessageCodec,
+    codecName?: string,
   ): OffloadedPayloadPointerPayload {
     const result: OffloadedPayloadPointerPayload = {
       payloadRef: {
         id: payloadId,
         store: storeName,
         size,
-        ...(codec ? { codec } : {}),
+        ...(codecName ? { codec: codecName } : {}),
       },
       offloadedPayloadPointer: payloadId,
       offloadedPayloadSize: size,
@@ -763,7 +764,7 @@ export abstract class AbstractQueueService<
   protected async offloadCompressedPayload(
     message: MessagePayloadSchemas,
     compressed: Buffer,
-    codec: MessageCodec,
+    codecName: string,
   ): Promise<OffloadedPayloadPointerPayload> {
     if (!this.payloadStoreConfig) {
       throw new Error('Payload store is not configured')
@@ -775,7 +776,7 @@ export abstract class AbstractQueueService<
       size: compressed.byteLength,
     })
 
-    return this.buildPointer(message, payloadId, storeName, compressed.byteLength, codec)
+    return this.buildPointer(message, payloadId, storeName, compressed.byteLength, codecName)
   }
 
   /**
@@ -801,7 +802,8 @@ export abstract class AbstractQueueService<
    */
   protected async compressAndOffloadPayload(
     message: MessagePayloadSchemas,
-    codec: MessageCodec,
+    handler: MessageCodecHandler,
+    codecName: string,
   ): Promise<
     | { pointer: OffloadedPayloadPointerPayload; compressedBuffer?: never }
     | { compressedBuffer: Buffer; pointer?: never }
@@ -810,22 +812,24 @@ export abstract class AbstractQueueService<
       throw new Error('Payload store is not configured')
     }
 
+    const tmpPath = `${os.tmpdir()}/${randomUUID()}`
     const serialized = await this.payloadStoreConfig.serializer.serialize(message)
-    const tmpPath = `${os.tmpdir()}/${randomUUID()}.zst`
 
     try {
+      // Streaming pipeline: serializer output → codec transform → temp file.
+      // No full-payload buffer is materialised; each codec supplies its own Transform.
       await pipeline(
         typeof serialized.value === 'string' ? Readable.from(serialized.value) : serialized.value,
-        zlib.createZstdCompress(),
+        handler.createCompressStream(),
         fs.createWriteStream(tmpPath),
       )
 
       const compressedSize = fs.statSync(tmpPath).size
 
       // Compare the envelope wire size (not raw compressed bytes) against the threshold.
-      // buildCodecEnvelope produces {"__mqtCodec":"<codec>","__mqtData":"<base64>"}.
+      // buildCodecEnvelope produces {"__mqtCodec":"<codecName>","__mqtData":"<base64>"}.
       // Base64 expands by ⌈N/3⌉×4; the fixed JSON framing adds 32 chars + codec name length.
-      const envelopeSize = Math.ceil((compressedSize * 4) / 3) + 32 + codec.length
+      const envelopeSize = Math.ceil((compressedSize * 4) / 3) + 32 + codecName.length
 
       if (envelopeSize > this.payloadStoreConfig.messageSizeThreshold) {
         const { store, storeName } = this.resolveOutgoingStore()
@@ -833,12 +837,13 @@ export abstract class AbstractQueueService<
           value: fs.createReadStream(tmpPath),
           size: compressedSize,
         })
-        return { pointer: this.buildPointer(message, payloadId, storeName, compressedSize, codec) }
+        return {
+          pointer: this.buildPointer(message, payloadId, storeName, compressedSize, codecName),
+        }
       }
 
       // Compressed payload fits inline — return the buffer; caller wraps it in a codec envelope.
-      const compressedBuffer = fs.readFileSync(tmpPath)
-      return { compressedBuffer }
+      return { compressedBuffer: fs.readFileSync(tmpPath) }
     } finally {
       try {
         fs.unlinkSync(tmpPath)

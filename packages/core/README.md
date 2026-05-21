@@ -643,7 +643,9 @@ class MyPayloadStore implements PayloadStore {
 
 #### Message compression (codec)
 
-Publishers can compress outgoing messages with zstd by setting `codec` in their options. Requires **Node.js >=22.15.0** and the [`@message-queue-toolkit/codec`](../codec/README.md) package.
+Publishers can compress outgoing messages by setting `codec` in their options. Requires **Node.js >=22.15.0** and the [`@message-queue-toolkit/codec`](../codec/README.md) package.
+
+**Built-in zstd:**
 
 ```typescript
 import { MessageCodecEnum } from '@message-queue-toolkit/core'
@@ -656,7 +658,25 @@ new MyPublisher(deps, {
 })
 ```
 
-Compressed messages are wrapped in a self-describing envelope `{ __mqtCodec: 'zstd', __mqtData: '<base64>' }`. Consumers detect this envelope automatically and decompress transparently — `codec` does not need to be set on the consumer side.
+**Custom codec** (bring your own compression library):
+
+```typescript
+import type { MessageCodecHandler } from '@message-queue-toolkit/core'
+
+class MyLz4Handler implements MessageCodecHandler {
+  async compress(data: Buffer): Promise<Buffer> { /* ... */ }
+  async decompress(data: Buffer): Promise<Buffer> { /* ... */ }
+  createCompressStream(): Transform { /* return a Transform stream */ }
+}
+
+const codec = { name: 'lz4', handler: new MyLz4Handler() }
+new MyPublisher(deps, { codec })
+new MyConsumer(deps, { codec }) // same registration required on the consumer
+```
+
+See the [`@message-queue-toolkit/codec` README](../codec/README.md) for a full custom codec example.
+
+Compressed messages are wrapped in a self-describing envelope `{ __mqtCodec: '<name>', __mqtData: '<base64>' }`. Consumers configured with a matching `codec` registration decompress transparently. Consumers without a matching registration ignore the envelope — `codec` does not need to be set when using the built-in zstd and you are happy with auto-detection.
 
 #### Interaction with codec (compression)
 

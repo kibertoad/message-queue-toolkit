@@ -15,8 +15,13 @@ export const PAYLOAD_REF_SCHEMA = z.object({
    * Codec used to compress the stored payload.
    * When set, the stored bytes are raw compressed binary (not base64 JSON).
    * The consumer must decompress using this codec before parsing.
+   *
+   * Kept as a plain string to accommodate user-supplied codec names registered
+   * via the `{ name, handler }` form of the `codec` option — the set of valid
+   * names is not known statically.  Handler resolution validates the name at
+   * use time and throws if no matching handler is found.
    */
-  codec: z.string().optional(),
+  codec: z.string().min(1).optional(),
 })
 
 export type PayloadRef = z.output<typeof PAYLOAD_REF_SCHEMA>

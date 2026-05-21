@@ -1,39 +1,68 @@
+import type { Transform } from 'node:stream'
 import { promisify } from 'node:util'
 import zlib from 'node:zlib'
-import type { CodecEnvelope, MessageCodec, MessageCodecHandler } from '@message-queue-toolkit/core'
+import type {
+  CodecEnvelope,
+  MessageCodecHandler,
+  MessageCodecRegistration,
+} from '@message-queue-toolkit/core'
 import { MessageCodecEnum } from '@message-queue-toolkit/core'
 
-if (typeof zlib.zstdCompress !== 'function' || typeof zlib.zstdDecompress !== 'function') {
-  throw new Error(
-    'zlib.zstdCompress and zlib.zstdDecompress are not available in this Node.js version. ' +
-      '@message-queue-toolkit/codec requires Node.js >=22.15.0 or >=23.8.0.',
-  )
-}
+const ZSTD_UNSUPPORTED_MSG =
+  'zlib.zstdCompress and zlib.zstdDecompress are not available in this Node.js version. ' +
+  '@message-queue-toolkit/codec requires Node.js >=22.15.0 or >=23.8.0.'
 
-const zstdCompress = promisify(zlib.zstdCompress)
-const zstdDecompress = promisify(zlib.zstdDecompress)
+// Resolved lazily — undefined on Node versions that lack zstd support.
+const zstdCompress =
+  typeof zlib.zstdCompress === 'function' ? promisify(zlib.zstdCompress) : undefined
+const zstdDecompress =
+  typeof zlib.zstdDecompress === 'function' ? promisify(zlib.zstdDecompress) : undefined
 
 export class ZstdCodecHandler implements MessageCodecHandler {
   compress(data: Buffer): Promise<Buffer> {
+    if (!zstdCompress) throw new Error(ZSTD_UNSUPPORTED_MSG)
     return zstdCompress(data)
   }
 
   decompress(data: Buffer): Promise<Buffer> {
+    if (!zstdDecompress) throw new Error(ZSTD_UNSUPPORTED_MSG)
     return zstdDecompress(data)
+  }
+
+  createCompressStream(): Transform {
+    if (typeof zlib.createZstdCompress !== 'function') throw new Error(ZSTD_UNSUPPORTED_MSG)
+    return zlib.createZstdCompress()
   }
 }
 
 const ZSTD_HANDLER = new ZstdCodecHandler()
 
-export function resolveCodecHandler(codec: MessageCodec): MessageCodecHandler {
+/**
+ * Returns the name string that will be written into the `__mqtCodec` field of every envelope.
+ */
+export function getCodecName(codec: MessageCodecRegistration): string {
+  return typeof codec === 'string' ? codec : codec.name
+}
+
+/**
+ * Resolves the {@link MessageCodecHandler} for the given codec registration.
+ *
+ * - String form (`MessageCodec`): returns the built-in handler for that codec.
+ * - Object form (`{ name, handler }`): returns the provided handler directly.
+ */
+export function resolveCodecHandler(codec: MessageCodecRegistration): MessageCodecHandler {
+  if (typeof codec === 'object') return codec.handler
   if (codec === MessageCodecEnum.ZSTD) return ZSTD_HANDLER
   throw new Error(`Unsupported codec: ${codec}`)
 }
 
-export async function compressMessageBody(jsonBody: string, codec: MessageCodec): Promise<string> {
+export async function compressMessageBody(
+  jsonBody: string,
+  codec: MessageCodecRegistration,
+): Promise<string> {
   const handler = resolveCodecHandler(codec)
   const compressed = await handler.compress(Buffer.from(jsonBody, 'utf8'))
-  return buildCodecEnvelope(compressed, codec)
+  return buildCodecEnvelope(compressed, getCodecName(codec))
 }
 
 /**
@@ -44,12 +73,12 @@ export async function compressMessageBody(jsonBody: string, codec: MessageCodec)
  * intermediate object — the base64 string and the envelope string are the only
  * two allocations on the inline path.
  */
-export function buildCodecEnvelope(compressed: Buffer, codec: MessageCodec): string {
-  return '{"__mqtCodec":"' + codec + '","__mqtData":"' + compressed.toString('base64') + '"}'
+export function buildCodecEnvelope(compressed: Buffer, codecName: string): string {
+  return '{"__mqtCodec":"' + codecName + '","__mqtData":"' + compressed.toString('base64') + '"}'
 }
 
 export async function decompressMessageBody(envelope: CodecEnvelope): Promise<unknown> {
-  const handler = resolveCodecHandler(envelope.__mqtCodec)
+  const handler = resolveCodecHandler(envelope.__mqtCodec as MessageCodecRegistration)
   const compressed = Buffer.from(envelope.__mqtData, 'base64')
   const decompressed = await handler.decompress(compressed)
   return JSON.parse(decompressed.toString('utf8'))

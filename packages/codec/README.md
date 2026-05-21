@@ -57,14 +57,42 @@ const envelopeString = buildCodecEnvelope(compressed, MessageCodecEnum.ZSTD)
 
 ### Custom codec handler
 
+Implement `MessageCodecHandler` and register it via the `{ name, handler }` form of the `codec` option.  The same registration must be provided on both the publisher and the consumer.
+
 ```typescript
+import type { Transform } from 'node:stream'
 import type { MessageCodecHandler } from '@message-queue-toolkit/core'
 
-class MyCodecHandler implements MessageCodecHandler {
-  compress(data: Buffer): Promise<Buffer> { /* ... */ }
-  decompress(data: Buffer): Promise<Buffer> { /* ... */ }
+class MyLz4Handler implements MessageCodecHandler {
+  async compress(data: Buffer): Promise<Buffer> {
+    return lz4.encode(data) // your compression library
+  }
+
+  async decompress(data: Buffer): Promise<Buffer> {
+    return lz4.decode(data)
+  }
+
+  // Required for the streaming offload path (codec + payloadStoreConfig).
+  // Return a Transform stream that compresses its input chunk-by-chunk.
+  createCompressStream(): Transform {
+    return lz4.createEncoderStream()
+  }
 }
 ```
+
+Register the handler on the publisher and consumer using the `{ name, handler }` object form:
+
+```typescript
+const codec = { name: 'lz4', handler: new MyLz4Handler() }
+
+// Publisher — wraps each outgoing message in { __mqtCodec: 'lz4', __mqtData: '<base64>' }
+new MyPublisher(deps, { codec })
+
+// Consumer — only auto-detects envelopes whose __mqtCodec matches 'lz4'
+new MyConsumer(deps, { codec })
+```
+
+**Consumer-side scoping.** A consumer configured with `{ name: 'lz4', handler }` will only decompress envelopes that carry `__mqtCodec: 'lz4'`.  A consumer configured with the built-in `MessageCodecEnum.ZSTD` will ignore `lz4` envelopes entirely — they reach schema validation as raw objects and are rejected.  This prevents accidental cross-codec decompression.
 
 ## Codec envelope format
 

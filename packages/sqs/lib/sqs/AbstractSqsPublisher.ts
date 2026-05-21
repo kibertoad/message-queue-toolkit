@@ -2,7 +2,7 @@ import type { MessageAttributeValue } from '@aws-sdk/client-sqs'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
 import { InternalError } from '@lokalise/node-core'
-import { buildCodecEnvelope, resolveCodecHandler } from '@message-queue-toolkit/codec'
+import { buildCodecEnvelope, getCodecName, resolveCodecHandler } from '@message-queue-toolkit/codec'
 import {
   type AsyncPublisher,
   type BarrierResult,
@@ -213,16 +213,19 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     const codec = this.codec
 
     if (codec) {
+      const handler = resolveCodecHandler(codec)
+      const codecName = getCodecName(codec)
+
       if (this.payloadStoreConfig) {
         // Streaming path: avoids 3× buffer materialisation for large payloads.
-        // JSON → zstd → temp file → threshold check → offload or inline envelope.
-        const result = await this.compressAndOffloadPayload(message, codec)
+        // JSON → compress → temp file → threshold check → offload or inline envelope.
+        const result = await this.compressAndOffloadPayload(message, handler, codecName)
         if (result.pointer) {
           return { payload: result.pointer }
         }
         return {
           payload: message,
-          preBuiltBody: buildCodecEnvelope(result.compressedBuffer, codec),
+          preBuiltBody: buildCodecEnvelope(result.compressedBuffer, codecName),
         }
       }
 
@@ -236,8 +239,8 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         return { payload: message }
       }
 
-      const compressed = await resolveCodecHandler(codec).compress(jsonBuffer)
-      return { payload: message, preBuiltBody: buildCodecEnvelope(compressed, codec) }
+      const compressed = await handler.compress(jsonBuffer)
+      return { payload: message, preBuiltBody: buildCodecEnvelope(compressed, codecName) }
     }
 
     return {

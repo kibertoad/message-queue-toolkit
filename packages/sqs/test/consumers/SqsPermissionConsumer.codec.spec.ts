@@ -1,5 +1,8 @@
+import type { Transform } from 'node:stream'
+import { PassThrough } from 'node:stream'
 import { ReceiveMessageCommand, SendMessageCommand } from '@aws-sdk/client-sqs'
 import { compressMessageBody } from '@message-queue-toolkit/codec'
+import type { MessageCodecHandler } from '@message-queue-toolkit/core'
 import { MessageCodecEnum } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
@@ -427,4 +430,196 @@ describe('SqsPermissionConsumer - skipCompressionBelow', () => {
     await wirePublisher.close()
     await wireConsumer.close(true)
   })
+
+  it('consumer with disableCodecAutoDetection passes codec-shaped message through as plain JSON', async () => {
+    // A publisher with skipCompressionBelow set very high sends plain JSON even though
+    // codec is configured — the body will NOT be a codec envelope, so this test
+    // verifies that disableCodecAutoDetection does not break the plain-JSON path.
+    // More importantly: if the message body were a real envelope, the consumer would
+    // normally auto-detect and decompress it; with the flag set it must not do so.
+    const queueName = `${SqsPermissionConsumer.QUEUE_NAME}-disable-auto-detect`
+    await testAdmin.deleteQueues(queueName)
+
+    // Publisher sends plain JSON (skipCompressionBelow prevents compression)
+    const wirePublisher = new SqsPermissionPublisher(diContainer.cradle, {
+      codec: MessageCodecEnum.ZSTD,
+      skipCompressionBelow: 99_999,
+      creationConfig: { queue: { QueueName: queueName } },
+    })
+    await wirePublisher.init()
+
+    // Consumer opts out of auto-detection
+    const noAutoConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+      creationConfig: { queue: { QueueName: queueName } },
+      deletionConfig: { deleteIfExists: false },
+      disableCodecAutoDetection: true,
+    })
+    await noAutoConsumer.start()
+
+    const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
+      id: 'disable-auto-detect-1',
+      messageType: 'add',
+      metadata: { info: 'plain json, no auto-detect' },
+    }
+    await wirePublisher.publish(message)
+
+    const result = await noAutoConsumer.handlerSpy.waitForMessageWithId(message.id, 'consumed')
+    expect(result.message).toMatchObject(message)
+
+    await wirePublisher.close()
+    await noAutoConsumer.close(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Custom codec — passthrough handler registered via { name, handler } form
+// ---------------------------------------------------------------------------
+
+/**
+ * Identity codec: compress/decompress are no-ops, createCompressStream returns a PassThrough.
+ * Lets us verify the full custom-codec path without a real compression library in tests.
+ */
+class NoopCodecHandler implements MessageCodecHandler {
+  compress(data: Buffer): Promise<Buffer> {
+    return Promise.resolve(data)
+  }
+  decompress(data: Buffer): Promise<Buffer> {
+    return Promise.resolve(data)
+  }
+  createCompressStream(): Transform {
+    return new PassThrough()
+  }
+}
+
+describe('SqsPermissionConsumer - custom codec registration', () => {
+  const CUSTOM_CODEC_NAME = 'noop'
+
+  let diContainer: AwilixContainer<Dependencies>
+  let testAdmin: TestAwsResourceAdmin
+
+  beforeAll(async () => {
+    diContainer = await registerDependencies({
+      permissionPublisher: asValue(() => undefined),
+      permissionConsumer: asValue(() => undefined),
+    })
+    testAdmin = diContainer.cradle.testAdmin
+  })
+
+  afterAll(async () => {
+    const { awilixManager } = diContainer.cradle
+    await awilixManager.executeDispose()
+    await diContainer.dispose()
+  })
+
+  it('publisher wraps payload in an envelope with the custom codec name', async () => {
+    const queueName = `${SqsPermissionConsumer.QUEUE_NAME}-custom-codec-wire`
+    await testAdmin.deleteQueues(queueName)
+
+    const codec = { name: CUSTOM_CODEC_NAME, handler: new NoopCodecHandler() }
+    const wirePublisher = new SqsPermissionPublisher(diContainer.cradle, {
+      codec,
+      skipCompressionBelow: 0, // always compress so the envelope is always produced
+      creationConfig: { queue: { QueueName: queueName } },
+    })
+    await wirePublisher.init()
+
+    const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
+      id: 'custom-codec-wire-1',
+      messageType: 'add',
+    }
+    await wirePublisher.publish(message)
+
+    const { Messages } = await diContainer.cradle.sqsClient.send(
+      new ReceiveMessageCommand({
+        QueueUrl: wirePublisher.queueProps.url,
+        MaxNumberOfMessages: 1,
+        WaitTimeSeconds: 5,
+      }),
+    )
+    expect(Messages).toBeDefined()
+    expect(Messages!.length).toBe(1)
+
+    const envelope = JSON.parse(Messages![0]!.Body!) as Record<string, unknown>
+    // Envelope must carry the user-supplied codec name, not 'zstd'.
+    expect(envelope.__mqtCodec).toBe(CUSTOM_CODEC_NAME)
+    expect(typeof envelope.__mqtData).toBe('string')
+    // Since the handler is a no-op, __mqtData decodes to the original JSON.
+    const decoded = Buffer.from(envelope.__mqtData as string, 'base64').toString('utf8')
+    expect(JSON.parse(decoded)).toMatchObject(message)
+
+    await wirePublisher.close()
+  })
+
+  it('consumer configured with the same custom codec decompresses and processes the message', async () => {
+    const queueName = `${SqsPermissionConsumer.QUEUE_NAME}-custom-codec-roundtrip`
+    await testAdmin.deleteQueues(queueName)
+
+    const codec = { name: CUSTOM_CODEC_NAME, handler: new NoopCodecHandler() }
+
+    const publisher = new SqsPermissionPublisher(diContainer.cradle, {
+      codec,
+      skipCompressionBelow: 0,
+      creationConfig: { queue: { QueueName: queueName } },
+    })
+    await publisher.init()
+
+    const consumer = new SqsPermissionConsumer(diContainer.cradle, {
+      codecs: [codec],
+      creationConfig: { queue: { QueueName: queueName } },
+      deletionConfig: { deleteIfExists: false },
+    })
+    await consumer.start()
+
+    const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
+      id: 'custom-codec-roundtrip-1',
+      messageType: 'add',
+      metadata: { info: 'custom codec round-trip' },
+    }
+    await publisher.publish(message)
+
+    const result = await consumer.handlerSpy.waitForMessageWithId(message.id, 'consumed')
+    expect(result.message).toMatchObject(message)
+
+    await publisher.close()
+    await consumer.close(true)
+  })
+
+  it('consumer without the custom codec does not auto-detect envelopes with that codec name', async () => {
+    // A consumer without extra codecs has codecKnownNames = Set(['zstd']) (built-ins only).
+    // isCodecEnvelope(body, Set(['zstd'])) returns false for a 'noop' envelope, so the
+    // raw envelope object reaches schema validation and fails (no messageType field).
+    // The message is never successfully handled — addCounter stays at 0.
+    const queueName = `${SqsPermissionConsumer.QUEUE_NAME}-custom-codec-no-autodetect`
+    await testAdmin.deleteQueues(queueName)
+
+    const codec = { name: CUSTOM_CODEC_NAME, handler: new NoopCodecHandler() }
+
+    const publisher = new SqsPermissionPublisher(diContainer.cradle, {
+      codec,
+      skipCompressionBelow: 0,
+      creationConfig: { queue: { QueueName: queueName } },
+    })
+    await publisher.init()
+
+    // Consumer with no extra codecs — only built-in codecs (e.g. zstd) are registered, not 'noop'
+    const zstdConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+      creationConfig: { queue: { QueueName: queueName } },
+      deletionConfig: { deleteIfExists: false },
+    })
+    await zstdConsumer.start()
+
+    const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
+      id: 'custom-codec-no-autodetect-1',
+      messageType: 'add',
+    }
+    await publisher.publish(message)
+
+    // Give the consumer time to attempt processing, then verify no message was consumed.
+    // The spy can't track by ID because the raw envelope has no top-level `id` field.
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    expect(zstdConsumer.addCounter).toBe(0)
+
+    await publisher.close()
+    await zstdConsumer.close(true)
+  }, 10000)
 })

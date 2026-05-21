@@ -1,6 +1,6 @@
 import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod/v4'
-import type { MessageCodec } from '../codec/messageCodec.ts'
+import type { MessageCodecRegistration } from '../codec/messageCodec.ts'
 import type { MessageDeduplicationConfig } from '../message-deduplication/messageDeduplicationTypes.ts'
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes.ts'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer.ts'
@@ -160,7 +160,7 @@ export type CommonQueueOptions = {
    * // Consumer (optional — auto-detection handles it even without this)
    * new MyConsumer(deps, { codec: MessageCodecEnum.ZSTD })
    */
-  codec?: MessageCodec
+  codec?: MessageCodecRegistration
   /**
    * Minimum serialized size in bytes a message must reach before compression is applied.
    * Only meaningful when `codec` is set. Defaults to `512`.
@@ -180,6 +180,20 @@ export type CommonQueueOptions = {
    * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD, skipCompressionBelow: 0 })
    */
   skipCompressionBelow?: number
+  /**
+   * Disables automatic codec-envelope detection on the consumer.
+   *
+   * By default, consumers inspect every incoming message body with `isCodecEnvelope`.
+   * If the body matches the envelope shape (`__mqtCodec` + `__mqtData` as the only two
+   * fields), it is treated as compressed and decompressed before schema validation.
+   *
+   * Set this to `true` if your message schema legitimately contains fields named
+   * `__mqtCodec` and `__mqtData` with exactly those two keys, and you do not want
+   * auto-detection to intercept them. Publisher behaviour is unaffected.
+   *
+   * @default false
+   */
+  disableCodecAutoDetection?: boolean
 }
 
 export type CommonCreationConfigType = {

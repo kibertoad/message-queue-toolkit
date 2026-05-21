@@ -1,9 +1,11 @@
 export {
   type CodecEnvelope,
   isCodecEnvelope,
+  KNOWN_CODECS,
   type MessageCodec,
   MessageCodecEnum,
   type MessageCodecHandler,
+  type MessageCodecRegistration,
 } from './codec/messageCodec.ts'
 export { DoNotProcessMessageError } from './errors/DoNotProcessError.ts'
 export {
