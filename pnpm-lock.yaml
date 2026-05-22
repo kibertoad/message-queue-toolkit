@@ -31,8 +31,8 @@ importers:
         specifier: ^3.0.0
         version: 3.1.0
       '@message-queue-toolkit/core':
-        specifier: '*'
-        version: 25.5.0(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../core
       '@types/amqplib':
         specifier: 0.10.8
         version: 0.10.8
@@ -150,14 +150,14 @@ importers:
         specifier: ^3.0.0
         version: 3.1.0
       '@message-queue-toolkit/core':
-        specifier: '*'
-        version: 25.5.0(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../core
       '@message-queue-toolkit/gcs-payload-store':
         specifier: '*'
-        version: 1.0.0(@google-cloud/storage@7.19.0)(@message-queue-toolkit/core@25.5.0(zod@4.4.3))
+        version: 1.0.0(@google-cloud/storage@7.19.0)(@message-queue-toolkit/core@packages+core)
       '@message-queue-toolkit/redis-message-deduplication-store':
         specifier: '*'
-        version: 2.0.2(@message-queue-toolkit/core@25.5.0(zod@4.4.3))(ioredis@5.10.1)(zod@4.4.3)
+        version: 2.0.2(@message-queue-toolkit/core@packages+core)(ioredis@5.10.1)(zod@4.4.3)
       '@message-queue-toolkit/schemas':
         specifier: '*'
         version: 7.1.0(zod@4.4.3)
@@ -498,14 +498,14 @@ importers:
         specifier: ^3.0.0
         version: 3.1.0
       '@message-queue-toolkit/core':
-        specifier: '*'
-        version: 25.5.0(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../core
       '@message-queue-toolkit/redis-message-deduplication-store':
-        specifier: '*'
-        version: 2.0.2(@message-queue-toolkit/core@25.5.0(zod@4.4.3))(ioredis@5.10.1)(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../redis-message-deduplication-store
       '@message-queue-toolkit/s3-payload-store':
-        specifier: '*'
-        version: 3.0.0(@aws-sdk/client-s3@3.1048.0)(@message-queue-toolkit/core@25.5.0(zod@4.4.3))
+        specifier: workspace:*
+        version: link:../s3-payload-store
       '@message-queue-toolkit/sqs':
         specifier: workspace:*
         version: link:../sqs
@@ -565,17 +565,17 @@ importers:
         specifier: ^3.0.0
         version: 3.1.0
       '@message-queue-toolkit/core':
-        specifier: '*'
-        version: 25.5.0(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../core
       '@message-queue-toolkit/redis-message-deduplication-store':
-        specifier: '*'
-        version: 2.0.2(@message-queue-toolkit/core@25.5.0(zod@4.4.3))(ioredis@5.10.1)(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../redis-message-deduplication-store
       '@message-queue-toolkit/s3-payload-store':
-        specifier: '*'
-        version: 3.0.0(@aws-sdk/client-s3@3.1048.0)(@message-queue-toolkit/core@25.5.0(zod@4.4.3))
+        specifier: workspace:*
+        version: link:../s3-payload-store
       '@message-queue-toolkit/schemas':
-        specifier: '*'
-        version: 7.1.0(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../schemas
       '@types/node':
         specifier: ^25.0.2
         version: 25.8.0
@@ -651,6 +651,7 @@ packages:
   '@aws-sdk/core@3.974.11':
     resolution: {integrity: sha512-QpnINq5FZH6EOaDEkmHdT7eUunbvD27pDNQypaWjFyYz7Zl1q3UCMQErBZxpmfGfI7MvI2TlK8KTkgNpv8b1ug==}
     engines: {node: '>=20.0.0'}
+    deprecated: Deprecated due to an error deserialization bug in JSON 1.0 protocol services, see https://github.com/aws/aws-sdk-js-v3/pull/8031. Newer version available.
 
   '@aws-sdk/crc64-nvme@3.972.8':
     resolution: {integrity: sha512-fVfUCL/Xh2zINYMPZvj+iBn6XWouQf0DAnjaWCI9MkmqXzL2Iy5FoQB8O7syFe6gN6AH1ecDDU58T51Ou0kFkA==}
@@ -990,12 +991,6 @@ packages:
     peerDependencies:
       '@message-queue-toolkit/core': '>=23.1.0'
       ioredis: ^5.3.2
-
-  '@message-queue-toolkit/s3-payload-store@3.0.0':
-    resolution: {integrity: sha512-AX2PI74CN9CBQWHT/nJBhUPR8E6beGodTsuSSlZ/zQvy6ViDcI4gEKxFViqKR2xai7PeLsqw+HWdkXhawwEqYA==}
-    peerDependencies:
-      '@aws-sdk/client-s3': ^3.596.0
-      '@message-queue-toolkit/core': '>=24.0.0'
 
   '@message-queue-toolkit/schemas@7.1.0':
     resolution: {integrity: sha512-JAzSQAHouympK/cEDBxsfEuS2Ifu1pv0a/NRvhNWfFlgW0TmsWT7SkYNERA7x89OK7PGk9PyDN88cV9l0gZ22Q==}
@@ -3350,25 +3345,20 @@ snapshots:
       toad-cache: 3.7.0
       zod: 4.4.3
 
-  '@message-queue-toolkit/gcs-payload-store@1.0.0(@google-cloud/storage@7.19.0)(@message-queue-toolkit/core@25.5.0(zod@4.4.3))':
+  '@message-queue-toolkit/gcs-payload-store@1.0.0(@google-cloud/storage@7.19.0)(@message-queue-toolkit/core@packages+core)':
     dependencies:
       '@google-cloud/storage': 7.19.0
-      '@message-queue-toolkit/core': 25.5.0(zod@4.4.3)
+      '@message-queue-toolkit/core': link:packages/core
 
-  '@message-queue-toolkit/redis-message-deduplication-store@2.0.2(@message-queue-toolkit/core@25.5.0(zod@4.4.3))(ioredis@5.10.1)(zod@4.4.3)':
+  '@message-queue-toolkit/redis-message-deduplication-store@2.0.2(@message-queue-toolkit/core@packages+core)(ioredis@5.10.1)(zod@4.4.3)':
     dependencies:
       '@lokalise/node-core': 14.8.1(zod@4.4.3)
-      '@message-queue-toolkit/core': 25.5.0(zod@4.4.3)
+      '@message-queue-toolkit/core': link:packages/core
       ioredis: 5.10.1
       redis-semaphore: 5.7.0(ioredis@5.10.1)
     transitivePeerDependencies:
       - supports-color
       - zod
-
-  '@message-queue-toolkit/s3-payload-store@3.0.0(@aws-sdk/client-s3@3.1048.0)(@message-queue-toolkit/core@25.5.0(zod@4.4.3))':
-    dependencies:
-      '@aws-sdk/client-s3': 3.1048.0
-      '@message-queue-toolkit/core': 25.5.0(zod@4.4.3)
 
   '@message-queue-toolkit/schemas@7.1.0(zod@4.4.3)':
     dependencies:

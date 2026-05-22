@@ -1,3 +1,21 @@
+export {
+  buildCodecEnvelope,
+  DEFAULT_MAX_DECOMPRESSED_BYTES,
+  getCodecName,
+  resolveCodecHandler,
+  ZstdCodecHandler,
+} from './codec/codecHandler.ts'
+export {
+  BASE64_RE,
+  type CodecEnvelope,
+  hasCodecEnvelopeShape,
+  isCodecEnvelope,
+  KNOWN_CODECS,
+  type MessageCodec,
+  MessageCodecEnum,
+  type MessageCodecHandler,
+  type MessageCodecRegistration,
+} from './codec/messageCodec.ts'
 export { DoNotProcessMessageError } from './errors/DoNotProcessError.ts'
 export {
   isMessageError,

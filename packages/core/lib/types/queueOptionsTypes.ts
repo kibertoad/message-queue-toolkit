@@ -1,5 +1,6 @@
 import type { CommonLogger, ErrorReporter, ErrorResolver } from '@lokalise/node-core'
 import type { ZodSchema } from 'zod/v4'
+import type { MessageCodecRegistration } from '../codec/messageCodec.ts'
 import type { MessageDeduplicationConfig } from '../message-deduplication/messageDeduplicationTypes.ts'
 import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes.ts'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer.ts'
@@ -292,6 +293,48 @@ export type QueuePublisherOptions<
 > = QueueOptions<CreationConfigType, QueueLocatorType> & {
   messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
   enablePublisherDeduplication?: boolean
+  /**
+   * Compression codec applied to outgoing message bodies.
+   *
+   * Every outgoing message body is compressed and wrapped in a self-describing
+   * envelope `{ __mqtCodec: 'zstd', __mqtData: '<base64>' }`. Consumers auto-detect
+   * the envelope and decompress transparently — no consumer-side option is needed
+   * for built-in codecs, so mixed (compressed/uncompressed) queues work seamlessly.
+   *
+   * Only the SQS and SNS adapters support compression; AMQP and Pub/Sub publishers
+   * throw at construction time if a codec is supplied.
+   *
+   * Uses Node.js built-in `zlib` zstd support — **requires Node.js >=22.15.0** (or >=23.8.0).
+   *
+   * @example
+   * import { MessageCodecEnum } from '@message-queue-toolkit/core'
+   *
+   * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD })
+   */
+  codec?: MessageCodecRegistration
+  /**
+   * Minimum serialized size in bytes a message must reach before compression is applied.
+   * Only meaningful when `codec` is set. Defaults to `512`.
+   *
+   * Small messages often expand rather than shrink when compressed due to algorithm
+   * framing overhead. When the UTF-8 JSON representation of a message is strictly
+   * smaller than this value, the message is sent as plain JSON instead of a codec
+   * envelope, avoiding the compression cost with no loss of correctness.
+   *
+   * This floor is honored regardless of whether `payloadStoreConfig` is also set:
+   * a message below the threshold is sent (or offloaded) as plain JSON without
+   * compression.
+   *
+   * Set to `0` to compress every message regardless of size.
+   *
+   * @example
+   * // Compress only messages ≥ 1 KB
+   * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD, skipCompressionBelow: 1024 })
+   *
+   * // Always compress (disable the floor)
+   * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD, skipCompressionBelow: 0 })
+   */
+  skipCompressionBelow?: number
 }
 
 export type DeadLetterQueueOptions<

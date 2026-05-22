@@ -26,6 +26,8 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<SupportedTypes>
       | 'payloadStoreConfig'
       | 'messageDeduplicationConfig'
       | 'enablePublisherDeduplication'
+      | 'codec'
+      | 'skipCompressionBelow'
     >,
   ) {
     super(dependencies, {
@@ -40,6 +42,8 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<SupportedTypes>
         deleteIfExists: false,
       },
       payloadStoreConfig: options?.payloadStoreConfig,
+      codec: options?.codec,
+      skipCompressionBelow: options?.skipCompressionBelow,
       messageSchemas: [PERMISSIONS_ADD_MESSAGE_SCHEMA, PERMISSIONS_REMOVE_MESSAGE_SCHEMA],
       handlerSpy: true,
       messageTypeResolver: { messageTypePath: 'messageType' },

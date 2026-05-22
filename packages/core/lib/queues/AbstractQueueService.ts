@@ -1,3 +1,9 @@
+import { randomUUID } from 'node:crypto'
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { types } from 'node:util'
 import {
   type CommonLogger,
@@ -14,6 +20,8 @@ import {
 } from '@message-queue-toolkit/schemas'
 import { getProperty, setProperty } from 'dot-prop'
 import type { ZodSchema, ZodType } from 'zod/v4'
+import { buildCodecEnvelope, getCodecName, resolveCodecHandler } from '../codec/codecHandler.ts'
+import type { MessageCodecHandler, MessageCodecRegistration } from '../codec/messageCodec.ts'
 import type { MessageInvalidFormatError, MessageValidationError } from '../errors/Errors.ts'
 import {
   type AcquireLockTimeoutError,
@@ -36,6 +44,7 @@ import {
 import type {
   MultiPayloadStoreConfig,
   PayloadStore,
+  SerializedPayload,
   SinglePayloadStoreConfig,
 } from '../payload-store/payloadStoreTypes.ts'
 import { isDestroyable, isMultiPayloadStoreConfig } from '../payload-store/payloadStoreTypes.ts'
@@ -48,7 +57,7 @@ import type {
   QueueOptions,
 } from '../types/queueOptionsTypes.ts'
 import { isRetryDateExceeded } from '../utils/dateUtils.ts'
-import { streamWithKnownSizeToString } from '../utils/streamUtils.ts'
+import { streamWithKnownSizeToBuffer, streamWithKnownSizeToString } from '../utils/streamUtils.ts'
 import { toDatePreprocessor } from '../utils/toDateProcessor.ts'
 import type {
   BarrierCallback,
@@ -135,6 +144,15 @@ export abstract class AbstractQueueService<
   protected readonly messageDeduplicationConfig?: MessageDeduplicationConfig
   protected readonly messageMetricsManager?: MessageMetricsManager<MessagePayloadSchemas>
   protected readonly _handlerSpy?: HandlerSpy<MessagePayloadSchemas>
+  protected readonly skipCompressionBelow: number
+  protected readonly disableCodecAutoDetection: boolean
+  /**
+   * Codec handler resolved from the `codec` option, used by `prepareOutgoingPayload`.
+   * Undefined when no codec is configured (the common case).
+   */
+  protected readonly resolvedCodecHandler?: MessageCodecHandler
+  /** Codec name matching `resolvedCodecHandler`, written into every codec envelope. */
+  protected readonly resolvedCodecName?: string
 
   protected isInitted: boolean
 
@@ -172,6 +190,24 @@ export abstract class AbstractQueueService<
         }
       : undefined
     this.messageDeduplicationConfig = options.messageDeduplicationConfig
+
+    // Codec options live on role-specific option types (`codec`/`skipCompressionBelow`
+    // on publishers, `disableCodecAutoDetection` on consumers), so they are not part of
+    // the shared `QueueOptions` constraint. The base class handles both roles, hence the
+    // localized widening cast.
+    const codecOptions = options as Partial<{
+      codec: MessageCodecRegistration
+      skipCompressionBelow: number
+      disableCodecAutoDetection: boolean
+    }>
+    // Clamp to a non-negative integer: a negative or fractional floor is meaningless
+    // (a negative value would behave like 0 — "always compress" — anyway).
+    this.skipCompressionBelow = Math.max(0, Math.trunc(codecOptions.skipCompressionBelow ?? 512))
+    this.disableCodecAutoDetection = codecOptions.disableCodecAutoDetection ?? false
+    if (codecOptions.codec) {
+      this.resolvedCodecHandler = resolveCodecHandler(codecOptions.codec)
+      this.resolvedCodecName = getCodecName(codecOptions.codec)
+    }
 
     this.logMessages = options.logMessages ?? false
     this._handlerSpy = resolveHandlerSpy<MessagePayloadSchemas>(options)
@@ -657,24 +693,86 @@ export abstract class AbstractQueueService<
   }
 
   /**
-   * Offload message payload to an external store if it exceeds the threshold.
-   * Returns a special type that contains a pointer to the offloaded payload or the original payload if it was not offloaded.
-   * Requires message size as only the implementation knows how to calculate it.
+   * Collects the identity/routing fields that must remain visible in plaintext on the
+   * wire even when the message body is compressed or offloaded: the configured id,
+   * timestamp and deduplication fields, plus the message `type` (resolved via
+   * `messageTypeResolver`, defaulting to the conventional top-level `type` path).
+   *
+   * Keeping these as plaintext siblings of an offload pointer / codec envelope is what
+   * lets routing and downstream filtering keep working. Without the `type` fallback,
+   * `messageTypeResolver` modes that don't specify a body path silently strip `type`,
+   * breaking downstream SNS subscription FilterPolicy filters (`FilterPolicyScope:
+   * 'MessageBody'`). Shared by `buildPointer` (offload) and the codec-envelope path
+   * (`prepareOutgoingPayload`) so both behave identically.
+   */
+  protected collectPreservedFields(message: MessagePayloadSchemas): Record<string, unknown> {
+    const fields: Record<string, unknown> = {
+      // @ts-expect-error dynamic field access
+      [this.messageIdField]: message[this.messageIdField],
+      // @ts-expect-error dynamic field access
+      [this.messageTimestampField]: message[this.messageTimestampField],
+      // @ts-expect-error dynamic field access
+      [this.messageDeduplicationIdField]: message[this.messageDeduplicationIdField],
+      // @ts-expect-error dynamic field access
+      [this.messageDeduplicationOptionsField]: message[this.messageDeduplicationOptionsField],
+    }
+
+    const typePath =
+      this.messageTypeResolver && isMessageTypePathConfig(this.messageTypeResolver)
+        ? this.messageTypeResolver.messageTypePath
+        : 'type'
+    const typeValue = getProperty(message, typePath)
+    if (typeValue !== undefined) {
+      setProperty(fields, typePath, typeValue)
+    }
+
+    return fields
+  }
+
+  /**
+   * Builds an OffloadedPayloadPointerPayload from the given message and storage metadata.
+   * Identity/routing fields are preserved through offloading via {@link collectPreservedFields}.
+   */
+  private buildPointer(
+    message: MessagePayloadSchemas,
+    payloadId: string,
+    storeName: string,
+    size: number,
+    codecName?: string,
+  ): OffloadedPayloadPointerPayload {
+    return {
+      payloadRef: {
+        id: payloadId,
+        store: storeName,
+        size,
+        ...(codecName ? { codec: codecName } : {}),
+      },
+      offloadedPayloadPointer: payloadId,
+      offloadedPayloadSize: size,
+      ...this.collectPreservedFields(message),
+    } as OffloadedPayloadPointerPayload
+  }
+
+  /**
+   * Offloads the message payload to the configured store if it exceeds the size threshold.
+   * Returns null if no offloading is needed (store not configured or message fits within threshold).
    *
    * For multi-store configuration, uses the configured outgoingStore.
    * For single-store configuration, uses the single store.
    *
-   * The returned payload includes both the new payloadRef format and legacy fields for backward compatibility.
+   * The returned pointer includes both the new payloadRef format and legacy fields for backward
+   * compatibility. The message type field is always preserved through offloading.
    */
-  protected async offloadMessagePayloadIfNeeded(
+  protected async offloadPayload(
     message: MessagePayloadSchemas,
     messageSizeFn: () => number,
-  ): Promise<MessagePayloadSchemas | OffloadedPayloadPointerPayload> {
-    if (
-      !this.payloadStoreConfig ||
-      messageSizeFn() <= this.payloadStoreConfig.messageSizeThreshold
-    ) {
-      return message
+  ): Promise<OffloadedPayloadPointerPayload | null> {
+    if (!this.payloadStoreConfig) {
+      return null
+    }
+
+    if (messageSizeFn() <= this.payloadStoreConfig.messageSizeThreshold) {
+      return null
     }
 
     const { store, storeName } = this.resolveOutgoingStore()
@@ -689,45 +787,276 @@ export abstract class AbstractQueueService<
       }
     }
 
-    // Return message with both new and legacy formats for backward compatibility
-    const result: OffloadedPayloadPointerPayload = {
-      // Extended payload reference format
-      payloadRef: {
-        id: payloadId,
-        store: storeName,
-        size: serializedPayload.size,
-      },
-      // Legacy format for backward compatibility
-      offloadedPayloadPointer: payloadId,
-      offloadedPayloadSize: serializedPayload.size,
-      // @ts-expect-error
-      [this.messageIdField]: message[this.messageIdField],
-      // @ts-expect-error
-      [this.messageTimestampField]: message[this.messageTimestampField],
-      // @ts-expect-error
-      [this.messageDeduplicationIdField]: message[this.messageDeduplicationIdField],
-      // @ts-expect-error
-      [this.messageDeduplicationOptionsField]: message[this.messageDeduplicationOptionsField],
+    return this.buildPointer(message, payloadId, storeName, serializedPayload.size)
+  }
+
+  /**
+   * Compresses (when codec is configured) or offloads (when a payload store is configured)
+   * the outgoing message. Shared by all publisher subclasses via the `resolvedCodecHandler`
+   * / `resolvedCodecName` fields resolved from the `codec` option in the base constructor.
+   *
+   * Returns:
+   *  - `{ payload, preBuiltBody }` — `preBuiltBody` is a ready-to-send wire body string
+   *    (codec envelope, or plain JSON when compression was skipped); `sendMessage` must
+   *    use it as-is.
+   *  - `{ payload }` — the payload is sent through the normal `JSON.stringify` path
+   *    (no codec configured), optionally replaced by an offloaded-payload pointer.
+   */
+  protected async prepareOutgoingPayload(message: MessagePayloadSchemas): Promise<{
+    payload: MessagePayloadSchemas | OffloadedPayloadPointerPayload
+    preBuiltBody?: string
+  }> {
+    const handler = this.resolvedCodecHandler
+    const codecName = this.resolvedCodecName
+
+    if (handler && codecName) {
+      return this.prepareCompressedOutgoingPayload(message, handler, codecName)
     }
 
-    // Preserve the message type field through offloading. We default to the conventional
-    // top-level `type` path so that routing/identity fields are handled consistently with
-    // `messageIdField`/`messageTimestampField`/etc., which have defaulted names ('id',
-    // 'timestamp', ...) and are always copied across when present. Without this fallback,
-    // `messageTypeResolver` modes that don't specify a body path (no resolver, `literal`,
-    // or `resolver`) silently strip `type` from the offloaded SNS body, which then breaks
-    // any downstream subscription whose FilterPolicy filters on `type`
-    // (FilterPolicyScope: 'MessageBody').
-    const typePath =
-      this.messageTypeResolver && isMessageTypePathConfig(this.messageTypeResolver)
-        ? this.messageTypeResolver.messageTypePath
-        : 'type'
-    const typeValue = getProperty(message, typePath)
-    if (typeValue !== undefined) {
-      setProperty(result, typePath, typeValue)
+    return {
+      payload:
+        (await this.offloadPayload(message, () => this.calculateOutgoingMessageSize(message))) ??
+        message,
+    }
+  }
+
+  /**
+   * Codec branch of {@link prepareOutgoingPayload}, extracted so each method stays within
+   * the cognitive-complexity budget.
+   *
+   * With a payload store, serialization is delegated to {@link compressAndOffloadPayload},
+   * which uses the store serializer's reported size to honor `skipCompressionBelow` — the
+   * message is never separately `JSON.stringify`'d, so a streaming serializer is not forced
+   * to fully materialize a large payload. Without a payload store, the wire body is bounded
+   * by the SQS/SNS 256 KB transport limit (and is a string parameter that cannot be
+   * streamed), so a single in-memory `JSON.stringify` is both necessary and safe.
+   */
+  private async prepareCompressedOutgoingPayload(
+    message: MessagePayloadSchemas,
+    handler: MessageCodecHandler,
+    codecName: string,
+  ): Promise<{
+    payload: MessagePayloadSchemas | OffloadedPayloadPointerPayload
+    preBuiltBody?: string
+  }> {
+    if (this.payloadStoreConfig) {
+      return this.compressAndOffloadPayload(message, handler, codecName)
     }
 
-    return result
+    // No offload store: serialize exactly once. The result is the codec input and, when
+    // compression is skipped, the plain-JSON wire body.
+    const json = JSON.stringify(message)
+
+    // Skip compression for messages below the configured floor — small payloads often
+    // grow rather than shrink when compressed.
+    if (Buffer.byteLength(json, 'utf8') < this.skipCompressionBelow) {
+      return { payload: message, preBuiltBody: json }
+    }
+
+    // Identity/routing fields are copied as plaintext envelope siblings so broker-side
+    // filtering (e.g. SNS body-scoped FilterPolicy) keeps working on compressed messages —
+    // mirroring how offloaded-payload pointers preserve these fields.
+    const compressed = await handler.compress(Buffer.from(json, 'utf8'))
+    return {
+      payload: message,
+      preBuiltBody: buildCodecEnvelope(compressed, codecName, this.collectPreservedFields(message)),
+    }
+  }
+
+  /**
+   * Estimates the wire size in bytes of the codec envelope wrapping `compressedSize`
+   * compressed bytes. The envelope is `{...preservedFields,"__mqtCodec":"<name>",
+   * "__mqtData":"<base64>"}`: base64 expands the payload to `⌈N/3⌉×4`, the fixed JSON
+   * framing adds 32 chars plus the codec name length, and any preserved sibling fields
+   * add their serialized length.
+   *
+   * Note: this measures the envelope body only — transport-specific message attributes
+   * (small, and identical with or without codec) are not included.
+   */
+  protected estimateCodecEnvelopeSize(
+    compressedSize: number,
+    codecName: string,
+    preservedFields?: Record<string, unknown>,
+  ): number {
+    let size = Math.ceil(compressedSize / 3) * 4 + 32 + codecName.length
+    if (preservedFields) {
+      // Merged into the envelope, the preserved fields cost their serialized content
+      // minus the two outer braces ("{}"), plus one joining comma. An empty object
+      // ("{}", 2 bytes) contributes nothing. Measured in UTF-8 bytes throughout.
+      const serializedBytes = Buffer.byteLength(JSON.stringify(preservedFields), 'utf8')
+      if (serializedBytes > 2) {
+        size += serializedBytes - 1
+      }
+    }
+    return size
+  }
+
+  /**
+   * Returns the wire size of the outgoing message in bytes, used by `offloadPayload` to decide
+   * whether the payload exceeds `messageSizeThreshold`.
+   *
+   * Overridden by publisher subclasses (SQS, SNS) to call their transport-specific utility.
+   * Not called on the consumer path; consumers do not override this method.
+   */
+  protected calculateOutgoingMessageSize(_message: MessagePayloadSchemas): number {
+    /* c8 ignore next */
+    throw new Error('calculateOutgoingMessageSize must be implemented by the publisher subclass')
+  }
+
+  /**
+   * Store-path handler for codec publishers (both `codec` and `payloadStoreConfig` set).
+   *
+   * Serializes the message **once**, through the payload store's serializer (which may
+   * stream large payloads). `skipCompressionBelow` is evaluated against the size the
+   * serializer reports — there is no separate `JSON.stringify`, so a streaming serializer
+   * is never forced to fully materialize the payload just to evaluate the floor.
+   *
+   * - **Below `skipCompressionBelow`:** compression is skipped — the payload is sent inline
+   *   as plain JSON, or offloaded uncompressed if it still exceeds `messageSizeThreshold`
+   *   (possible only when the threshold is configured below the floor).
+   * - **Otherwise:** the payload is compressed and either inlined as a codec envelope or
+   *   offloaded as raw compressed bytes (see {@link compressSerializedPayload}).
+   *
+   * Returns the same `{ payload, preBuiltBody? }` shape as {@link prepareOutgoingPayload}.
+   */
+  protected async compressAndOffloadPayload(
+    message: MessagePayloadSchemas,
+    handler: MessageCodecHandler,
+    codecName: string,
+  ): Promise<{
+    payload: MessagePayloadSchemas | OffloadedPayloadPointerPayload
+    preBuiltBody?: string
+  }> {
+    if (!this.payloadStoreConfig) {
+      throw new Error('Payload store is not configured')
+    }
+    const threshold = this.payloadStoreConfig.messageSizeThreshold
+
+    // Serialize once. `serialized.size` is the authoritative wire size — used to honor
+    // `skipCompressionBelow` without a redundant `JSON.stringify` of the whole message.
+    const serialized = await this.payloadStoreConfig.serializer.serialize(message)
+
+    try {
+      // Below the compression floor: skip compression entirely. The payload is offloaded
+      // uncompressed if it still exceeds the threshold (only possible when the threshold
+      // is set below the floor), otherwise sent inline as plain JSON.
+      if (serialized.size < this.skipCompressionBelow) {
+        if (serialized.size > threshold) {
+          const { store, storeName } = this.resolveOutgoingStore()
+          const payloadId = await store.storePayload(serialized)
+          return { payload: this.buildPointer(message, payloadId, storeName, serialized.size) }
+        }
+        return {
+          payload: message,
+          preBuiltBody:
+            typeof serialized.value === 'string'
+              ? serialized.value
+              : await streamWithKnownSizeToString(serialized.value, serialized.size),
+        }
+      }
+
+      return await this.compressSerializedPayload(
+        message,
+        serialized,
+        handler,
+        codecName,
+        threshold,
+      )
+    } finally {
+      if (isDestroyable(serialized)) {
+        await serialized.destroy()
+      }
+    }
+  }
+
+  /**
+   * Compresses an already-serialized payload and decides — against the **codec envelope
+   * wire size** (base64-encoded compressed bytes + JSON framing), not the raw compressed
+   * byte count — whether to send it inline as a codec envelope or offload the compressed
+   * bytes. Compression does not always shrink data, so the base64 envelope can exceed
+   * `messageSizeThreshold` even when the raw payload did not.
+   *
+   * - **In-memory fast path:** a string payload below `messageSizeThreshold` is compressed
+   *   directly into a Buffer — no temp file is created, no disk I/O occurs.
+   * - **Streaming path:** a stream payload (or large string) is piped through the codec
+   *   Transform into a temp file, so no full-payload buffer is materialized.
+   *
+   * Split out of {@link compressAndOffloadPayload} for the cognitive-complexity budget.
+   */
+  private async compressSerializedPayload(
+    message: MessagePayloadSchemas,
+    serialized: SerializedPayload,
+    handler: MessageCodecHandler,
+    codecName: string,
+    threshold: number,
+  ): Promise<{
+    payload: MessagePayloadSchemas | OffloadedPayloadPointerPayload
+    preBuiltBody?: string
+  }> {
+    // Identity/routing fields are copied as plaintext envelope siblings so broker-side
+    // filtering (e.g. SNS body-scoped FilterPolicy) keeps working on compressed messages.
+    const preservedFields = this.collectPreservedFields(message)
+
+    // In-memory fast path: avoid disk I/O entirely for small string payloads.
+    if (typeof serialized.value === 'string' && serialized.size < threshold) {
+      const compressed = await handler.compress(Buffer.from(serialized.value, 'utf8'))
+      if (
+        this.estimateCodecEnvelopeSize(compressed.length, codecName, preservedFields) > threshold
+      ) {
+        const { store, storeName } = this.resolveOutgoingStore()
+        const payloadId = await store.storePayload({
+          value: Readable.from(compressed),
+          size: compressed.length,
+        })
+        return {
+          payload: this.buildPointer(message, payloadId, storeName, compressed.length, codecName),
+        }
+      }
+      return {
+        payload: message,
+        preBuiltBody: buildCodecEnvelope(compressed, codecName, preservedFields),
+      }
+    }
+
+    // Streaming pipeline: serializer output → codec transform → temp file.
+    // No full-payload buffer is materialised; each codec supplies its own Transform.
+    const tmpPath = path.join(os.tmpdir(), randomUUID())
+    try {
+      await pipeline(
+        typeof serialized.value === 'string' ? Readable.from(serialized.value) : serialized.value,
+        handler.createCompressStream(),
+        fs.createWriteStream(tmpPath),
+      )
+
+      const compressedSize = (await fs.promises.stat(tmpPath)).size
+
+      if (this.estimateCodecEnvelopeSize(compressedSize, codecName, preservedFields) > threshold) {
+        const { store, storeName } = this.resolveOutgoingStore()
+        const payloadId = await store.storePayload({
+          value: fs.createReadStream(tmpPath),
+          size: compressedSize,
+        })
+        return {
+          payload: this.buildPointer(message, payloadId, storeName, compressedSize, codecName),
+        }
+      }
+
+      // Compressed payload fits inline — wrap the buffer in a codec envelope.
+      return {
+        payload: message,
+        preBuiltBody: buildCodecEnvelope(
+          await fs.promises.readFile(tmpPath),
+          codecName,
+          preservedFields,
+        ),
+      }
+    } finally {
+      try {
+        await fs.promises.unlink(tmpPath)
+      } catch {
+        // ignore cleanup errors
+      }
+    }
   }
 
   /**
@@ -735,9 +1064,17 @@ export abstract class AbstractQueueService<
    * Returns the original payload or an error if the payload was not found or could not be parsed.
    *
    * Supports both new multi-store format (payloadRef) and legacy format (offloadedPayloadPointer).
+   *
+   * When `resolveDecompressor` is provided and the pointer's `payloadRef.codec` is set, the
+   * fetched bytes are treated as raw compressed binary and decompressed before JSON parsing.
+   * `resolveDecompressor` is invoked *outside* the catch block: if it throws (e.g. the codec
+   * named in the pointer is not registered on this consumer — a deployment misconfiguration,
+   * not a bad message), the throw propagates as a retriable error so the message stays on the
+   * queue instead of being silently routed to the DLQ.
    */
   protected async retrieveOffloadedMessagePayload(
     maybeOffloadedPayloadPointerPayload: unknown,
+    resolveDecompressor?: (codec: string) => (data: Buffer) => Promise<Buffer>,
   ): Promise<Either<Error, unknown>> {
     if (!this.payloadStoreConfig) {
       return {
@@ -784,6 +1121,34 @@ export abstract class AbstractQueueService<
     if (serializedOffloadedPayloadReadable === null) {
       return {
         error: new Error(`Payload with key ${payloadId} was not found in the store`),
+      }
+    }
+
+    const codec = parsedPayload.payloadRef?.codec
+    if (codec && resolveDecompressor) {
+      // Resolve the decompressor OUTSIDE the try/catch. An unknown/unregistered codec is a
+      // consumer misconfiguration, not a poison message — letting it throw here makes it a
+      // retriable error (the message stays on the queue and becomes visible again after the
+      // visibility timeout) instead of being silently routed to the DLQ.
+      const decompress = resolveDecompressor(codec)
+      // The stream read is likewise kept outside the try/catch so transient retrieval errors
+      // (truncated S3 stream, network blip) propagate as thrown exceptions and are retried.
+      // Only deterministic failures (corrupt compressed bytes, invalid JSON after
+      // decompression) are caught and returned as { error }, which the consumer treats as a
+      // poison message and routes to the DLQ. This mirrors the non-codec path below.
+      const compressedBuffer = await streamWithKnownSizeToBuffer(
+        serializedOffloadedPayloadReadable,
+        payloadSize,
+      )
+      try {
+        const decompressed = await decompress(compressedBuffer)
+        return { result: JSON.parse(decompressed.toString('utf8')) }
+      } catch (e) {
+        return {
+          error: new Error(`Failed to decompress offloaded payload with codec "${codec}"`, {
+            cause: e,
+          }),
+        }
       }
     }
 

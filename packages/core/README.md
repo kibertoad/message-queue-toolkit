@@ -641,6 +641,58 @@ class MyPayloadStore implements PayloadStore {
 }
 ```
 
+#### Message compression (codec)
+
+Publishers can compress outgoing messages by setting `codec` in their options. The codec implementation (zstd via the Node.js built-in `zlib` module) ships inside `@message-queue-toolkit/core` — there is no extra package to install. Requires **Node.js >=22.15.0**. Only the SQS and SNS adapters support compression.
+
+**Built-in zstd:**
+
+```typescript
+import { MessageCodecEnum } from '@message-queue-toolkit/core'
+
+new MyPublisher(deps, {
+  codec: MessageCodecEnum.ZSTD,
+  // Optional: skip compression for messages below this byte threshold (default: 512).
+  // Small messages often expand when compressed; set to 0 to always compress.
+  skipCompressionBelow: 512,
+})
+```
+
+**Custom codec** (bring your own compression library):
+
+```typescript
+import type { MessageCodecHandler } from '@message-queue-toolkit/core'
+
+class MyLz4Handler implements MessageCodecHandler {
+  async compress(data: Buffer): Promise<Buffer> { /* ... */ }
+  async decompress(data: Buffer): Promise<Buffer> { /* ... */ }
+  createCompressStream(): Transform { /* return a Transform stream */ }
+}
+
+const codec = { name: 'lz4', handler: new MyLz4Handler() }
+new MyPublisher(deps, { codec })
+new MyConsumer(deps, { codecs: [codec] }) // register custom codec on the consumer
+```
+
+Compressed messages are wrapped in a self-describing envelope `{ __mqtCodec: '<name>', __mqtData: '<base64>', ...preserved fields }`. The message's identity/routing fields (`id`, `timestamp`, `type`, deduplication fields) are copied alongside `__mqtData` as plaintext — the same fields an offloaded-payload pointer preserves — so broker-side filtering (e.g. SNS body-scoped `FilterPolicy`) keeps working on them. Built-in codecs (e.g. zstd) are auto-detected on every consumer — no consumer option needed. For custom codecs, pass `codecs: [{ name, handler }]` to register them on the consumer.
+
+> **Roll out consumers before publishers:** auto-detection only works on a consumer running a library version that supports the codec (and, for custom codecs, with that codec registered). Upgrade all consumers of a queue first, then enable `codec` on publishers.
+
+#### Interaction with codec (compression)
+
+When both `codec` and `payloadStoreConfig` are set on a publisher, compression and offloading work together with a single compression pass:
+
+1. The message is compressed **once** at publish time.
+2. The **codec envelope wire size** (base64-encoded compressed bytes + JSON framing) is compared against `messageSizeThreshold`.
+3. If the envelope size exceeds the threshold, the raw compressed bytes are stored in the payload store. The codec name is written to `payloadRef.codec` so the consumer knows how to decompress after retrieval.
+4. If the envelope size fits within the threshold, the message is sent inline as a self-describing codec envelope — S3 is never touched.
+
+`skipCompressionBelow` is honored here too: a message whose serialized JSON is below the threshold skips compression entirely and is offloaded (or sent inline) as plain JSON.
+
+> **Note:** for large payloads the compress-and-offload path streams the message through a temporary file under `os.tmpdir()` to avoid buffering the whole payload in memory. The temp file is always removed in a `finally` block. Environments with a read-only or unavailable temp directory (rare; AWS Lambda's `/tmp` is writable) cannot use the codec + payload-store combination.
+
+This means compression can prevent offloading entirely for messages that are large before compression but small after.
+
 ## API Reference
 
 ### Types

@@ -31,6 +31,8 @@ export class SqsPermissionPublisher extends AbstractSqsPublisher<SupportedMessag
       | 'payloadStoreConfig'
       | 'messageDeduplicationConfig'
       | 'enablePublisherDeduplication'
+      | 'codec'
+      | 'skipCompressionBelow'
     >,
   ) {
     super(dependencies, {
@@ -53,6 +55,8 @@ export class SqsPermissionPublisher extends AbstractSqsPublisher<SupportedMessag
       payloadStoreConfig: options?.payloadStoreConfig,
       messageDeduplicationConfig: options?.messageDeduplicationConfig,
       enablePublisherDeduplication: options?.enablePublisherDeduplication,
+      codec: options?.codec,
+      skipCompressionBelow: options?.skipCompressionBelow,
       messageDeduplicationIdField: 'deduplicationId',
       messageDeduplicationOptionsField: 'deduplicationOptions',
     })

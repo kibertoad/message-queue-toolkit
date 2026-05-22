@@ -34,6 +34,13 @@ export async function getObjectContent(s3: S3, bucket: string, key: string) {
   return result.Body?.transformToString()
 }
 
+export async function getObjectBuffer(s3: S3, bucket: string, key: string): Promise<Buffer> {
+  const result = await s3.getObject({ Bucket: bucket, Key: key })
+  const bytes = await result.Body?.transformToByteArray()
+  if (!bytes) throw new Error(`No body for S3 object ${key}`)
+  return Buffer.from(bytes)
+}
+
 export async function putObjectContent(s3: S3, bucket: string, key: string, content: string) {
   await s3.putObject({ Bucket: bucket, Key: key, Body: content })
 }

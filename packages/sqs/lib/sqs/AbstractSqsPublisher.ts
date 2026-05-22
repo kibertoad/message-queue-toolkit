@@ -117,18 +117,34 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       const messageProcessingStartTimestamp = Date.now()
       const parsedMessage = messageSchemaResult.result.parse(message)
 
+      // Fast read-only pre-check: skip compression/offload for messages already known to
+      // be duplicates. This does NOT persist a dedup key, so a transient failure in the
+      // expensive work below leaves no key behind and the publish stays safely retriable.
+      if (await this.isMessageDuplicated(parsedMessage, DeduplicationRequesterEnum.Publisher)) {
+        this.handleMessageProcessed({
+          message: parsedMessage,
+          processingResult: { status: 'published', skippedAsDuplicate: true },
+          messageProcessingStartTimestamp,
+          queueName: this.queueName,
+        })
+        return
+      }
+
       message = this.updateInternalProperties(message)
 
       // Resolve FIFO options from original message BEFORE offloading
       // (offloaded payload won't have user fields needed for messageGroupIdField)
       const resolvedOptions = this.resolveFifoOptions(message, options)
 
-      const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(message, () =>
-        calculateOutgoingMessageSize(message),
-      )
+      const { payload, preBuiltBody } = await this.prepareOutgoingPayload(message)
 
+      // Persist the dedup key only now — immediately before send — so the window in which
+      // a stored key plus a failed send could drop the message on retry stays as small as
+      // possible and no longer spans compression/offload (a transient failure there leaves
+      // no key behind). The pre-check above already skipped the expensive work for the
+      // common duplicate case; this check additionally closes the race where a concurrent
+      // publish stored the key in the meantime.
       if (
-        this.isDeduplicationEnabledForMessage(parsedMessage) &&
         (await this.deduplicateMessage(parsedMessage, DeduplicationRequesterEnum.Publisher))
           .isDuplicated
       ) {
@@ -141,7 +157,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         return
       }
 
-      await this.sendMessage(maybeOffloadedPayloadMessage, resolvedOptions)
+      await this.sendMessage(payload, resolvedOptions, preBuiltBody)
       this.handleMessageProcessed({
         message: parsedMessage,
         processingResult: { status: 'published' },
@@ -199,16 +215,22 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     return this.messageSchemaContainer.resolveSchema(message)
   }
 
+  protected override calculateOutgoingMessageSize(message: MessagePayloadType): number {
+    return calculateOutgoingMessageSize(message)
+  }
+
   protected async sendMessage(
     payload: MessagePayloadType | OffloadedPayloadPointerPayload,
     options: SQSMessageOptions,
+    preBuiltBody?: string,
   ): Promise<void> {
     const attributes = resolveOutgoingMessageAttributes<MessageAttributeValue>(payload)
-
-    // Options are already resolved in publish() before offloading
+    // preBuiltBody is set when codec is active and the payload was not offloaded —
+    // it contains the already-compressed codec envelope, so we skip re-serialization.
+    const body = preBuiltBody ?? JSON.stringify(payload)
     const command = new SendMessageCommand({
       QueueUrl: this.queueUrl,
-      MessageBody: JSON.stringify(payload),
+      MessageBody: body,
       MessageAttributes: attributes,
       ...options,
     })

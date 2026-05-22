@@ -23,6 +23,15 @@ describe('PubSubPermissionPublisher', () => {
     await diContainer.dispose()
   })
 
+  describe('constructor', () => {
+    it('throws when codec option is set (codec is not supported by Pub/Sub publishers)', () => {
+      // The guard fires before super() so real dependencies are not required.
+      expect(() => new PubSubPermissionPublisher({} as any, { codec: 'zstd' } as any)).toThrow(
+        'codec is not supported by AbstractPubSubPublisher',
+      )
+    })
+  })
+
   describe('init', () => {
     it('creates a new topic', async () => {
       const newPublisher = diContainer.cradle.permissionPublisher

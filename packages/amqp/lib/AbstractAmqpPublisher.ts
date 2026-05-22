@@ -51,6 +51,12 @@ export abstract class AbstractAmqpPublisher<
     dependencies: AMQPDependencies,
     options: AMQPPublisherOptions<MessagePayloadType, CreationConfig, LocatorConfig>,
   ) {
+    if (options.codec) {
+      throw new Error(
+        'codec is not supported by AbstractAmqpPublisher. Remove the codec option or use an SQS/SNS publisher.',
+      )
+    }
+
     super(dependencies, options)
 
     this.messageSchemaContainer = this.resolvePublisherMessageSchemaContainer(options)

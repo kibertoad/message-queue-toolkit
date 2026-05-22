@@ -1,7 +1,7 @@
 import type { S3 } from '@aws-sdk/client-s3'
-import { SendMessageCommand } from '@aws-sdk/client-sqs'
+import { ReceiveMessageCommand, SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { SinglePayloadStoreConfig } from '@message-queue-toolkit/core'
-import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
+import { MessageCodecEnum, MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import { S3PayloadStore } from '@message-queue-toolkit/s3-payload-store'
 import { OFFLOADED_PAYLOAD_SIZE_ATTRIBUTE } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
@@ -13,7 +13,7 @@ import { AbstractSqsConsumer } from '../../lib/sqs/AbstractSqsConsumer.ts'
 import { AbstractSqsPublisher } from '../../lib/sqs/AbstractSqsPublisher.ts'
 import { SQS_MESSAGE_MAX_SIZE } from '../../lib/sqs/AbstractSqsService.ts'
 import { SqsPermissionPublisher } from '../publishers/SqsPermissionPublisher.ts'
-import { putObjectContent, waitForS3Objects } from '../utils/s3Utils.ts'
+import { getObjectBuffer, putObjectContent, waitForS3Objects } from '../utils/s3Utils.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -400,4 +400,164 @@ describe('SqsPermissionConsumer - nested messageTypePath with payload offloading
       await publisher.close()
     })
   })
+})
+
+describe('SqsPermissionConsumer - codec + payload offloading', () => {
+  const s3BucketName = 'test-bucket-codec'
+  // Threshold low enough that even a small compressed payload triggers offloading
+  const smallThreshold = 10
+
+  let diContainer: AwilixContainer<Dependencies>
+  let s3: S3
+  let testAdmin: TestAwsResourceAdmin
+  let payloadStoreConfig: SinglePayloadStoreConfig
+
+  beforeAll(async () => {
+    diContainer = await registerDependencies({
+      permissionPublisher: asValue(() => undefined),
+      permissionConsumer: asValue(() => undefined),
+    })
+    s3 = diContainer.cradle.s3
+    testAdmin = diContainer.cradle.testAdmin
+
+    await testAdmin.createBucket(s3BucketName)
+    payloadStoreConfig = {
+      messageSizeThreshold: smallThreshold,
+      store: new S3PayloadStore(diContainer.cradle, { bucketName: s3BucketName }),
+      storeName: 's3',
+    }
+  })
+
+  afterAll(async () => {
+    await testAdmin.emptyBuckets(s3BucketName)
+    const { awilixManager } = diContainer.cradle
+    await awilixManager.executeDispose()
+    await diContainer.dispose()
+  })
+
+  it('S3 object is raw zstd binary and SQS message carries a plain pointer (not a codec envelope)', async () => {
+    // Use an isolated queue with no consumer so we can read the raw SQS message without a race
+    const wireQueueName = 'codec-offload-wire-check'
+    await testAdmin.deleteQueues(wireQueueName)
+
+    const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
+      id: 'codec-offload-wire-1',
+      messageType: 'add',
+      metadata: { info: 'wire format check' },
+    }
+
+    const wirePublisher = new SqsPermissionPublisher(diContainer.cradle, {
+      codec: MessageCodecEnum.ZSTD,
+      skipCompressionBelow: 0, // always compress: this suite exercises the codec + offload path
+      payloadStoreConfig,
+      creationConfig: { queue: { QueueName: wireQueueName } },
+    })
+    await wirePublisher.init()
+    await wirePublisher.publish(message)
+
+    // Read the raw SQS message before any consumer touches it
+    const { Messages } = await diContainer.cradle.sqsClient.send(
+      new ReceiveMessageCommand({
+        QueueUrl: wirePublisher.queueProps.url,
+        MaxNumberOfMessages: 1,
+        WaitTimeSeconds: 5,
+      }),
+    )
+    expect(Messages, 'Expected a message to be in the queue').toBeDefined()
+    expect(Messages!.length).toBe(1)
+
+    // SQS body must be a plain JSON pointer — not a codec envelope.
+    // Compressed bytes live in S3; only the pointer is sent inline.
+    const sqsBody = JSON.parse(Messages![0]!.Body!) as Record<string, unknown>
+    expect(
+      sqsBody.__mqtCodec,
+      'SQS body must not be a codec envelope when offloading',
+    ).toBeUndefined()
+    expect(sqsBody.payloadRef, 'SQS body must contain a payloadRef pointer').toBeDefined()
+    const payloadRef = sqsBody.payloadRef as Record<string, unknown>
+    expect(payloadRef.codec).toBe(MessageCodecEnum.ZSTD)
+
+    // S3 object must be raw compressed binary, not a JSON codec envelope.
+    // zstd frames start with magic number 0xFD2FB528 (little-endian: 28 B5 2F FD).
+    const s3Keys = await waitForS3Objects(s3, s3BucketName, 1, 5000)
+    expect(s3Keys.length).toBeGreaterThan(0)
+    const s3Bytes = await getObjectBuffer(s3, s3BucketName, s3Keys[0]!)
+    expect(s3Bytes.subarray(0, 4)).toEqual(Buffer.from([0x28, 0xb5, 0x2f, 0xfd]))
+
+    await wirePublisher.close()
+  }, 30_000)
+
+  it('compresses payload, offloads to S3 as raw binary, and consumer decompresses correctly', async () => {
+    const queueName = 'codec-offload-roundtrip'
+    await testAdmin.deleteQueues(queueName)
+
+    const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
+      id: 'codec-offload-1',
+      messageType: 'add',
+      metadata: { info: 'compressed and offloaded' },
+    }
+
+    const publisher = new SqsPermissionPublisher(diContainer.cradle, {
+      codec: MessageCodecEnum.ZSTD,
+      skipCompressionBelow: 0, // always compress: this suite exercises the codec + offload path
+      payloadStoreConfig,
+      creationConfig: { queue: { QueueName: queueName } },
+    })
+    // No codec on consumer — codec is read from payloadRef.codec in the pointer
+    const consumer = new SqsPermissionConsumer(diContainer.cradle, {
+      payloadStoreConfig,
+      creationConfig: { queue: { QueueName: queueName } },
+      deletionConfig: { deleteIfExists: false },
+    })
+
+    await publisher.init()
+    await consumer.start()
+    await publisher.publish(message)
+
+    // Verify payload was offloaded to S3
+    const s3Keys = await waitForS3Objects(s3, s3BucketName, 1, 5000)
+    expect(s3Keys.length).toBeGreaterThan(0)
+
+    // Verify consumer receives the correct decompressed payload
+    const result = await consumer.handlerSpy.waitForMessageWithId(message.id, 'consumed')
+    expect(result.message).toMatchObject(message)
+
+    await publisher.close()
+    await consumer.close(true)
+  }, 30_000)
+
+  it('consumer without explicit codec still decompresses codec-offloaded payload', async () => {
+    const queueName = 'codec-offload-auto-detect'
+    await testAdmin.deleteQueues(queueName)
+
+    const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
+      id: 'codec-offload-auto-1',
+      messageType: 'add',
+      metadata: { info: 'auto-detect codec from pointer' },
+    }
+
+    const publisher = new SqsPermissionPublisher(diContainer.cradle, {
+      codec: MessageCodecEnum.ZSTD,
+      skipCompressionBelow: 0, // always compress: this suite exercises the codec + offload path
+      payloadStoreConfig,
+      creationConfig: { queue: { QueueName: queueName } },
+    })
+    // Consumer has no explicit codec — should still work because codec comes from payloadRef.codec
+    const consumer = new SqsPermissionConsumer(diContainer.cradle, {
+      payloadStoreConfig,
+      creationConfig: { queue: { QueueName: queueName } },
+      deletionConfig: { deleteIfExists: false },
+    })
+
+    await publisher.init()
+    await consumer.start()
+
+    await publisher.publish(message)
+
+    const result = await consumer.handlerSpy.waitForMessageWithId(message.id, 'consumed')
+    expect(result.message).toMatchObject(message)
+
+    await publisher.close()
+    await consumer.close(true)
+  }, 30_000)
 })

@@ -15,5 +15,17 @@
         "noUnusedPrivateClassMembers": "off"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["**/bench/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    }
+  ]
 }

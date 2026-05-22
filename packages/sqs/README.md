@@ -24,6 +24,7 @@ for publishing and consuming messages from both standard and FIFO SQS queues.
   - [Message Retry Logic](#message-retry-logic)
   - [Message Deduplication](#message-deduplication)
   - [Payload Offloading](#payload-offloading)
+  - [Message Compression](#message-compression)
   - [Message Handlers](#message-handlers)
   - [Pre-handlers and Barriers](#pre-handlers-and-barriers)
   - [Handler Spies](#handler-spies)
@@ -62,6 +63,7 @@ npm install @message-queue-toolkit/sqs @message-queue-toolkit/core
 - ✅ **Handler spies** for testing
 - ✅ **Pre-handlers and barriers** for complex message processing
 - ✅ **Automatic queue creation** with validation
+- ✅ **Message compression** with zstd via Node.js built-in `zlib` (Node.js >=22.15.0 required)
 
 ## Core Concepts
 
@@ -460,6 +462,9 @@ When using `locatorConfig`, you connect to an existing queue without creating it
     maxPayloadSize: 1024 * 1024,       // 1 MiB
   },
 
+  // Optional - Compression (Node.js >=22.15.0 required)
+  codec: MessageCodecEnum.ZSTD,        // Compress every outgoing message with zstd
+
   // Optional - Deletion
   deletionConfig: {
     deleteIfExists: false,             // Delete queue on init
@@ -537,6 +542,9 @@ When using `locatorConfig`, you connect to an existing queue without creating it
   payloadStoreConfig: {
     payloadStore: s3Store,
   },
+
+  // Note: consumers have no `codec` option — auto-detection handles built-in zstd.
+  // Use `codecs: [{ name: 'lz4', handler: new LZ4Handler() }]` only for custom codecs.
 
   // Optional - Other
   logMessages: false,
@@ -788,15 +796,77 @@ await publisher.publish({
 })
 ```
 
-**How it works:**
+**How it works (without codec):**
 1. Publisher checks message size before sending
-2. If size exceeds `maxPayloadSize`, stores payload in S3
-3. Replaces payload with pointer: `{ _offloadedPayload: { bucketName, key, size } }`
-4. Sends pointer message to SQS
-5. Consumer detects pointer, fetches payload from S3
-6. Processes message with full payload
+2. If size exceeds `messageSizeThreshold`, serializes and stores payload in S3
+3. Sends a lightweight pointer message to SQS instead
+4. Consumer detects the pointer, fetches payload from S3
+5. Processes message with full payload
+
+**How it works (with codec — compress + offload):**
+1. Publisher compresses the serialized message with zstd **once**, up-front
+2. If the **compressed** size exceeds `messageSizeThreshold`, stores the compressed bytes in S3 and sends a pointer
+3. If the compressed size fits within the threshold, sends the message inline as a codec envelope
+4. Consumer fetches the pointer payload as raw bytes, decompresses, then processes as normal
+
+The codec embedded in `payloadRef.codec` tells the consumer which algorithm to use — no `codec` option is needed on the consumer.
 
 **Note:** Payload cleanup is the responsibility of the store (e.g., S3 lifecycle policies).
+
+### Message Compression
+
+Compress message bodies with zstd using the Node.js built-in `zlib` module. Requires **Node.js >=22.15.0**.
+
+The codec implementation ships inside `@message-queue-toolkit/core` — no extra package to install. Compression is opt-in: it is only active when you set the `codec` option on a publisher.
+
+Compressed messages are **self-describing**: the codec is embedded in the message envelope (`{ __mqtCodec: 'zstd', __mqtData: '<base64>', ...preserved fields }`), so a consumer without `codec` set will still decompress automatically via envelope detection.
+
+> **Roll out consumers before publishers.** Auto-detection only works on a consumer running a library version that supports the codec. Upgrade and deploy all consumers of a queue **first** (they keep handling plain messages unchanged), and only then enable `codec` on publishers. A publisher emitting compressed messages to a consumer on an older library version — or to a consumer missing a required custom codec — will fail to process those messages. Such a missing-codec failure is treated as a **retriable** error (a misconfiguration, not a poison message): the message stays on the queue and is retried until the codec is registered, rather than being dropped or sent to the DLQ. This holds for both inline and offloaded compressed messages.
+
+#### Publisher
+
+```typescript
+import { MessageCodecEnum } from '@message-queue-toolkit/core'
+
+class MyPublisher extends AbstractSqsPublisher<SupportedMessages> {
+  constructor(deps: SQSDependencies) {
+    super(deps, {
+      codec: MessageCodecEnum.ZSTD, // compress every outgoing message
+      creationConfig: { queue: { QueueName: 'my-queue' } },
+      // ...
+    })
+  }
+}
+```
+
+#### Consumer
+
+```typescript
+class MyConsumer extends AbstractSqsConsumer<SupportedMessages, ExecutionContext> {
+  constructor(deps: SQSConsumerDependencies) {
+    super(deps, {
+      // No codec option needed for built-in zstd — auto-detection handles it.
+      // For a custom codec: codecs: [{ name: 'lz4', handler: new LZ4Handler() }]
+      creationConfig: { queue: { QueueName: 'my-queue' } },
+      handlers: new MessageHandlerConfigBuilder<SupportedMessages, ExecutionContext>()
+        .addConfig(MySchema, myHandler)
+        .build(),
+    }, executionContext)
+  }
+}
+```
+
+#### Notes
+
+- Compression is applied **after** schema validation and **before** the SQS `SendMessage` call.
+- The message is compressed **exactly once**, regardless of whether payload offloading is also configured. When both features are active: the payload is compressed first, and the decision to offload is made against the **codec envelope wire size** (base64-encoded compressed bytes + JSON framing) rather than the raw or compressed byte count. This means smaller payloads after compression may stay inline and never touch S3.
+- The compressed bytes are **never re-compressed** when sent inline — the codec envelope is built directly from the first (and only) compression pass.
+- Compressed payloads are still subject to the SQS 256 KB message size limit. Without a payload store, an inline codec envelope that still exceeds 256 KB is rejected by AWS at send time — exactly as an oversized uncompressed message would be. For messages that remain oversized after compression, combine with [Payload Offloading](#payload-offloading). The compressed payload is then stored in S3 and the `payloadRef.codec` field records the algorithm so the consumer can decompress after retrieval without any extra configuration.
+- On the consumer side, decompression is **buffer-based** (not streamed): an offloaded compressed payload is fetched in full and decompressed in memory before `JSON.parse`. The decompressed size is bounded by `ZstdCodecHandler`'s `maxDecompressedBytes` (default 100 MiB), which also guards against decompression-bomb inputs.
+- Uses `MessageCodecEnum.ZSTD` (value `'zstd'`). You can use the string literal or the enum — both satisfy the `MessageCodec` type.
+- **`skipCompressionBelow`** (default `512`): minimum UTF-8 byte size a message must reach before compression is applied. Messages strictly below this threshold are sent as plain JSON — small payloads often expand when compressed due to framing overhead. Set to `0` to compress every message regardless of size. Example: `{ codec: MessageCodecEnum.ZSTD, skipCompressionBelow: 1024 }`.
+- **Routing/filtering fields are preserved.** The codec envelope carries the message's identity and routing fields (`id`, `timestamp`, `type`, and any deduplication fields) as plaintext siblings of `__mqtData` — the same fields an offloaded-payload pointer preserves. SNS subscription filter policies scoped to `MessageBody` therefore keep working on those fields. A filter policy that references **other** body fields will not match, because the rest of the payload is compressed inside `__mqtData`.
+- A consumer that receives an envelope for a codec it has **not** registered (an unregistered custom codec) records it as an error rather than processing the partial envelope — register the codec via the `codecs` option.
 
 ### Message Handlers
 

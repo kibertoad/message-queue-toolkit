@@ -125,19 +125,34 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
       const topicName =
         this.locatorConfig?.topicName ?? this.creationConfig?.topic?.Name ?? 'unknown'
 
+      // Fast read-only pre-check: skip compression/offload for messages already known to
+      // be duplicates. This does NOT persist a dedup key, so a transient failure in the
+      // expensive work below leaves no key behind and the publish stays safely retriable.
+      if (await this.isMessageDuplicated(parsedMessage, DeduplicationRequesterEnum.Publisher)) {
+        this.handleMessageProcessed({
+          message: parsedMessage,
+          processingResult: { status: 'published', skippedAsDuplicate: true },
+          messageProcessingStartTimestamp,
+          queueName: topicName,
+        })
+        return
+      }
+
       const updatedMessage = this.updateInternalProperties(message)
 
       // Resolve FIFO options from original message BEFORE offloading
       // (offloaded payload won't have user fields needed for messageGroupIdField)
       const resolvedOptions = this.resolveFifoOptions(updatedMessage, options)
 
-      const maybeOffloadedPayloadMessage = await this.offloadMessagePayloadIfNeeded(
-        updatedMessage,
-        () => calculateOutgoingMessageSize(updatedMessage),
-      )
+      const { payload, preBuiltBody } = await this.prepareOutgoingPayload(updatedMessage)
 
+      // Persist the dedup key only now — immediately before send — so the window in which
+      // a stored key plus a failed send could drop the message on retry stays as small as
+      // possible and no longer spans compression/offload (a transient failure there leaves
+      // no key behind). The pre-check above already skipped the expensive work for the
+      // common duplicate case; this check additionally closes the race where a concurrent
+      // publish stored the key in the meantime.
       if (
-        this.isDeduplicationEnabledForMessage(parsedMessage) &&
         (await this.deduplicateMessage(parsedMessage, DeduplicationRequesterEnum.Publisher))
           .isDuplicated
       ) {
@@ -150,7 +165,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         return
       }
 
-      await this.sendMessage(maybeOffloadedPayloadMessage, resolvedOptions)
+      await this.sendMessage(payload, resolvedOptions, preBuiltBody)
 
       this.handleMessageProcessed({
         message: parsedMessage,
@@ -206,13 +221,21 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     return this.isDeduplicationEnabled && super.isDeduplicationEnabledForMessage(message)
   }
 
+  protected override calculateOutgoingMessageSize(message: MessagePayloadType): number {
+    return calculateOutgoingMessageSize(message)
+  }
+
   protected async sendMessage(
     payload: MessagePayloadType | OffloadedPayloadPointerPayload,
     options: SNSMessageOptions,
+    preBuiltBody?: string,
   ): Promise<void> {
     const attributes = resolveOutgoingMessageAttributes<MessageAttributeValue>(payload)
+    // preBuiltBody is set when codec is active and the payload was not offloaded —
+    // it contains the already-compressed codec envelope, so we skip re-serialization.
+    const body = preBuiltBody ?? JSON.stringify(payload)
     const command = new PublishCommand({
-      Message: JSON.stringify(payload),
+      Message: body,
       MessageAttributes: attributes,
       TopicArn: this.topicArn,
       ...options,

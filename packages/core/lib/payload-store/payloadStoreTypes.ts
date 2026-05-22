@@ -30,7 +30,22 @@ export interface PayloadSerializer {
  * Use this when you have only one payload store.
  */
 export type SinglePayloadStoreConfig = {
-  /** Threshold in bytes after which the payload should be stored in the store. */
+  /**
+   * Wire-body size threshold in bytes. Messages whose wire body exceeds this value
+   * are offloaded to the store; smaller messages are sent inline.
+   *
+   * **What counts as "wire body size"** depends on whether a codec is active:
+   * - Without codec: the UTF-8 byte length of `JSON.stringify(message)`.
+   * - With codec: the byte length of the codec envelope
+   *   (`{"__mqtCodec":"zstd","__mqtData":"<base64>"}`) — i.e. the compressed
+   *   payload after base64 encoding and JSON framing (~4/3 of the compressed size).
+   *
+   * Because codec reduces payload size before the threshold is applied, enabling
+   * codec effectively raises the bar for offloading: a 500 KB message that
+   * compresses to 100 KB will not trigger a 200 KB threshold.
+   * Size your threshold accordingly, or set it to the protocol's hard limit
+   * (e.g. `SQS_MESSAGE_MAX_SIZE`) to offload only when strictly necessary.
+   */
   messageSizeThreshold: number
 
   /** The store to use for storing the payload. */
@@ -51,7 +66,22 @@ export type SinglePayloadStoreConfig = {
  * Use this when you need to support multiple payload stores (e.g., for migration).
  */
 export type MultiPayloadStoreConfig<StoreNames extends string = string> = {
-  /** Threshold in bytes after which the payload should be stored in the store. */
+  /**
+   * Wire-body size threshold in bytes. Messages whose wire body exceeds this value
+   * are offloaded to the store; smaller messages are sent inline.
+   *
+   * **What counts as "wire body size"** depends on whether a codec is active:
+   * - Without codec: the UTF-8 byte length of `JSON.stringify(message)`.
+   * - With codec: the byte length of the codec envelope
+   *   (`{"__mqtCodec":"zstd","__mqtData":"<base64>"}`) — i.e. the compressed
+   *   payload after base64 encoding and JSON framing (~4/3 of the compressed size).
+   *
+   * Because codec reduces payload size before the threshold is applied, enabling
+   * codec effectively raises the bar for offloading: a 500 KB message that
+   * compresses to 100 KB will not trigger a 200 KB threshold.
+   * Size your threshold accordingly, or set it to the protocol's hard limit
+   * (e.g. `SQS_MESSAGE_MAX_SIZE`) to offload only when strictly necessary.
+   */
   messageSizeThreshold: number
 
   /** Map of store identifiers to store instances. */

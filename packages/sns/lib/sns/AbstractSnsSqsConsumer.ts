@@ -1,5 +1,11 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
 import type { STSClient } from '@aws-sdk/client-sts'
+import type { Either } from '@lokalise/node-core'
+import type {
+  MessageInvalidFormatError,
+  MessageValidationError,
+  ResolvedMessage,
+} from '@message-queue-toolkit/core'
 import type {
   SQSConsumerDependencies,
   SQSConsumerOptions,
@@ -35,6 +41,10 @@ export type SNSSQSConsumerOptions<
   SNSSQSCreationConfig,
   SNSSQSQueueLocatorType
 > &
+  // Intersected after SQSConsumerOptions (rather than wrapping it) so its discriminated
+  // union (fifoQueue: true | false) is preserved and Extract<…, {fifoQueue:true}> works.
+  // Codec consumer options (`codecs`, `disableCodecAutoDetection`) come from
+  // SQSConsumerOptions; SNSOptions carries no codec fields.
   SNSOptions & {
     subscriptionConfig?: SNSSubscriptionOptions
   }
@@ -201,7 +211,9 @@ export abstract class AbstractSnsSqsConsumer<
     await this.startConsumers()
   }
 
-  protected override resolveMessage(message: SQSMessage) {
+  protected override resolveMessage(
+    message: SQSMessage,
+  ): Either<MessageInvalidFormatError | MessageValidationError, ResolvedMessage> {
     const result = readSnsMessage(message, this.errorResolver)
     if (result.result) {
       return result

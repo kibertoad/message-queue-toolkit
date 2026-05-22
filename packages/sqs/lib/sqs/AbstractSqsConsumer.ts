@@ -10,8 +10,13 @@ import {
   type BarrierResult,
   type DeadLetterQueueOptions,
   DeduplicationRequesterEnum,
+  getCodecName,
   HandlerContainer,
+  hasCodecEnvelopeShape,
   isMessageError,
+  KNOWN_CODECS,
+  type MessageCodecHandler,
+  type MessageCodecRegistration,
   type MessageSchemaContainer,
   noopReleasableLock,
   type ParseMessageResult,
@@ -21,6 +26,7 @@ import {
   type QueueConsumer,
   type QueueConsumerDependencies,
   type QueueConsumerOptions,
+  resolveCodecHandler,
   type TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
 import type { ConsumerOptions } from 'sqs-consumer'
@@ -85,6 +91,39 @@ type SQSConsumerCommonOptions<
   SQSCreationConfig,
   SQSQueueLocatorType
 > & {
+  /**
+   * Additional codecs to register on this consumer.
+   * Built-in codecs (e.g. `MessageCodecEnum.ZSTD`) are always registered automatically.
+   * Any incoming message whose `__mqtCodec` name is not in the registry causes an error.
+   *
+   * Use this to support custom codecs published by a corresponding publisher:
+   * @example
+   * const codec = { name: 'lz4', handler: new MyLz4Handler() }
+   * new MyConsumer(deps, { codecs: [codec] })
+   */
+  codecs?: MessageCodecRegistration[]
+  /**
+   * Disables automatic codec-envelope detection on this consumer.
+   *
+   * By default, consumers inspect every incoming message body with `hasCodecEnvelopeShape`.
+   * If the body carries a `__mqtCodec` name plus a base64 `__mqtData` field, it is treated
+   * as compressed and decompressed before schema validation. Extra sibling fields are
+   * allowed (publishers copy `id`/`type`/… alongside the codec fields for broker-side
+   * filtering), so detection is presence-based, not an exact-shape match.
+   *
+   * Set this to `true` only if your message schema legitimately contains `__mqtCodec` and
+   * `__mqtData` fields and you do not want auto-detection to intercept them.
+   *
+   * **Warning:** with auto-detection disabled, a genuinely compressed message reaching
+   * this consumer is *not* decompressed — its raw envelope is handed straight to schema
+   * validation. Because the envelope carries preserved `id`/`type` siblings, a lenient
+   * (non-`.strict()`) schema may accept it as a valid-but-incomplete message instead of
+   * failing loudly. Only enable this on queues you are certain never receive compressed
+   * messages.
+   *
+   * @default false
+   */
+  disableCodecAutoDetection?: boolean
   /**
    * Wait time in seconds the consumer passes to SQS ReceiveMessage (long-polling).
    * AWS allows integer values 0–20; anything else throws a RangeError at
@@ -225,6 +264,8 @@ export abstract class AbstractSqsConsumer<
   private readonly barrierVisibilityExtensionIntervalInMsecs: number
   private readonly barrierVisibilityTimeoutInSeconds: number
   private readonly consumerPollingWaitTimeSeconds: number
+  /** Registry of codec name → handler. Seeded from all built-in codecs + options.codecs. */
+  private readonly codecRegistry: ReadonlyMap<string, MessageCodecHandler>
 
   protected deadLetterQueueUrl?: string
   protected readonly errorResolver: ErrorResolver
@@ -276,6 +317,15 @@ export abstract class AbstractSqsConsumer<
       messageHandlers: options.handlers,
     })
     this.isDeduplicationEnabled = !!options.enableConsumerDeduplication
+    // Build codec registry: always seed with all built-in codecs, then add user-supplied ones.
+    const registry = new Map<string, MessageCodecHandler>()
+    for (const builtInName of KNOWN_CODECS) {
+      registry.set(builtInName, resolveCodecHandler(builtInName as MessageCodecRegistration))
+    }
+    for (const registration of options.codecs ?? []) {
+      registry.set(getCodecName(registration), resolveCodecHandler(registration))
+    }
+    this.codecRegistry = registry
   }
 
   override async init(): Promise<void> {
@@ -363,7 +413,21 @@ export abstract class AbstractSqsConsumer<
 
         const messageProcessingStartTimestamp = Date.now()
 
-        const deserializedMessage = await this.deserializeMessage(message)
+        let deserializedMessage: Either<'abort', ParseMessageResult<MessagePayloadType>>
+        try {
+          deserializedMessage = await this.deserializeMessage(message)
+        } catch (err) {
+          // A throw out of deserialization — e.g. a message envelope (inline body or an
+          // offloaded-payload pointer) naming a codec this consumer has not registered —
+          // is terminal for this consumer. Treat it as an invalid message: the abort
+          // branch below routes it to the DLQ if one is configured. Retrying would be
+          // pointless — a missing-codec deployment misconfiguration is not fixed within
+          // the redelivery window, so the message would only burn its receive-count
+          // attempts (or, with no DLQ, spam the error reporter for the whole retention
+          // period) before ending up in the DLQ anyway.
+          this.handleError(err)
+          deserializedMessage = ABORT_EARLY_EITHER
+        }
         if (deserializedMessage.error === 'abort') {
           await this.failProcessing(message)
 
@@ -915,19 +979,59 @@ export abstract class AbstractSqsConsumer<
     }
 
     // Empty content for whatever reason
-    if (!resolveMessageResult.result || !resolveMessageResult.result.body) {
+    if (!resolveMessageResult.result?.body) {
       return ABORT_EARLY_EITHER
     }
 
     if (hasOffloadedPayload(resolveMessageResult.result)) {
       const retrieveOffloadedMessagePayloadResult = await this.retrieveOffloadedMessagePayload(
         resolveMessageResult.result.body,
+        (codecName) => {
+          const handler = this.codecRegistry.get(codecName)
+          if (!handler) {
+            // The pointer names a codec this consumer has not registered. Throwing here
+            // (outside retrieveOffloadedMessagePayload's catch) propagates to handleMessage,
+            // which treats it as an invalid message and routes it to the DLQ (if one is
+            // configured) so it can be redriven once the codec is deployed.
+            throw new Error(
+              `No codec handler registered for "${codecName}". Register it via the consumer's \`codecs\` option.`,
+            )
+          }
+          return (data) => handler.decompress(data)
+        },
       )
       if (retrieveOffloadedMessagePayloadResult.error) {
         this.handleError(retrieveOffloadedMessagePayloadResult.error)
         return ABORT_EARLY_EITHER
       }
       resolveMessageResult.result.body = retrieveOffloadedMessagePayloadResult.result
+    } else if (
+      !this.disableCodecAutoDetection &&
+      hasCodecEnvelopeShape(resolveMessageResult.result.body)
+    ) {
+      const envelope = resolveMessageResult.result.body
+      const handler = this.codecRegistry.get(envelope.__mqtCodec)
+      if (!handler) {
+        // Envelope-shaped body naming a codec this consumer has not registered. Throwing
+        // here propagates to handleMessage, which treats it as an invalid message and
+        // routes it to the DLQ (if one is configured) so it can be redriven once the codec
+        // is deployed. Throwing — rather than falling through — is essential: otherwise the
+        // envelope's preserved sibling fields (id, type, …) could satisfy a lenient schema
+        // and be processed as an incomplete message. Register the codec via the `codecs`
+        // option.
+        throw new Error(
+          `Received a message compressed with codec "${envelope.__mqtCodec}", which is not registered on this consumer. Register it via the \`codecs\` option.`,
+        )
+      }
+      try {
+        const compressed = Buffer.from(envelope.__mqtData, 'base64')
+        resolveMessageResult.result.body = JSON.parse(
+          (await handler.decompress(compressed)).toString('utf8'),
+        )
+      } catch (err) {
+        this.handleError(err as Error)
+        return ABORT_EARLY_EITHER
+      }
     }
 
     return resolveMessageResult
@@ -942,8 +1046,13 @@ export abstract class AbstractSqsConsumer<
     const resolvedMessage = resolveMessageResult.result
 
     // Empty content for whatever reason
-    if (!resolvedMessage || !resolvedMessage.body) return ABORT_EARLY_EITHER
+    if (!resolvedMessage?.body) return ABORT_EARLY_EITHER
 
+    // Best-effort id extraction for logging/metrics only — this runs on the raw (still
+    // possibly compressed) body. A codec envelope from a built-in publisher carries the
+    // id as a preserved plaintext sibling, so it is found here; a bare envelope (e.g. from
+    // the `compressMessageBody` helper) has no id and falls through to abort, which only
+    // means the id is absent from a log line — message processing is unaffected.
     // @ts-expect-error
     if (this.messageIdField in resolvedMessage.body) {
       return {
