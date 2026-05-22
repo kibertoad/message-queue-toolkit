@@ -105,12 +105,21 @@ type SQSConsumerCommonOptions<
   /**
    * Disables automatic codec-envelope detection on this consumer.
    *
-   * By default, consumers inspect every incoming message body with `isCodecEnvelope`.
-   * If the body matches the envelope shape (`__mqtCodec` + `__mqtData` as the only two
-   * fields), it is treated as compressed and decompressed before schema validation.
+   * By default, consumers inspect every incoming message body with `hasCodecEnvelopeShape`.
+   * If the body carries a `__mqtCodec` name plus a base64 `__mqtData` field, it is treated
+   * as compressed and decompressed before schema validation. Extra sibling fields are
+   * allowed (publishers copy `id`/`type`/… alongside the codec fields for broker-side
+   * filtering), so detection is presence-based, not an exact-shape match.
    *
-   * Set this to `true` if your message schema legitimately contains exactly those two
-   * fields and you do not want auto-detection to intercept them.
+   * Set this to `true` only if your message schema legitimately contains `__mqtCodec` and
+   * `__mqtData` fields and you do not want auto-detection to intercept them.
+   *
+   * **Warning:** with auto-detection disabled, a genuinely compressed message reaching
+   * this consumer is *not* decompressed — its raw envelope is handed straight to schema
+   * validation. Because the envelope carries preserved `id`/`type` siblings, a lenient
+   * (non-`.strict()`) schema may accept it as a valid-but-incomplete message instead of
+   * failing loudly. Only enable this on queues you are certain never receive compressed
+   * messages.
    *
    * @default false
    */
@@ -989,16 +998,16 @@ export abstract class AbstractSqsConsumer<
       const handler = this.codecRegistry.get(envelope.__mqtCodec)
       if (!handler) {
         // Envelope-shaped body naming a codec this consumer has not registered. This is a
-        // deployment misconfiguration, not a poison message — surface it as an error
-        // rather than letting the envelope's preserved sibling fields (id, type, …)
-        // satisfy a lenient schema and be processed as an incomplete message. Register
-        // the codec via the `codecs` option.
-        this.handleError(
-          new Error(
-            `Received a message compressed with codec "${envelope.__mqtCodec}", which is not registered on this consumer. Register it via the \`codecs\` option.`,
-          ),
+        // deployment misconfiguration, not a poison message: throw (rather than handleError
+        // + abort) so it surfaces as a retriable error and the message stays on the queue
+        // until the codec is registered. This matches the offloaded-payload path above,
+        // where `resolveDecompressor` deliberately throws for the same reason. Aborting
+        // here would instead drop the message (or route it to the DLQ) and let the
+        // envelope's preserved sibling fields (id, type, …) satisfy a lenient schema and
+        // be processed as an incomplete message. Register the codec via the `codecs` option.
+        throw new Error(
+          `Received a message compressed with codec "${envelope.__mqtCodec}", which is not registered on this consumer. Register it via the \`codecs\` option.`,
         )
-        return ABORT_EARLY_EITHER
       }
       try {
         const compressed = Buffer.from(envelope.__mqtData, 'base64')
@@ -1025,6 +1034,11 @@ export abstract class AbstractSqsConsumer<
     // Empty content for whatever reason
     if (!resolvedMessage?.body) return ABORT_EARLY_EITHER
 
+    // Best-effort id extraction for logging/metrics only — this runs on the raw (still
+    // possibly compressed) body. A codec envelope from a built-in publisher carries the
+    // id as a preserved plaintext sibling, so it is found here; a bare envelope (e.g. from
+    // the `compressMessageBody` helper) has no id and falls through to abort, which only
+    // means the id is absent from a log line — message processing is unaffected.
     // @ts-expect-error
     if (this.messageIdField in resolvedMessage.body) {
       return {

@@ -33,13 +33,26 @@ export type CodecEnvelope = {
  * `@message-queue-toolkit/core`) uses Node.js built-in `zlib` zstd support.
  *
  * All three methods are required:
- * - `compress` / `decompress` are used for the inline (non-offloaded) publish path.
+ * - `compress` / `decompress` are used for the inline (non-offloaded) path on both sides.
  * - `createCompressStream` is used by the streaming offload path to pipe serialized
  *   JSON directly through compression into the payload store without buffering the
  *   full payload in memory.
+ *
+ * Note the deliberate asymmetry: there is no `createDecompressStream`. Decompression is
+ * always buffer-based (`decompress`) because the consumer must `JSON.parse` the whole
+ * payload anyway — a streaming decompressor could not avoid materializing it. For an
+ * offloaded compressed payload this means the compressed bytes and the decompressed
+ * payload are both briefly resident in memory; bound the worst case with the
+ * `maxDecompressedBytes` argument of {@link ZstdCodecHandler} (or the equivalent in a
+ * custom handler).
  */
 export interface MessageCodecHandler {
   compress(data: Buffer): Promise<Buffer>
+  /**
+   * Decompresses a full compressed buffer. Buffer-based by design (see the interface
+   * note above); a custom implementation should cap the decompressed size to guard
+   * against decompression bombs.
+   */
   decompress(data: Buffer): Promise<Buffer>
   /** Returns a Transform stream that compresses its input using this codec. */
   createCompressStream(): import('node:stream').Transform

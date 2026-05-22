@@ -3,7 +3,11 @@ import { PassThrough } from 'node:stream'
 import { ReceiveMessageCommand, SendMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { MessageCodecHandler } from '@message-queue-toolkit/core'
-import { compressMessageBody, MessageCodecEnum } from '@message-queue-toolkit/core'
+import {
+  buildCodecEnvelope,
+  MessageCodecEnum,
+  resolveCodecHandler,
+} from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -20,6 +24,17 @@ import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas.ts'
 // applied. Sized with generous margin so unrelated schema tweaks cannot drop a test
 // message back under the threshold.
 const LARGE_PADDING = 'x'.repeat(800)
+
+/**
+ * Builds a raw zstd codec envelope, simulating an external (non-mqt) producer that
+ * compressed the message itself. Deliberately omits the preserved sibling fields the
+ * built-in publisher adds — these tests exercise the bare-envelope path.
+ */
+async function compressToZstdEnvelope(message: unknown): Promise<string> {
+  const handler = resolveCodecHandler(MessageCodecEnum.ZSTD)
+  const compressed = await handler.compress(Buffer.from(JSON.stringify(message), 'utf8'))
+  return buildCodecEnvelope(compressed, MessageCodecEnum.ZSTD)
+}
 
 describe('SqsPermissionConsumer - zstd codec', () => {
   let diContainer: AwilixContainer<Dependencies>
@@ -201,7 +216,7 @@ describe('SqsPermissionConsumer - zstd codec', () => {
     }
 
     // Simulate a publisher that compressed the message itself
-    const compressedBody = await compressMessageBody(JSON.stringify(message), MessageCodecEnum.ZSTD)
+    const compressedBody = await compressToZstdEnvelope(message)
     await diContainer.cradle.sqsClient.send(
       new SendMessageCommand({
         QueueUrl: consumer.queueProps.url,
@@ -491,7 +506,7 @@ describe('SqsPermissionConsumer - skipCompressionBelow', () => {
       id: 'disable-real-envelope-1',
       messageType: 'add',
     }
-    const compressedBody = await compressMessageBody(JSON.stringify(message), MessageCodecEnum.ZSTD)
+    const compressedBody = await compressToZstdEnvelope(message)
     await diContainer.cradle.sqsClient.send(
       new SendMessageCommand({
         QueueUrl: noAutoConsumer.queueProps.url,

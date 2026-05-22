@@ -1,4 +1,4 @@
-import { decompressMessageBody, getCodecName, MessageCodecEnum } from '@message-queue-toolkit/core'
+import { getCodecName, MessageCodecEnum } from '@message-queue-toolkit/core'
 import { describe, expect, it } from 'vitest'
 
 describe('getCodecName', () => {
@@ -31,21 +31,5 @@ describe('getCodecName', () => {
 
   it('throws for an empty custom codec name', () => {
     expect(() => getCodecName({ name: '', handler: {} as any })).toThrow('Invalid codec name ""')
-  })
-})
-
-describe('decompressMessageBody', () => {
-  it('throws a descriptive error when __mqtData is not valid base64', async () => {
-    await expect(
-      decompressMessageBody({ __mqtCodec: MessageCodecEnum.ZSTD, __mqtData: 'not-base64!!!' }),
-    ).rejects.toThrow('Codec envelope __mqtData is not valid base64 (codec: zstd)')
-  })
-
-  it('throws a descriptive error for base64 with incorrect padding', async () => {
-    // Valid base64 characters but wrong padding — Buffer.from would silently accept this
-    // and produce garbage bytes; the guard must catch it before the codec is invoked.
-    await expect(
-      decompressMessageBody({ __mqtCodec: MessageCodecEnum.ZSTD, __mqtData: 'abc' }),
-    ).rejects.toThrow('Codec envelope __mqtData is not valid base64 (codec: zstd)')
   })
 })

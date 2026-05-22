@@ -880,11 +880,12 @@ export abstract class AbstractQueueService<
   ): number {
     let size = Math.ceil(compressedSize / 3) * 4 + 32 + codecName.length
     if (preservedFields) {
-      const serialized = JSON.stringify(preservedFields)
       // Merged into the envelope, the preserved fields cost their serialized content
-      // minus the two outer braces, plus one joining comma.
-      if (serialized.length > 2) {
-        size += Buffer.byteLength(serialized, 'utf8') - 1
+      // minus the two outer braces ("{}"), plus one joining comma. An empty object
+      // ("{}", 2 bytes) contributes nothing. Measured in UTF-8 bytes throughout.
+      const serializedBytes = Buffer.byteLength(JSON.stringify(preservedFields), 'utf8')
+      if (serializedBytes > 2) {
+        size += serializedBytes - 1
       }
     }
     return size

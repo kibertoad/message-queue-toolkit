@@ -1,12 +1,8 @@
 import type { Transform } from 'node:stream'
 import { promisify } from 'node:util'
 import zlib from 'node:zlib'
-import type {
-  CodecEnvelope,
-  MessageCodecHandler,
-  MessageCodecRegistration,
-} from './messageCodec.ts'
-import { BASE64_RE, MessageCodecEnum } from './messageCodec.ts'
+import type { MessageCodecHandler, MessageCodecRegistration } from './messageCodec.ts'
+import { MessageCodecEnum } from './messageCodec.ts'
 
 const ZSTD_UNSUPPORTED_MSG =
   'zlib.zstdCompress and zlib.zstdDecompress are not available in this Node.js version. ' +
@@ -99,15 +95,6 @@ export function resolveCodecHandler(codec: MessageCodecRegistration): MessageCod
   throw new Error(`Unsupported codec: ${codec}`)
 }
 
-export async function compressMessageBody(
-  jsonBody: string,
-  codec: MessageCodecRegistration,
-): Promise<string> {
-  const handler = resolveCodecHandler(codec)
-  const compressed = await handler.compress(Buffer.from(jsonBody, 'utf8'))
-  return buildCodecEnvelope(compressed, getCodecName(codec))
-}
-
 /**
  * Wraps an already-compressed buffer in a codec envelope string.
  * Use this when you have pre-compressed bytes and want to avoid compressing twice.
@@ -139,25 +126,4 @@ export function buildCodecEnvelope(
   // Preserved fields present: a single JSON.stringify handles all value escaping.
   // Codec fields are listed last so they always win over any colliding preserved key.
   return JSON.stringify({ ...preservedFields, __mqtCodec: codecName, __mqtData: data })
-}
-
-/**
- * Decompresses a codec envelope produced by {@link compressMessageBody} or
- * {@link buildCodecEnvelope} and returns the original parsed JSON value.
- *
- * **Built-in codecs only.** This utility resolves the handler via
- * {@link resolveCodecHandler}, which only recognises built-in codec names
- * (e.g. `MessageCodecEnum.ZSTD`). Calling it with a custom-codec envelope
- * (where `__mqtCodec` is a user-chosen name) will throw "Unsupported codec".
- * Consumer-side decoding of custom codecs is handled automatically via the
- * consumer's codec registry; this function is intended for one-off, built-in use cases.
- */
-export async function decompressMessageBody(envelope: CodecEnvelope): Promise<unknown> {
-  if (!BASE64_RE.test(envelope.__mqtData)) {
-    throw new Error(`Codec envelope __mqtData is not valid base64 (codec: ${envelope.__mqtCodec})`)
-  }
-  const handler = resolveCodecHandler(envelope.__mqtCodec as MessageCodecRegistration)
-  const compressed = Buffer.from(envelope.__mqtData, 'base64')
-  const decompressed = await handler.decompress(compressed)
-  return JSON.parse(decompressed.toString('utf8'))
 }

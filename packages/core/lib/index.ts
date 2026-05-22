@@ -1,8 +1,6 @@
 export {
   buildCodecEnvelope,
-  compressMessageBody,
   DEFAULT_MAX_DECOMPRESSED_BYTES,
-  decompressMessageBody,
   getCodecName,
   resolveCodecHandler,
   ZstdCodecHandler,
