@@ -12,7 +12,7 @@ import {
   DeduplicationRequesterEnum,
   getCodecName,
   HandlerContainer,
-  isCodecEnvelope,
+  hasCodecEnvelopeShape,
   isMessageError,
   KNOWN_CODECS,
   type MessageCodecHandler,
@@ -257,8 +257,6 @@ export abstract class AbstractSqsConsumer<
   private readonly consumerPollingWaitTimeSeconds: number
   /** Registry of codec name → handler. Seeded from all built-in codecs + options.codecs. */
   private readonly codecRegistry: ReadonlyMap<string, MessageCodecHandler>
-  /** Precomputed set of codec names in the registry, passed to isCodecEnvelope. */
-  private readonly codecKnownNames: ReadonlySet<string>
 
   protected deadLetterQueueUrl?: string
   protected readonly errorResolver: ErrorResolver
@@ -319,7 +317,6 @@ export abstract class AbstractSqsConsumer<
       registry.set(getCodecName(registration), resolveCodecHandler(registration))
     }
     this.codecRegistry = registry
-    this.codecKnownNames = new Set(registry.keys())
   }
 
   override async init(): Promise<void> {
@@ -986,12 +983,24 @@ export abstract class AbstractSqsConsumer<
       resolveMessageResult.result.body = retrieveOffloadedMessagePayloadResult.result
     } else if (
       !this.disableCodecAutoDetection &&
-      isCodecEnvelope(resolveMessageResult.result.body, this.codecKnownNames)
+      hasCodecEnvelopeShape(resolveMessageResult.result.body)
     ) {
+      const envelope = resolveMessageResult.result.body
+      const handler = this.codecRegistry.get(envelope.__mqtCodec)
+      if (!handler) {
+        // Envelope-shaped body naming a codec this consumer has not registered. This is a
+        // deployment misconfiguration, not a poison message — surface it as an error
+        // rather than letting the envelope's preserved sibling fields (id, type, …)
+        // satisfy a lenient schema and be processed as an incomplete message. Register
+        // the codec via the `codecs` option.
+        this.handleError(
+          new Error(
+            `Received a message compressed with codec "${envelope.__mqtCodec}", which is not registered on this consumer. Register it via the \`codecs\` option.`,
+          ),
+        )
+        return ABORT_EARLY_EITHER
+      }
       try {
-        const envelope = resolveMessageResult.result.body
-        // handler is guaranteed non-null: isCodecEnvelope already verified __mqtCodec ∈ codecKnownNames === codecRegistry.keys()
-        const handler = this.codecRegistry.get(envelope.__mqtCodec)!
         const compressed = Buffer.from(envelope.__mqtData, 'base64')
         resolveMessageResult.result.body = JSON.parse(
           (await handler.decompress(compressed)).toString('utf8'),

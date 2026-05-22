@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { isCodecEnvelope, MessageCodecEnum } from '../../lib/codec/messageCodec.ts'
+import {
+  hasCodecEnvelopeShape,
+  isCodecEnvelope,
+  MessageCodecEnum,
+} from '../../lib/codec/messageCodec.ts'
 
 const VALID_BASE64 = Buffer.from('hello compressed world').toString('base64')
 
@@ -43,15 +47,21 @@ describe('isCodecEnvelope', () => {
     })
   })
 
-  describe('extra fields — real messages must not be misclassified', () => {
-    it('returns false when envelope has an extra field alongside __mqtCodec and __mqtData', () => {
+  describe('preserved sibling fields — detection is presence-based', () => {
+    it('returns true when the envelope carries preserved sibling fields (id, type, …)', () => {
+      // Publishers copy identity/routing fields alongside the codec fields so broker-side
+      // filtering (e.g. SNS body-scoped FilterPolicy) keeps working on compressed
+      // messages. Detection is presence-based and must accept these extra siblings,
+      // mirroring how offloaded-payload pointers are detected by marker-field presence.
       expect(
         isCodecEnvelope({
           __mqtCodec: MessageCodecEnum.ZSTD,
           __mqtData: VALID_BASE64,
           id: 'real-message',
+          type: 'permissions.add',
+          timestamp: '2026-05-22T00:00:00.000Z',
         }),
-      ).toBe(false)
+      ).toBe(true)
     })
 
     it('returns false when only __mqtCodec is present (no __mqtData)', () => {
@@ -106,5 +116,43 @@ describe('isCodecEnvelope', () => {
     it('returns false for an empty object', () => {
       expect(isCodecEnvelope({})).toBe(false)
     })
+  })
+})
+
+describe('hasCodecEnvelopeShape', () => {
+  it('returns true for an envelope naming a codec unknown to this consumer', () => {
+    // Structural check — unlike isCodecEnvelope it does not consult a knownCodecs set,
+    // so an envelope for an unregistered codec is still recognised (and can be surfaced
+    // as a misconfiguration rather than processed as an incomplete message).
+    expect(hasCodecEnvelopeShape({ __mqtCodec: 'lz4', __mqtData: VALID_BASE64 })).toBe(true)
+  })
+
+  it('returns true for an envelope carrying preserved sibling fields', () => {
+    expect(
+      hasCodecEnvelopeShape({
+        __mqtCodec: MessageCodecEnum.ZSTD,
+        __mqtData: VALID_BASE64,
+        id: 'm-1',
+        type: 'permissions.add',
+      }),
+    ).toBe(true)
+  })
+
+  it('returns false when __mqtCodec is an empty string', () => {
+    expect(hasCodecEnvelopeShape({ __mqtCodec: '', __mqtData: VALID_BASE64 })).toBe(false)
+  })
+
+  it('returns false when a marker field is missing', () => {
+    expect(hasCodecEnvelopeShape({ __mqtCodec: 'lz4' })).toBe(false)
+    expect(hasCodecEnvelopeShape({ __mqtData: VALID_BASE64 })).toBe(false)
+  })
+
+  it('returns false when __mqtData is not valid base64', () => {
+    expect(hasCodecEnvelopeShape({ __mqtCodec: 'lz4', __mqtData: 'not base64!!!' })).toBe(false)
+  })
+
+  it('returns false for non-object inputs', () => {
+    expect(hasCodecEnvelopeShape(null)).toBe(false)
+    expect(hasCodecEnvelopeShape('a string')).toBe(false)
   })
 })

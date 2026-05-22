@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/gcp-pubsub",
-    "version": "2.2.0",
+    "version": "3.0.0",
     "license": "MIT",
     "description": "Google Cloud Pub/Sub adapter for message-queue-toolkit",
     "maintainers": [
@@ -32,7 +32,7 @@
     },
     "peerDependencies": {
         "@google-cloud/pubsub": "^5.2.0",
-        "@message-queue-toolkit/core": ">=25.0.0",
+        "@message-queue-toolkit/core": ">=26.0.0",
         "zod": ">=3.25.76 <5.0.0"
     },
     "devDependencies": {

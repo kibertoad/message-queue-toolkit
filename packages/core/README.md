@@ -674,7 +674,9 @@ new MyPublisher(deps, { codec })
 new MyConsumer(deps, { codecs: [codec] }) // register custom codec on the consumer
 ```
 
-Compressed messages are wrapped in a self-describing envelope `{ __mqtCodec: '<name>', __mqtData: '<base64>' }`. Built-in codecs (e.g. zstd) are auto-detected on every consumer — no consumer option needed. For custom codecs, pass `codecs: [{ name, handler }]` to register them on the consumer.
+Compressed messages are wrapped in a self-describing envelope `{ __mqtCodec: '<name>', __mqtData: '<base64>', ...preserved fields }`. The message's identity/routing fields (`id`, `timestamp`, `type`, deduplication fields) are copied alongside `__mqtData` as plaintext — the same fields an offloaded-payload pointer preserves — so broker-side filtering (e.g. SNS body-scoped `FilterPolicy`) keeps working on them. Built-in codecs (e.g. zstd) are auto-detected on every consumer — no consumer option needed. For custom codecs, pass `codecs: [{ name, handler }]` to register them on the consumer.
+
+> **Roll out consumers before publishers:** auto-detection only works on a consumer running a library version that supports the codec (and, for custom codecs, with that codec registered). Upgrade all consumers of a queue first, then enable `codec` on publishers.
 
 #### Interaction with codec (compression)
 

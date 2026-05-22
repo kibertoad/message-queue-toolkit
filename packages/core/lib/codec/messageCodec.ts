@@ -78,27 +78,47 @@ export const BASE64_RE =
 export const KNOWN_CODECS: ReadonlySet<string> = new Set(Object.values(MessageCodecEnum))
 
 /**
- * Returns true when `value` is a codec envelope that the consumer should decompress.
+ * Structural check: returns true when `value` has the shape of a codec envelope —
+ * a non-empty string `__mqtCodec` and a base64 `__mqtData` — **regardless of whether
+ * the named codec is one this consumer can decode**.
  *
- * Pass `knownCodecs` to restrict auto-detection to the codecs your consumer is
- * configured to handle (built from the `codec` option).  Defaults to the built-in
- * codec set — backwards-compatible for consumers that don't configure a codec.
+ * Detection is **presence-based**: extra sibling fields are allowed, because publishers
+ * copy identity/routing fields (`id`, `type`, …) alongside the codec fields so
+ * broker-side filtering (e.g. SNS body-scoped FilterPolicy) keeps working on compressed
+ * messages. This mirrors how an offloaded-payload pointer is recognised by its
+ * `payloadRef` shape, not by an exact object shape.
+ *
+ * Consumers use this (rather than {@link isCodecEnvelope}) so an envelope for an
+ * unregistered codec can be told apart from an ordinary message and surfaced as a
+ * misconfiguration instead of being validated as an incomplete skeleton. The cheap
+ * `in` checks run first, so a non-envelope value returns without allocating anything.
+ */
+export function hasCodecEnvelopeShape(value: unknown): value is CodecEnvelope {
+  if (typeof value !== 'object' || value === null) return false
+  const record = value as Record<string, unknown>
+  return (
+    CODEC_FIELD in record &&
+    DATA_FIELD in record &&
+    typeof record[CODEC_FIELD] === 'string' &&
+    (record[CODEC_FIELD] as string).length > 0 &&
+    typeof record[DATA_FIELD] === 'string' &&
+    // Validate __mqtData is a properly-padded base64 string before handing it to the codec.
+    BASE64_RE.test(record[DATA_FIELD] as string)
+  )
+}
+
+/**
+ * Returns true when `value` is a codec envelope **for a codec in `knownCodecs`** — i.e.
+ * one this consumer can actually decode. Combines the structural
+ * {@link hasCodecEnvelopeShape} check with a codec-name lookup.
+ *
+ * Pass `knownCodecs` to restrict the match to the codecs your consumer is configured to
+ * handle. Defaults to the built-in codec set — backwards-compatible for consumers that
+ * don't configure a codec.
  */
 export function isCodecEnvelope(
   value: unknown,
   knownCodecs: ReadonlySet<string> = KNOWN_CODECS,
 ): value is CodecEnvelope {
-  const record = value as Record<string, unknown>
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    // Exact two-key shape — extra fields mean this is a real message, not an envelope.
-    Object.keys(value).length === 2 &&
-    CODEC_FIELD in value &&
-    DATA_FIELD in value &&
-    knownCodecs.has(record[CODEC_FIELD] as string) &&
-    typeof record[DATA_FIELD] === 'string' &&
-    // Validate __mqtData is a properly-padded base64 string before handing it to the codec.
-    BASE64_RE.test(record[DATA_FIELD] as string)
-  )
+  return hasCodecEnvelopeShape(value) && knownCodecs.has((value as CodecEnvelope).__mqtCodec)
 }

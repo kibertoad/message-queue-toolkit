@@ -621,11 +621,13 @@ describe('SqsPermissionConsumer - custom codec registration', () => {
     await consumer.close(true)
   })
 
-  it('consumer without the custom codec does not auto-detect envelopes with that codec name', async () => {
-    // A consumer without extra codecs has codecKnownNames = Set(['zstd']) (built-ins only).
-    // isCodecEnvelope(body, Set(['zstd'])) returns false for a 'noop' envelope, so the
-    // raw envelope object reaches schema validation and fails (no messageType field).
-    // The message is never successfully handled — addCounter stays at 0.
+  it('consumer without the custom codec rejects envelopes with that codec name', async () => {
+    // A consumer without extra codecs registers only the built-in codecs (e.g. zstd), not
+    // 'noop'. An envelope-shaped body naming an unregistered codec is a misconfiguration:
+    // the consumer surfaces it as an error rather than letting the envelope's preserved
+    // sibling fields (id, messageType) satisfy the schema and be processed as an
+    // incomplete message. So an error is recorded and the message is never handled —
+    // addCounter stays at 0.
     const queueName = `${SqsPermissionConsumer.QUEUE_NAME}-custom-codec-no-autodetect`
     await testAdmin.deleteQueues(queueName)
 
@@ -651,9 +653,10 @@ describe('SqsPermissionConsumer - custom codec registration', () => {
     }
     await publisher.publish(message)
 
-    // Give the consumer time to attempt processing, then verify no message was consumed.
-    // The spy can't track by ID because the raw envelope has no top-level `id` field.
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    // The unregistered-codec envelope is rejected as an error; wait for that error to be
+    // recorded, then confirm the handler never ran (no incomplete message was processed).
+    await waitAndRetry(() => zstdConsumer.handlerSpy.counts.error > 0, 100, 20)
+    expect(zstdConsumer.handlerSpy.counts.error).toBeGreaterThan(0)
     expect(zstdConsumer.addCounter).toBe(0)
 
     await publisher.close()

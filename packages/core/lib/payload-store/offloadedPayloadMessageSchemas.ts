@@ -1,6 +1,17 @@
 import { z } from 'zod/v4'
 
 /**
+ * Upper bound for the declared size of an offloaded payload, in bytes (256 MiB).
+ *
+ * The size is read from an incoming (potentially untrusted) pointer and used to
+ * pre-allocate a buffer when streaming the payload back from the store. Capping it
+ * here means a malformed or hostile pointer claiming a multi-gigabyte size fails
+ * schema validation (and is routed to the DLQ) instead of triggering a huge
+ * allocation. 256 MiB is far above any realistic queue payload.
+ */
+export const MAX_OFFLOADED_PAYLOAD_SIZE = 256 * 1024 * 1024
+
+/**
  * Multi-store payload reference schema.
  * Contains information about where and how the payload was stored.
  */
@@ -10,7 +21,7 @@ export const PAYLOAD_REF_SCHEMA = z.object({
   /** Name/identifier of the store where the payload is stored */
   store: z.string().min(1),
   /** Size of the payload in bytes */
-  size: z.number().int().positive(),
+  size: z.number().int().positive().max(MAX_OFFLOADED_PAYLOAD_SIZE),
   /**
    * Codec used to compress the stored payload.
    * When set, the stored bytes are raw compressed binary (not base64 JSON).
@@ -42,7 +53,7 @@ export const OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA = z
     payloadRef: PAYLOAD_REF_SCHEMA.optional(),
     // Legacy payload reference, preserved for backward compatibility.
     offloadedPayloadPointer: z.string().min(1).optional(),
-    offloadedPayloadSize: z.number().int().positive().optional(),
+    offloadedPayloadSize: z.number().int().positive().max(MAX_OFFLOADED_PAYLOAD_SIZE).optional(),
   })
   // Pass-through allows to pass message ID, type, timestamp and message-deduplication-related fields that are using dynamic keys.
   .passthrough()

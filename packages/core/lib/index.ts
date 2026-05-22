@@ -1,6 +1,7 @@
 export {
   buildCodecEnvelope,
   compressMessageBody,
+  DEFAULT_MAX_DECOMPRESSED_BYTES,
   decompressMessageBody,
   getCodecName,
   resolveCodecHandler,
@@ -9,6 +10,7 @@ export {
 export {
   BASE64_RE,
   type CodecEnvelope,
+  hasCodecEnvelopeShape,
   isCodecEnvelope,
   KNOWN_CODECS,
   type MessageCodec,

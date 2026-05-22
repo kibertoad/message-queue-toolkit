@@ -23,6 +23,7 @@ jobs:
       has_changes: ${{ steps.finalize.outputs.has_changes }}
       bump: ${{ steps.finalize.outputs.bump }}
       should_publish: ${{ steps.finalize.outputs.should_publish }}
+      same_version: ${{ steps.finalize.outputs.same_version }}
     steps:
       - name: Set default outputs
         id: defaults
@@ -31,6 +32,7 @@ jobs:
           echo "has_changes=false" >> $GITHUB_OUTPUT
           echo "bump=patch" >> $GITHUB_OUTPUT
           echo "should_publish=false" >> $GITHUB_OUTPUT
+          echo "same_version=false" >> $GITHUB_OUTPUT
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -79,11 +81,11 @@ jobs:
           echo "PR labels: $LABELS"
           echo "labels=$LABELS" >> $GITHUB_OUTPUT
 
-          # Check if PR has version bump labels
-          if echo "$LABELS" | grep -qE '\b(patch|minor|major)\b'; then
+          # Check if PR has a release label (a version-bump label or release-same-version)
+          if echo "$LABELS" | grep -qE '\b(patch|minor|major|release-same-version)\b'; then
             echo "should_publish=true" >> $GITHUB_OUTPUT
           else
-            echo "No version bump label found (patch/minor/major)"
+            echo "No release label found (patch/minor/major/release-same-version)"
             echo "should_publish=false" >> $GITHUB_OUTPUT
           fi
 
@@ -93,13 +95,23 @@ jobs:
         env:
           LABELS: ${{ steps.pr-info.outputs.labels }}
         run: |
-          if echo "$LABELS" | grep -qE '\bmajor\b'; then
+          # release-same-version takes precedence: publish the versions already in
+          # package.json as-is, with no bump. Use it when versions were set explicitly
+          # in the PR (e.g. a deliberate, hand-committed semver-major bump).
+          if echo "$LABELS" | grep -qE '\brelease-same-version\b'; then
+            echo "same_version=true" >> $GITHUB_OUTPUT
+            echo "bump=none" >> $GITHUB_OUTPUT
+            echo "Release mode: publish current package.json versions without bumping"
+          elif echo "$LABELS" | grep -qE '\bmajor\b'; then
+            echo "same_version=false" >> $GITHUB_OUTPUT
             echo "bump=major" >> $GITHUB_OUTPUT
             echo "Version bump: major"
           elif echo "$LABELS" | grep -qE '\bminor\b'; then
+            echo "same_version=false" >> $GITHUB_OUTPUT
             echo "bump=minor" >> $GITHUB_OUTPUT
             echo "Version bump: minor"
           else
+            echo "same_version=false" >> $GITHUB_OUTPUT
             echo "bump=patch" >> $GITHUB_OUTPUT
             echo "Version bump: patch"
           fi
@@ -240,6 +252,8 @@ jobs:
           DEFAULT_BUMP: ${{ steps.defaults.outputs.bump }}
           PR_SHOULD_PUBLISH: ${{ steps.pr-info.outputs.should_publish }}
           DEFAULT_SHOULD_PUBLISH: ${{ steps.defaults.outputs.should_publish }}
+          VERSION_SAME: ${{ steps.version.outputs.same_version }}
+          DEFAULT_SAME_VERSION: ${{ steps.defaults.outputs.same_version }}
         run: |
           # Use build-matrix outputs if available, otherwise defaults
           if [ -n "$BUILD_MATRIX" ]; then
@@ -264,6 +278,12 @@ jobs:
             echo "should_publish=$PR_SHOULD_PUBLISH" >> $GITHUB_OUTPUT
           else
             echo "should_publish=$DEFAULT_SHOULD_PUBLISH" >> $GITHUB_OUTPUT
+          fi
+
+          if [ -n "$VERSION_SAME" ]; then
+            echo "same_version=$VERSION_SAME" >> $GITHUB_OUTPUT
+          else
+            echo "same_version=$DEFAULT_SAME_VERSION" >> $GITHUB_OUTPUT
           fi
 
   # Single job that bumps, publishes, and pushes tags/commits at the end
@@ -305,8 +325,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      # Skipped for release-same-version: the versions in package.json are published as-is.
       - name: Bump versions for changed packages
         id: bump
+        if: needs.detect-changes.outputs.same_version != 'true'
         env:
           MATRIX: ${{ needs.detect-changes.outputs.matrix }}
           BUMP: ${{ needs.detect-changes.outputs.bump }}

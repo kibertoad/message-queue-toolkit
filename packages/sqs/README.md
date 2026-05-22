@@ -819,7 +819,9 @@ Compress message bodies with zstd using the Node.js built-in `zlib` module. Requ
 
 The codec implementation ships inside `@message-queue-toolkit/core` — no extra package to install. Compression is opt-in: it is only active when you set the `codec` option on a publisher.
 
-Compressed messages are **self-describing**: the codec is embedded in the message envelope (`{ __mqtCodec: 'zstd', __mqtData: '<base64>' }`), so a consumer without `codec` set will still decompress automatically via envelope detection. This allows a gradual rollout — enable compression on the publisher first, consumers adapt without configuration changes.
+Compressed messages are **self-describing**: the codec is embedded in the message envelope (`{ __mqtCodec: 'zstd', __mqtData: '<base64>', ...preserved fields }`), so a consumer without `codec` set will still decompress automatically via envelope detection.
+
+> **Roll out consumers before publishers.** Auto-detection only works on a consumer running a library version that supports the codec. Upgrade and deploy all consumers of a queue **first** (they keep handling plain messages unchanged), and only then enable `codec` on publishers. A publisher emitting compressed messages to a consumer on an older library version — or to a consumer missing a required custom codec — will cause those messages to fail processing.
 
 #### Publisher
 
@@ -862,6 +864,8 @@ class MyConsumer extends AbstractSqsConsumer<SupportedMessages, ExecutionContext
 - Compressed payloads are still subject to the SQS 256 KB message size limit. For messages that remain oversized after compression, combine with [Payload Offloading](#payload-offloading). The compressed payload is then stored in S3 and the `payloadRef.codec` field records the algorithm so the consumer can decompress after retrieval without any extra configuration.
 - Uses `MessageCodecEnum.ZSTD` (value `'zstd'`). You can use the string literal or the enum — both satisfy the `MessageCodec` type.
 - **`skipCompressionBelow`** (default `512`): minimum UTF-8 byte size a message must reach before compression is applied. Messages strictly below this threshold are sent as plain JSON — small payloads often expand when compressed due to framing overhead. Set to `0` to compress every message regardless of size. Example: `{ codec: MessageCodecEnum.ZSTD, skipCompressionBelow: 1024 }`.
+- **Routing/filtering fields are preserved.** The codec envelope carries the message's identity and routing fields (`id`, `timestamp`, `type`, and any deduplication fields) as plaintext siblings of `__mqtData` — the same fields an offloaded-payload pointer preserves. SNS subscription filter policies scoped to `MessageBody` therefore keep working on those fields. A filter policy that references **other** body fields will not match, because the rest of the payload is compressed inside `__mqtData`.
+- A consumer that receives an envelope for a codec it has **not** registered (an unregistered custom codec) records it as an error rather than processing the partial envelope — register the codec via the `codecs` option.
 
 ### Message Handlers
 

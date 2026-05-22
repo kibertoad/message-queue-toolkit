@@ -117,17 +117,10 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       const messageProcessingStartTimestamp = Date.now()
       const parsedMessage = messageSchemaResult.result.parse(message)
 
-      // Dedup check runs before compression/offload so duplicates skip that expensive work
-      // entirely and never leave an orphaned object in the payload store. Trade-off: the
-      // publisher dedup key is persisted before the message is actually sent, so a crash
-      // between here and `sendMessage` drops the message on a subsequent retry. This is the
-      // same window that already existed around the bare `sendMessage` call; it now also
-      // spans compression/offload.
-      if (
-        this.isDeduplicationEnabledForMessage(parsedMessage) &&
-        (await this.deduplicateMessage(parsedMessage, DeduplicationRequesterEnum.Publisher))
-          .isDuplicated
-      ) {
+      // Fast read-only pre-check: skip compression/offload for messages already known to
+      // be duplicates. This does NOT persist a dedup key, so a transient failure in the
+      // expensive work below leaves no key behind and the publish stays safely retriable.
+      if (await this.isMessageDuplicated(parsedMessage, DeduplicationRequesterEnum.Publisher)) {
         this.handleMessageProcessed({
           message: parsedMessage,
           processingResult: { status: 'published', skippedAsDuplicate: true },
@@ -144,6 +137,25 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       const resolvedOptions = this.resolveFifoOptions(message, options)
 
       const { payload, preBuiltBody } = await this.prepareOutgoingPayload(message)
+
+      // Persist the dedup key only now — immediately before send — so the window in which
+      // a stored key plus a failed send could drop the message on retry stays as small as
+      // possible and no longer spans compression/offload (a transient failure there leaves
+      // no key behind). The pre-check above already skipped the expensive work for the
+      // common duplicate case; this check additionally closes the race where a concurrent
+      // publish stored the key in the meantime.
+      if (
+        (await this.deduplicateMessage(parsedMessage, DeduplicationRequesterEnum.Publisher))
+          .isDuplicated
+      ) {
+        this.handleMessageProcessed({
+          message: parsedMessage,
+          processingResult: { status: 'published', skippedAsDuplicate: true },
+          messageProcessingStartTimestamp,
+          queueName: this.queueName,
+        })
+        return
+      }
 
       await this.sendMessage(payload, resolvedOptions, preBuiltBody)
       this.handleMessageProcessed({
