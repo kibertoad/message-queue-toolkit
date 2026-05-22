@@ -37,7 +37,6 @@ jobs:
         run: |
           declare -A PATH_TO_NAME=(
             ["packages/amqp"]="@message-queue-toolkit/amqp"
-            ["packages/codec"]="@message-queue-toolkit/codec"
             ["packages/core"]="@message-queue-toolkit/core"
             ["packages/gcp-pubsub"]="@message-queue-toolkit/gcp-pubsub"
             ["packages/gcs-payload-store"]="@message-queue-toolkit/gcs-payload-store"

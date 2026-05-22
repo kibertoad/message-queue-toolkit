@@ -1,4 +1,12 @@
 export {
+  buildCodecEnvelope,
+  compressMessageBody,
+  decompressMessageBody,
+  getCodecName,
+  resolveCodecHandler,
+  ZstdCodecHandler,
+} from './codec/codecHandler.ts'
+export {
   BASE64_RE,
   type CodecEnvelope,
   isCodecEnvelope,

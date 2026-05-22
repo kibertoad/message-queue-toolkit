@@ -29,8 +29,11 @@ describe('SnsSqsPermissionConsumer - zstd codec', () => {
 
     // No codec option needed — zstd is auto-registered on every consumer.
     consumer = new SnsSqsPermissionConsumer(diContainer.cradle)
+    // skipCompressionBelow: 0 forces compression for these small test messages so the
+    // suite genuinely exercises the codec path (they are well under the 512 B default).
     publisher = new SnsPermissionPublisher(diContainer.cradle, {
       codec: 'zstd',
+      skipCompressionBelow: 0,
     })
 
     await consumer.start()

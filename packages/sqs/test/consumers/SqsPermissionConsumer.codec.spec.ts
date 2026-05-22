@@ -2,9 +2,8 @@ import type { Transform } from 'node:stream'
 import { PassThrough } from 'node:stream'
 import { ReceiveMessageCommand, SendMessageCommand } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
-import { compressMessageBody } from '@message-queue-toolkit/codec'
 import type { MessageCodecHandler } from '@message-queue-toolkit/core'
-import { MessageCodecEnum } from '@message-queue-toolkit/core'
+import { compressMessageBody, MessageCodecEnum } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
 import { asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -16,9 +15,11 @@ import { registerDependencies } from '../utils/testContext.ts'
 import { SqsPermissionConsumer } from './SqsPermissionConsumer.ts'
 import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas.ts'
 
-// Padding that pushes any test message's JSON representation above the default
-// skipCompressionBelow threshold (512 bytes), ensuring compression is actually applied.
-const LARGE_PADDING = 'x'.repeat(450)
+// Padding that pushes any test message's JSON representation comfortably above the
+// default skipCompressionBelow threshold (512 bytes), ensuring compression is actually
+// applied. Sized with generous margin so unrelated schema tweaks cannot drop a test
+// message back under the threshold.
+const LARGE_PADDING = 'x'.repeat(800)
 
 describe('SqsPermissionConsumer - zstd codec', () => {
   let diContainer: AwilixContainer<Dependencies>

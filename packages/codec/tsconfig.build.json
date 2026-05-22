@@ -1,4 +1,0 @@
-{
-    "extends": ["./tsconfig.json", "@lokalise/tsconfig/build-public-lib"],
-    "include": ["lib/**/*"]
-}

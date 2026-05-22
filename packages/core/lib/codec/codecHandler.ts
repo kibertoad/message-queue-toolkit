@@ -5,14 +5,16 @@ import type {
   CodecEnvelope,
   MessageCodecHandler,
   MessageCodecRegistration,
-} from '@message-queue-toolkit/core'
-import { BASE64_RE, MessageCodecEnum } from '@message-queue-toolkit/core'
+} from './messageCodec.ts'
+import { BASE64_RE, MessageCodecEnum } from './messageCodec.ts'
 
 const ZSTD_UNSUPPORTED_MSG =
   'zlib.zstdCompress and zlib.zstdDecompress are not available in this Node.js version. ' +
-  '@message-queue-toolkit/codec requires Node.js >=22.15.0 or >=23.8.0.'
+  'Message compression requires Node.js >=22.15.0 or >=23.8.0.'
 
 // Resolved lazily — undefined on Node versions that lack zstd support.
+// Keeping these lazy means importing core never throws on older Node; only an
+// actual compress/decompress call does, and only when zstd is genuinely used.
 const zstdCompress =
   typeof zlib.zstdCompress === 'function' ? promisify(zlib.zstdCompress) : undefined
 const zstdDecompress =
@@ -88,6 +90,9 @@ export async function compressMessageBody(
  * Uses string concatenation instead of JSON.stringify to avoid allocating an
  * intermediate object — the base64 string and the envelope string are the only
  * two allocations on the inline path.
+ *
+ * `codecName` must already be a JSON-safe identifier (see {@link getCodecName},
+ * which is enforced for every registration before it reaches this function).
  */
 export function buildCodecEnvelope(compressed: Buffer, codecName: string): string {
   return '{"__mqtCodec":"' + codecName + '","__mqtData":"' + compressed.toString('base64') + '"}'

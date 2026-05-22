@@ -1,21 +1,24 @@
 /**
  * Codec micro-benchmarks — compress/decompress latency in isolation (no network).
  *
- * Run: pnpm --filter @message-queue-toolkit/sqs bench
+ * Run manually: pnpm --filter @message-queue-toolkit/sqs bench
  *
- * These tests measure the CPU cost of the codec only, free from LocalStack
- * network noise. Each case runs ITERATIONS compress+decompress round-trips and
- * asserts the total time is below a very conservative ceiling, making them safe
- * to run in CI as regression guards.
+ * These cases measure the CPU cost of the codec only, free from LocalStack network
+ * noise. Each runs ITERATIONS compress+decompress round-trips and asserts the total
+ * time is below a very conservative ceiling.
  *
- * Expected times on typical developer/CI hardware:
+ * This is a manual/local benchmark — it is NOT wired into CI (the `bench` script is
+ * separate from `test`). Wall-clock assertions are inherently flaky on shared CI
+ * runners, so the ceilings here are a sanity check for local runs, not a CI gate.
+ *
+ * Expected times on typical developer hardware:
  *   small payload (~100 B)  → ~20–100 ms for 100 iterations
  *   large payload (~6 KB)   → ~50–300 ms for 100 iterations
  *
  * The ceilings below are set at ~10× the expected worst case so that only a
- * genuine algorithmic regression (or a severely starved CI runner) will fail.
+ * genuine algorithmic regression (or a severely starved runner) will fail.
  */
-import { ZstdCodecHandler } from '@message-queue-toolkit/codec'
+import { ZstdCodecHandler } from '@message-queue-toolkit/core'
 import { describe, expect, it } from 'vitest'
 
 const handler = new ZstdCodecHandler()

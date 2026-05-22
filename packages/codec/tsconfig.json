@@ -1,4 +1,0 @@
-{
-    "extends": "@lokalise/tsconfig/tsc",
-    "include": ["lib/**/*"]
-}

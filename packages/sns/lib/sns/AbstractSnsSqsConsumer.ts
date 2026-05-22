@@ -41,9 +41,11 @@ export type SNSSQSConsumerOptions<
   SNSSQSCreationConfig,
   SNSSQSQueueLocatorType
 > &
-  // Omit here instead of at the top level so the SQSConsumerOptions discriminated
+  // Intersected after SQSConsumerOptions (rather than wrapping it) so its discriminated
   // union (fifoQueue: true | false) is preserved and Extract<…, {fifoQueue:true}> works.
-  Omit<SNSOptions, 'codec' | 'skipCompressionBelow'> & {
+  // Codec consumer options (`codecs`, `disableCodecAutoDetection`) come from
+  // SQSConsumerOptions; SNSOptions carries no codec fields.
+  SNSOptions & {
     subscriptionConfig?: SNSSubscriptionOptions
   }
 

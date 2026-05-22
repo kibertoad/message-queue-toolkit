@@ -1,5 +1,4 @@
-import { decompressMessageBody, getCodecName } from '@message-queue-toolkit/codec'
-import { MessageCodecEnum } from '@message-queue-toolkit/core'
+import { decompressMessageBody, getCodecName, MessageCodecEnum } from '@message-queue-toolkit/core'
 import { describe, expect, it } from 'vitest'
 
 describe('getCodecName', () => {

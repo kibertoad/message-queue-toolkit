@@ -2,7 +2,6 @@ import type { MessageAttributeValue } from '@aws-sdk/client-sns'
 import { PublishCommand } from '@aws-sdk/client-sns'
 import type { Either } from '@lokalise/node-core'
 import { InternalError } from '@lokalise/node-core'
-import { getCodecName, resolveCodecHandler } from '@message-queue-toolkit/codec'
 import {
   type AsyncPublisher,
   type BarrierResult,
@@ -90,13 +89,6 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     this.isFifoTopic = options.fifoTopic ?? false
     this.messageGroupIdField = options.messageGroupIdField
     this.defaultMessageGroupId = options.defaultMessageGroupId
-
-    // Pre-resolve codec handler and name so the base-class prepareOutgoingPayload
-    // does not need to import @message-queue-toolkit/codec (circular dep risk).
-    if (options.codec) {
-      this.resolvedCodecHandler = resolveCodecHandler(options.codec)
-      this.resolvedCodecName = getCodecName(options.codec)
-    }
   }
 
   override async init(): Promise<void> {
@@ -133,7 +125,12 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
       const topicName =
         this.locatorConfig?.topicName ?? this.creationConfig?.topic?.Name ?? 'unknown'
 
-      // Dedup check before compression/offload: skip expensive work for duplicates.
+      // Dedup check runs before compression/offload so duplicates skip that expensive work
+      // entirely and never leave an orphaned object in the payload store. Trade-off: the
+      // publisher dedup key is persisted before the message is actually sent, so a crash
+      // between here and `sendMessage` drops the message on a subsequent retry. This is the
+      // same window that already existed around the bare `sendMessage` call; it now also
+      // spans compression/offload.
       if (
         this.isDeduplicationEnabledForMessage(parsedMessage) &&
         (await this.deduplicateMessage(parsedMessage, DeduplicationRequesterEnum.Publisher))

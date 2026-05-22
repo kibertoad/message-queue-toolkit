@@ -140,66 +140,6 @@ export type CommonQueueOptions = {
   deletionConfig?: DeletionConfig
   payloadStoreConfig?: PayloadStoreConfig
   messageDeduplicationConfig?: MessageDeduplicationConfig
-  /**
-   * Compression codec applied to message bodies.
-   *
-   * - **Publisher**: every outgoing message body is compressed and wrapped in a
-   *   self-describing envelope `{ __mqtCodec: 'zstd', __mqtData: '<base64>' }`.
-   * - **Consumer**: when set, the consumer expects compressed messages.
-   *   Even without this option, consumers auto-detect and decompress any message
-   *   that carries a codec envelope, so mixed queues work transparently.
-   *
-   * Uses Node.js built-in `zlib` zstd support — **requires Node.js >=22.15.0** (or >=23.8.0).
-   *
-   * @example
-   * import { MessageCodecEnum } from '@message-queue-toolkit/core'
-   *
-   * // Publisher
-   * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD })
-   *
-   * // Consumer (optional — auto-detection handles it even without this)
-   * new MyConsumer(deps, { codec: MessageCodecEnum.ZSTD })
-   */
-  codec?: MessageCodecRegistration
-  /**
-   * Minimum serialized size in bytes a message must reach before compression is applied.
-   * Only meaningful when `codec` is set. Defaults to `512`.
-   *
-   * Small messages often expand rather than shrink when compressed due to algorithm
-   * framing overhead. When the UTF-8 JSON representation of a message is strictly
-   * smaller than this value, the message is sent as plain JSON instead of a codec
-   * envelope, avoiding the compression cost with no loss of correctness.
-   *
-   * Set to `0` to compress every message regardless of size.
-   *
-   * **Ignored when `payloadStoreConfig` is also set.** When both options are configured,
-   * the compress-and-offload pipeline always runs regardless of message size — the
-   * threshold is instead `messageSizeThreshold` (whether to upload to the store or
-   * inline the envelope). Use `skipCompressionBelow: 0` in that combination to make the
-   * intent explicit.
-   *
-   * @example
-   * // Compress only messages ≥ 1 KB
-   * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD, skipCompressionBelow: 1024 })
-   *
-   * // Always compress (disable the floor)
-   * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD, skipCompressionBelow: 0 })
-   */
-  skipCompressionBelow?: number
-  /**
-   * Disables automatic codec-envelope detection on the consumer.
-   *
-   * By default, consumers inspect every incoming message body with `isCodecEnvelope`.
-   * If the body matches the envelope shape (`__mqtCodec` + `__mqtData` as the only two
-   * fields), it is treated as compressed and decompressed before schema validation.
-   *
-   * Set this to `true` if your message schema legitimately contains fields named
-   * `__mqtCodec` and `__mqtData` with exactly those two keys, and you do not want
-   * auto-detection to intercept them. Publisher behaviour is unaffected.
-   *
-   * @default false
-   */
-  disableCodecAutoDetection?: boolean
 }
 
 export type CommonCreationConfigType = {
@@ -353,6 +293,48 @@ export type QueuePublisherOptions<
 > = QueueOptions<CreationConfigType, QueueLocatorType> & {
   messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
   enablePublisherDeduplication?: boolean
+  /**
+   * Compression codec applied to outgoing message bodies.
+   *
+   * Every outgoing message body is compressed and wrapped in a self-describing
+   * envelope `{ __mqtCodec: 'zstd', __mqtData: '<base64>' }`. Consumers auto-detect
+   * the envelope and decompress transparently — no consumer-side option is needed
+   * for built-in codecs, so mixed (compressed/uncompressed) queues work seamlessly.
+   *
+   * Only the SQS and SNS adapters support compression; AMQP and Pub/Sub publishers
+   * throw at construction time if a codec is supplied.
+   *
+   * Uses Node.js built-in `zlib` zstd support — **requires Node.js >=22.15.0** (or >=23.8.0).
+   *
+   * @example
+   * import { MessageCodecEnum } from '@message-queue-toolkit/core'
+   *
+   * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD })
+   */
+  codec?: MessageCodecRegistration
+  /**
+   * Minimum serialized size in bytes a message must reach before compression is applied.
+   * Only meaningful when `codec` is set. Defaults to `512`.
+   *
+   * Small messages often expand rather than shrink when compressed due to algorithm
+   * framing overhead. When the UTF-8 JSON representation of a message is strictly
+   * smaller than this value, the message is sent as plain JSON instead of a codec
+   * envelope, avoiding the compression cost with no loss of correctness.
+   *
+   * This floor is honored regardless of whether `payloadStoreConfig` is also set:
+   * a message below the threshold is sent (or offloaded) as plain JSON without
+   * compression.
+   *
+   * Set to `0` to compress every message regardless of size.
+   *
+   * @example
+   * // Compress only messages ≥ 1 KB
+   * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD, skipCompressionBelow: 1024 })
+   *
+   * // Always compress (disable the floor)
+   * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD, skipCompressionBelow: 0 })
+   */
+  skipCompressionBelow?: number
 }
 
 export type DeadLetterQueueOptions<

@@ -448,6 +448,7 @@ describe('SqsPermissionConsumer - codec + payload offloading', () => {
 
     const wirePublisher = new SqsPermissionPublisher(diContainer.cradle, {
       codec: MessageCodecEnum.ZSTD,
+      skipCompressionBelow: 0, // always compress: this suite exercises the codec + offload path
       payloadStoreConfig,
       creationConfig: { queue: { QueueName: wireQueueName } },
     })
@@ -498,6 +499,7 @@ describe('SqsPermissionConsumer - codec + payload offloading', () => {
 
     const publisher = new SqsPermissionPublisher(diContainer.cradle, {
       codec: MessageCodecEnum.ZSTD,
+      skipCompressionBelow: 0, // always compress: this suite exercises the codec + offload path
       payloadStoreConfig,
       creationConfig: { queue: { QueueName: queueName } },
     })
@@ -536,6 +538,7 @@ describe('SqsPermissionConsumer - codec + payload offloading', () => {
 
     const publisher = new SqsPermissionPublisher(diContainer.cradle, {
       codec: MessageCodecEnum.ZSTD,
+      skipCompressionBelow: 0, // always compress: this suite exercises the codec + offload path
       payloadStoreConfig,
       creationConfig: { queue: { QueueName: queueName } },
     })

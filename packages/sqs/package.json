@@ -37,7 +37,6 @@
     },
     "peerDependencies": {
         "@aws-sdk/client-sqs": "^3.1034.0",
-        "@message-queue-toolkit/codec": ">=1.0.0",
         "@message-queue-toolkit/core": ">=25.5.0",
         "zod": ">=3.25.76 <5.0.0"
     },
@@ -47,7 +46,6 @@
         "@biomejs/biome": "^2.3.8",
         "@lokalise/biome-config": "^3.1.0",
         "@lokalise/tsconfig": "^3.0.0",
-        "@message-queue-toolkit/codec": "workspace:*",
         "@message-queue-toolkit/core": "workspace:*",
         "@message-queue-toolkit/redis-message-deduplication-store": "workspace:*",
         "@message-queue-toolkit/s3-payload-store": "workspace:*",

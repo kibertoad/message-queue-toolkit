@@ -29,8 +29,8 @@ export type CodecEnvelope = {
  * Low-level interface for a compression codec.
  *
  * Implement this interface to plug in a custom compression algorithm.
- * The built-in implementation (`ZstdCodecHandler` in `@message-queue-toolkit/codec`)
- * uses Node.js built-in `zlib` zstd support.
+ * The built-in implementation (`ZstdCodecHandler`, exported from
+ * `@message-queue-toolkit/core`) uses Node.js built-in `zlib` zstd support.
  *
  * All three methods are required:
  * - `compress` / `decompress` are used for the inline (non-offloaded) publish path.
@@ -62,7 +62,7 @@ export interface MessageCodecHandler {
  * import { LZ4Handler } from './lz4Handler.ts'
  * const codec = { name: 'lz4', handler: new LZ4Handler() }
  * new MyPublisher(deps, { codec })
- * new MyConsumer(deps, { codec })  // same registration on the consumer side
+ * new MyConsumer(deps, { codecs: [codec] })  // register the same codec on the consumer
  */
 export type MessageCodecRegistration = MessageCodec | { name: string; handler: MessageCodecHandler }
 

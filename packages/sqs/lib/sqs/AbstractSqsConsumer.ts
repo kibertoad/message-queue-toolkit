@@ -5,12 +5,12 @@ import {
   SetQueueAttributesCommand,
 } from '@aws-sdk/client-sqs'
 import type { Either, ErrorResolver } from '@lokalise/node-core'
-import { getCodecName, resolveCodecHandler } from '@message-queue-toolkit/codec'
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
 import {
   type BarrierResult,
   type DeadLetterQueueOptions,
   DeduplicationRequesterEnum,
+  getCodecName,
   HandlerContainer,
   isCodecEnvelope,
   isMessageError,
@@ -26,6 +26,7 @@ import {
   type QueueConsumer,
   type QueueConsumerDependencies,
   type QueueConsumerOptions,
+  resolveCodecHandler,
   type TransactionObservabilityManager,
 } from '@message-queue-toolkit/core'
 import type { ConsumerOptions } from 'sqs-consumer'
@@ -80,18 +81,15 @@ type SQSConsumerCommonOptions<
   PrehandlerOutput,
   CreationConfigType extends SQSCreationConfig = SQSCreationConfig,
   QueueLocatorType extends object = SQSQueueLocatorType,
-> = Omit<
-  QueueConsumerOptions<
-    CreationConfigType,
-    QueueLocatorType,
-    SQSDeadLetterQueueOptions,
-    MessagePayloadSchemas,
-    ExecutionContext,
-    PrehandlerOutput,
-    SQSCreationConfig,
-    SQSQueueLocatorType
-  >,
-  'codec' | 'skipCompressionBelow'
+> = QueueConsumerOptions<
+  CreationConfigType,
+  QueueLocatorType,
+  SQSDeadLetterQueueOptions,
+  MessagePayloadSchemas,
+  ExecutionContext,
+  PrehandlerOutput,
+  SQSCreationConfig,
+  SQSQueueLocatorType
 > & {
   /**
    * Additional codecs to register on this consumer.
@@ -104,6 +102,19 @@ type SQSConsumerCommonOptions<
    * new MyConsumer(deps, { codecs: [codec] })
    */
   codecs?: MessageCodecRegistration[]
+  /**
+   * Disables automatic codec-envelope detection on this consumer.
+   *
+   * By default, consumers inspect every incoming message body with `isCodecEnvelope`.
+   * If the body matches the envelope shape (`__mqtCodec` + `__mqtData` as the only two
+   * fields), it is treated as compressed and decompressed before schema validation.
+   *
+   * Set this to `true` if your message schema legitimately contains exactly those two
+   * fields and you do not want auto-detection to intercept them.
+   *
+   * @default false
+   */
+  disableCodecAutoDetection?: boolean
   /**
    * Wait time in seconds the consumer passes to SQS ReceiveMessage (long-polling).
    * AWS allows integer values 0–20; anything else throws a RangeError at
@@ -955,10 +966,17 @@ export abstract class AbstractSqsConsumer<
     if (hasOffloadedPayload(resolveMessageResult.result)) {
       const retrieveOffloadedMessagePayloadResult = await this.retrieveOffloadedMessagePayload(
         resolveMessageResult.result.body,
-        (codecName, data) => {
+        (codecName) => {
           const handler = this.codecRegistry.get(codecName)
-          if (!handler) throw new Error(`Unknown codec: ${codecName}`)
-          return handler.decompress(data)
+          if (!handler) {
+            // Misconfiguration, not a poison message: the pointer names a codec this
+            // consumer has not registered. Throwing here (outside retrieveOffloadedMessagePayload's
+            // catch) surfaces it as a retriable error so the message is not lost to the DLQ.
+            throw new Error(
+              `No codec handler registered for "${codecName}". Register it via the consumer's \`codecs\` option.`,
+            )
+          }
+          return (data) => handler.decompress(data)
         },
       )
       if (retrieveOffloadedMessagePayloadResult.error) {
