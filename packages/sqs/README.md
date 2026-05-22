@@ -544,10 +544,8 @@ When using `locatorConfig`, you connect to an existing queue without creating it
     payloadStore: s3Store,
   },
 
-  // Optional - Compression (Node.js >=22.15.0 required)
-  // Auto-detection is always active: consumers decompress codec envelopes
-  // even without this option set.
-  codec: MessageCodecEnum.ZSTD,
+  // Note: consumers have no `codec` option — auto-detection handles built-in zstd.
+  // Use `codecs: [{ name: 'lz4', handler: new LZ4Handler() }]` only for custom codecs.
 
   // Optional - Other
   logMessages: false,
@@ -847,14 +845,11 @@ class MyPublisher extends AbstractSqsPublisher<SupportedMessages> {
 #### Consumer
 
 ```typescript
-import { MessageCodecEnum } from '@message-queue-toolkit/core'
-
 class MyConsumer extends AbstractSqsConsumer<SupportedMessages, ExecutionContext> {
   constructor(deps: SQSConsumerDependencies) {
     super(deps, {
-      // Optional: explicitly declare that messages are compressed.
-      // Without this, consumers still auto-detect and decompress codec envelopes.
-      codec: MessageCodecEnum.ZSTD,
+      // No codec option needed for built-in zstd — auto-detection handles it.
+      // For a custom codec: codecs: [{ name: 'lz4', handler: new LZ4Handler() }]
       creationConfig: { queue: { QueueName: 'my-queue' } },
       handlers: new MessageHandlerConfigBuilder<SupportedMessages, ExecutionContext>()
         .addConfig(MySchema, myHandler)
@@ -867,7 +862,7 @@ class MyConsumer extends AbstractSqsConsumer<SupportedMessages, ExecutionContext
 #### Notes
 
 - Compression is applied **after** schema validation and **before** the SQS `SendMessage` call.
-- The message is compressed **exactly once**, regardless of whether payload offloading is also configured. When both features are active: the payload is compressed first, and the decision to offload is made against the compressed size (not the raw size). This means smaller payloads after compression may stay inline and never touch S3.
+- The message is compressed **exactly once**, regardless of whether payload offloading is also configured. When both features are active: the payload is compressed first, and the decision to offload is made against the **codec envelope wire size** (base64-encoded compressed bytes + JSON framing) rather than the raw or compressed byte count. This means smaller payloads after compression may stay inline and never touch S3.
 - The compressed bytes are **never re-compressed** when sent inline — the codec envelope is built directly from the first (and only) compression pass.
 - Compressed payloads are still subject to the SQS 256 KB message size limit. For messages that remain oversized after compression, combine with [Payload Offloading](#payload-offloading). The compressed payload is then stored in S3 and the `payloadRef.codec` field records the algorithm so the consumer can decompress after retrieval without any extra configuration.
 - Uses `MessageCodecEnum.ZSTD` (value `'zstd'`). You can use the string literal or the enum — both satisfy the `MessageCodec` type.

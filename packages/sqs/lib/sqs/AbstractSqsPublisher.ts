@@ -118,14 +118,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
       const messageProcessingStartTimestamp = Date.now()
       const parsedMessage = messageSchemaResult.result.parse(message)
 
-      message = this.updateInternalProperties(message)
-
-      // Resolve FIFO options from original message BEFORE offloading
-      // (offloaded payload won't have user fields needed for messageGroupIdField)
-      const resolvedOptions = this.resolveFifoOptions(message, options)
-
-      const { payload, preBuiltBody } = await this.prepareOutgoingPayload(message)
-
+      // Dedup check before compression/offload: skip expensive work for duplicates.
       if (
         this.isDeduplicationEnabledForMessage(parsedMessage) &&
         (await this.deduplicateMessage(parsedMessage, DeduplicationRequesterEnum.Publisher))
@@ -139,6 +132,14 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         })
         return
       }
+
+      message = this.updateInternalProperties(message)
+
+      // Resolve FIFO options from original message BEFORE offloading
+      // (offloaded payload won't have user fields needed for messageGroupIdField)
+      const resolvedOptions = this.resolveFifoOptions(message, options)
+
+      const { payload, preBuiltBody } = await this.prepareOutgoingPayload(message)
 
       await this.sendMessage(payload, resolvedOptions, preBuiltBody)
       this.handleMessageProcessed({

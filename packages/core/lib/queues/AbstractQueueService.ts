@@ -802,7 +802,7 @@ export abstract class AbstractQueueService<
       // Compare the envelope wire size (not raw compressed bytes) against the threshold.
       // buildCodecEnvelope produces {"__mqtCodec":"<codecName>","__mqtData":"<base64>"}.
       // Base64 expands by ⌈N/3⌉×4; the fixed JSON framing adds 32 chars + codec name length.
-      const envelopeSize = Math.ceil((compressedSize * 4) / 3) + 32 + codecName.length
+      const envelopeSize = Math.ceil(compressedSize / 3) * 4 + 32 + codecName.length
 
       if (envelopeSize > this.payloadStoreConfig.messageSizeThreshold) {
         const { store, storeName } = this.resolveOutgoingStore()

@@ -6,16 +6,7 @@ import type {
   MessageCodecHandler,
   MessageCodecRegistration,
 } from '@message-queue-toolkit/core'
-import { MessageCodecEnum } from '@message-queue-toolkit/core'
-
-/**
- * Validates that a string is properly-padded base64 before passing it to Buffer.from.
- * Buffer.from(str, 'base64') silently ignores non-base64 characters, so without this
- * check a malformed __mqtData field produces garbage bytes and a confusing codec error
- * instead of a clear "invalid envelope" message.
- */
-const BASE64_RE =
-  /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})?$/
+import { BASE64_RE, MessageCodecEnum } from '@message-queue-toolkit/core'
 
 const ZSTD_UNSUPPORTED_MSG =
   'zlib.zstdCompress and zlib.zstdDecompress are not available in this Node.js version. ' +
@@ -102,6 +93,17 @@ export function buildCodecEnvelope(compressed: Buffer, codecName: string): strin
   return '{"__mqtCodec":"' + codecName + '","__mqtData":"' + compressed.toString('base64') + '"}'
 }
 
+/**
+ * Decompresses a codec envelope produced by {@link compressMessageBody} or
+ * {@link buildCodecEnvelope} and returns the original parsed JSON value.
+ *
+ * **Built-in codecs only.** This utility resolves the handler via
+ * {@link resolveCodecHandler}, which only recognises built-in codec names
+ * (e.g. `MessageCodecEnum.ZSTD`). Calling it with a custom-codec envelope
+ * (where `__mqtCodec` is a user-chosen name) will throw "Unsupported codec".
+ * Consumer-side decoding of custom codecs is handled automatically via the
+ * consumer's codec registry; this function is intended for one-off, built-in use cases.
+ */
 export async function decompressMessageBody(envelope: CodecEnvelope): Promise<unknown> {
   if (!BASE64_RE.test(envelope.__mqtData)) {
     throw new Error(`Codec envelope __mqtData is not valid base64 (codec: ${envelope.__mqtCodec})`)

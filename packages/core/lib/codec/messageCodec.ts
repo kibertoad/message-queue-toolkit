@@ -69,8 +69,9 @@ export type MessageCodecRegistration = MessageCodec | { name: string; handler: M
 /**
  * Base64 pattern: groups of 4 chars from the alphabet, with at most 2 trailing `=` pads.
  * An empty string (compressed payload of 0 bytes) is also valid.
+ * Exported so codec implementations can reuse it without duplicating the regex.
  */
-const BASE64_RE =
+export const BASE64_RE =
   /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})?$/
 
 /** Built once at module load — avoids a fresh array allocation on every hot-path call. */

@@ -88,11 +88,11 @@ const codec = { name: 'lz4', handler: new MyLz4Handler() }
 // Publisher — wraps each outgoing message in { __mqtCodec: 'lz4', __mqtData: '<base64>' }
 new MyPublisher(deps, { codec })
 
-// Consumer — only auto-detects envelopes whose __mqtCodec matches 'lz4'
-new MyConsumer(deps, { codec })
+// Consumer — register the custom codec so envelopes with __mqtCodec 'lz4' are decompressed
+new MyConsumer(deps, { codecs: [codec] })
 ```
 
-**Consumer-side scoping.** A consumer configured with `{ name: 'lz4', handler }` will only decompress envelopes that carry `__mqtCodec: 'lz4'`.  A consumer configured with the built-in `MessageCodecEnum.ZSTD` will ignore `lz4` envelopes entirely — they reach schema validation as raw objects and are rejected.  This prevents accidental cross-codec decompression.
+**Consumer-side scoping.** A consumer registered with `{ name: 'lz4', handler }` via `codecs` will only decompress envelopes that carry `__mqtCodec: 'lz4'`. Built-in codecs (e.g. zstd) are always auto-registered — no `codecs` entry needed for them. This prevents accidental cross-codec decompression.
 
 ## Codec envelope format
 

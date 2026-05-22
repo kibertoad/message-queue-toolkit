@@ -38,7 +38,7 @@
     "peerDependencies": {
         "@aws-sdk/client-sqs": "^3.1034.0",
         "@message-queue-toolkit/codec": ">=1.0.0",
-        "@message-queue-toolkit/core": ">=25.0.0",
+        "@message-queue-toolkit/core": ">=25.5.0",
         "zod": ">=3.25.76 <5.0.0"
     },
     "devDependencies": {

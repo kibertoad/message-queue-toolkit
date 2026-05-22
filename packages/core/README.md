@@ -671,21 +671,21 @@ class MyLz4Handler implements MessageCodecHandler {
 
 const codec = { name: 'lz4', handler: new MyLz4Handler() }
 new MyPublisher(deps, { codec })
-new MyConsumer(deps, { codec }) // same registration required on the consumer
+new MyConsumer(deps, { codecs: [codec] }) // register custom codec on the consumer
 ```
 
 See the [`@message-queue-toolkit/codec` README](../codec/README.md) for a full custom codec example.
 
-Compressed messages are wrapped in a self-describing envelope `{ __mqtCodec: '<name>', __mqtData: '<base64>' }`. Consumers configured with a matching `codec` registration decompress transparently. Consumers without a matching registration ignore the envelope — `codec` does not need to be set when using the built-in zstd and you are happy with auto-detection.
+Compressed messages are wrapped in a self-describing envelope `{ __mqtCodec: '<name>', __mqtData: '<base64>' }`. Built-in codecs (e.g. zstd) are auto-detected on every consumer — no consumer option needed. For custom codecs, pass `codecs: [{ name, handler }]` to register them on the consumer.
 
 #### Interaction with codec (compression)
 
 When both `codec` and `payloadStoreConfig` are set on a publisher, compression and offloading work together with a single compression pass:
 
 1. The message is compressed **once** at publish time.
-2. The **compressed** size is compared against `messageSizeThreshold`.
-3. If the compressed size exceeds the threshold, the raw compressed bytes are stored in the payload store. The codec name is written to `payloadRef.codec` so the consumer knows how to decompress after retrieval.
-4. If the compressed size fits within the threshold, the message is sent inline as a self-describing codec envelope — S3 is never touched.
+2. The **codec envelope wire size** (base64-encoded compressed bytes + JSON framing) is compared against `messageSizeThreshold`.
+3. If the envelope size exceeds the threshold, the raw compressed bytes are stored in the payload store. The codec name is written to `payloadRef.codec` so the consumer knows how to decompress after retrieval.
+4. If the envelope size fits within the threshold, the message is sent inline as a self-describing codec envelope — S3 is never touched.
 
 This means compression can prevent offloading entirely for messages that are large before compression but small after.
 

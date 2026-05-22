@@ -126,14 +126,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
       const topicName =
         this.locatorConfig?.topicName ?? this.creationConfig?.topic?.Name ?? 'unknown'
 
-      const updatedMessage = this.updateInternalProperties(message)
-
-      // Resolve FIFO options from original message BEFORE offloading
-      // (offloaded payload won't have user fields needed for messageGroupIdField)
-      const resolvedOptions = this.resolveFifoOptions(updatedMessage, options)
-
-      const { payload, preBuiltBody } = await this.prepareOutgoingPayload(updatedMessage)
-
+      // Dedup check before compression/offload: skip expensive work for duplicates.
       if (
         this.isDeduplicationEnabledForMessage(parsedMessage) &&
         (await this.deduplicateMessage(parsedMessage, DeduplicationRequesterEnum.Publisher))
@@ -147,6 +140,14 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         })
         return
       }
+
+      const updatedMessage = this.updateInternalProperties(message)
+
+      // Resolve FIFO options from original message BEFORE offloading
+      // (offloaded payload won't have user fields needed for messageGroupIdField)
+      const resolvedOptions = this.resolveFifoOptions(updatedMessage, options)
+
+      const { payload, preBuiltBody } = await this.prepareOutgoingPayload(updatedMessage)
 
       await this.sendMessage(payload, resolvedOptions, preBuiltBody)
 

@@ -1,4 +1,5 @@
 export {
+  BASE64_RE,
   type CodecEnvelope,
   isCodecEnvelope,
   KNOWN_CODECS,

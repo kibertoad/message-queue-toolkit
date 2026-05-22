@@ -27,9 +27,8 @@ describe('SnsSqsPermissionConsumer - zstd codec', () => {
     await testAdmin.deleteQueues(SnsSqsPermissionConsumer.CONSUMED_QUEUE_NAME)
     await testAdmin.deleteTopics(SnsSqsPermissionConsumer.SUBSCRIBED_TOPIC_NAME)
 
-    consumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
-      codec: 'zstd',
-    })
+    // No codec option needed — zstd is auto-registered on every consumer.
+    consumer = new SnsSqsPermissionConsumer(diContainer.cradle)
     publisher = new SnsPermissionPublisher(diContainer.cradle, {
       codec: 'zstd',
     })

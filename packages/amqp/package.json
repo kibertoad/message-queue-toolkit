@@ -43,7 +43,7 @@
         "@biomejs/biome": "^2.3.8",
         "@lokalise/biome-config": "^3.1.0",
         "@lokalise/tsconfig": "^3.0.0",
-        "@message-queue-toolkit/core": "*",
+        "@message-queue-toolkit/core": "workspace:*",
         "@types/amqplib": "0.10.8",
         "@types/node": "^25.5.0",
         "@vitest/coverage-v8": "^4.0.18",

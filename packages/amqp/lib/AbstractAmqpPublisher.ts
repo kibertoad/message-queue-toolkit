@@ -51,9 +51,7 @@ export abstract class AbstractAmqpPublisher<
     dependencies: AMQPDependencies,
     options: AMQPPublisherOptions<MessagePayloadType, CreationConfig, LocatorConfig>,
   ) {
-    // `codec` lives on CommonQueueOptions (added after this package's core peer dep was frozen),
-    // so it is not present in the local type.  The cast guards JS callers and future versions.
-    if ((options as { codec?: unknown }).codec) {
+    if (options.codec) {
       throw new Error(
         'codec is not supported by AbstractAmqpPublisher. Remove the codec option or use an SQS/SNS publisher.',
       )

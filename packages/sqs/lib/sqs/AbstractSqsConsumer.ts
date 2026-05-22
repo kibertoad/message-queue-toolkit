@@ -972,8 +972,8 @@ export abstract class AbstractSqsConsumer<
     ) {
       try {
         const envelope = resolveMessageResult.result.body
-        const handler = this.codecRegistry.get(envelope.__mqtCodec)
-        if (!handler) throw new Error(`Unknown codec: ${envelope.__mqtCodec}`)
+        // handler is guaranteed non-null: isCodecEnvelope already verified __mqtCodec ∈ codecKnownNames === codecRegistry.keys()
+        const handler = this.codecRegistry.get(envelope.__mqtCodec)!
         const compressed = Buffer.from(envelope.__mqtData, 'base64')
         resolveMessageResult.result.body = JSON.parse(
           (await handler.decompress(compressed)).toString('utf8'),

@@ -41,7 +41,7 @@ type SnsSqsPermissionConsumerOptions = Pick<
   | 'maxRetryDuration'
   | 'payloadStoreConfig'
   | 'concurrentConsumersAmount'
-  | 'codec'
+  | 'codecs'
 > & {
   addPreHandlerBarrier?: (
     message: SupportedMessages,
@@ -149,7 +149,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
           deleteIfExists: false,
         },
         payloadStoreConfig: options.payloadStoreConfig,
-        codec: options.codec,
+        codecs: options.codecs,
         consumerOverrides: options.consumerOverrides ?? {
           terminateVisibilityTimeout: true, // this allows to retry failed messages immediately
         },
