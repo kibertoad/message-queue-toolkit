@@ -172,6 +172,12 @@ export type CommonQueueOptions = {
    *
    * Set to `0` to compress every message regardless of size.
    *
+   * **Ignored when `payloadStoreConfig` is also set.** When both options are configured,
+   * the compress-and-offload pipeline always runs regardless of message size — the
+   * threshold is instead `messageSizeThreshold` (whether to upload to the store or
+   * inline the envelope). Use `skipCompressionBelow: 0` in that combination to make the
+   * intent explicit.
+   *
    * @example
    * // Compress only messages ≥ 1 KB
    * new MyPublisher(deps, { codec: MessageCodecEnum.ZSTD, skipCompressionBelow: 1024 })

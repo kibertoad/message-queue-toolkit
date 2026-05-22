@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
+import * as path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { types } from 'node:util'
@@ -144,6 +145,17 @@ export abstract class AbstractQueueService<
   protected readonly codec?: MessageCodecRegistration
   protected readonly skipCompressionBelow: number
   protected readonly disableCodecAutoDetection: boolean
+  /**
+   * Pre-resolved codec handler set by publisher subclasses in their constructors.
+   * Avoids importing `@message-queue-toolkit/codec` in the base class (which would
+   * create a circular dependency — codec peer-depends on core).
+   */
+  protected resolvedCodecHandler?: MessageCodecHandler
+  /**
+   * Pre-resolved codec name matching `resolvedCodecHandler`.
+   * Set alongside `resolvedCodecHandler` in publisher subclass constructors.
+   */
+  protected resolvedCodecName?: string
 
   protected isInitted: boolean
 
@@ -753,13 +765,95 @@ export abstract class AbstractQueueService<
   }
 
   /**
-   * Streaming compress-and-offload path for large payloads (used when both `codec` and
-   * `payloadStoreConfig` are set).
+   * Compresses (when codec is configured) or offloads (when a payload store is configured)
+   * the outgoing message. Shared by all publisher subclasses — they pre-resolve the codec
+   * handler and name in their constructors and store them in `resolvedCodecHandler` /
+   * `resolvedCodecName` so that this base-class method never imports from
+   * `@message-queue-toolkit/codec` directly.
    *
-   * Avoids the 3× memory materialisation that occurs when doing
-   * JSON.stringify → Buffer → compress(Buffer) before deciding whether to offload.
-   * Instead serializes the payload once via the configured serializer, pipes the stream
-   * through a zstd transform into a temp file, then decides based on the compressed size:
+   * Returns:
+   *  - `{ payload, preBuiltBody }` — `preBuiltBody` is a ready-to-send codec envelope string
+   *    when compression is applied inline; `sendMessage` must use it as-is.
+   *  - `{ payload }` — plain JSON path (no compression or offload needed).
+   */
+  protected async prepareOutgoingPayload(message: MessagePayloadSchemas): Promise<{
+    payload: MessagePayloadSchemas | OffloadedPayloadPointerPayload
+    preBuiltBody?: string
+  }> {
+    const handler = this.resolvedCodecHandler
+    const codecName = this.resolvedCodecName
+
+    if (handler && codecName) {
+      if (this.payloadStoreConfig) {
+        // Streaming path: avoids 3× buffer materialisation for large payloads.
+        // JSON → compress → temp file → threshold check → offload or inline envelope.
+        const result = await this.compressAndOffloadPayload(message, handler, codecName)
+        if (result.pointer) {
+          return { payload: result.pointer }
+        }
+        return {
+          payload: message,
+          preBuiltBody: this.buildInlineCodecEnvelope(result.compressedBuffer, codecName),
+        }
+      }
+
+      // No offload store — bounded by the transport limit (SQS/SNS 256 KB), safe to buffer.
+      // Serialize once so we can check the raw size before deciding whether to compress.
+      const jsonBuffer = Buffer.from(JSON.stringify(message), 'utf8')
+
+      // Skip compression for messages below the configured floor — small payloads
+      // often grow when compressed, so we send them as plain JSON instead.
+      if (jsonBuffer.byteLength < this.skipCompressionBelow) {
+        return { payload: message }
+      }
+
+      const compressed = await handler.compress(jsonBuffer)
+      return {
+        payload: message,
+        preBuiltBody: this.buildInlineCodecEnvelope(compressed, codecName),
+      }
+    }
+
+    return {
+      payload:
+        (await this.offloadPayload(message, () => this.calculateOutgoingMessageSize(message))) ??
+        message,
+    }
+  }
+
+  /**
+   * Wraps an already-compressed buffer in a self-describing codec envelope string.
+   *
+   * Replicates the logic of `buildCodecEnvelope` from `@message-queue-toolkit/codec`
+   * without importing it — keeping the base class free of a circular dependency on the
+   * codec package (which peer-depends on core).
+   */
+  protected buildInlineCodecEnvelope(compressed: Buffer, codecName: string): string {
+    return `{"__mqtCodec":"${codecName}","__mqtData":"${compressed.toString('base64')}"}`
+  }
+
+  /**
+   * Returns the wire size of the outgoing message in bytes, used by `offloadPayload` to decide
+   * whether the payload exceeds `messageSizeThreshold`.
+   *
+   * Overridden by publisher subclasses (SQS, SNS) to call their transport-specific utility.
+   * Not called on the consumer path; consumers do not override this method.
+   */
+  protected calculateOutgoingMessageSize(_message: MessagePayloadSchemas): number {
+    /* c8 ignore next */
+    throw new Error('calculateOutgoingMessageSize must be implemented by the publisher subclass')
+  }
+
+  /**
+   * Compress-and-offload path used when both `codec` and `payloadStoreConfig` are set.
+   *
+   * **In-memory fast path (string payloads):** when the serializer produces a string and its
+   * byte length is below `messageSizeThreshold`, the payload is compressed directly into a
+   * Buffer in memory — no temp file is created, no disk I/O occurs.
+   *
+   * **Streaming path (stream payloads or large strings):** serializes the payload once,
+   * pipes it through the codec Transform into a temp file, then decides based on the
+   * compressed size:
    *  - Uploads the temp file as a stream when compressed size exceeds `messageSizeThreshold`
    *  - Returns the small compressed buffer for the caller to wrap in an inline codec envelope
    *    when compressed size fits within the threshold
@@ -785,44 +879,59 @@ export abstract class AbstractQueueService<
       throw new Error('Payload store is not configured')
     }
 
-    const tmpPath = `${os.tmpdir()}/${randomUUID()}`
     const serialized = await this.payloadStoreConfig.serializer.serialize(message)
 
     try {
+      // In-memory fast path: avoid disk I/O entirely for small string payloads.
+      // The string byte size is checked against messageSizeThreshold — even before
+      // compression, if the raw bytes fit in the threshold, the compressed result
+      // will too (compression only shrinks). This skips the temp-file pipeline.
+      if (
+        typeof serialized.value === 'string' &&
+        Buffer.byteLength(serialized.value, 'utf8') < this.payloadStoreConfig.messageSizeThreshold
+      ) {
+        const compressed = await handler.compress(Buffer.from(serialized.value, 'utf8'))
+        return { compressedBuffer: compressed }
+      }
+
       // Streaming pipeline: serializer output → codec transform → temp file.
       // No full-payload buffer is materialised; each codec supplies its own Transform.
-      await pipeline(
-        typeof serialized.value === 'string' ? Readable.from(serialized.value) : serialized.value,
-        handler.createCompressStream(),
-        fs.createWriteStream(tmpPath),
-      )
+      const tmpPath = path.join(os.tmpdir(), randomUUID())
+      try {
+        await pipeline(
+          typeof serialized.value === 'string' ? Readable.from(serialized.value) : serialized.value,
+          handler.createCompressStream(),
+          fs.createWriteStream(tmpPath),
+        )
 
-      const compressedSize = (await fs.promises.stat(tmpPath)).size
+        const compressedSize = (await fs.promises.stat(tmpPath)).size
 
-      // Compare the envelope wire size (not raw compressed bytes) against the threshold.
-      // buildCodecEnvelope produces {"__mqtCodec":"<codecName>","__mqtData":"<base64>"}.
-      // Base64 expands by ⌈N/3⌉×4; the fixed JSON framing adds 32 chars + codec name length.
-      const envelopeSize = Math.ceil(compressedSize / 3) * 4 + 32 + codecName.length
+        // Compare the envelope wire size (not raw compressed bytes) against the threshold.
+        // buildCodecEnvelope produces {"__mqtCodec":"<codecName>","__mqtData":"<base64>"}.
+        // Base64 expands by ⌈N/3⌉×4; the fixed JSON framing adds 32 chars + codec name length.
+        const envelopeSize = Math.ceil(compressedSize / 3) * 4 + 32 + codecName.length
 
-      if (envelopeSize > this.payloadStoreConfig.messageSizeThreshold) {
-        const { store, storeName } = this.resolveOutgoingStore()
-        const payloadId = await store.storePayload({
-          value: fs.createReadStream(tmpPath),
-          size: compressedSize,
-        })
-        return {
-          pointer: this.buildPointer(message, payloadId, storeName, compressedSize, codecName),
+        if (envelopeSize > this.payloadStoreConfig.messageSizeThreshold) {
+          const { store, storeName } = this.resolveOutgoingStore()
+          const payloadId = await store.storePayload({
+            value: fs.createReadStream(tmpPath),
+            size: compressedSize,
+          })
+          return {
+            pointer: this.buildPointer(message, payloadId, storeName, compressedSize, codecName),
+          }
+        }
+
+        // Compressed payload fits inline — return the buffer; caller wraps it in a codec envelope.
+        return { compressedBuffer: await fs.promises.readFile(tmpPath) }
+      } finally {
+        try {
+          await fs.promises.unlink(tmpPath)
+        } catch {
+          // ignore cleanup errors
         }
       }
-
-      // Compressed payload fits inline — return the buffer; caller wraps it in a codec envelope.
-      return { compressedBuffer: await fs.promises.readFile(tmpPath) }
     } finally {
-      try {
-        await fs.promises.unlink(tmpPath)
-      } catch {
-        // ignore cleanup errors
-      }
       if (isDestroyable(serialized)) {
         await serialized.destroy()
       }

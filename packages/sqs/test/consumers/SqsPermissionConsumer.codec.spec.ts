@@ -1,6 +1,7 @@
 import type { Transform } from 'node:stream'
 import { PassThrough } from 'node:stream'
 import { ReceiveMessageCommand, SendMessageCommand } from '@aws-sdk/client-sqs'
+import { waitAndRetry } from '@lokalise/node-core'
 import { compressMessageBody } from '@message-queue-toolkit/codec'
 import type { MessageCodecHandler } from '@message-queue-toolkit/core'
 import { MessageCodecEnum } from '@message-queue-toolkit/core'
@@ -469,6 +470,41 @@ describe('SqsPermissionConsumer - skipCompressionBelow', () => {
     await wirePublisher.close()
     await noAutoConsumer.close(true)
   })
+
+  it('consumer with disableCodecAutoDetection:true does not decompress a real zstd envelope', async () => {
+    // When disableCodecAutoDetection is true, a real codec envelope reaching the consumer
+    // must NOT be decompressed — the raw envelope object is passed to schema validation,
+    // which fails because { __mqtCodec, __mqtData } has no `messageType` field.
+    const queueName = `${SqsPermissionConsumer.QUEUE_NAME}-disable-real-envelope`
+    await testAdmin.deleteQueues(queueName)
+
+    const noAutoConsumer = new SqsPermissionConsumer(diContainer.cradle, {
+      creationConfig: { queue: { QueueName: queueName } },
+      deletionConfig: { deleteIfExists: false },
+      disableCodecAutoDetection: true,
+    })
+    await noAutoConsumer.start()
+
+    // Build a real zstd envelope and inject it directly into the queue
+    const message: PERMISSIONS_ADD_MESSAGE_TYPE = {
+      id: 'disable-real-envelope-1',
+      messageType: 'add',
+    }
+    const compressedBody = await compressMessageBody(JSON.stringify(message), MessageCodecEnum.ZSTD)
+    await diContainer.cradle.sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: noAutoConsumer.queueProps.url,
+        MessageBody: compressedBody,
+      }),
+    )
+
+    // The envelope fails schema validation — consumer records it as an error, not consumed.
+    await waitAndRetry(() => noAutoConsumer.handlerSpy.counts.error > 0, 100, 20)
+    expect(noAutoConsumer.handlerSpy.counts.error).toBeGreaterThan(0)
+    expect(noAutoConsumer.addCounter).toBe(0)
+
+    await noAutoConsumer.close(true)
+  }, 15000)
 })
 
 // ---------------------------------------------------------------------------

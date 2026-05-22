@@ -2,7 +2,7 @@ import type { MessageAttributeValue } from '@aws-sdk/client-sqs'
 import { SendMessageCommand } from '@aws-sdk/client-sqs'
 import type { Either } from '@lokalise/node-core'
 import { InternalError } from '@lokalise/node-core'
-import { buildCodecEnvelope, getCodecName, resolveCodecHandler } from '@message-queue-toolkit/codec'
+import { getCodecName, resolveCodecHandler } from '@message-queue-toolkit/codec'
 import {
   type AsyncPublisher,
   type BarrierResult,
@@ -96,6 +96,13 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     this.isDeduplicationEnabled = !!options.enablePublisherDeduplication
     this.messageGroupIdField = options.messageGroupIdField
     this.defaultMessageGroupId = options.defaultMessageGroupId
+
+    // Pre-resolve codec handler and name so the base-class prepareOutgoingPayload
+    // does not need to import @message-queue-toolkit/codec (circular dep risk).
+    if (options.codec) {
+      this.resolvedCodecHandler = resolveCodecHandler(options.codec)
+      this.resolvedCodecName = getCodecName(options.codec)
+    }
   }
 
   async publish(message: MessagePayloadType, options: SQSMessageOptions = {}): Promise<void> {
@@ -199,56 +206,8 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     return this.messageSchemaContainer.resolveSchema(message)
   }
 
-  /**
-   * Compresses (when codec is set) or offloads (when store is configured) the message.
-   * Returns the payload to send and an optional pre-built body string.
-   * When preBuiltBody is set, it is a ready-to-send codec envelope — sendMessage must use it as-is.
-   *
-   * When both codec and payloadStoreConfig are set, uses a streaming pipeline
-   * (JSON → zstd → temp file → store) to avoid materialising the full payload in memory.
-   */
-  private async prepareOutgoingPayload(message: MessagePayloadType): Promise<{
-    payload: MessagePayloadType | OffloadedPayloadPointerPayload
-    preBuiltBody?: string
-  }> {
-    const codec = this.codec
-
-    if (codec) {
-      const handler = resolveCodecHandler(codec)
-      const codecName = getCodecName(codec)
-
-      if (this.payloadStoreConfig) {
-        // Streaming path: avoids 3× buffer materialisation for large payloads.
-        // JSON → compress → temp file → threshold check → offload or inline envelope.
-        const result = await this.compressAndOffloadPayload(message, handler, codecName)
-        if (result.pointer) {
-          return { payload: result.pointer }
-        }
-        return {
-          payload: message,
-          preBuiltBody: buildCodecEnvelope(result.compressedBuffer, codecName),
-        }
-      }
-
-      // No offload store — bounded by SQS 256 KB limit, safe to buffer.
-      // Serialize once so we can check the raw size before deciding whether to compress.
-      const jsonBuffer = Buffer.from(JSON.stringify(message), 'utf8')
-
-      // Skip compression for messages below the configured floor — small payloads
-      // often grow when compressed, so we send them as plain JSON instead.
-      if (jsonBuffer.byteLength < this.skipCompressionBelow) {
-        return { payload: message }
-      }
-
-      const compressed = await handler.compress(jsonBuffer)
-      return { payload: message, preBuiltBody: buildCodecEnvelope(compressed, codecName) }
-    }
-
-    return {
-      payload:
-        (await this.offloadPayload(message, () => calculateOutgoingMessageSize(message))) ??
-        message,
-    }
+  protected override calculateOutgoingMessageSize(message: MessagePayloadType): number {
+    return calculateOutgoingMessageSize(message)
   }
 
   protected async sendMessage(
