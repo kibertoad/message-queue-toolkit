@@ -413,7 +413,21 @@ export abstract class AbstractSqsConsumer<
 
         const messageProcessingStartTimestamp = Date.now()
 
-        const deserializedMessage = await this.deserializeMessage(message)
+        let deserializedMessage: Either<'abort', ParseMessageResult<MessagePayloadType>>
+        try {
+          deserializedMessage = await this.deserializeMessage(message)
+        } catch (err) {
+          // A throw out of deserialization — e.g. a message envelope (inline body or an
+          // offloaded-payload pointer) naming a codec this consumer has not registered —
+          // is terminal for this consumer. Treat it as an invalid message: the abort
+          // branch below routes it to the DLQ if one is configured. Retrying would be
+          // pointless — a missing-codec deployment misconfiguration is not fixed within
+          // the redelivery window, so the message would only burn its receive-count
+          // attempts (or, with no DLQ, spam the error reporter for the whole retention
+          // period) before ending up in the DLQ anyway.
+          this.handleError(err)
+          deserializedMessage = ABORT_EARLY_EITHER
+        }
         if (deserializedMessage.error === 'abort') {
           await this.failProcessing(message)
 
@@ -975,9 +989,10 @@ export abstract class AbstractSqsConsumer<
         (codecName) => {
           const handler = this.codecRegistry.get(codecName)
           if (!handler) {
-            // Misconfiguration, not a poison message: the pointer names a codec this
-            // consumer has not registered. Throwing here (outside retrieveOffloadedMessagePayload's
-            // catch) surfaces it as a retriable error so the message is not lost to the DLQ.
+            // The pointer names a codec this consumer has not registered. Throwing here
+            // (outside retrieveOffloadedMessagePayload's catch) propagates to handleMessage,
+            // which treats it as an invalid message and routes it to the DLQ (if one is
+            // configured) so it can be redriven once the codec is deployed.
             throw new Error(
               `No codec handler registered for "${codecName}". Register it via the consumer's \`codecs\` option.`,
             )
@@ -997,14 +1012,13 @@ export abstract class AbstractSqsConsumer<
       const envelope = resolveMessageResult.result.body
       const handler = this.codecRegistry.get(envelope.__mqtCodec)
       if (!handler) {
-        // Envelope-shaped body naming a codec this consumer has not registered. This is a
-        // deployment misconfiguration, not a poison message: throw (rather than handleError
-        // + abort) so it surfaces as a retriable error and the message stays on the queue
-        // until the codec is registered. This matches the offloaded-payload path above,
-        // where `resolveDecompressor` deliberately throws for the same reason. Aborting
-        // here would instead drop the message (or route it to the DLQ) and let the
-        // envelope's preserved sibling fields (id, type, …) satisfy a lenient schema and
-        // be processed as an incomplete message. Register the codec via the `codecs` option.
+        // Envelope-shaped body naming a codec this consumer has not registered. Throwing
+        // here propagates to handleMessage, which treats it as an invalid message and
+        // routes it to the DLQ (if one is configured) so it can be redriven once the codec
+        // is deployed. Throwing — rather than falling through — is essential: otherwise the
+        // envelope's preserved sibling fields (id, type, …) could satisfy a lenient schema
+        // and be processed as an incomplete message. Register the codec via the `codecs`
+        // option.
         throw new Error(
           `Received a message compressed with codec "${envelope.__mqtCodec}", which is not registered on this consumer. Register it via the \`codecs\` option.`,
         )
