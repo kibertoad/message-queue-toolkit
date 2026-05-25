@@ -57,6 +57,7 @@ export {
   getQueueAttributes,
   getQueueUrl,
   isFifoQueueName,
+  type QueueAttributesResult,
   resolveQueueUrlFromLocatorConfig,
   validateFifoQueueConfiguration,
   validateFifoQueueName,
