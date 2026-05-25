@@ -73,6 +73,11 @@ type SQSDeadLetterQueueOptions = {
   }
 }
 
+type DeadLetterQueueResource = {
+  url: string
+  arn: string
+}
+
 export type SQSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
 
 type SQSConsumerCommonOptions<
@@ -267,7 +272,17 @@ export abstract class AbstractSqsConsumer<
   /** Registry of codec name → handler. Seeded from all built-in codecs + options.codecs. */
   private readonly codecRegistry: ReadonlyMap<string, MessageCodecHandler>
 
-  protected deadLetterQueueUrl?: string
+  /**
+   * Resolved DLQ resource handle. Populated by {@link initDeadLetterQueue}.
+   * Kept private so url/arn can never get out of sync; subclasses read via
+   * the {@link deadLetterQueue} getter.
+   */
+  private _deadLetterQueue?: DeadLetterQueueResource
+
+  protected get deadLetterQueue(): Readonly<DeadLetterQueueResource> | undefined {
+    return this._deadLetterQueue
+  }
+
   protected readonly errorResolver: ErrorResolver
   protected readonly executionContext: ExecutionContext
 
@@ -345,6 +360,8 @@ export abstract class AbstractSqsConsumer<
 
     // DLQ should match the type of the source queue (FIFO DLQ for FIFO source queue)
     const result = await initSqs(this.sqsClient, locatorConfig, creationConfig, this.isFifoQueue)
+    if (!result) return
+
     await this.sqsClient.send(
       new SetQueueAttributesCommand({
         QueueUrl: this.queueUrl,
@@ -357,7 +374,7 @@ export abstract class AbstractSqsConsumer<
       }),
     )
 
-    this.deadLetterQueueUrl = result.queueUrl
+    this._deadLetterQueue = { url: result.queueUrl, arn: result.queueArn }
   }
 
   public async start() {
@@ -1107,10 +1124,10 @@ export abstract class AbstractSqsConsumer<
   }
 
   private async failProcessing(message: SQSMessage) {
-    if (!this.deadLetterQueueUrl) return
+    if (!this._deadLetterQueue) return
 
     const params: SendMessageCommandInput = {
-      QueueUrl: this.deadLetterQueueUrl,
+      QueueUrl: this._deadLetterQueue.url,
       MessageBody: message.Body,
     }
 

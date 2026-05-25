@@ -110,16 +110,18 @@ export abstract class AbstractSqsService<
     if (this.deletionConfig && this.creationConfig) {
       await deleteSqs(this.sqsClient, this.deletionConfig, this.creationConfig)
     }
-    const { queueName, queueUrl, queueArn } = await initSqs(
+    const result = await initSqs(
       this.sqsClient,
       this.locatorConfig,
       this.creationConfig,
       this.isFifoQueue,
       { logger: this.logger },
     )
-    this.queueName = queueName
-    this.queueUrl = queueUrl
-    this.queueArn = queueArn
+    if (!result) return
+
+    this.queueName = result.queueName
+    this.queueUrl = result.queueUrl
+    this.queueArn = result.queueArn
     this.isInitted = true
   }
 

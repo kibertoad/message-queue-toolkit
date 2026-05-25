@@ -19,7 +19,7 @@ import {
 } from './sqsUtils.ts'
 
 export type InitSqsResult = {
-  queueArn: string | undefined
+  queueArn: string
   queueUrl: string
   queueName: string
 }
@@ -90,7 +90,7 @@ export async function initSqs(
   creationConfig?: SQSCreationConfig,
   isFifoQueue?: boolean,
   extraParams?: InitSqsExtraParams,
-): Promise<InitSqsResult> {
+): Promise<InitSqsResult | undefined> {
   // reuse existing queue only
   if (locatorConfig) {
     const queueUrl = await resolveQueueUrlFromLocatorConfig(sqsClient, locatorConfig)
@@ -116,9 +116,11 @@ export async function initSqs(
           if (checkResult.error === 'not_found') {
             return { isAvailable: false }
           }
+
           return { isAvailable: true, result: checkResult.result?.attributes?.QueueArn }
         },
       })
+
       queueArn = result
     } else {
       // Original behavior: check once and fail immediately if not found
@@ -145,7 +147,7 @@ export async function initSqs(
       validateFifoQueueName(queueName, isFifoQueue)
     }
 
-    return { queueArn, queueUrl, queueName }
+    return queueArn ? { queueArn, queueUrl, queueName } : undefined
   }
 
   // create new queue if does not exist

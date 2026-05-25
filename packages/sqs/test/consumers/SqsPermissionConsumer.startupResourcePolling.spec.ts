@@ -248,7 +248,7 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       // Init should return immediately
       const result = await initPromise
-      expect(result.queueArn).toBeUndefined()
+      expect(result).toBeUndefined()
 
       // Create queue after init returns
       await testAdmin.createQueue(queueName)

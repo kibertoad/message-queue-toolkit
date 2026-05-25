@@ -182,6 +182,6 @@ export class SqsPermissionConsumerFifo extends AbstractSqsConsumer<
   }
 
   public get dlqUrl() {
-    return this.deadLetterQueueUrl ?? ''
+    return this.deadLetterQueue?.url ?? ''
   }
 }
