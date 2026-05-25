@@ -137,7 +137,6 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
 
       // Capture queue URL before close() invalidates the resource handle.
       // Publisher was initted by the publish() call above, so url is defined here.
-      // biome-ignore lint/style/noNonNullAssertion: queueProps populated after publish()
       const testPublisherQueueUrl = testPublisher.queueProps.url!
       // Close publisher before deleting S3 object
       await testPublisher.close()

@@ -11,10 +11,10 @@ export {
 } from './sqs/AbstractSqsPublisher.ts'
 export {
   type ExtraSQSCreationParams,
+  type QueueResource,
   SQS_MESSAGE_MAX_SIZE,
   SQS_RESOURCE_ANY,
   SQS_RESOURCE_CURRENT_QUEUE,
-  type QueueResource,
   type SQSCreationConfig,
   type SQSDependencies,
   type SQSOptions,
