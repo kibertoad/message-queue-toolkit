@@ -388,7 +388,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
         const attributes = await getQueueAttributes(
           sqsClient,
-          newConsumer.subscriptionProps.queueUrl,
+          newConsumer.subscriptionProps.queueUrl!,
         )
 
         expect(attributes.result?.attributes).toMatchObject({
@@ -428,7 +428,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
         const attributes = await getQueueAttributes(
           sqsClient,
-          newConsumer.subscriptionProps.queueUrl,
+          newConsumer.subscriptionProps.queueUrl!,
         )
         expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
 
@@ -462,7 +462,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
         const attributes = await getQueueAttributes(
           sqsClient,
-          newConsumer.subscriptionProps.queueUrl,
+          newConsumer.subscriptionProps.queueUrl!,
         )
 
         expect(attributes.result?.attributes?.KmsMasterKeyId).toBe('othervalue')
@@ -493,7 +493,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
         const attributes = await getQueueAttributes(
           sqsClient,
-          newConsumer.subscriptionProps.queueUrl,
+          newConsumer.subscriptionProps.queueUrl!,
         )
 
         expect(attributes.result?.attributes).toMatchObject({
@@ -529,7 +529,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
         const attributes = await getQueueAttributes(
           sqsClient,
-          newConsumer.subscriptionProps.queueUrl,
+          newConsumer.subscriptionProps.queueUrl!,
         )
 
         expect(attributes.result?.attributes).toMatchObject({

@@ -179,12 +179,25 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
   }
 
   get subscriptionProps() {
-    return {
-      topicArn: this.topicArn,
-      queueUrl: this.queueUrl,
-      queueName: this.queueName,
-      subscriptionArn: this.subscriptionArn,
-      deadLetterQueueUrl: this.deadLetterQueueUrl,
+    // topicArn / subscriptionArn / _queue are populated together by init;
+    // if the queue resource isn't resolved yet, none of the others are either.
+    try {
+      const queue = this.queue
+      return {
+        topicArn: this.topicArn,
+        queueUrl: queue.url,
+        queueName: queue.name,
+        subscriptionArn: this.subscriptionArn,
+        deadLetterQueueUrl: this.deadLetterQueue?.url,
+      }
+    } catch {
+      return {
+        topicArn: undefined,
+        queueUrl: undefined,
+        queueName: undefined,
+        subscriptionArn: undefined,
+        deadLetterQueueUrl: undefined,
+      }
     }
   }
 }

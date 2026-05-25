@@ -78,7 +78,10 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
         `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${deadLetterQueueName}`,
       )
 
-      const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
+      const attributes = await getQueueAttributes(
+        sqsClient,
+        newConsumer.subscriptionProps.queueUrl!,
+      )
 
       expect(attributes.result?.attributes).toMatchObject({
         RedrivePolicy: JSON.stringify({
@@ -113,7 +116,10 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
         `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${deadLetterQueueName}`,
       )
 
-      const attributes = await getQueueAttributes(sqsClient, newConsumer.subscriptionProps.queueUrl)
+      const attributes = await getQueueAttributes(
+        sqsClient,
+        newConsumer.subscriptionProps.queueUrl!,
+      )
 
       expect(attributes.result?.attributes).toMatchObject({
         RedrivePolicy: JSON.stringify({
@@ -159,7 +165,7 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
 
       const mainQueueAttributes = await getQueueAttributes(
         sqsClient,
-        newConsumer.subscriptionProps.queueUrl,
+        newConsumer.subscriptionProps.queueUrl!,
       )
       expect(mainQueueAttributes.result?.attributes).toMatchObject({
         RedrivePolicy: JSON.stringify({

@@ -184,12 +184,23 @@ export class SnsSqsPermissionConsumerFifo extends AbstractSnsSqsConsumer<
   }
 
   get subscriptionProps() {
-    return {
-      topicArn: this.topicArn,
-      queueUrl: this.queueUrl,
-      queueName: this.queueName,
-      subscriptionArn: this.subscriptionArn,
-      deadLetterQueueUrl: this.deadLetterQueueUrl,
+    try {
+      const queue = this.queue
+      return {
+        topicArn: this.topicArn,
+        queueUrl: queue.url,
+        queueName: queue.name,
+        subscriptionArn: this.subscriptionArn,
+        deadLetterQueueUrl: this.deadLetterQueue?.url,
+      }
+    } catch {
+      return {
+        topicArn: undefined,
+        queueUrl: undefined,
+        queueName: undefined,
+        subscriptionArn: undefined,
+        deadLetterQueueUrl: undefined,
+      }
     }
   }
 }

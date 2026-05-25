@@ -82,15 +82,17 @@ describe('SnsSqsPermissionConsumer - zstd codec', () => {
   }, 15000)
 
   it('consumer without codec option auto-detects and decompresses zstd messages from SNS', async () => {
+    // Capture resource handles before close() invalidates them
+    const { queueUrl, topicArn, subscriptionArn } = consumer.subscriptionProps
     // Stop the beforeEach consumer so it cannot steal messages from the shared queue
     await consumer.close()
 
     // Consumer without explicit codec — decompression is auto-detected from envelope __mqtCodec field
     const autoConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
       locatorConfig: {
-        queueUrl: consumer.subscriptionProps.queueUrl,
-        topicArn: consumer.subscriptionProps.topicArn,
-        subscriptionArn: consumer.subscriptionProps.subscriptionArn,
+        queueUrl,
+        topicArn,
+        subscriptionArn,
       },
     })
     await autoConsumer.start()

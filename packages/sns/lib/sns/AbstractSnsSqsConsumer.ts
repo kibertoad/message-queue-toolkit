@@ -133,9 +133,12 @@ export abstract class AbstractSnsSqsConsumer<
         onResourcesReady: (result) => {
           // Update values that were empty when resourcesReady was false
           this.topicArn = result.topicArn
-          this.queueUrl = result.queueUrl
           this.subscriptionArn = result.subscriptionArn
-          this.queueName = result.queueName
+          this.setQueueResource({
+            name: result.queueName,
+            url: result.queueUrl,
+            arn: result.queueArn,
+          })
           this.resourcesReady = true
 
           // Initialize DLQ now that resources are ready (this is mutually exclusive
@@ -152,7 +155,7 @@ export abstract class AbstractSnsSqsConsumer<
               if (this.startRequested) {
                 this.logger.info({
                   message: 'Resources now ready, starting consumers',
-                  queueName: this.queueName,
+                  queueName: this.creationConfig?.queue.QueueName ?? this.locatorConfig?.queueName,
                   topicArn: this.topicArn,
                 })
                 return this.startConsumers()
@@ -168,22 +171,24 @@ export abstract class AbstractSnsSqsConsumer<
       },
     )
 
-    // Always assign topicArn and queueName (always valid in both blocking and non-blocking modes)
+    // `initSnsSqs` returns undefined in non-blocking polling mode when
+    // resources aren't yet ready; the onResourcesReady callback above will
+    // populate state once they are.
+    if (!initSnsSqsResult) {
+      this.resourcesReady = false
+      return
+    }
+
     this.topicArn = initSnsSqsResult.topicArn
-    this.queueName = initSnsSqsResult.queueName
-    this.resourcesReady = initSnsSqsResult.resourcesReady
+    this.subscriptionArn = initSnsSqsResult.subscriptionArn
+    this.setQueueResource({
+      name: initSnsSqsResult.queueName,
+      url: initSnsSqsResult.queueUrl,
+      arn: initSnsSqsResult.queueArn,
+    })
+    this.resourcesReady = true
 
-    // Only assign queueUrl and subscriptionArn if resources are ready,
-    // or if they have valid values (non-blocking mode with locatorConfig provides valid values)
-    if (initSnsSqsResult.resourcesReady || initSnsSqsResult.queueUrl) {
-      this.queueUrl = initSnsSqsResult.queueUrl
-      this.subscriptionArn = initSnsSqsResult.subscriptionArn
-    }
-
-    // Only initialize DLQ if resources are ready and queueUrl is available
-    if (initSnsSqsResult.resourcesReady && initSnsSqsResult.queueUrl) {
-      await this.initDeadLetterQueue()
-    }
+    await this.initDeadLetterQueue()
   }
 
   /**
@@ -201,7 +206,7 @@ export abstract class AbstractSnsSqsConsumer<
       this.logger.info({
         message:
           'Start requested but resources not ready yet, will start when resources become available',
-        queueName: this.queueName,
+        queueName: this.creationConfig?.queue.QueueName ?? this.locatorConfig?.queueName,
         topicArn: this.topicArn,
       })
       return
