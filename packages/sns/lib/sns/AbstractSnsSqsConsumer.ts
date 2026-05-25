@@ -1,6 +1,7 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
+import { SetSubscriptionAttributesCommand } from '@aws-sdk/client-sns'
 import type { STSClient } from '@aws-sdk/client-sts'
-import type { Either } from '@lokalise/node-core'
+import { type Either, InternalError } from '@lokalise/node-core'
 import type {
   MessageInvalidFormatError,
   MessageValidationError,
@@ -47,6 +48,20 @@ export type SNSSQSConsumerOptions<
   // SQSConsumerOptions; SNSOptions carries no codec fields.
   SNSOptions & {
     subscriptionConfig?: SNSSubscriptionOptions
+    /**
+     * Opt-in DLQ for the SNS subscription itself (captures messages SNS could
+     * not deliver to the SQS endpoint — endpoint deleted, IAM/policy errors,
+     * throttling — that would otherwise be silently lost).
+     *
+     * `reuseConsumerDeadLetterQueue: true` reuses the queue declared in
+     * `deadLetterQueue`. The consumer's DLQ then receives both processing
+     * failures (via the source queue RedrivePolicy + maxReceiveCount) and
+     * SNS delivery failures (via the subscription RedrivePolicy).
+     *
+     * Shape is an object (not a boolean) so future versions can add an
+     * alternative that creates a separate DLQ without a breaking change.
+     */
+    subscriptionDeadLetterQueue?: { reuseConsumerDeadLetterQueue: true }
   }
 
 type SubscriptionResource = {
@@ -67,6 +82,7 @@ export abstract class AbstractSnsSqsConsumer<
   SNSSQSConsumerOptions<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>
 > {
   private readonly subscriptionConfig?: SNSSubscriptionOptions
+  private readonly reuseConsumerDeadLetterQueueForSubscription: boolean
   private readonly snsClient: SNSClient
   private readonly stsClient: STSClient
 
@@ -97,15 +113,20 @@ export abstract class AbstractSnsSqsConsumer<
     options: SNSSQSConsumerOptions<MessagePayloadSchemas, ExecutionContext, PrehandlerOutput>,
     executionContext: ExecutionContext,
   ) {
-    super(
-      dependencies,
-      {
-        ...options,
-      },
-      executionContext,
-    )
+    super(dependencies, { ...options }, executionContext)
 
     this.subscriptionConfig = options.subscriptionConfig
+    this.reuseConsumerDeadLetterQueueForSubscription =
+      !!options.subscriptionDeadLetterQueue?.reuseConsumerDeadLetterQueue
+
+    if (this.reuseConsumerDeadLetterQueueForSubscription && !options.deadLetterQueue) {
+      throw new InternalError({
+        errorCode: 'invalid_subscription_dlq_configuration',
+        message:
+          'subscriptionDeadLetterQueue.reuseConsumerDeadLetterQueue requires deadLetterQueue to be configured',
+      })
+    }
+
     this.snsClient = dependencies.snsClient
     this.stsClient = dependencies.stsClient
   }
@@ -210,6 +231,22 @@ export abstract class AbstractSnsSqsConsumer<
 
   protected setSubscriptionResource(resource: SubscriptionResource): void {
     this._subscription = resource
+  }
+
+  override async initDeadLetterQueue(): Promise<void> {
+    await super.initDeadLetterQueue()
+
+    if (!this.reuseConsumerDeadLetterQueueForSubscription) return
+    const dlq = this.deadLetterQueue
+    if (!dlq) return
+
+    await this.snsClient.send(
+      new SetSubscriptionAttributesCommand({
+        SubscriptionArn: this.subscription.subscriptionArn,
+        AttributeName: 'RedrivePolicy',
+        AttributeValue: JSON.stringify({ deadLetterTargetArn: dlq.arn }),
+      }),
+    )
   }
 
   /**
