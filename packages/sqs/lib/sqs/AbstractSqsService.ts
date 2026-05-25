@@ -70,7 +70,7 @@ export type SQSOptions<
   QueueLocatorType extends object = SQSQueueLocatorType,
 > = QueueOptions<CreationConfigType, QueueLocatorType> & SQSQueueConfig
 
-type QueueResource = {
+export type QueueResource = {
   name: string
   url: string
   arn: string
@@ -121,17 +121,27 @@ export abstract class AbstractSqsService<
     )
     if (!result) return
 
-    this._queue = {
+    this.setQueueResource({
       name: result.queueName,
       url: result.queueUrl,
       arn: result.queueArn,
-    }
-    this.isInitted = true
+    })
   }
 
   protected get queue(): Readonly<QueueResource> {
     if (!this._queue) throw new Error('Queue is not started yet')
     return this._queue
+  }
+
+  /**
+   * Lets subclasses populate the queue resource when their init flow does not
+   * go through {@link init}. Used by `AbstractSnsSqsConsumer`, whose
+   * `initSnsSqs` orchestrates topic + queue + subscription together and
+   * therefore cannot delegate queue creation to `super.init()`.
+   */
+  protected setQueueResource(resource: QueueResource): void {
+    this._queue = resource
+    this.isInitted = true
   }
 
   public override close(): Promise<void> {

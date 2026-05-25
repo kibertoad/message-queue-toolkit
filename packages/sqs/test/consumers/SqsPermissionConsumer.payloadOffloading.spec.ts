@@ -135,6 +135,10 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
       const s3Keys = await waitForS3Objects(s3, s3BucketName, 1, 5000)
       expect(s3Keys.length).toBeGreaterThan(0)
 
+      // Capture queue URL before close() invalidates the resource handle.
+      // Publisher was initted by the publish() call above, so url is defined here.
+      // biome-ignore lint/style/noNonNullAssertion: queueProps populated after publish()
+      const testPublisherQueueUrl = testPublisher.queueProps.url!
       // Close publisher before deleting S3 object
       await testPublisher.close()
 
@@ -154,7 +158,7 @@ describe('SqsPermissionConsumer - single-store payload offloading', () => {
         { ...diContainer.cradle, errorReporter: testErrorReporter },
         {
           locatorConfig: {
-            queueUrl: testPublisher.queueProps.url,
+            queueUrl: testPublisherQueueUrl,
           },
           payloadStoreConfig,
           deletionConfig: {
@@ -322,6 +326,9 @@ describe('SqsPermissionConsumer - nested messageTypePath with payload offloading
             deletionConfig: { deleteIfExists: true },
           })
         }
+        get queueProps() {
+          return this.queue
+        }
       }
 
       let receivedMessage: NestedTypeMessage | null = null
@@ -345,8 +352,7 @@ describe('SqsPermissionConsumer - nested messageTypePath with payload offloading
       await publisher.handlerSpy.waitForMessageWithId(message.id, 'published')
 
       // Create consumer pointing to the queue
-      // @ts-expect-error - accessing protected property for test
-      const queueUrl = publisher.queueUrl
+      const queueUrl = publisher.queueProps.url
 
       class NestedPathConsumer extends AbstractSqsConsumer<NestedTypeMessage, ExecutionContext> {
         constructor(deps: Dependencies) {

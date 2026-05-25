@@ -254,8 +254,9 @@ describe('SqsEventBridgeConsumer', () => {
     expect(errorMetadata.message.detail).toHaveProperty('userId', 'error-test-user')
 
     // Cleanup
+    const failingQueueName = failingConsumer.queueProps.name
     await failingConsumer.close()
-    await testAdmin.deleteQueues(failingConsumer.queueProps.name)
+    if (failingQueueName) await testAdmin.deleteQueues(failingQueueName)
   }, 10000) // 10 second timeout
 
   it('should handle multiple EventBridge events', async () => {
