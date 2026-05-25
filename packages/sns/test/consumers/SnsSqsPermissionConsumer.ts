@@ -183,11 +183,12 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
     // if the queue resource isn't resolved yet, none of the others are either.
     try {
       const queue = this.queue
+      const subscription = this.subscription
       return {
-        topicArn: this.topicArn,
+        topicArn: subscription.topicArn,
         queueUrl: queue.url,
         queueName: queue.name,
-        subscriptionArn: this.subscriptionArn,
+        subscriptionArn: subscription.subscriptionArn,
         deadLetterQueueUrl: this.deadLetterQueue?.url,
       }
     } catch {

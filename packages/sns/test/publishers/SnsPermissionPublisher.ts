@@ -55,6 +55,6 @@ export class SnsPermissionPublisher extends AbstractSnsPublisher<SupportedTypes>
   }
 
   get topicArnProp(): string {
-    return this.topicArn
+    return this.topic.arn
   }
 }

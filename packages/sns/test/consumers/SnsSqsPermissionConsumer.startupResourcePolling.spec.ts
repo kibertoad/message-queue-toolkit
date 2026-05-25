@@ -51,15 +51,16 @@ class TestStartupResourcePollingConsumer extends AbstractSnsSqsConsumer<
   }
 
   get subscriptionProps() {
-    // topicArn / subscriptionArn / _queue are populated together by init;
-    // if the queue resource isn't resolved yet, none of the others are either.
+    // queue + subscription resources are populated together by init; if one
+    // isn't resolved yet, neither is the other.
     try {
       const queue = this.queue
+      const subscription = this.subscription
       return {
-        topicArn: this.topicArn,
+        topicArn: subscription.topicArn,
         queueUrl: queue.url,
         queueName: queue.name,
-        subscriptionArn: this.subscriptionArn,
+        subscriptionArn: subscription.subscriptionArn,
       }
     } catch {
       return {

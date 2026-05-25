@@ -49,6 +49,11 @@ export type SNSSQSConsumerOptions<
     subscriptionConfig?: SNSSubscriptionOptions
   }
 
+type SubscriptionResource = {
+  topicArn: string
+  subscriptionArn: string
+}
+
 export abstract class AbstractSnsSqsConsumer<
   MessagePayloadSchemas extends object,
   ExecutionContext,
@@ -79,10 +84,13 @@ export abstract class AbstractSnsSqsConsumer<
    */
   private startRequested: boolean = false
 
-  // @ts-expect-error
-  protected topicArn: string
-  // @ts-expect-error
-  protected subscriptionArn: string
+  /**
+   * Resolved topic + subscription handle. Populated together by `initSnsSqs`
+   * (either synchronously or via the non-blocking `onResourcesReady`
+   * callback). Subclasses read via the {@link subscription} getter so the
+   * ARNs are impossible to access in an "uninitialised" state.
+   */
+  private _subscription?: SubscriptionResource
 
   protected constructor(
     dependencies: SNSSQSConsumerDependencies,
@@ -132,8 +140,10 @@ export abstract class AbstractSnsSqsConsumer<
         // immediately available. It will NOT be called if resourcesReady is true.
         onResourcesReady: (result) => {
           // Update values that were empty when resourcesReady was false
-          this.topicArn = result.topicArn
-          this.subscriptionArn = result.subscriptionArn
+          this.setSubscriptionResource({
+            topicArn: result.topicArn,
+            subscriptionArn: result.subscriptionArn,
+          })
           this.setQueueResource({
             name: result.queueName,
             url: result.queueUrl,
@@ -156,7 +166,7 @@ export abstract class AbstractSnsSqsConsumer<
                 this.logger.info({
                   message: 'Resources now ready, starting consumers',
                   queueName: this.creationConfig?.queue.QueueName ?? this.locatorConfig?.queueName,
-                  topicArn: this.topicArn,
+                  topicArn: result.topicArn,
                 })
                 return this.startConsumers()
               }
@@ -179,8 +189,10 @@ export abstract class AbstractSnsSqsConsumer<
       return
     }
 
-    this.topicArn = initSnsSqsResult.topicArn
-    this.subscriptionArn = initSnsSqsResult.subscriptionArn
+    this.setSubscriptionResource({
+      topicArn: initSnsSqsResult.topicArn,
+      subscriptionArn: initSnsSqsResult.subscriptionArn,
+    })
     this.setQueueResource({
       name: initSnsSqsResult.queueName,
       url: initSnsSqsResult.queueUrl,
@@ -189,6 +201,15 @@ export abstract class AbstractSnsSqsConsumer<
     this.resourcesReady = true
 
     await this.initDeadLetterQueue()
+  }
+
+  protected get subscription(): Readonly<SubscriptionResource> {
+    if (!this._subscription) throw new Error('Subscription is not started yet')
+    return this._subscription
+  }
+
+  protected setSubscriptionResource(resource: SubscriptionResource): void {
+    this._subscription = resource
   }
 
   /**
@@ -207,7 +228,7 @@ export abstract class AbstractSnsSqsConsumer<
         message:
           'Start requested but resources not ready yet, will start when resources become available',
         queueName: this.creationConfig?.queue.QueueName ?? this.locatorConfig?.queueName,
-        topicArn: this.topicArn,
+        topicArn: this.locatorConfig?.topicArn,
       })
       return
     }

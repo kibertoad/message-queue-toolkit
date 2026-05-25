@@ -59,11 +59,12 @@ export class CreateLocateConfigMixConsumer extends AbstractSnsSqsConsumer<
   get subscriptionProps() {
     try {
       const queue = this.queue
+      const subscription = this.subscription
       return {
-        topicArn: this.topicArn,
+        topicArn: subscription.topicArn,
         queueUrl: queue.url,
         queueName: queue.name,
-        subscriptionArn: this.subscriptionArn,
+        subscriptionArn: subscription.subscriptionArn,
         deadLetterQueueUrl: this.deadLetterQueue?.url,
       }
     } catch {
