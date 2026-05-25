@@ -1,5 +1,18 @@
 # Upgrading Guide
 
+## Upgrading </br> `sqs` `25.x.x` -> `26.0.0` </br> `sns` `25.x.x` -> `26.0.0`
+
+### Description of Breaking Changes
+
+- **Protected resource fields replaced by grouped getters.** The individual `protected` ARN/URL/name fields on the base service classes are gone. They moved to private fields exposed via fail-fast getters:
+  - `AbstractSqsService`: `queueName` / `queueUrl` / `queueArn` → `protected get queue(): { name; url; arn }`.
+  - `AbstractSqsConsumer`: `deadLetterQueueUrl` → `protected get deadLetterQueue(): { url; arn } | undefined`.
+  - `AbstractSnsService`: `topicArn` → `protected get topic(): { arn }`.
+  - `AbstractSnsSqsConsumer`: `topicArn` / `subscriptionArn` → `protected get subscription(): { topicArn; subscriptionArn }`.
+- The `queue`, `topic` and `subscription` getters throw `Error('… is not started yet')` if read before `init()` populates them — code paths that depend on the resource being ready now fail fast instead of silently observing an uninitialised value. The `deadLetterQueue` getter is nullable (returns `undefined` when no DLQ is configured), matching the optional nature of that resource.
+- For diagnostic callers in `AbstractSnsSqsConsumer` that legitimately run before resources are populated (e.g. non-blocking startup polling), use the new `protected get areResourcesReady: boolean` to short-circuit before reading the throwing getters.
+
+
 ## Upgrading </br> `core` `25.x.x` -> `26.0.0` </br> `sqs` `xx.x.x` -> `xx.0.0` </br> `sns` `xx.x.x` -> `xx.0.0` </br> `amqp` `xx.x.x` -> `xx.0.0` </br> `gcp-pubsub` `2.x.x` -> `3.0.0`
 
 ### Description of Breaking Changes
