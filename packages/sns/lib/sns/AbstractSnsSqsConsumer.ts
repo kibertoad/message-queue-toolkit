@@ -237,6 +237,13 @@ export abstract class AbstractSnsSqsConsumer<
     await this.startConsumers()
   }
 
+  public override async close(abort?: boolean): Promise<void> {
+    this._subscription = undefined
+    this.resourcesReady = false
+    this.startRequested = false
+    await super.close(abort)
+  }
+
   protected override resolveMessage(
     message: SQSMessage,
   ): Either<MessageInvalidFormatError | MessageValidationError, ResolvedMessage> {

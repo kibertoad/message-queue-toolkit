@@ -339,18 +339,18 @@ export async function initSnsSqs(
     // biome-ignore lint/style/noNonNullAssertion: It's ok
     const queueName = splitUrl[splitUrl.length - 1]!
 
-    // Track availability for non-blocking mode coordination
+    // Track availability for non-blocking mode coordination. `queueArn`
+    // doubles as the "queue ready" signal — once it's set, the ARN is
+    // guaranteed defined, so callers can use it without non-null assertions.
     let topicAvailable = false
-    let queueAvailable = false
     let queueArn: string | undefined
 
     const notifyIfBothReady = () => {
-      if (nonBlocking && topicAvailable && queueAvailable) {
+      if (nonBlocking && topicAvailable && queueArn) {
         extraParams?.onResourcesReady?.({
           topicArn: subscriptionTopicArn,
           queueUrl,
-          // biome-ignore lint/style/noNonNullAssertion: queueAvailable is checked above
-          queueArn: queueArn!,
+          queueArn,
           // subscriptionArn is guaranteed to be defined here because we're in the branch where locatorConfig.subscriptionArn exists
           subscriptionArn: locatorConfig.subscriptionArn as string,
           queueName,
@@ -359,15 +359,25 @@ export async function initSnsSqs(
     }
 
     const markQueueAvailable = async () => {
+      let resolvedArn: string | undefined
       try {
         const attrs = await getQueueAttributes(sqsClient, queueUrl, ['QueueArn'])
-        queueArn = attrs.result?.attributes?.QueueArn
+        resolvedArn = attrs.result?.attributes?.QueueArn
       } catch (err) {
         const error = isError(err) ? err : new Error(String(err))
         extraParams?.onResourcesError?.(error, { isFinal: true })
         return
       }
-      queueAvailable = true
+
+      if (!resolvedArn) {
+        extraParams?.onResourcesError?.(
+          new Error(`Could not resolve QueueArn for queue at ${queueUrl}`),
+          { isFinal: true },
+        )
+        return
+      }
+
+      queueArn = resolvedArn
       notifyIfBothReady()
     }
 
