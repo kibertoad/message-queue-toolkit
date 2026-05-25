@@ -279,10 +279,6 @@ export abstract class AbstractSqsConsumer<
    */
   private _deadLetterQueue?: DeadLetterQueueResource
 
-  protected get deadLetterQueue(): Readonly<DeadLetterQueueResource> | undefined {
-    return this._deadLetterQueue
-  }
-
   protected readonly errorResolver: ErrorResolver
   protected readonly executionContext: ExecutionContext
 
@@ -375,6 +371,10 @@ export abstract class AbstractSqsConsumer<
     )
 
     this._deadLetterQueue = { url: result.queueUrl, arn: result.queueArn }
+  }
+
+  protected get deadLetterQueue(): Readonly<DeadLetterQueueResource> | undefined {
+    return this._deadLetterQueue
   }
 
   public async start() {
