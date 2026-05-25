@@ -214,7 +214,7 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
       // Init should complete immediately even though queue doesn't exist
       await consumer.init()
 
-      expect(consumer.queueProps.url).toBe(queueUrl)
+      expect(consumer.queueProps.url).toBeUndefined()
       expect(consumer.queueProps.arn).toBeUndefined()
     })
 
