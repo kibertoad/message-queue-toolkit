@@ -210,6 +210,7 @@ export abstract class AbstractSnsSqsConsumer<
 
   protected setSubscriptionResource(resource: SubscriptionResource): void {
     this._subscription = resource
+    this.isInitted = true
   }
 
   /**
