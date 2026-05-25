@@ -48,9 +48,9 @@ class TestStartupResourcePollingConsumer extends AbstractSqsConsumer<
 
   get queueProps() {
     return {
-      url: this.queueUrl,
-      name: this.queueName,
-      arn: this.queueArn,
+      url: this.queue.url,
+      name: this.queue.name,
+      arn: this.queue.arn,
     }
   }
 }

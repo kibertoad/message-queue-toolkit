@@ -125,7 +125,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
           message: parsedMessage,
           processingResult: { status: 'published', skippedAsDuplicate: true },
           messageProcessingStartTimestamp,
-          queueName: this.queueName,
+          queueName: this.queue.name,
         })
         return
       }
@@ -152,7 +152,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
           message: parsedMessage,
           processingResult: { status: 'published', skippedAsDuplicate: true },
           messageProcessingStartTimestamp,
-          queueName: this.queueName,
+          queueName: this.queue.name,
         })
         return
       }
@@ -162,7 +162,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         message: parsedMessage,
         processingResult: { status: 'published' },
         messageProcessingStartTimestamp,
-        queueName: this.queueName,
+        queueName: this.queue.name,
       })
     } catch (error) {
       const err = error as Error
@@ -172,8 +172,8 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         errorCode: 'SQS_PUBLISH_ERROR',
         details: {
           publisher: this.constructor.name,
-          queueArn: this.queueArn,
-          queueName: this.queueName,
+          queueArn: this.queue.arn,
+          queueName: this.queue.name,
           messageType: this.resolveMessageTypeFromMessage(message) ?? 'unknown',
         },
         cause: err,
@@ -229,7 +229,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     // it contains the already-compressed codec envelope, so we skip re-serialization.
     const body = preBuiltBody ?? JSON.stringify(payload)
     const command = new SendMessageCommand({
-      QueueUrl: this.queueUrl,
+      QueueUrl: this.queue.url,
       MessageBody: body,
       MessageAttributes: attributes,
       ...options,
@@ -272,8 +272,8 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
           'MessageGroupId is required for FIFO queues. Provide it in publish options, configure messageGroupIdField, or set defaultMessageGroupId.',
         errorCode: 'FIFO_MESSAGE_GROUP_ID_REQUIRED',
         details: {
-          queueName: this.queueName,
-          queueUrl: this.queueUrl,
+          queueName: this.queue.name,
+          queueUrl: this.queue.url,
           isFifoQueue: this.isFifoQueue,
         },
       })
