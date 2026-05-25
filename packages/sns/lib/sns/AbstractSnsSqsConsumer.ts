@@ -213,6 +213,17 @@ export abstract class AbstractSnsSqsConsumer<
   }
 
   /**
+   * Exposes the internal readiness flag for callers that legitimately run
+   * before resources are populated (test fixtures, non-blocking-polling
+   * diagnostics) and need to short-circuit before reading the throwing
+   * `queue` / `subscription` getters. Gate on this rather than try/catching
+   * so unexpected getter exceptions still propagate.
+   */
+  protected get areResourcesReady(): boolean {
+    return this.resourcesReady
+  }
+
+  /**
    * Starts the consumer. In non-blocking polling mode, if resources aren't ready yet,
    * this method will return immediately and consumers will start automatically once
    * resources become available.
