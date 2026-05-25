@@ -70,6 +70,12 @@ export type SQSOptions<
   QueueLocatorType extends object = SQSQueueLocatorType,
 > = QueueOptions<CreationConfigType, QueueLocatorType> & SQSQueueConfig
 
+type QueueResource = {
+  name: string
+  url: string
+  arn: string
+}
+
 export abstract class AbstractSqsService<
   MessagePayloadType extends object,
   QueueLocatorType extends object = SQSQueueLocatorType,
@@ -93,11 +99,7 @@ export abstract class AbstractSqsService<
 > {
   protected readonly sqsClient: SQSClient
 
-  // @ts-expect-error
-  protected queueName: string
-  // @ts-expect-error
-  protected queueUrl: string
-  protected queueArn: string | undefined
+  private _queue?: QueueResource
   protected readonly isFifoQueue: boolean
 
   constructor(dependencies: DependenciesType, options: SQSOptionsType) {
@@ -119,13 +121,21 @@ export abstract class AbstractSqsService<
     )
     if (!result) return
 
-    this.queueName = result.queueName
-    this.queueUrl = result.queueUrl
-    this.queueArn = result.queueArn
+    this._queue = {
+      name: result.queueName,
+      url: result.queueUrl,
+      arn: result.queueArn,
+    }
     this.isInitted = true
   }
 
+  protected get queue(): Readonly<QueueResource> {
+    if (!this._queue) throw new Error('Queue is not started yet')
+    return this._queue
+  }
+
   public override close(): Promise<void> {
+    this._queue = undefined
     this.isInitted = false
     return Promise.resolve()
   }
