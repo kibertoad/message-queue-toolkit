@@ -184,17 +184,7 @@ export class SnsSqsPermissionConsumerFifo extends AbstractSnsSqsConsumer<
   }
 
   get subscriptionProps() {
-    try {
-      const queue = this.queue
-      const subscription = this.subscription
-      return {
-        topicArn: subscription.topicArn,
-        queueUrl: queue.url,
-        queueName: queue.name,
-        subscriptionArn: subscription.subscriptionArn,
-        deadLetterQueueUrl: this.deadLetterQueue?.url,
-      }
-    } catch {
+    if (!this.areResourcesReady) {
       return {
         topicArn: undefined,
         queueUrl: undefined,
@@ -202,6 +192,13 @@ export class SnsSqsPermissionConsumerFifo extends AbstractSnsSqsConsumer<
         subscriptionArn: undefined,
         deadLetterQueueUrl: undefined,
       }
+    }
+    return {
+      topicArn: this.subscription.topicArn,
+      queueUrl: this.queue.url,
+      queueName: this.queue.name,
+      subscriptionArn: this.subscription.subscriptionArn,
+      deadLetterQueueUrl: this.deadLetterQueue?.url,
     }
   }
 }

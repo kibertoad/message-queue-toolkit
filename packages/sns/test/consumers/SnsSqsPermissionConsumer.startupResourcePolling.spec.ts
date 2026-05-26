@@ -51,24 +51,19 @@ class TestStartupResourcePollingConsumer extends AbstractSnsSqsConsumer<
   }
 
   get subscriptionProps() {
-    // queue + subscription resources are populated together by init; if one
-    // isn't resolved yet, neither is the other.
-    try {
-      const queue = this.queue
-      const subscription = this.subscription
-      return {
-        topicArn: subscription.topicArn,
-        queueUrl: queue.url,
-        queueName: queue.name,
-        subscriptionArn: subscription.subscriptionArn,
-      }
-    } catch {
+    if (!this.areResourcesReady) {
       return {
         topicArn: undefined,
         queueUrl: undefined,
         queueName: undefined,
         subscriptionArn: undefined,
       }
+    }
+    return {
+      topicArn: this.subscription.topicArn,
+      queueUrl: this.queue.url,
+      queueName: this.queue.name,
+      subscriptionArn: this.subscription.subscriptionArn,
     }
   }
 }

@@ -186,7 +186,7 @@ export abstract class AbstractSnsSqsConsumer<
               if (this.startRequested) {
                 this.logger.info({
                   message: 'Resources now ready, starting consumers',
-                  queueName: this.creationConfig?.queue.QueueName ?? this.locatorConfig?.queueName,
+                  queueName: result.queueName,
                   topicArn: result.topicArn,
                 })
                 return this.startConsumers()
@@ -231,6 +231,18 @@ export abstract class AbstractSnsSqsConsumer<
 
   protected setSubscriptionResource(resource: SubscriptionResource): void {
     this._subscription = resource
+    this.isInitted = true
+  }
+
+  /**
+   * Exposes the internal readiness flag for callers that legitimately run
+   * before resources are populated (test fixtures, non-blocking-polling
+   * diagnostics) and need to short-circuit before reading the throwing
+   * `queue` / `subscription` getters. Gate on this rather than try/catching
+   * so unexpected getter exceptions still propagate.
+   */
+  protected get areResourcesReady(): boolean {
+    return this.resourcesReady
   }
 
   override async initDeadLetterQueue(): Promise<void> {
@@ -261,17 +273,33 @@ export abstract class AbstractSnsSqsConsumer<
       // Resources not ready yet (non-blocking polling mode), mark that start was requested.
       // Consumers will be started automatically when onResourcesReady callback fires.
       this.startRequested = true
-      this.logger.info({
-        message:
-          'Start requested but resources not ready yet, will start when resources become available',
-        queueName: this.creationConfig?.queue.QueueName ?? this.locatorConfig?.queueName,
-        topicArn: this.locatorConfig?.topicArn,
-      })
+      this.logger.info(
+        this.buildConfiguredResourceLogContext(),
+        'Start requested but resources not ready yet, will start when resources become available',
+      )
       return
     }
 
     // Resources are ready, start consumers immediately
     await this.startConsumers()
+  }
+
+  private buildConfiguredResourceLogContext(): Record<string, string> {
+    const ctx: Record<string, string> = {}
+    const queueName = this.creationConfig?.queue.QueueName ?? this.locatorConfig?.queueName
+    const topicArn = this.locatorConfig?.topicArn
+    const topicName = this.creationConfig?.topic?.Name ?? this.locatorConfig?.topicName
+    if (queueName) ctx.queueName = queueName
+    if (topicArn) ctx.topicArn = topicArn
+    else if (topicName) ctx.topicName = topicName
+    return ctx
+  }
+
+  public override async close(abort?: boolean): Promise<void> {
+    this._subscription = undefined
+    this.resourcesReady = false
+    this.startRequested = false
+    await super.close(abort)
   }
 
   protected override resolveMessage(

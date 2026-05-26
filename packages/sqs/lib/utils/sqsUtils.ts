@@ -24,7 +24,7 @@ import { updateQueueAttributes, updateQueueTags } from './sqsInitter.ts'
 
 const AWS_QUEUE_DOES_NOT_EXIST_ERROR_NAME = 'QueueDoesNotExist'
 
-type QueueAttributesResult = {
+export type QueueAttributesResult = {
   attributes?: Partial<Record<QueueAttributeName, string>>
 }
 
