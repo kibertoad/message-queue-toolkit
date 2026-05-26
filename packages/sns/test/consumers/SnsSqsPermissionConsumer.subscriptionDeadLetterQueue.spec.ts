@@ -156,12 +156,12 @@ describe('SnsSqsPermissionConsumer - subscription dead letter queue', () => {
           dlqBody = response.Messages?.[0]?.Body
           return !!dlqBody
         },
-        500,
-        40,
+        50,
+        60,
       )
 
       expect(arrived).toBe(true)
       expect(dlqBody).toContain('sub-dlq-1')
-    }, 60_000)
+    })
   })
 })
