@@ -36,6 +36,7 @@ type SnsSqsPermissionConsumerOptions = Pick<
   | 'locatorConfig'
   | 'deletionConfig'
   | 'deadLetterQueue'
+  | 'subscriptionDeadLetterQueue'
   | 'consumerOverrides'
   | 'consumerPollingWaitTimeSeconds'
   | 'maxRetryDuration'
@@ -155,6 +156,7 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
         },
         consumerPollingWaitTimeSeconds: options.consumerPollingWaitTimeSeconds ?? 0,
         deadLetterQueue: options.deadLetterQueue,
+        subscriptionDeadLetterQueue: options.subscriptionDeadLetterQueue,
         ...(options.locatorConfig
           ? { locatorConfig: options.locatorConfig, creationConfig: options.creationConfig as any }
           : {
