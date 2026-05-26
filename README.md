@@ -115,6 +115,7 @@ Multi-schema consumers support multiple message types via handler configs. They 
         * `deletionConfig` - automatic cleanup of resources;
         * `consumerOverrides` – available only for SQS consumers;
         * `deadLetterQueue` - available only for SQS and SNS consumers (see [Dead Letter Queue](#dead-letter-queue) for more information);
+        * `subscriptionDeadLetterQueue` - available only for SNS SQS consumers, captures messages SNS could not deliver to the SQS endpoint (see [Subscription Dead Letter Queue](#subscription-dead-letter-queue) for more information);
         * `handlerSpy` - allow awaiting certain messages to be published (see [Handler Spies](#handler-spies) for more information);
         * `logMessages` - add debug logs for processed messages. When enabled, logs structured metadata including message id, type, timestamps, and queue name. For privacy reasons, the full message payload is not logged by default. To include custom message data in logs, configure `messageLogFormatter` on your handlers. See [Message Logging](#message-logging) for more details.
         * `messageMetadataField` - which field in the message contains metadata for logging purposes (by default it is `metadata`).
@@ -240,6 +241,30 @@ To create a dead letter queue, you need to specify the `deadLetterQueue` paramet
   - `maxReceiveCount`: the number of times a message can be received before being moved to the DLQ.
 
 > **_NOTE:_**  if a message is stuck returning retryLater, it will be moved to the DLQ after the `maxRetryDuration` is reached.
+
+### Subscription Dead Letter Queue
+> **_NOTE:_**  Only available on SNS SQS consumers.
+
+`deadLetterQueue` covers messages that fail processing after being delivered to the source queue (handler errors, `retryLater` exhaustion, `maxReceiveCount` reached). It does not cover messages that SNS fails to deliver to the SQS endpoint in the first place — for example when the endpoint queue is gone, the SQS access policy denies SNS, or SNS exhausts its retry budget. By default those messages are dropped silently.
+
+To capture them, opt in via the `subscriptionDeadLetterQueue` option, which configures a `RedrivePolicy` on the SNS subscription itself:
+
+```ts
+new MySnsSqsConsumer(deps, {
+  // ...
+  deadLetterQueue: {
+    redrivePolicy: { maxReceiveCount: 3 },
+    creationConfig: { queue: { QueueName: 'my-queue-dlq' } },
+  },
+  subscriptionDeadLetterQueue: { reuseConsumerDeadLetterQueue: true },
+})
+```
+
+- `reuseConsumerDeadLetterQueue: true` reuses the queue declared in `deadLetterQueue`. The same DLQ then receives both processing failures (via the source queue `RedrivePolicy` + `maxReceiveCount`) and SNS delivery failures (via the subscription `RedrivePolicy`).
+- Requires `deadLetterQueue` to be configured; otherwise the constructor throws.
+- The option shape is an object so that future variants (e.g. a separate, dedicated DLQ) can be added without a breaking change.
+
+> **_NOTE:_** In AWS, the DLQ must grant `sns.amazonaws.com` permission to call `sqs:SendMessage`, scoped to the topic ARN via `aws:SourceArn`. The toolkit does not apply that policy automatically — either set it on the DLQ explicitly or use a queue whose policy already allows SNS to write to it. See the [SNS docs](https://docs.aws.amazon.com/sns/latest/dg/sns-configure-dead-letter-queue.html) for an example policy.
 
 ## Fan-out to Multiple Consumers
 
