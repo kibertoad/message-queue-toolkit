@@ -64,9 +64,9 @@ export class SqsPermissionPublisher extends AbstractSqsPublisher<SupportedMessag
 
   public get queueProps() {
     return {
-      name: this.queueName,
-      url: this.queueUrl,
-      arn: this.queueArn,
+      name: this.queue.name,
+      url: this.queue.url,
+      arn: this.queue.arn,
     }
   }
 }

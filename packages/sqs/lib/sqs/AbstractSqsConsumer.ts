@@ -73,6 +73,11 @@ type SQSDeadLetterQueueOptions = {
   }
 }
 
+type DeadLetterQueueResource = {
+  url: string
+  arn: string
+}
+
 export type SQSConsumerDependencies = SQSDependencies & QueueConsumerDependencies
 
 type SQSConsumerCommonOptions<
@@ -267,7 +272,13 @@ export abstract class AbstractSqsConsumer<
   /** Registry of codec name → handler. Seeded from all built-in codecs + options.codecs. */
   private readonly codecRegistry: ReadonlyMap<string, MessageCodecHandler>
 
-  protected deadLetterQueueUrl?: string
+  /**
+   * Resolved DLQ resource handle. Populated by {@link initDeadLetterQueue}.
+   * Kept private so url/arn can never get out of sync; subclasses read via
+   * the {@link deadLetterQueue} getter.
+   */
+  private _deadLetterQueue?: DeadLetterQueueResource
+
   protected readonly errorResolver: ErrorResolver
   protected readonly executionContext: ExecutionContext
 
@@ -345,9 +356,11 @@ export abstract class AbstractSqsConsumer<
 
     // DLQ should match the type of the source queue (FIFO DLQ for FIFO source queue)
     const result = await initSqs(this.sqsClient, locatorConfig, creationConfig, this.isFifoQueue)
+    if (!result) return
+
     await this.sqsClient.send(
       new SetQueueAttributesCommand({
-        QueueUrl: this.queueUrl,
+        QueueUrl: this.queue.url,
         Attributes: {
           RedrivePolicy: JSON.stringify({
             deadLetterTargetArn: result.queueArn,
@@ -357,7 +370,11 @@ export abstract class AbstractSqsConsumer<
       }),
     )
 
-    this.deadLetterQueueUrl = result.queueUrl
+    this._deadLetterQueue = { url: result.queueUrl, arn: result.queueArn }
+  }
+
+  protected get deadLetterQueue(): Readonly<DeadLetterQueueResource> | undefined {
+    return this._deadLetterQueue
   }
 
   public async start() {
@@ -381,7 +398,7 @@ export abstract class AbstractSqsConsumer<
 
     for (const consumer of this.consumers) {
       consumer.on('error', (err) => {
-        this.handleError(err, { queueName: this.queueName })
+        this.handleError(err, { queueName: this.queue.name })
       })
       consumer.start()
     }
@@ -395,7 +412,7 @@ export abstract class AbstractSqsConsumer<
   private createConsumer(options: { visibilityTimeout: number | undefined }): Consumer {
     return Consumer.create({
       sqs: this.sqsClient,
-      queueUrl: this.queueUrl,
+      queueUrl: this.queue.url,
       visibilityTimeout: options.visibilityTimeout,
       messageAttributeNames: [`${PAYLOAD_OFFLOADING_ATTRIBUTE_PREFIX}*`],
       // For FIFO queues, request system attributes needed for retry (MessageGroupId and MessageDeduplicationId)
@@ -436,7 +453,7 @@ export abstract class AbstractSqsConsumer<
             message: null,
             processingResult: { status: 'error', errorReason: 'invalidMessage' },
             messageProcessingStartTimestamp,
-            queueName: this.queueName,
+            queueName: this.queue.name,
             messageId: messageId.result,
           })
 
@@ -452,7 +469,7 @@ export abstract class AbstractSqsConsumer<
             message: parsedMessage,
             processingResult: { status: 'consumed', skippedAsDuplicate: true },
             messageProcessingStartTimestamp,
-            queueName: this.queueName,
+            queueName: this.queue.name,
             messageId: this.tryToExtractId(message).result,
           })
 
@@ -489,7 +506,7 @@ export abstract class AbstractSqsConsumer<
             message: parsedMessage,
             processingResult: { status: 'consumed', skippedAsDuplicate: true },
             messageProcessingStartTimestamp,
-            queueName: this.queueName,
+            queueName: this.queue.name,
             messageId: this.tryToExtractId(message).result,
           })
 
@@ -497,7 +514,7 @@ export abstract class AbstractSqsConsumer<
         }
 
         const messageType = this.resolveMessageTypeFromMessage(parsedMessage) ?? 'unknown'
-        const transactionSpanId = `queue_${this.queueName}:${messageType}`
+        const transactionSpanId = `queue_${this.queue.name}:${messageType}`
 
         // @ts-expect-error
         const uniqueTransactionKey = parsedMessage[this.messageIdField]
@@ -524,7 +541,7 @@ export abstract class AbstractSqsConsumer<
             message: originalMessage,
             processingResult: { status: 'consumed' },
             messageProcessingStartTimestamp,
-            queueName: this.queueName,
+            queueName: this.queue.name,
           })
 
           return message
@@ -548,7 +565,7 @@ export abstract class AbstractSqsConsumer<
           message: parsedMessage,
           processingResult: { status: 'error', errorReason: 'handlerError' },
           messageProcessingStartTimestamp,
-          queueName: this.queueName,
+          queueName: this.queue.name,
         })
 
         return Promise.reject(result.error)
@@ -587,7 +604,7 @@ export abstract class AbstractSqsConsumer<
           message: parsedMessage,
           processingResult: { status: 'retryLater' },
           messageProcessingStartTimestamp,
-          queueName: this.queueName,
+          queueName: this.queue.name,
         })
         throw new Error(
           'FIFO queue: Lock acquisition failed. Triggering AWS SQS retry to preserve message order.',
@@ -599,7 +616,7 @@ export abstract class AbstractSqsConsumer<
         message: parsedMessage,
         processingResult: { status: 'error', errorReason: 'retryLaterExceeded' },
         messageProcessingStartTimestamp,
-        queueName: this.queueName,
+        queueName: this.queue.name,
       })
       throw new Error('FIFO queue: Retry duration exceeded. Moving message to DLQ.')
     }
@@ -616,7 +633,7 @@ export abstract class AbstractSqsConsumer<
         message: parsedMessage,
         processingResult: { status: 'retryLater' },
         messageProcessingStartTimestamp,
-        queueName: this.queueName,
+        queueName: this.queue.name,
       })
     } else {
       await this.failProcessing(message)
@@ -624,7 +641,7 @@ export abstract class AbstractSqsConsumer<
         message: parsedMessage,
         processingResult: { status: 'error', errorReason: 'retryLaterExceeded' },
         messageProcessingStartTimestamp,
-        queueName: this.queueName,
+        queueName: this.queue.name,
       })
     }
   }
@@ -660,7 +677,7 @@ export abstract class AbstractSqsConsumer<
           message: originalMessage,
           processingResult: { status: 'consumed' },
           messageProcessingStartTimestamp,
-          queueName: this.queueName,
+          queueName: this.queue.name,
         })
         return
       }
@@ -671,7 +688,7 @@ export abstract class AbstractSqsConsumer<
           message: parsedMessage,
           processingResult: { status: 'error', errorReason: 'handlerError' },
           messageProcessingStartTimestamp,
-          queueName: this.queueName,
+          queueName: this.queue.name,
         })
         throw result.error
       }
@@ -685,7 +702,7 @@ export abstract class AbstractSqsConsumer<
       message: parsedMessage,
       processingResult: { status: 'error', errorReason: 'retryLaterExceeded' },
       messageProcessingStartTimestamp,
-      queueName: this.queueName,
+      queueName: this.queue.name,
     })
     throw new Error('FIFO queue: Retry duration exceeded. Moving message to DLQ.')
   }
@@ -721,7 +738,7 @@ export abstract class AbstractSqsConsumer<
         try {
           await this.sqsClient.send(
             new ChangeMessageVisibilityCommand({
-              QueueUrl: this.queueUrl,
+              QueueUrl: this.queue.url,
               ReceiptHandle: message.ReceiptHandle,
               VisibilityTimeout: this.barrierVisibilityTimeoutInSeconds,
             }),
@@ -780,7 +797,7 @@ export abstract class AbstractSqsConsumer<
     originalMessage: MessagePayloadType,
   ): SendMessageCommandInput {
     const params: SendMessageCommandInput = {
-      QueueUrl: this.queueUrl,
+      QueueUrl: this.queue.url,
       MessageBody: JSON.stringify(this.updateInternalProperties(originalMessage)),
     }
 
@@ -830,7 +847,7 @@ export abstract class AbstractSqsConsumer<
     originalMessage: MessagePayloadType,
   ): Promise<SendMessageCommandInput> {
     const params: SendMessageCommandInput = {
-      QueueUrl: this.queueUrl,
+      QueueUrl: this.queue.url,
       MessageBody: JSON.stringify(this.updateInternalProperties(originalMessage)),
     }
 
@@ -842,7 +859,7 @@ export abstract class AbstractSqsConsumer<
     // Fetch ContentBasedDeduplication attribute from SQS (cached after first fetch)
     let isContentBasedDedup = this.cachedContentBasedDeduplication
     if (isContentBasedDedup === undefined) {
-      const queueAttributes = await getQueueAttributes(this.sqsClient, this.queueUrl, [
+      const queueAttributes = await getQueueAttributes(this.sqsClient, this.queue.url, [
         'ContentBasedDeduplication',
       ])
       isContentBasedDedup = queueAttributes.result?.attributes?.ContentBasedDeduplication === 'true'
@@ -1107,10 +1124,10 @@ export abstract class AbstractSqsConsumer<
   }
 
   private async failProcessing(message: SQSMessage) {
-    if (!this.deadLetterQueueUrl) return
+    if (!this._deadLetterQueue) return
 
     const params: SendMessageCommandInput = {
-      QueueUrl: this.deadLetterQueueUrl,
+      QueueUrl: this._deadLetterQueue.url,
       MessageBody: message.Body,
     }
 
@@ -1136,7 +1153,7 @@ export abstract class AbstractSqsConsumer<
       visibilityTimeoutString = this.creationConfig.queue.Attributes?.VisibilityTimeout
     } else {
       // if user is using locatorConfig, we should look into queue config
-      const queueAttributes = await getQueueAttributes(this.sqsClient, this.queueUrl, [
+      const queueAttributes = await getQueueAttributes(this.sqsClient, this.queue.url, [
         'VisibilityTimeout',
       ])
       visibilityTimeoutString = queueAttributes.result?.attributes?.VisibilityTimeout

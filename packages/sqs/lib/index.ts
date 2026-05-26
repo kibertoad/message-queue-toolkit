@@ -11,6 +11,7 @@ export {
 } from './sqs/AbstractSqsPublisher.ts'
 export {
   type ExtraSQSCreationParams,
+  type QueueResource,
   SQS_MESSAGE_MAX_SIZE,
   SQS_RESOURCE_ANY,
   SQS_RESOURCE_CURRENT_QUEUE,
@@ -56,6 +57,7 @@ export {
   getQueueAttributes,
   getQueueUrl,
   isFifoQueueName,
+  type QueueAttributesResult,
   resolveQueueUrlFromLocatorConfig,
   validateFifoQueueConfiguration,
   validateFifoQueueName,

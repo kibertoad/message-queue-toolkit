@@ -53,9 +53,9 @@ export class SqsPermissionPublisherFifo extends AbstractSqsPublisher<SupportedMe
 
   public get queueProps() {
     return {
-      name: this.queueName,
-      url: this.queueUrl,
-      arn: this.queueArn,
+      name: this.queue.name,
+      url: this.queue.url,
+      arn: this.queue.arn,
       isFifo: this.isFifoQueue,
     }
   }

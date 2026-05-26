@@ -70,6 +70,12 @@ export type SQSOptions<
   QueueLocatorType extends object = SQSQueueLocatorType,
 > = QueueOptions<CreationConfigType, QueueLocatorType> & SQSQueueConfig
 
+export type QueueResource = {
+  name: string
+  url: string
+  arn: string
+}
+
 export abstract class AbstractSqsService<
   MessagePayloadType extends object,
   QueueLocatorType extends object = SQSQueueLocatorType,
@@ -93,11 +99,7 @@ export abstract class AbstractSqsService<
 > {
   protected readonly sqsClient: SQSClient
 
-  // @ts-expect-error
-  protected queueName: string
-  // @ts-expect-error
-  protected queueUrl: string
-  protected queueArn: string | undefined
+  private _queue?: QueueResource
   protected readonly isFifoQueue: boolean
 
   constructor(dependencies: DependenciesType, options: SQSOptionsType) {
@@ -110,20 +112,40 @@ export abstract class AbstractSqsService<
     if (this.deletionConfig && this.creationConfig) {
       await deleteSqs(this.sqsClient, this.deletionConfig, this.creationConfig)
     }
-    const { queueName, queueUrl, queueArn } = await initSqs(
+    const result = await initSqs(
       this.sqsClient,
       this.locatorConfig,
       this.creationConfig,
       this.isFifoQueue,
       { logger: this.logger },
     )
-    this.queueName = queueName
-    this.queueUrl = queueUrl
-    this.queueArn = queueArn
+    if (!result) return
+
+    this.setQueueResource({
+      name: result.queueName,
+      url: result.queueUrl,
+      arn: result.queueArn,
+    })
+  }
+
+  protected get queue(): Readonly<QueueResource> {
+    if (!this._queue) throw new Error('Queue is not started yet')
+    return this._queue
+  }
+
+  /**
+   * Lets subclasses populate the queue resource when their init flow does not
+   * go through {@link init}. Used by `AbstractSnsSqsConsumer`, whose
+   * `initSnsSqs` orchestrates topic + queue + subscription together and
+   * therefore cannot delegate queue creation to `super.init()`.
+   */
+  protected setQueueResource(resource: QueueResource): void {
+    this._queue = resource
     this.isInitted = true
   }
 
   public override close(): Promise<void> {
+    this._queue = undefined
     this.isInitted = false
     return Promise.resolve()
   }

@@ -174,14 +174,14 @@ export class SqsPermissionConsumerFifo extends AbstractSqsConsumer<
 
   public get queueProps() {
     return {
-      name: this.queueName,
-      url: this.queueUrl,
-      arn: this.queueArn,
+      name: this.queue.name,
+      url: this.queue.url,
+      arn: this.queue.arn,
       isFifo: this.isFifoQueue,
     }
   }
 
   public get dlqUrl() {
-    return this.deadLetterQueueUrl ?? ''
+    return this.deadLetterQueue?.url ?? ''
   }
 }

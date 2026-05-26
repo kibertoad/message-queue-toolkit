@@ -162,8 +162,8 @@ export class TestSqsPublisher {
       queueUrl = result.result
     } else if (options.consumer) {
       // Extract queueUrl from consumer
-      // @ts-expect-error - Accessing protected property for testing purposes
-      const consumerQueueUrl = options.consumer.queueUrl as string | undefined
+      // @ts-expect-error - Accessing private property for testing purposes
+      const consumerQueueUrl = options.consumer._queue?.url as string | undefined
       if (!consumerQueueUrl) {
         throw new Error(
           'Consumer has not been initialized. Call consumer.init() before passing it to TestSqsPublisher.publish().',
@@ -172,8 +172,8 @@ export class TestSqsPublisher {
       queueUrl = consumerQueueUrl
     } else if (options.publisher) {
       // Extract queueUrl from publisher
-      // @ts-expect-error - Accessing protected property for testing purposes
-      const publisherQueueUrl = options.publisher.queueUrl as string | undefined
+      // @ts-expect-error - Accessing private property for testing purposes
+      const publisherQueueUrl = options.publisher._queue?.url as string | undefined
       if (!publisherQueueUrl) {
         throw new Error(
           'Publisher has not been initialized. Call publisher.init() or publisher.publish() before passing it to TestSqsPublisher.publish().',

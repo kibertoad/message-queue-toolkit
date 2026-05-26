@@ -48,9 +48,9 @@ class TestStartupResourcePollingConsumer extends AbstractSqsConsumer<
 
   get queueProps() {
     return {
-      url: this.queueUrl,
-      name: this.queueName,
-      arn: this.queueArn,
+      url: this.queue.url,
+      name: this.queue.name,
+      arn: this.queue.arn,
     }
   }
 }
@@ -198,7 +198,7 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(consumer.queueProps.arn).toBeDefined()
     })
 
-    it('returns immediately when resource is not available and queueArn is undefined', async () => {
+    it('returns immediately when resource is not available and queue resource stays unset', async () => {
       const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
         locatorConfig: {
           queueUrl,
@@ -214,8 +214,9 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
       // Init should complete immediately even though queue doesn't exist
       await consumer.init()
 
-      expect(consumer.queueProps.url).toBe(queueUrl)
-      expect(consumer.queueProps.arn).toBeUndefined()
+      // Resource handle was never populated since the queue hasn't appeared yet.
+      // queueProps reads via the `queue` getter, which fails fast in that state.
+      expect(() => consumer.queueProps).toThrow('Queue is not started yet')
     })
 
     it('invokes onQueueReady callback when resource becomes available in background', async () => {
@@ -248,7 +249,7 @@ describe('SqsPermissionConsumer - startupResourcePollingConfig', () => {
 
       // Init should return immediately
       const result = await initPromise
-      expect(result.queueArn).toBeUndefined()
+      expect(result).toBeUndefined()
 
       // Create queue after init returns
       await testAdmin.createQueue(queueName)
