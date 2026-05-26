@@ -53,6 +53,10 @@ export type SNSTopicLocatorType = BaseQueueLocatorType & {
 
 export type SNSOptions = QueueOptions<SNSCreationConfig, SNSTopicLocatorType>
 
+export type TopicResource = {
+  arn: string
+}
+
 export abstract class AbstractSnsService<
   MessagePayloadType extends object,
   MessageEnvelopeType extends object = SNS_MESSAGE_BODY_TYPE,
@@ -68,8 +72,14 @@ export abstract class AbstractSnsService<
 > {
   protected readonly snsClient: SNSClient
   protected readonly stsClient: STSClient
-  // @ts-expect-error
-  protected topicArn: string
+
+  /**
+   * Resolved SNS topic handle. Populated by {@link init} (or by subclasses
+   * via {@link setTopicResource} when their init flow does not go through
+   * `super.init()`). Subclasses read it via the {@link topic} getter so the
+   * ARN is impossible to access in an "uninitialised" state.
+   */
+  private _topic?: TopicResource
 
   constructor(dependencies: DependenciesType, options: SNSOptionsType) {
     super(dependencies, options)
@@ -90,11 +100,26 @@ export abstract class AbstractSnsService<
       this.creationConfig,
       { logger: this.logger },
     )
-    this.topicArn = initResult.topicArn
+    this.setTopicResource({ arn: initResult.topicArn })
+  }
+
+  protected get topic(): Readonly<TopicResource> {
+    if (!this._topic) throw new Error('Topic is not started yet')
+    return this._topic
+  }
+
+  /**
+   * Lets subclasses populate the topic resource when their init flow does not
+   * go through {@link init} (used by `AbstractSnsSqsConsumer`, whose
+   * `initSnsSqs` resolves topic + queue + subscription together).
+   */
+  protected setTopicResource(resource: TopicResource): void {
+    this._topic = resource
     this.isInitted = true
   }
 
   public override close(): Promise<void> {
+    this._topic = undefined
     this.isInitted = false
     return Promise.resolve()
   }

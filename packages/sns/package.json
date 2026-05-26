@@ -40,7 +40,7 @@
         "@aws-sdk/client-sts": "^3.632.0",
         "@message-queue-toolkit/core": ">=26.0.0",
         "@message-queue-toolkit/schemas": ">=7.0.0",
-        "@message-queue-toolkit/sqs": ">=23.0.0 <26.0.0",
+        "@message-queue-toolkit/sqs": ">=26.0.0",
         "zod": ">=3.25.76 <5.0.0"
     },
     "devDependencies": {

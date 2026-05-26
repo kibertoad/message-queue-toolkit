@@ -53,6 +53,6 @@ export class SnsPermissionPublisherFifo extends AbstractSnsPublisher<SupportedMe
   }
 
   get topicArnProp(): string {
-    return this.topicArn
+    return this.topic.arn
   }
 }

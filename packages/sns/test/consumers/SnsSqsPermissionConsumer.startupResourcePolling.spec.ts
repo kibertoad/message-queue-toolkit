@@ -51,11 +51,19 @@ class TestStartupResourcePollingConsumer extends AbstractSnsSqsConsumer<
   }
 
   get subscriptionProps() {
+    if (!this.areResourcesReady) {
+      return {
+        topicArn: undefined,
+        queueUrl: undefined,
+        queueName: undefined,
+        subscriptionArn: undefined,
+      }
+    }
     return {
-      topicArn: this.topicArn,
-      queueUrl: this.queueUrl,
-      queueName: this.queueName,
-      subscriptionArn: this.subscriptionArn,
+      topicArn: this.subscription.topicArn,
+      queueUrl: this.queue.url,
+      queueName: this.queue.name,
+      subscriptionArn: this.subscription.subscriptionArn,
     }
   }
 }
@@ -350,11 +358,14 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         },
       })
 
-      // Init should return immediately even though topic doesn't exist
+      // Init should return immediately even though topic doesn't exist;
+      // resources are populated together via the background callback, so
+      // none of subscriptionProps' fields are set yet.
       await consumer.init()
 
-      // queueName should still be set
-      expect(consumer.subscriptionProps.queueName).toBe(queueName)
+      expect(consumer.subscriptionProps.queueName).toBeUndefined()
+      expect(consumer.subscriptionProps.queueUrl).toBeUndefined()
+      expect(consumer.subscriptionProps.topicArn).toBeUndefined()
     })
 
     it('returns immediately when queue is not available', async () => {
@@ -376,10 +387,13 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         },
       })
 
-      // Init should return immediately even though queue doesn't exist
+      // Init should return immediately even though queue doesn't exist;
+      // resources are populated together, so subscriptionProps stays empty
+      // until the background callback fires.
       await consumer.init()
 
-      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+      expect(consumer.subscriptionProps.topicArn).toBeUndefined()
+      expect(consumer.subscriptionProps.queueUrl).toBeUndefined()
     })
 
     it('invokes onResourcesReady callback when both resources become available in background', async () => {
@@ -419,7 +433,7 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         },
       )
 
-      expect(result.resourcesReady).toBe(false)
+      expect(result).toBeUndefined()
 
       // Create topic after init returns
       await testAdmin.createTopic(topicName)
@@ -471,8 +485,8 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         },
       )
 
-      // Should return immediately with resourcesReady: false
-      expect(result.resourcesReady).toBe(false)
+      // Should return immediately (resources not ready in non-blocking mode)
+      expect(result).toBeUndefined()
 
       // Create topic so topic polling succeeds, but NOT queue
       await testAdmin.createTopic(topicName)
@@ -527,8 +541,8 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         },
       )
 
-      // Should return immediately with resourcesReady: false
-      expect(result.resourcesReady).toBe(false)
+      // Should return immediately (resources not ready in non-blocking mode)
+      expect(result).toBeUndefined()
 
       // Don't create topic - let it timeout
 
@@ -573,8 +587,9 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       // start() should return immediately even though topic doesn't exist
       await consumer.start()
 
-      // queueName should be set but consumer should NOT be running yet (resources not ready)
-      expect(consumer.subscriptionProps.queueName).toBe(queueName)
+      // Resources are populated together by the background callback once ready,
+      // so subscriptionProps stays empty here and isRunning is still false.
+      expect(consumer.subscriptionProps.queueName).toBeUndefined()
       expect(consumer.isRunning).toBe(false)
 
       // Create topic after start returns
@@ -710,10 +725,9 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         { updateAttributesIfExists: false },
       )
 
-      // Should return immediately with resourcesReady: false
-      expect(result.resourcesReady).toBe(false)
-      expect(result.subscriptionArn).toBe('')
-      expect(result.queueName).toBe(queueName)
+      // Should return immediately (resources not ready in non-blocking mode);
+      // subscription will be created in background via onResourcesReady.
+      expect(result).toBeUndefined()
     })
 
     it('creates subscription in background when topic becomes available in non-blocking mode', async () => {
@@ -750,9 +764,9 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         },
       )
 
-      // Should return immediately with resourcesReady: false
-      expect(result.resourcesReady).toBe(false)
-      expect(result.subscriptionArn).toBe('')
+      // Should return immediately (resources not ready in non-blocking mode);
+      // subscription will be created in background via onResourcesReady.
+      expect(result).toBeUndefined()
 
       // Create topic after init returns
       const topicArn = await testAdmin.createTopic(topicName)
@@ -793,12 +807,13 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         { updateAttributesIfExists: false },
       )
 
-      // Should return immediately with resourcesReady: true since topic was immediately available
-      expect(result.resourcesReady).toBe(true)
-      expect(result.subscriptionArn).toBeDefined()
-      expect(result.subscriptionArn).not.toBe('')
-      expect(result.topicArn).toBe(topicArn)
-      expect(result.queueName).toBe(queueName)
+      // Topic was immediately available, so initSnsSqs resolved synchronously
+      // with the full result handle.
+      expect(result).toBeDefined()
+      expect(result?.subscriptionArn).toBeDefined()
+      expect(result?.subscriptionArn).not.toBe('')
+      expect(result?.topicArn).toBe(topicArn)
+      expect(result?.queueName).toBe(queueName)
     })
 
     it('invokes onResourcesError callback when topic polling times out in non-blocking mode', async () => {
@@ -835,8 +850,8 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
         },
       )
 
-      // Should return immediately with resourcesReady: false
-      expect(result.resourcesReady).toBe(false)
+      // Should return immediately (resources not ready in non-blocking mode)
+      expect(result).toBeUndefined()
 
       // Wait for error callback to be invoked (topic polling timeout)
       await vi.waitFor(

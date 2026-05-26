@@ -179,12 +179,21 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
   }
 
   get subscriptionProps() {
+    if (!this.areResourcesReady) {
+      return {
+        topicArn: undefined,
+        queueUrl: undefined,
+        queueName: undefined,
+        subscriptionArn: undefined,
+        deadLetterQueueUrl: undefined,
+      }
+    }
     return {
-      topicArn: this.topicArn,
-      queueUrl: this.queueUrl,
-      queueName: this.queueName,
-      subscriptionArn: this.subscriptionArn,
-      deadLetterQueueUrl: this.deadLetterQueueUrl,
+      topicArn: this.subscription.topicArn,
+      queueUrl: this.queue.url,
+      queueName: this.queue.name,
+      subscriptionArn: this.subscription.subscriptionArn,
+      deadLetterQueueUrl: this.deadLetterQueue?.url,
     }
   }
 }

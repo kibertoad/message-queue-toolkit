@@ -49,6 +49,11 @@ export type SNSSQSConsumerOptions<
     subscriptionConfig?: SNSSubscriptionOptions
   }
 
+type SubscriptionResource = {
+  topicArn: string
+  subscriptionArn: string
+}
+
 export abstract class AbstractSnsSqsConsumer<
   MessagePayloadSchemas extends object,
   ExecutionContext,
@@ -79,10 +84,13 @@ export abstract class AbstractSnsSqsConsumer<
    */
   private startRequested: boolean = false
 
-  // @ts-expect-error
-  protected topicArn: string
-  // @ts-expect-error
-  protected subscriptionArn: string
+  /**
+   * Resolved topic + subscription handle. Populated together by `initSnsSqs`
+   * (either synchronously or via the non-blocking `onResourcesReady`
+   * callback). Subclasses read via the {@link subscription} getter so the
+   * ARNs are impossible to access in an "uninitialised" state.
+   */
+  private _subscription?: SubscriptionResource
 
   protected constructor(
     dependencies: SNSSQSConsumerDependencies,
@@ -132,10 +140,15 @@ export abstract class AbstractSnsSqsConsumer<
         // immediately available. It will NOT be called if resourcesReady is true.
         onResourcesReady: (result) => {
           // Update values that were empty when resourcesReady was false
-          this.topicArn = result.topicArn
-          this.queueUrl = result.queueUrl
-          this.subscriptionArn = result.subscriptionArn
-          this.queueName = result.queueName
+          this.setSubscriptionResource({
+            topicArn: result.topicArn,
+            subscriptionArn: result.subscriptionArn,
+          })
+          this.setQueueResource({
+            name: result.queueName,
+            url: result.queueUrl,
+            arn: result.queueArn,
+          })
           this.resourcesReady = true
 
           // Initialize DLQ now that resources are ready (this is mutually exclusive
@@ -152,8 +165,8 @@ export abstract class AbstractSnsSqsConsumer<
               if (this.startRequested) {
                 this.logger.info({
                   message: 'Resources now ready, starting consumers',
-                  queueName: this.queueName,
-                  topicArn: this.topicArn,
+                  queueName: result.queueName,
+                  topicArn: result.topicArn,
                 })
                 return this.startConsumers()
               }
@@ -168,22 +181,47 @@ export abstract class AbstractSnsSqsConsumer<
       },
     )
 
-    // Always assign topicArn and queueName (always valid in both blocking and non-blocking modes)
-    this.topicArn = initSnsSqsResult.topicArn
-    this.queueName = initSnsSqsResult.queueName
-    this.resourcesReady = initSnsSqsResult.resourcesReady
-
-    // Only assign queueUrl and subscriptionArn if resources are ready,
-    // or if they have valid values (non-blocking mode with locatorConfig provides valid values)
-    if (initSnsSqsResult.resourcesReady || initSnsSqsResult.queueUrl) {
-      this.queueUrl = initSnsSqsResult.queueUrl
-      this.subscriptionArn = initSnsSqsResult.subscriptionArn
+    // `initSnsSqs` returns undefined in non-blocking polling mode when
+    // resources aren't yet ready; the onResourcesReady callback above will
+    // populate state once they are.
+    if (!initSnsSqsResult) {
+      this.resourcesReady = false
+      return
     }
 
-    // Only initialize DLQ if resources are ready and queueUrl is available
-    if (initSnsSqsResult.resourcesReady && initSnsSqsResult.queueUrl) {
-      await this.initDeadLetterQueue()
-    }
+    this.setSubscriptionResource({
+      topicArn: initSnsSqsResult.topicArn,
+      subscriptionArn: initSnsSqsResult.subscriptionArn,
+    })
+    this.setQueueResource({
+      name: initSnsSqsResult.queueName,
+      url: initSnsSqsResult.queueUrl,
+      arn: initSnsSqsResult.queueArn,
+    })
+    this.resourcesReady = true
+
+    await this.initDeadLetterQueue()
+  }
+
+  protected get subscription(): Readonly<SubscriptionResource> {
+    if (!this._subscription) throw new Error('Subscription is not started yet')
+    return this._subscription
+  }
+
+  protected setSubscriptionResource(resource: SubscriptionResource): void {
+    this._subscription = resource
+    this.isInitted = true
+  }
+
+  /**
+   * Exposes the internal readiness flag for callers that legitimately run
+   * before resources are populated (test fixtures, non-blocking-polling
+   * diagnostics) and need to short-circuit before reading the throwing
+   * `queue` / `subscription` getters. Gate on this rather than try/catching
+   * so unexpected getter exceptions still propagate.
+   */
+  protected get areResourcesReady(): boolean {
+    return this.resourcesReady
   }
 
   /**
@@ -198,17 +236,33 @@ export abstract class AbstractSnsSqsConsumer<
       // Resources not ready yet (non-blocking polling mode), mark that start was requested.
       // Consumers will be started automatically when onResourcesReady callback fires.
       this.startRequested = true
-      this.logger.info({
-        message:
-          'Start requested but resources not ready yet, will start when resources become available',
-        queueName: this.queueName,
-        topicArn: this.topicArn,
-      })
+      this.logger.info(
+        this.buildConfiguredResourceLogContext(),
+        'Start requested but resources not ready yet, will start when resources become available',
+      )
       return
     }
 
     // Resources are ready, start consumers immediately
     await this.startConsumers()
+  }
+
+  private buildConfiguredResourceLogContext(): Record<string, string> {
+    const ctx: Record<string, string> = {}
+    const queueName = this.creationConfig?.queue.QueueName ?? this.locatorConfig?.queueName
+    const topicArn = this.locatorConfig?.topicArn
+    const topicName = this.creationConfig?.topic?.Name ?? this.locatorConfig?.topicName
+    if (queueName) ctx.queueName = queueName
+    if (topicArn) ctx.topicArn = topicArn
+    else if (topicName) ctx.topicName = topicName
+    return ctx
+  }
+
+  public override async close(abort?: boolean): Promise<void> {
+    this._subscription = undefined
+    this.resourcesReady = false
+    this.startRequested = false
+    await super.close(abort)
   }
 
   protected override resolveMessage(

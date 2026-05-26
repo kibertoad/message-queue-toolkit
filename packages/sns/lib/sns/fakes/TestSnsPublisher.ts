@@ -131,8 +131,8 @@ export class TestSnsPublisher {
     } else if (options.topicName) {
       topicArn = await buildTopicArn(this.stsClient, options.topicName)
     } else if (options.consumer) {
-      // @ts-expect-error - Accessing protected property for testing purposes
-      const consumerTopicArn = options.consumer.topicArn as string | undefined
+      // @ts-expect-error - Accessing private property for testing purposes
+      const consumerTopicArn = options.consumer._subscription?.topicArn as string | undefined
       if (!consumerTopicArn) {
         throw new Error(
           'Consumer has not been initialized. Call consumer.init() before passing it to TestSnsPublisher.publish().',
@@ -140,8 +140,8 @@ export class TestSnsPublisher {
       }
       topicArn = consumerTopicArn
     } else if (options.publisher) {
-      // @ts-expect-error - Accessing protected property for testing purposes
-      const publisherTopicArn = options.publisher.topicArn as string | undefined
+      // @ts-expect-error - Accessing private property for testing purposes
+      const publisherTopicArn = options.publisher._topic?.arn as string | undefined
       if (!publisherTopicArn) {
         throw new Error(
           'Publisher has not been initialized. Call publisher.init() or publisher.publish() before passing it to TestSnsPublisher.publish().',

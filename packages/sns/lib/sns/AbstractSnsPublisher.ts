@@ -181,7 +181,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         errorCode: 'SNS_PUBLISH_ERROR',
         details: {
           publisher: this.constructor.name,
-          topic: this.topicArn,
+          topic: this.topic.arn,
           messageType: this.resolveMessageTypeFromMessage(message) ?? 'unknown',
         },
         cause: err,
@@ -237,7 +237,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     const command = new PublishCommand({
       Message: body,
       MessageAttributes: attributes,
-      TopicArn: this.topicArn,
+      TopicArn: this.topic.arn,
       ...options,
     })
     await this.snsClient.send(command)
@@ -284,7 +284,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
           'MessageGroupId is required for FIFO topics. Provide it in publish options, configure messageGroupIdField, or set defaultMessageGroupId.',
         errorCode: 'FIFO_MESSAGE_GROUP_ID_REQUIRED',
         details: {
-          topicArn: this.topicArn,
+          topicArn: this.topic.arn,
         },
       })
     }
