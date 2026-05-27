@@ -32,7 +32,7 @@
         "fast-equals": "^6.0.0",
         "json-stream-stringify": "^3.1.6",
         "tmp": "^0.2.3",
-        "toad-cache": "^3.7.0"
+        "toad-cache": "^3.7.1"
     },
     "peerDependencies": {
         "zod": ">=3.25.76 <5.0.0"
