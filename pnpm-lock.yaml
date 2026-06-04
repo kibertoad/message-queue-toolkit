@@ -314,8 +314,8 @@ importers:
   packages/outbox-core:
     dependencies:
       '@lokalise/background-jobs-common':
-        specifier: ^14.0.0
-        version: 14.3.0(bullmq@5.76.8)(ioredis@5.10.1)(pino@10.3.1)(toad-scheduler@3.1.0)(zod@4.4.3)
+        specifier: ^14.4.0
+        version: 14.4.0(bullmq@5.76.8)(ioredis@5.10.1)(pino@10.3.1)(toad-scheduler@3.1.0)(zod@4.4.3)
       '@supercharge/promise-pool':
         specifier: ^3.2.0
         version: 3.3.0
@@ -1089,13 +1089,13 @@ packages:
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
 
-  '@lokalise/background-jobs-common@14.3.0':
-    resolution: {integrity: sha512-T4cW4YduyghK1RHivfTWPdluGDPDE02GwoFmz+jwkcN58fF1ypMJInbon6QdY/ohIMALYgzui8hMVgmHIlCoxQ==}
+  '@lokalise/background-jobs-common@14.4.0':
+    resolution: {integrity: sha512-FwjO0fZahNkGj3gkKya5TY5Q89riUhwjUeON4GmZaosXco1Qy+6XXYzmT81wdOJHoZW4EG+A3GTltor8W1Gm4w==}
     peerDependencies:
       bullmq: ^5.28.2
       ioredis: ^5.4.1
       pino: '>=9.7.0'
-      toad-scheduler: ^3.1.0
+      toad-scheduler: ^4.0.1
       zod: '>=3.25.67'
 
   '@lokalise/biome-config@3.1.1':
@@ -2705,6 +2705,10 @@ packages:
     resolution: {integrity: sha512-pn99VhoACYR8nFHhxqix+uvsbXineAasWm5ojXoN8xEwK5Kd3/TrhNn1wByuD52UxWRLy8pu+kRMniEi6Eq9Zg==}
     engines: {node: '>=12.0.0'}
 
+  tinyglobby@0.2.17:
+    resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
+    engines: {node: '>=12.0.0'}
+
   tinyrainbow@3.1.0:
     resolution: {integrity: sha512-Bf+ILmBgretUrdJxzXM0SgXLZ3XfiaUuOj/IKQHuTXip+05Xn+uyEYdVg0kYDipTBcLrCVyUzAPz7QmArb0mmw==}
     engines: {node: '>=14.0.0'}
@@ -3814,7 +3818,7 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@lokalise/background-jobs-common@14.3.0(bullmq@5.76.8)(ioredis@5.10.1)(pino@10.3.1)(toad-scheduler@3.1.0)(zod@4.4.3)':
+  '@lokalise/background-jobs-common@14.4.0(bullmq@5.76.8)(ioredis@5.10.1)(pino@10.3.1)(toad-scheduler@3.1.0)(zod@4.4.3)':
     dependencies:
       '@lokalise/id-utils': 3.0.1
       '@lokalise/node-core': 14.8.1(zod@4.4.3)
@@ -5434,6 +5438,11 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
 
+  tinyglobby@0.2.17:
+    dependencies:
+      fdir: 6.5.0(picomatch@4.0.4)
+      picomatch: 4.0.4
+
   tinyrainbow@3.1.0: {}
 
   tmp@0.2.5: {}
@@ -5495,7 +5504,7 @@ snapshots:
       picomatch: 4.0.4
       postcss: 8.5.15
       rolldown: 1.0.1
-      tinyglobby: 0.2.16
+      tinyglobby: 0.2.17
     optionalDependencies:
       '@types/node': 25.8.0
       fsevents: 2.3.3
