@@ -32,7 +32,7 @@
     },
     "dependencies": {
         "@lokalise/node-core": "^14.4.2",
-        "sqs-consumer": "^15.0.1"
+        "sqs-consumer": "^15.0.2"
     },
     "peerDependencies": {
         "@aws-sdk/client-sns": "^3.632.0",
