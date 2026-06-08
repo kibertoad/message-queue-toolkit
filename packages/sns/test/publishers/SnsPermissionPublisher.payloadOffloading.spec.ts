@@ -118,9 +118,10 @@ describe('SnsPermissionPublisher - single-store payload offloading', () => {
 
       await publisher.publish(message)
 
-      await expect(
-        publisher.handlerSpy.waitForMessageWithId('1', 'published'),
-      ).resolves.toBeDefined()
+      // The handler spy exposes that the message took the offloading path, so tests can
+      // assert offloading happened without inspecting the store directly.
+      const spyResult = await publisher.handlerSpy.waitForMessageWithId('1', 'published')
+      expect(spyResult.processingResult).toEqual({ status: 'published', offloaded: true })
       await waitAndRetry(() => receivedSnsMessages.length > 0)
 
       // Check that the published message's body is a pointer to the offloaded payload.

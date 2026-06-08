@@ -17,8 +17,14 @@ export type MessageProcessingResult =
       status: 'retryLater'
     }
   | {
-      status: 'consumed' | 'published'
+      status: 'consumed'
       skippedAsDuplicate?: boolean
+    }
+  | {
+      status: 'published'
+      skippedAsDuplicate?: boolean
+      // Only set (to `true`) when the message payload was offloaded to the external
+      // payload store; omitted entirely for inline messages.
       offloaded?: boolean
     }
   | {
