@@ -6,6 +6,7 @@ import {
   type AsyncPublisher,
   type BarrierResult,
   DeduplicationRequesterEnum,
+  isOffloadedPayloadPointerPayload,
   type MessageInvalidFormatError,
   type MessageSchemaContainer,
   type MessageValidationError,
@@ -169,7 +170,9 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
 
       this.handleMessageProcessed({
         message: parsedMessage,
-        processingResult: { status: 'published' },
+        processingResult: isOffloadedPayloadPointerPayload(payload)
+          ? { status: 'published', offloaded: true }
+          : { status: 'published' },
         messageProcessingStartTimestamp,
         queueName: topicName,
       })

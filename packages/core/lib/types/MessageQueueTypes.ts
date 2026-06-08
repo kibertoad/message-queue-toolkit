@@ -19,6 +19,7 @@ export type MessageProcessingResult =
   | {
       status: 'consumed' | 'published'
       skippedAsDuplicate?: boolean
+      offloaded?: boolean
     }
   | {
       status: 'error'

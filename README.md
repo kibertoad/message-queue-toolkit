@@ -676,6 +676,23 @@ const result = await myConsumer.handlerSpy.waitForMessageWithId('1')
 expect(result.processingResult).toEqual({ status: 'consumed' })
 ```
 
+When [payload offloading](#payload-offloading) is configured, the publisher's processing result
+exposes whether the message was offloaded to the external payload store. This lets you assert the
+offloading path was taken without mocking the store:
+
+```ts
+// Large message — payload was offloaded
+const offloaded = await myPublisher.handlerSpy.waitForMessageWithId('1', 'published')
+expect(offloaded.processingResult).toEqual({ status: 'published', offloaded: true })
+
+// Small message — sent inline, `offloaded` is omitted
+const inline = await myPublisher.handlerSpy.waitForMessageWithId('2', 'published')
+expect(inline.processingResult.offloaded).toBeUndefined()
+```
+
+The `offloaded` field is only present (set to `true`) when offloading actually happened, so existing
+exact-match assertions such as `toEqual({ status: 'published' })` keep passing for inline messages.
+
 ### Counters
 
 For load-testing scenarios where retaining all messages in the buffer may be too memory-intensive, handler spies provide lightweight counters that track how many messages were processed with each status:
