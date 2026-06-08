@@ -98,9 +98,10 @@ describe('SqsPermissionPublisher - payload offloading', () => {
 
       await publisher.publish(message)
 
-      await expect(
-        publisher.handlerSpy.waitForMessageWithId('1', 'published'),
-      ).resolves.toBeDefined()
+      // The handler spy exposes that the message took the offloading path, so tests can
+      // assert offloading happened without inspecting the store directly.
+      const spyResult = await publisher.handlerSpy.waitForMessageWithId('1', 'published')
+      expect(spyResult.processingResult).toEqual({ status: 'published', offloaded: true })
       await waitAndRetry(() => receivedSqsMessages.length > 0)
 
       // Check that the published message's body is a pointer to the offloaded payload.
@@ -139,6 +140,28 @@ describe('SqsPermissionPublisher - payload offloading', () => {
       await expect(
         getObjectContent(s3, s3BucketName, offloadedPayloadPointer),
       ).resolves.toBeDefined()
+    })
+
+    it('does not flag small messages as offloaded', async () => {
+      const message = {
+        id: '2',
+        messageType: 'add',
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+      expect(JSON.stringify(message).length).toBeLessThan(largeMessageSizeThreshold)
+
+      await publisher.publish(message)
+
+      const spyResult = await publisher.handlerSpy.waitForMessageWithId('2', 'published')
+      // `offloaded` is omitted entirely for inline messages, so the exact-match holds.
+      expect(spyResult.processingResult).toEqual({ status: 'published' })
+      await waitAndRetry(() => receivedSqsMessages.length > 0)
+
+      // Small messages are sent inline, not as an offloaded-payload pointer.
+      expect(receivedSqsMessages.length).toBe(1)
+      const parsedReceivedMessageBody = JSON.parse(receivedSqsMessages[0]!.Body!)
+      expect(parsedReceivedMessageBody.payloadRef).toBeUndefined()
+      expect(parsedReceivedMessageBody.offloadedPayloadPointer).toBeUndefined()
+      expect(parsedReceivedMessageBody.id).toBe('2')
     })
   })
 })

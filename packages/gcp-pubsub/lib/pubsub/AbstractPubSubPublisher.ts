@@ -4,6 +4,7 @@ import {
   type AsyncPublisher,
   type BarrierResult,
   DeduplicationRequesterEnum,
+  isOffloadedPayloadPointerPayload,
   type MessageInvalidFormatError,
   type MessageSchemaContainer,
   type MessageValidationError,
@@ -99,7 +100,9 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
       await this.sendMessage(maybeOffloadedPayloadMessage, options)
       this.handleMessageProcessed({
         message: parsedMessage,
-        processingResult: { status: 'published' },
+        processingResult: isOffloadedPayloadPointerPayload(maybeOffloadedPayloadMessage)
+          ? { status: 'published', offloaded: true }
+          : { status: 'published' },
         messageProcessingStartTimestamp,
         queueName: this.topicName,
       })
