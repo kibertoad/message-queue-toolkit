@@ -28,8 +28,8 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1
       '@lokalise/tsconfig':
-        specifier: ^3.0.0
-        version: 3.1.0
+        specifier: ^4.0.0
+        version: 4.0.0
       '@message-queue-toolkit/core':
         specifier: workspace:*
         version: link:../core
@@ -98,8 +98,8 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1
       '@lokalise/tsconfig':
-        specifier: ^3.0.0
-        version: 3.1.0
+        specifier: ^4.0.0
+        version: 4.0.0
       '@types/node':
         specifier: ^25.0.2
         version: 25.8.0
@@ -147,8 +147,8 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1
       '@lokalise/tsconfig':
-        specifier: ^3.0.0
-        version: 3.1.0
+        specifier: ^4.0.0
+        version: 4.0.0
       '@message-queue-toolkit/core':
         specifier: workspace:*
         version: link:../core
@@ -201,8 +201,8 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1
       '@lokalise/tsconfig':
-        specifier: ^3.0.0
-        version: 3.1.0
+        specifier: ^4.0.0
+        version: 4.0.0
       '@message-queue-toolkit/core':
         specifier: '*'
         version: 25.5.0(zod@4.4.3)
@@ -241,8 +241,8 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1
       '@lokalise/tsconfig':
-        specifier: ^3.0.0
-        version: 3.1.0
+        specifier: ^4.0.0
+        version: 4.0.0
       '@message-queue-toolkit/core':
         specifier: '>=23.0.0'
         version: 25.5.0(zod@4.4.3)
@@ -293,8 +293,8 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1
       '@lokalise/tsconfig':
-        specifier: ^3.0.0
-        version: 3.1.0
+        specifier: ^4.0.0
+        version: 4.0.0
       '@message-queue-toolkit/core':
         specifier: '*'
         version: 25.5.0(zod@4.4.3)
@@ -330,8 +330,8 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1
       '@lokalise/tsconfig':
-        specifier: ^3.0.0
-        version: 3.1.0
+        specifier: ^4.0.0
+        version: 4.0.0
       '@message-queue-toolkit/core':
         specifier: '*'
         version: 25.5.0(zod@4.4.3)
@@ -376,8 +376,8 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1
       '@lokalise/tsconfig':
-        specifier: ^3.0.0
-        version: 3.1.0
+        specifier: ^4.0.0
+        version: 4.0.0
       '@message-queue-toolkit/core':
         specifier: '*'
         version: 25.5.0(zod@4.4.3)
@@ -410,8 +410,8 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1
       '@lokalise/tsconfig':
-        specifier: ^3.0.0
-        version: 3.1.0
+        specifier: ^4.0.0
+        version: 4.0.0
       '@message-queue-toolkit/core':
         specifier: '*'
         version: 25.5.0(zod@4.4.3)
@@ -443,8 +443,8 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1
       '@lokalise/tsconfig':
-        specifier: ^3.0.0
-        version: 3.1.0
+        specifier: ^4.0.0
+        version: 4.0.0
       '@types/node':
         specifier: ^25.0.2
         version: 25.8.0
@@ -495,8 +495,8 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1
       '@lokalise/tsconfig':
-        specifier: ^3.0.0
-        version: 3.1.0
+        specifier: ^4.0.0
+        version: 4.0.0
       '@message-queue-toolkit/core':
         specifier: workspace:*
         version: link:../core
@@ -562,8 +562,8 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1
       '@lokalise/tsconfig':
-        specifier: ^3.0.0
-        version: 3.1.0
+        specifier: ^4.0.0
+        version: 4.0.0
       '@message-queue-toolkit/core':
         specifier: workspace:*
         version: link:../core
@@ -1180,8 +1180,8 @@ packages:
     peerDependencies:
       zod: '>=3.25.76 <5.0.0'
 
-  '@lokalise/tsconfig@3.1.0':
-    resolution: {integrity: sha512-ynvdBlAYEV77EpBImC0XHnTgkwX8eQhYbGmz6NimlIBkF9SHaVKEuK58dyV4ADxxhXyYEPmnDzAqlDB9IAEf1w==}
+  '@lokalise/tsconfig@4.0.0':
+    resolution: {integrity: sha512-rWFqZPUa+odx1zdrEYmk4Sgmy1mnNnX6EYfV+Yn9NvonFfmUcWBoehqka9qxIIrDWwvnsEVSZGEpbdGfnWmPpw==}
 
   '@lokalise/universal-ts-utils@4.10.0':
     resolution: {integrity: sha512-+k99TEjNikAqIEZCZZ6ltQ9lJveeHMNYzJmSClS4iBz+RLf67+8m2HDrPZ3J7MMWCGync2UGx7m8tjCNPJP3Aw==}
@@ -4124,7 +4124,7 @@ snapshots:
       tslib: 2.8.1
       zod: 4.4.3
 
-  '@lokalise/tsconfig@3.1.0': {}
+  '@lokalise/tsconfig@4.0.0': {}
 
   '@lokalise/universal-ts-utils@4.10.0': {}
 
