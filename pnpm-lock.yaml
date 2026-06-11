@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@message-queue-toolkit/schemas': workspace:*
+
 importers:
 
   .:
@@ -18,8 +21,8 @@ importers:
         specifier: ^14.7.4
         version: 14.8.1(zod@4.4.3)
       '@message-queue-toolkit/schemas':
-        specifier: '>=7.0.0'
-        version: 7.1.0(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../schemas
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.4.16
@@ -73,8 +76,8 @@ importers:
         specifier: ^4.5.1
         version: 4.10.0
       '@message-queue-toolkit/schemas':
-        specifier: ^7.0.0
-        version: 7.1.0(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../schemas
       dot-prop:
         specifier: ^10.1.0
         version: 10.1.0
@@ -159,8 +162,8 @@ importers:
         specifier: '*'
         version: 2.0.2(@message-queue-toolkit/core@packages+core)(ioredis@5.11.0)(zod@4.4.3)
       '@message-queue-toolkit/schemas':
-        specifier: '*'
-        version: 7.1.0(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../schemas
       '@types/node':
         specifier: ^25.0.2
         version: 25.8.0
@@ -247,8 +250,8 @@ importers:
         specifier: '>=23.0.0'
         version: 25.5.0(zod@4.4.3)
       '@message-queue-toolkit/schemas':
-        specifier: '>=7.0.0'
-        version: 7.1.0(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../schemas
       '@types/node':
         specifier: ^25.0.2
         version: 25.8.0
@@ -336,8 +339,8 @@ importers:
         specifier: '*'
         version: 25.5.0(zod@4.4.3)
       '@message-queue-toolkit/schemas':
-        specifier: '*'
-        version: 7.1.0(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../schemas
       '@types/node':
         specifier: ^25.0.2
         version: 25.8.0
@@ -473,8 +476,8 @@ importers:
         specifier: ^14.4.2
         version: 14.8.1(zod@4.4.3)
       '@message-queue-toolkit/schemas':
-        specifier: '>=7.0.0'
-        version: 7.1.0(zod@4.4.3)
+        specifier: workspace:*
+        version: link:../schemas
       sqs-consumer:
         specifier: ^15.0.2
         version: 15.0.2(@aws-sdk/client-sqs@3.1061.0)
@@ -1215,11 +1218,6 @@ packages:
     peerDependencies:
       '@message-queue-toolkit/core': '>=23.1.0'
       ioredis: ^5.3.2
-
-  '@message-queue-toolkit/schemas@7.1.0':
-    resolution: {integrity: sha512-JAzSQAHouympK/cEDBxsfEuS2Ifu1pv0a/NRvhNWfFlgW0TmsWT7SkYNERA7x89OK7PGk9PyDN88cV9l0gZ22Q==}
-    peerDependencies:
-      zod: '>=3.25.76 <5.0.0'
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     resolution: {integrity: sha512-LCkGo6JDfaBhgST7UpPWgNgLINpcpabaHfyz5OBx75nUYxBsaEPxjnyNjWpeb/xBup/682QnBfRBy2/LvPutZQ==}
@@ -4174,7 +4172,7 @@ snapshots:
     dependencies:
       '@lokalise/node-core': 14.8.1(zod@4.4.3)
       '@lokalise/universal-ts-utils': 4.10.0
-      '@message-queue-toolkit/schemas': 7.1.0(zod@4.4.3)
+      '@message-queue-toolkit/schemas': link:packages/schemas
       dot-prop: 10.1.0
       fast-equals: 6.0.0
       json-stream-stringify: 3.1.6
@@ -4196,10 +4194,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - zod
-
-  '@message-queue-toolkit/schemas@7.1.0(zod@4.4.3)':
-    dependencies:
-      zod: 4.4.3
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     optional: true

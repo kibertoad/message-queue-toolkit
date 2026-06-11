@@ -1,6 +1,12 @@
 packages:
   - 'packages/*'
 
+# Always resolve the schemas package to the local workspace copy during
+# development, so every package builds and tests against unreleased changes.
+# Published manifests keep their own declared version ranges.
+overrides:
+  '@message-queue-toolkit/schemas': 'workspace:*'
+
 # Disallow every dependency from running install/build scripts. Each entry
 # must be set to `false` to silently skip the script, or `true` to allow it.
 # pnpm 11 auto-appends new entries here whenever a dep has scripts, prompting
