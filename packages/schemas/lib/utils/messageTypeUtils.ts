@@ -3,9 +3,10 @@ import type { z } from 'zod/v4'
 import type { CommonEventDefinition } from '../events/eventTypes.ts'
 
 /**
- * Resolves schema of a consumer message for a given event definition
+ * Resolves schema of a consumer message for a given event definition.
+ * Consumers receive messages already parsed by the consumer schema, hence the output type.
  */
-export type ConsumerMessageSchema<MessageDefinitionType extends CommonEventDefinition> = z.input<
+export type ConsumerMessageSchema<MessageDefinitionType extends CommonEventDefinition> = z.output<
   MessageDefinitionType['consumerSchema']
 >
 
@@ -23,7 +24,8 @@ export type AllPublisherMessageSchemas<MessageDefinitionTypes extends CommonEven
   z.input<MessageDefinitionTypes[number]['publisherSchema']>
 
 /**
- * Resolves schema of all possible consumer messages for a given list of event definitions
+ * Resolves schema of all possible consumer messages for a given list of event definitions.
+ * Consumers receive messages already parsed by the consumer schema, hence the output type.
  */
 export type AllConsumerMessageSchemas<MessageDefinitionTypes extends CommonEventDefinition[]> =
-  z.input<MessageDefinitionTypes[number]['consumerSchema']>
+  z.output<MessageDefinitionTypes[number]['consumerSchema']>
