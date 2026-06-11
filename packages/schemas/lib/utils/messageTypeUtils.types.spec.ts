@@ -1,6 +1,9 @@
 import { expectTypeOf } from 'vitest'
 import { z } from 'zod/v4'
-import type { CommonEventDefinition } from '../events/eventTypes.ts'
+import type {
+  CommonEventDefinition,
+  CommonEventDefinitionConsumerSchemaType,
+} from '../events/eventTypes.ts'
 import { enrichMessageSchemaWithBase } from '../messages/baseMessageSchemas.ts'
 import type {
   AllConsumerMessageSchemas,
@@ -63,6 +66,19 @@ describe('messageTypeUtils', () => {
 
       // Publishers pass the raw payload that the schema parses on emit
       expectTypeOf<PublisherMessage['payload']['mode']>().toBeUnknown()
+    })
+  })
+
+  describe('CommonEventDefinitionConsumerSchemaType', () => {
+    it('resolves transformed fields to their output type, like ConsumerMessageSchema', () => {
+      type ConsumerMessage = CommonEventDefinitionConsumerSchemaType<
+        typeof myEvents.transformingEvent
+      >
+
+      // DomainEventEmitter hands handlers the event parsed by the schema
+      expectTypeOf<ConsumerMessage['payload']['mode']>().toEqualTypeOf<
+        'status' | 'value' | undefined
+      >()
     })
   })
 
