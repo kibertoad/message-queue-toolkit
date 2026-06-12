@@ -73,8 +73,8 @@ importers:
         specifier: ^4.5.1
         version: 4.10.0
       '@message-queue-toolkit/schemas':
-        specifier: workspace:^
-        version: link:../schemas
+        specifier: ^7.2.0
+        version: 7.2.0(zod@4.4.3)
       dot-prop:
         specifier: ^10.1.0
         version: 10.1.0
@@ -1220,6 +1220,11 @@ packages:
     resolution: {integrity: sha512-JAzSQAHouympK/cEDBxsfEuS2Ifu1pv0a/NRvhNWfFlgW0TmsWT7SkYNERA7x89OK7PGk9PyDN88cV9l0gZ22Q==}
     peerDependencies:
       zod: '>=3.25.76 <5.0.0'
+
+  '@message-queue-toolkit/schemas@7.2.0':
+    resolution: {integrity: sha512-iuPbSeO1wm26tHPd5jIAmtllxVPRoMHHQbrqhsF5TpOfvDegXQ14lw/L5W2U7dWIYE+ErOvMWKTQAxdFZmza3A==}
+    peerDependencies:
+      zod: '>=3.25.67'
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     resolution: {integrity: sha512-LCkGo6JDfaBhgST7UpPWgNgLINpcpabaHfyz5OBx75nUYxBsaEPxjnyNjWpeb/xBup/682QnBfRBy2/LvPutZQ==}
@@ -4198,6 +4203,10 @@ snapshots:
       - zod
 
   '@message-queue-toolkit/schemas@7.1.0(zod@4.4.3)':
+    dependencies:
+      zod: 4.4.3
+
+  '@message-queue-toolkit/schemas@7.2.0(zod@4.4.3)':
     dependencies:
       zod: 4.4.3
 
