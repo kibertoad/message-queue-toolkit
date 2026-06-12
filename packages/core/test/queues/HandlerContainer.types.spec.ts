@@ -72,6 +72,27 @@ describe('HandlerContainer Types', () => {
       })
     })
 
+    it('should infer the schema output type for transforming schemas', () => {
+      const JOB_MESSAGE_SCHEMA = z.object({
+        type: z.literal('job.scheduled'),
+        // Forward-compatible field: unknown values are dropped instead of failing validation
+        mode: z.preprocess(
+          (value) => (value === 'fast' ? value : undefined),
+          z.literal('fast').optional(),
+        ),
+      })
+      type JobMessage = z.output<typeof JOB_MESSAGE_SCHEMA>
+
+      const builder = new MessageHandlerConfigBuilder<SupportedMessages | JobMessage, TestContext>()
+
+      // Consumers (e.g. SNS/SQS) parse messages with the schema before invoking the
+      // handler, so the handler message type is the schema output, not its raw input
+      builder.addConfig(JOB_MESSAGE_SCHEMA, (message, _context) => {
+        expectTypeOf(message.mode).toEqualTypeOf<'fast' | undefined>()
+        return Promise.resolve({ result: 'success' as const })
+      })
+    })
+
     it('should accept messageType in options', () => {
       const builder = new MessageHandlerConfigBuilder<SupportedMessages, TestContext>()
 
