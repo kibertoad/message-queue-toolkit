@@ -7,6 +7,10 @@ export default defineConfig({
     watch: false,
     mockReset: true,
     pool: 'threads',
+    typecheck: {
+      enabled: true,
+      include: ['**/*.types.spec.ts'],
+    },
     coverage: {
       provider: 'v8',
       include: ['lib/**/*.ts'],

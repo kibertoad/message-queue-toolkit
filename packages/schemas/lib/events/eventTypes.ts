@@ -32,7 +32,8 @@ export type CommonEventDefinition = {
   tags?: readonly string[] // Free-form tags for the event
 }
 
-export type CommonEventDefinitionConsumerSchemaType<T extends CommonEventDefinition> = z.input<
+// Consumers receive messages already parsed by the consumer schema, hence the output type.
+export type CommonEventDefinitionConsumerSchemaType<T extends CommonEventDefinition> = z.output<
   T['consumerSchema']
 >
 
