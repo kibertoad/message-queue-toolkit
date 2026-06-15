@@ -1,6 +1,7 @@
 # @message-queue-toolkit/gcp-pubsub
  
-Google Cloud Pub/Sub implementation for the message-queue-toolkit. Provides a robust, type-safe abstraction for publishing and consuming messages from Google Cloud Pub/Sub topics and subscriptions.
+Google Cloud Pub/Sub implementation for the message-queue-toolkit. Provides a robust, type-safe abstraction for 
+publishing and consuming messages from Google Cloud Pub/Sub topics and subscriptions.
 
 ## Table of Contents
 
