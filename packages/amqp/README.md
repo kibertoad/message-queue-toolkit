@@ -4,6 +4,7 @@ The library provides support for both direct exchanges and topic exchanges.
 
 > **_NOTE:_** Check [README.md](../../README.md) for transport-agnostic library documentation.
 
+
 ## Publishers
 
 Use `AbstractAmqpQueuePublisher` to implement direct exchange and `AbstractAmqpTopicPublisher` for topic exchange.

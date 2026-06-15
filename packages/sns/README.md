@@ -1,8 +1,8 @@
 # @message-queue-toolkit/sns
 
 AWS SNS (Simple Notification Service) implementation for the message-queue-toolkit. Provides a robust, type-safe 
-abstraction for publishing messages to SNS topics and consuming them via SQS queue subscriptions, with support for both 
-standard and FIFO topics.
+abstraction for publishing messages to SNS topics and consuming them via SQS queue subscriptions, with support for
+both standard and FIFO topics.
 
 ## Table of Contents
 
