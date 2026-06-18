@@ -231,8 +231,8 @@ importers:
         specifier: ^4.10.0
         version: 4.10.0
       '@platformatic/kafka':
-        specifier: ^2.2.3
-        version: 2.2.3
+        specifier: ^2.3.1
+        version: 2.3.1
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.4.16
@@ -1401,8 +1401,8 @@ packages:
     resolution: {integrity: sha512-xQD5JSkQc4D15suOk7FezGDmh6Vb5e4phDoFZ/ASpa3Ft+3fOVwFOENmHtC1561zm/xHnKwI91NbMF8inpbk0Q==}
     engines: {node: '>= 22.19.0'}
 
-  '@platformatic/kafka@2.2.3':
-    resolution: {integrity: sha512-gtBlwncPkj6rvE7Qnq68rWe33gm2gObvV1hgwI3rIRn8h4FTCZIeNZzy30Mg6HB80It/7+OjE2yztp7G1KqcrQ==}
+  '@platformatic/kafka@2.3.1':
+    resolution: {integrity: sha512-UHMHdsg19O2GwQKG0EpB3mwwodEVRE0M3D8wTyscc7N//zSwS9aHjMtvOJCCEJk60v6OqTfQ7WRgbeV/3cg0qQ==}
     engines: {node: '>= 22.22.0 || >= 24.6.0'}
 
   '@platformatic/wasm-utils@0.2.1':
@@ -4336,7 +4336,7 @@ snapshots:
 
   '@platformatic/dynamic-buffer@0.3.1': {}
 
-  '@platformatic/kafka@2.2.3':
+  '@platformatic/kafka@2.3.1':
     dependencies:
       '@platformatic/dynamic-buffer': 0.3.1
       '@platformatic/wasm-utils': 0.2.1
