@@ -11,7 +11,7 @@ import {
   type PermissionAdded,
   TOPICS,
 } from '../utils/permissionSchemas.ts'
-import { createTestContext, type TestContext } from '../utils/testContext.ts'
+import { createTestContext, deleteExistingTopics, type TestContext } from '../utils/testContext.ts'
 import { PermissionConsumer } from './PermissionConsumer.ts'
 
 describe('PermissionConsumer', () => {
@@ -32,13 +32,7 @@ describe('PermissionConsumer', () => {
 
   describe('init - close', () => {
     beforeEach(async () => {
-      try {
-        await testContext.cradle.kafkaAdmin.deleteTopics({
-          topics: TOPICS,
-        })
-      } catch (_) {
-        // Ignore errors if the topic does not exist
-      }
+      await deleteExistingTopics(testContext.cradle.kafkaAdmin, TOPICS)
     })
 
     it('should thrown an error if topics is empty', async () => {

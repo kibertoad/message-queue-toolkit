@@ -55,6 +55,23 @@ export const getKafkaConfig = (): KafkaConfig => ({
   clientId: randomUUID(),
 })
 
+/**
+ * Deletes only the topics that currently exist.
+ *
+ * Workaround for a regression in @platformatic/kafka >= 2.3.0 where Admin#deleteTopics
+ * leaves a stale entry in its internal deduplication cache when the operation errors
+ * (e.g. deleting a non-existent topic). Reusing the same Admin instance afterwards causes
+ * subsequent deleteTopics calls for the same topics to hang. Filtering to existing topics
+ * avoids triggering that error path.
+ */
+export const deleteExistingTopics = async (kafkaAdmin: Admin, topics: string[]): Promise<void> => {
+  const existingTopics = await kafkaAdmin.listTopics()
+  const topicsToDelete = topics.filter((topic) => existingTopics.includes(topic))
+  if (topicsToDelete.length === 0) return
+
+  await kafkaAdmin.deleteTopics({ topics: topicsToDelete })
+}
+
 const resolveDIConfig = (awilixManager: AwilixManager): DiConfig => ({
   awilixManager: asFunction(() => awilixManager, SINGLETON_CONFIG),
   kafkaConfig: asFunction(getKafkaConfig, SINGLETON_CONFIG),
