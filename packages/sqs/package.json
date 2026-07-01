@@ -45,7 +45,7 @@
         "@aws-sdk/client-sqs": "^3.1066.0",
         "@biomejs/biome": "^2.4.16",
         "@lokalise/biome-config": "^3.1.0",
-        "@lokalise/tsconfig": "^3.0.0",
+        "@lokalise/tsconfig": "^5.0.0",
         "@message-queue-toolkit/core": "workspace:*",
         "@message-queue-toolkit/redis-message-deduplication-store": "workspace:*",
         "@message-queue-toolkit/s3-payload-store": "workspace:*",
