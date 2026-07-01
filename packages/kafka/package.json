@@ -52,7 +52,7 @@
     },
     "dependencies": {
         "@lokalise/node-core": "^14.8.1",
-        "@lokalise/universal-ts-utils": "^4.10.0",
+        "@lokalise/universal-ts-utils": "^4.11.0",
         "@platformatic/kafka": "^2.3.1"
     },
     "peerDependencies": {
