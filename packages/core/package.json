@@ -29,7 +29,7 @@
         "@lokalise/universal-ts-utils": "^4.11.0",
         "@message-queue-toolkit/schemas": "^7.2.0",
         "dot-prop": "^10.1.0",
-        "fast-equals": "^6.0.0",
+        "fast-equals": "^6.0.2",
         "json-stream-stringify": "^3.1.7",
         "tmp": "^0.2.7",
         "toad-cache": "^3.7.1"
