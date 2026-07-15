@@ -314,8 +314,8 @@ importers:
   packages/outbox-core:
     dependencies:
       '@lokalise/background-jobs-common':
-        specifier: ^14.4.1
-        version: 14.4.1(bullmq@5.76.8)(ioredis@5.11.1)(pino@10.3.1)(toad-scheduler@3.1.0)(zod@4.4.3)
+        specifier: ^14.4.2
+        version: 14.4.2(bullmq@5.76.8)(ioredis@5.11.1)(pino@10.3.1)(toad-scheduler@3.1.0)(zod@4.4.3)
       '@supercharge/promise-pool':
         specifier: ^3.2.0
         version: 3.3.0
@@ -1101,8 +1101,8 @@ packages:
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
 
-  '@lokalise/background-jobs-common@14.4.1':
-    resolution: {integrity: sha512-yuhmlwwVkV7uXmqFB47F1e0A4uy2ovv5M0sLcK3HMyvma1YyVaCX+4CaQ+Tx+TWhbu1oEdgAcm6eJF9f3MfhTQ==}
+  '@lokalise/background-jobs-common@14.4.2':
+    resolution: {integrity: sha512-tGcTBa94qAQOVDtirTx0xXpwbGGnLVVzXJSCSHZdg59SEnCb8Tp33M9LitMBq40BPcAk8rF7ggNDiewRsc9H7g==}
     peerDependencies:
       bullmq: ^5.28.2
       ioredis: ^5.4.1
@@ -3889,7 +3889,7 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@lokalise/background-jobs-common@14.4.1(bullmq@5.76.8)(ioredis@5.11.1)(pino@10.3.1)(toad-scheduler@3.1.0)(zod@4.4.3)':
+  '@lokalise/background-jobs-common@14.4.2(bullmq@5.76.8)(ioredis@5.11.1)(pino@10.3.1)(toad-scheduler@3.1.0)(zod@4.4.3)':
     dependencies:
       '@lokalise/id-utils': 3.0.1
       '@lokalise/node-core': 14.8.1(zod@4.4.3)
