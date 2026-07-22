@@ -40,10 +40,10 @@
         "@lokalise/tsconfig": "^3.0.0",
         "@message-queue-toolkit/core": "workspace:*",
         "@message-queue-toolkit/schemas": "workspace:*",
-        "@types/node": "^25.0.2",
+        "@types/node": "^26.1.1",
         "@vitest/coverage-v8": "^4.1.10",
         "rimraf": "^6.0.1",
-        "typescript": "^5.9.2",
+        "typescript": "^7.0.2",
         "vitest": "^4.1.10",
         "zod": "^4.0.17"
     },
