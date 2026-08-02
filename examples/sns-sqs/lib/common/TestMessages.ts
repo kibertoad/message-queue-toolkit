@@ -1,9 +1,9 @@
-import {
-  type SnsAwareEventDefinition,
-  enrichMessageSchemaWithBaseStrict,
-} from '@message-queue-toolkit/schemas'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
-import { z } from 'zod/v3'
+import {
+  enrichMessageSchemaWithBaseStrict,
+  type SnsAwareEventDefinition,
+} from '@message-queue-toolkit/schemas'
+import { z } from 'zod'
 
 type AllConsumerMessageSchemas<MessageDefinitionTypes extends CommonEventDefinition[]> = z.infer<
   MessageDefinitionTypes[number]['consumerSchema']

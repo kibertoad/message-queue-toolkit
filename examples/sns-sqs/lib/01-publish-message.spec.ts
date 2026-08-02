@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { userConsumer } from './common/Dependencies.ts'
 import { publisherManager } from './common/TestPublisherManager.ts'
-import { UserConsumer } from './common/UserConsumer.js'
+import { UserConsumer } from './common/UserConsumer.ts'
 
 describe('Publish message', () => {
   beforeEach(async () => {
