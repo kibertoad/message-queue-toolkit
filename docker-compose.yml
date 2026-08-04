@@ -25,7 +25,7 @@ services:
     restart: on-failure
 
   kafka:
-    image: apache/kafka:3.7.1
+    image: apache/kafka:3.9.2
     ports:
       - 9092:9092
     environment:
