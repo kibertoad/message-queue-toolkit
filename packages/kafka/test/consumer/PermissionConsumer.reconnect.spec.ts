@@ -1,5 +1,6 @@
 import { setTimeout } from 'node:timers/promises'
 import { waitAndRetry } from '@lokalise/universal-ts-utils/node'
+import { Consumer } from '@platformatic/kafka'
 import { afterAll, afterEach, beforeAll, expect, vi } from 'vitest'
 import { createTestContext, type TestContext } from '../utils/testContext.ts'
 import { PermissionConsumer } from './PermissionConsumer.ts'
@@ -34,19 +35,21 @@ describe('PermissionConsumer - reconnect', () => {
     // Given
     await consumer.init()
 
-    const closeSpy = vi.spyOn(consumer, 'close')
+    // The reconnect loop tears the consumer down itself rather than going through close(), so
+    // that its own teardown is not mistaken for the application asking for shutdown.
+    const teardownSpy = vi.spyOn(consumer as any, 'teardown')
     const initSpy = vi.spyOn(consumer, 'init')
 
     // When
     simulateStreamError()
 
-    // Then - reconnect should trigger close and init
-    await waitAndRetry(() => closeSpy.mock.calls.length === 1)
+    // Then - reconnect should trigger teardown and init
+    await waitAndRetry(() => teardownSpy.mock.calls.length === 1)
     expect(consumer.isActive).toBe(true)
     expect(consumer.isConnected).toBe(true)
     await waitAndRetry(() => initSpy.mock.calls.length === 1, 100, 15)
 
-    expect(closeSpy).toHaveBeenCalledTimes(1)
+    expect(teardownSpy).toHaveBeenCalledTimes(1)
     expect(initSpy).toHaveBeenCalledTimes(1)
     expect(consumer.isActive).toBe(true)
     expect(consumer.isConnected).toBe(true)
@@ -56,7 +59,9 @@ describe('PermissionConsumer - reconnect', () => {
     // Given
     await consumer.init()
 
-    const closeSpy = vi.spyOn(consumer, 'close')
+    // The reconnect loop tears the consumer down itself rather than going through close(), so
+    // that its own teardown is not mistaken for the application asking for shutdown.
+    const teardownSpy = vi.spyOn(consumer as any, 'teardown')
     const initSpy = vi.spyOn(consumer, 'init').mockRejectedValue(new Error('Kafka unavailable'))
     const errorReporterSpy = vi.spyOn(testContext.cradle.errorReporter, 'report')
 
@@ -77,7 +82,7 @@ describe('PermissionConsumer - reconnect', () => {
     )
 
     expect(initSpy).toHaveBeenCalledTimes(5)
-    expect(closeSpy).toHaveBeenCalledTimes(6) // Retries + final clean-up
+    expect(teardownSpy).toHaveBeenCalledTimes(6) // Retries + final clean-up
     expect(consumer.isConnected).toBe(false)
     expect(consumer.isActive).toBe(false)
   })
@@ -114,16 +119,78 @@ describe('PermissionConsumer - reconnect', () => {
   })
 
   it('should reuse the in-flight initialization when init() is called concurrently', async () => {
-    // Given
+    // Given - hold initialization open at exactly the window a concurrent caller must not be
+    // released into: `this.consumer` is assigned, but `consume()` has not produced a stream yet
     const doInitSpy = vi.spyOn(consumer as any, 'doInit')
+    let releaseJoinGroup!: () => void
+    const joinGroupGate = new Promise<void>((resolve) => {
+      releaseJoinGroup = resolve
+    })
+    const realJoinGroup = Consumer.prototype.joinGroup
+    vi.spyOn(Consumer.prototype, 'joinGroup').mockImplementation(async function (
+      this: Consumer<string, object, string, string>,
+      ...args: Parameters<typeof realJoinGroup>
+    ) {
+      await joinGroupGate
+      return realJoinGroup.apply(this, args)
+    })
 
     // When
-    await Promise.all([consumer.init(), consumer.init(), consumer.init()])
+    let settled = 0
+    const inits = [consumer.init(), consumer.init(), consumer.init()].map((promise) =>
+      promise.then(() => {
+        settled++
+      }),
+    )
+    await setTimeout(200)
 
-    // Then - a concurrent caller must not be handed a resolved init() before the stream is up
+    // Then - every caller is still waiting, including the two that found `this.consumer` set
+    expect((consumer as any).consumer).toBeDefined()
+    expect((consumer as any).consumerStream).toBeUndefined()
+    expect(settled).toBe(0)
+
+    releaseJoinGroup()
+    await Promise.all(inits)
+
     expect(doInitSpy).toHaveBeenCalledOnce()
     expect((consumer as any).consumerStream).toBeDefined()
     expect(consumer.isConnected).toBe(true)
+  })
+
+  it('should drop a half-built consumer when init() fails', async () => {
+    // Given - init fails after `doInit()` has already assigned `this.consumer`
+    vi.spyOn(Consumer.prototype, 'joinGroup').mockRejectedValue(new Error('Kafka unavailable'))
+
+    // When
+    await expect(consumer.init()).rejects.toThrow('Consumer init failed')
+
+    // Then - nothing half-built is left behind for the early return in init() to hand back
+    expect((consumer as any).consumer).toBeUndefined()
+    expect((consumer as any).consumerStream).toBeUndefined()
+
+    // And a retry starts from scratch rather than resolving against the failed consumer
+    vi.restoreAllMocks()
+    await consumer.init()
+
+    expect((consumer as any).consumerStream).toBeDefined()
+    expect(consumer.isConnected).toBe(true)
+  })
+
+  it('should not bring the consumer back up when close lands during reconnect backoff', async () => {
+    // Given
+    await consumer.init()
+    const initSpy = vi.spyOn(consumer, 'init')
+
+    // When - the application closes while the reconnect loop is waiting out its backoff
+    simulateStreamError()
+    await waitAndRetry(() => (consumer as any).isReconnecting, 20, 50)
+    await consumer.close()
+
+    // Then - the loop must not hand back a running consumer the caller believes it shut down
+    await setTimeout(2000)
+    expect(initSpy).not.toHaveBeenCalled()
+    expect((consumer as any).consumer).toBeUndefined()
+    expect(consumer.isConnected).toBe(false)
   })
 
   it('should wait for an in-flight init() before closing', async () => {
