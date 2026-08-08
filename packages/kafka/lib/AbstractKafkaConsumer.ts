@@ -104,6 +104,8 @@ export abstract class AbstractKafkaConsumer<
     DeserializedMessage<SupportedMessageValues<TopicsConfig>>
   >
   private isReconnecting: boolean
+  private isClosing: boolean
+  private initPromise?: Promise<void>
 
   private readonly transactionObservabilityManager: TransactionObservabilityManager
   private readonly executionContext: ExecutionContext
@@ -118,6 +120,7 @@ export abstract class AbstractKafkaConsumer<
     this.executionContext = executionContext
 
     this.isReconnecting = false
+    this.isClosing = false
   }
 
   /**
@@ -158,6 +161,17 @@ export abstract class AbstractKafkaConsumer<
   async init(): Promise<void> {
     if (this.consumer) return Promise.resolve()
 
+    // Tracked so that `close()` can wait for an in-flight initialization instead of tearing down
+    // half-built state underneath it.
+    this.initPromise = this.doInit()
+    try {
+      await this.initPromise
+    } finally {
+      this.initPromise = undefined
+    }
+  }
+
+  private async doInit(): Promise<void> {
     const topics = Object.keys(this.options.handlers)
     if (topics.length === 0) throw new Error('At least one topic must be defined')
 
@@ -219,9 +233,16 @@ export abstract class AbstractKafkaConsumer<
       })
     }
 
-    this.handleStream(
-      this.messageBatchStream ? this.messageBatchStream : this.consumerStream,
-    ).catch((error) => this.reconnect(error))
+    const activeStream = this.messageBatchStream ? this.messageBatchStream : this.consumerStream
+    this.handleStream(activeStream).catch((error) => {
+      // Only a failure of the stream that is still the active one warrants a reconnect.
+      // `close()` and the reconnect loop tear the stream down on purpose, and the
+      // "Premature close" it emits on the way out must not start a fresh reconnect cycle.
+      if (this.isClosing) return
+      if (activeStream !== this.messageBatchStream && activeStream !== this.consumerStream) return
+
+      return this.reconnect(error)
+    })
   }
 
   private async handleStream(
@@ -238,28 +259,40 @@ export abstract class AbstractKafkaConsumer<
   }
 
   async close(): Promise<void> {
+    // A close can land while a reconnect is still bringing the consumer back up. Closing the
+    // client while `consume()` is still constructing its stream makes the stream refresh offsets
+    // against an already closed client, which surfaces as an uncaught "Client is closed." error.
+    await this.initPromise?.catch(() => {
+      // Init failures are surfaced to whoever called init(); here we only care that it settled.
+    })
+
     if (!this.consumer) return Promise.resolve()
 
-    await this.consumerStream?.close()
-    this.consumerStream = undefined
-
-    await new Promise((resolve) =>
-      this.messageBatchStream ? this.messageBatchStream?.end(resolve) : resolve(undefined),
-    )
-    this.messageBatchStream = undefined
-
+    this.isClosing = true
     try {
-      await this.consumer.close()
-    } catch (err) {
-      // Reporting error but not throwing further
-      const resolvedErrorLog = resolveGlobalErrorLogObject(err)
-      this.logger.warn(resolvedErrorLog, 'Error while closing Kafka consumer')
-      this.errorReporter.report({
-        error: isError(err) ? err : new Error('Unknown error while closing Kafka consumer'),
-        context: resolvedErrorLog,
-      })
+      await this.consumerStream?.close()
+      this.consumerStream = undefined
+
+      await new Promise((resolve) =>
+        this.messageBatchStream ? this.messageBatchStream?.end(resolve) : resolve(undefined),
+      )
+      this.messageBatchStream = undefined
+
+      try {
+        await this.consumer.close()
+      } catch (err) {
+        // Reporting error but not throwing further
+        const resolvedErrorLog = resolveGlobalErrorLogObject(err)
+        this.logger.warn(resolvedErrorLog, 'Error while closing Kafka consumer')
+        this.errorReporter.report({
+          error: isError(err) ? err : new Error('Unknown error while closing Kafka consumer'),
+          context: resolvedErrorLog,
+        })
+      }
+      this.consumer = undefined
+    } finally {
+      this.isClosing = false
     }
-    this.consumer = undefined
   }
 
   private async reconnect(error: unknown): Promise<void> {
