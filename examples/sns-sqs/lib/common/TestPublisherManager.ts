@@ -1,8 +1,7 @@
 import { CommonMetadataFiller, EventRegistry } from '@message-queue-toolkit/core'
 import type { AllPublisherMessageSchemas } from '@message-queue-toolkit/schemas'
-import { SnsPublisherManager } from '@message-queue-toolkit/sns'
 import type { CommonSnsPublisher } from '@message-queue-toolkit/sns'
-import { CommonSnsPublisherFactory } from '@message-queue-toolkit/sns'
+import { CommonSnsPublisherFactory, SnsPublisherManager } from '@message-queue-toolkit/sns'
 import { errorReporter, logger, snsClient, stsClient } from './Dependencies.ts'
 import { UserEvents, type UserEventsType } from './TestMessages.ts'
 

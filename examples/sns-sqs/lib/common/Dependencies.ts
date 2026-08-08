@@ -1,11 +1,13 @@
-import { SNSClient, type SNSClientConfig } from '@aws-sdk/client-sns'
+import { SNSClient } from '@aws-sdk/client-sns'
 import { SQSClient } from '@aws-sdk/client-sqs'
 import { STSClient } from '@aws-sdk/client-sts'
 import { SnsConsumerErrorResolver } from '@message-queue-toolkit/sns'
 import pino from 'pino'
 import { UserConsumer } from './UserConsumer.ts'
 
-export const TEST_AWS_CONFIG: SNSClientConfig = {
+// Shared across SNS, SQS and STS clients, so it is intentionally not typed as
+// any single client's config - those types are no longer mutually assignable.
+export const TEST_AWS_CONFIG = {
   endpoint: 'http://s3.localhost.localstack.cloud:4566',
   region: 'eu-west-1',
   credentials: {
