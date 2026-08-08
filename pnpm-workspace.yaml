@@ -9,6 +9,14 @@ allowBuilds:
   msgpackr-extract: false
   protobufjs: false
 
+# Deliberate exception to the minimum release age. 2.9.0 fixes the two upstream defects that
+# made the consumer throw out of callback chains nothing can catch: the connection pool now
+# reports its closed state as a NetworkError rather than a plain Error, and Consumer.#handleError
+# classifies via the free `findErrorBy` instead of calling `findBy` as a method on whatever it
+# was handed. Worth taking ahead of the usual soak time.
+minimumReleaseAgeExclude:
+  - '@platformatic/kafka@2.9.0'
+
 # Hoist all dependencies to the workspace root to preserve npm-compatible
 # resolution behavior for transitive deps used directly in test files.
 shamefullyHoist: true

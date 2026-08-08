@@ -33,7 +33,7 @@
         "@message-queue-toolkit/schemas": "file:../../schemas",
         "@lokalise/node-core": "^14.8.1",
         "@platformatic/dynamic-buffer": "^0.4.0",
-        "@platformatic/kafka": "2.8.0",
+        "@platformatic/kafka": "2.9.0",
         "pg": "^8.22.0",
         "zod": "^4.4.3"
     },
