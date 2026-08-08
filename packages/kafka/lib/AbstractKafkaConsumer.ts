@@ -159,15 +159,20 @@ export abstract class AbstractKafkaConsumer<
   }
 
   async init(): Promise<void> {
+    // `doInit()` assigns `this.consumer` before it has awaited `joinGroup()` and `consume()`, so
+    // the in-flight promise has to be checked first: a concurrent caller that only looked at
+    // `this.consumer` would be handed a resolved init() while there is still no consumer stream.
+    if (this.initPromise) return this.initPromise
     if (this.consumer) return Promise.resolve()
 
     // Tracked so that `close()` can wait for an in-flight initialization instead of tearing down
     // half-built state underneath it.
-    this.initPromise = this.doInit()
+    const initPromise = this.doInit()
+    this.initPromise = initPromise
     try {
-      await this.initPromise
+      await initPromise
     } finally {
-      this.initPromise = undefined
+      if (this.initPromise === initPromise) this.initPromise = undefined
     }
   }
 
