@@ -9,7 +9,7 @@ import {
   transactionObservabilityManager,
 } from './common/Dependencies.ts'
 import { publisherManager } from './common/TestPublisherManager.ts'
-import { UserConsumer } from './common/UserConsumer.js'
+import { UserConsumer } from './common/UserConsumer.ts'
 
 // This test suite illustrates the importance of only initting the consumers you need
 // to prevent test execution time from increasing with every new consumer added

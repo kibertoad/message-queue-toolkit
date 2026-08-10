@@ -1,9 +1,9 @@
 import { MessageHandlerConfigBuilder } from '@message-queue-toolkit/core'
 import type { ConsumerMessageSchema } from '@message-queue-toolkit/schemas'
 import { AbstractSnsSqsConsumer, type SNSSQSConsumerDependencies } from '@message-queue-toolkit/sns'
-import { UserEvents } from './TestMessages.ts'
 import { userCreatedHandler } from './handlers/UserCreatedHandler.ts'
 import { userUpdatedHandler } from './handlers/UserUpdatedHandler.ts'
+import { UserEvents } from './TestMessages.ts'
 
 type SupportedMessages = ConsumerMessageSchema<
   typeof UserEvents.created | typeof UserEvents.updated

@@ -104,6 +104,9 @@ export abstract class AbstractKafkaConsumer<
     DeserializedMessage<SupportedMessageValues<TopicsConfig>>
   >
   private isReconnecting: boolean
+  private isClosing: boolean
+  private isShuttingDown: boolean
+  private initPromise?: Promise<void>
 
   private readonly transactionObservabilityManager: TransactionObservabilityManager
   private readonly executionContext: ExecutionContext
@@ -118,6 +121,8 @@ export abstract class AbstractKafkaConsumer<
     this.executionContext = executionContext
 
     this.isReconnecting = false
+    this.isClosing = false
+    this.isShuttingDown = false
   }
 
   /**
@@ -156,8 +161,27 @@ export abstract class AbstractKafkaConsumer<
   }
 
   async init(): Promise<void> {
+    // `doInit()` assigns `this.consumer` before it has awaited `joinGroup()` and `consume()`, so
+    // the in-flight promise has to be checked first: a concurrent caller that only looked at
+    // `this.consumer` would be handed a resolved init() while there is still no consumer stream.
+    if (this.initPromise) return this.initPromise
     if (this.consumer) return Promise.resolve()
 
+    // An explicit init means the consumer is wanted again, whatever an earlier close asked for.
+    this.isShuttingDown = false
+
+    // Tracked so that `close()` can wait for an in-flight initialization instead of tearing down
+    // half-built state underneath it.
+    const initPromise = this.doInit()
+    this.initPromise = initPromise
+    try {
+      await initPromise
+    } finally {
+      if (this.initPromise === initPromise) this.initPromise = undefined
+    }
+  }
+
+  private async doInit(): Promise<void> {
     const topics = Object.keys(this.options.handlers)
     if (topics.length === 0) throw new Error('At least one topic must be defined')
 
@@ -212,6 +236,26 @@ export abstract class AbstractKafkaConsumer<
         this.consumerStream.on('error', (error) => this.handleError(error))
       }
     } catch (error) {
+      // The consumer was created before this block could fail. Leaving it in place would make the
+      // early return in `init()` hand the next caller a resolved init() for a consumer that never
+      // got a stream, so drop the references and let a retry start from scratch.
+      const abandonedStream = this.consumerStream
+      const abandonedConsumer = this.consumer
+      this.consumerStream = undefined
+      this.messageBatchStream = undefined
+      this.consumer = undefined
+
+      // Deliberately not awaited: a client that never joined its group can take a long time to
+      // close, and that must not delay the error the caller is already waiting on.
+      void (async () => {
+        try {
+          await abandonedStream?.close()
+          await abandonedConsumer.close()
+        } catch {
+          // Best effort: nothing references this client any more.
+        }
+      })()
+
       throw new InternalError({
         message: 'Consumer init failed',
         errorCode: 'KAFKA_CONSUMER_INIT_ERROR',
@@ -219,9 +263,16 @@ export abstract class AbstractKafkaConsumer<
       })
     }
 
-    this.handleStream(
-      this.messageBatchStream ? this.messageBatchStream : this.consumerStream,
-    ).catch((error) => this.reconnect(error))
+    const activeStream = this.messageBatchStream ? this.messageBatchStream : this.consumerStream
+    this.handleStream(activeStream).catch((error) => {
+      // Only a failure of the stream that is still the active one warrants a reconnect.
+      // `close()` and the reconnect loop tear the stream down on purpose, and the
+      // "Premature close" it emits on the way out must not start a fresh reconnect cycle.
+      if (this.isClosing) return
+      if (activeStream !== this.messageBatchStream && activeStream !== this.consumerStream) return
+
+      return this.reconnect(error)
+    })
   }
 
   private async handleStream(
@@ -238,28 +289,49 @@ export abstract class AbstractKafkaConsumer<
   }
 
   async close(): Promise<void> {
+    // Recorded before the teardown's early return. A close that lands during the reconnect
+    // backoff finds no consumer to tear down, but must still stop the loop from bringing one
+    // back up behind the caller's back.
+    this.isShuttingDown = true
+
+    await this.teardown()
+  }
+
+  private async teardown(): Promise<void> {
+    // A close can land while a reconnect is still bringing the consumer back up. Closing the
+    // client while `consume()` is still constructing its stream makes the stream refresh offsets
+    // against an already closed client, which surfaces as an uncaught "Client is closed." error.
+    await this.initPromise?.catch(() => {
+      // Init failures are surfaced to whoever called init(); here we only care that it settled.
+    })
+
     if (!this.consumer) return Promise.resolve()
 
-    await this.consumerStream?.close()
-    this.consumerStream = undefined
-
-    await new Promise((resolve) =>
-      this.messageBatchStream ? this.messageBatchStream?.end(resolve) : resolve(undefined),
-    )
-    this.messageBatchStream = undefined
-
+    this.isClosing = true
     try {
-      await this.consumer.close()
-    } catch (err) {
-      // Reporting error but not throwing further
-      const resolvedErrorLog = resolveGlobalErrorLogObject(err)
-      this.logger.warn(resolvedErrorLog, 'Error while closing Kafka consumer')
-      this.errorReporter.report({
-        error: isError(err) ? err : new Error('Unknown error while closing Kafka consumer'),
-        context: resolvedErrorLog,
-      })
+      await this.consumerStream?.close()
+      this.consumerStream = undefined
+
+      await new Promise((resolve) =>
+        this.messageBatchStream ? this.messageBatchStream?.end(resolve) : resolve(undefined),
+      )
+      this.messageBatchStream = undefined
+
+      try {
+        await this.consumer.close()
+      } catch (err) {
+        // Reporting error but not throwing further
+        const resolvedErrorLog = resolveGlobalErrorLogObject(err)
+        this.logger.warn(resolvedErrorLog, 'Error while closing Kafka consumer')
+        this.errorReporter.report({
+          error: isError(err) ? err : new Error('Unknown error while closing Kafka consumer'),
+          context: resolvedErrorLog,
+        })
+      }
+      this.consumer = undefined
+    } finally {
+      this.isClosing = false
     }
-    this.consumer = undefined
   }
 
   private async reconnect(error: unknown): Promise<void> {
@@ -274,8 +346,19 @@ export abstract class AbstractKafkaConsumer<
 
     for (let attempt = 0; attempt < MAX_RECONNECT_ATTEMPTS; attempt++) {
       try {
-        await this.close()
+        // `teardown()` rather than `close()`: this is the loop replacing the consumer, not the
+        // application asking for shutdown, so it must not record shutdown intent.
+        await this.teardown()
+
         await setTimeout(Math.pow(2, attempt) * 1000) // Backoff delay starting with 1s
+
+        // The application closed the consumer while we were waiting; bringing it back up now
+        // would hand it a running consumer it believes it has shut down.
+        if (this.isShuttingDown) {
+          this.isReconnecting = false
+          return
+        }
+
         await this.init()
         this.isReconnecting = false
         return
@@ -291,7 +374,7 @@ export abstract class AbstractKafkaConsumer<
       }
     }
 
-    await this.close() // closing in case something is open after last init call
+    await this.teardown() // closing in case something is open after last init call
     this.isReconnecting = false
     this.handleError(new Error('Consumer failed to reconnect after max attempts'), {
       maxAttempts: MAX_RECONNECT_ATTEMPTS,

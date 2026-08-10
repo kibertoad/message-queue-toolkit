@@ -94,27 +94,27 @@ describe('PermissionPublisher', () => {
       )
     })
 
-    it.each([
-      false,
-      true,
-    ])('should auto create topic if creation topic is used (lazy init: %s)', async (lazyInit) => {
-      // Given
-      publisher = new PermissionPublisher(testContext.cradle, {
-        autocreateTopics: true,
-      })
+    it.each([false, true])(
+      'should auto create topic if creation topic is used (lazy init: %s)',
+      async (lazyInit) => {
+        // Given
+        publisher = new PermissionPublisher(testContext.cradle, {
+          autocreateTopics: true,
+        })
 
-      // When
-      if (!lazyInit) await publisher.init()
-      await publisher.publish('permission-added', {
-        id: '1',
-        type: 'added',
-        permissions: [],
-      })
+        // When
+        if (!lazyInit) await publisher.init()
+        await publisher.publish('permission-added', {
+          id: '1',
+          type: 'added',
+          permissions: [],
+        })
 
-      // Then
-      const emittedEvent = await publisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(emittedEvent.message).toMatchObject({ id: '1', type: 'added' })
-    })
+        // Then
+        const emittedEvent = await publisher.handlerSpy.waitForMessageWithId('1', 'published')
+        expect(emittedEvent.message).toMatchObject({ id: '1', type: 'added' })
+      },
+    )
   })
 
   describe('publish', () => {
