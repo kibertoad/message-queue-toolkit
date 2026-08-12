@@ -36,7 +36,7 @@
     },
     "devDependencies": {
         "@message-queue-toolkit/core": "workspace:*",
-        "@biomejs/biome": "^2.5.6",
+        "@biomejs/biome": "^2.5.7",
         "@lokalise/biome-config": "^3.1.1",
         "@lokalise/tsconfig": "^5.0.0",
         "@types/node": "^26.1.2",
