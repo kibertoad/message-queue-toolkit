@@ -66,7 +66,7 @@
         "@lokalise/tsconfig": "^5.0.0",
         "@message-queue-toolkit/core": "workspace:*",
         "@message-queue-toolkit/schemas": ">=7.2.0",
-        "@types/node": "^26.1.2",
+        "@types/node": "^26.2.0",
         "@vitest/coverage-v8": "^4.1.10",
         "awilix": "^13.0.5",
         "awilix-manager": "^7.0.0",
