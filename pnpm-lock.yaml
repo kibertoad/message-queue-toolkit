@@ -154,7 +154,7 @@ importers:
         version: link:../core
       '@message-queue-toolkit/gcs-payload-store':
         specifier: '*'
-        version: 1.0.0(@google-cloud/storage@7.21.0(supports-color@7.2.0))(@message-queue-toolkit/core@packages+core)
+        version: 1.0.0(@google-cloud/storage@7.22.0(supports-color@7.2.0))(@message-queue-toolkit/core@packages+core)
       '@message-queue-toolkit/redis-message-deduplication-store':
         specifier: '*'
         version: 2.0.2(@message-queue-toolkit/core@packages+core)(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)(zod@4.4.3)
@@ -195,8 +195,8 @@ importers:
         specifier: ^2.5.6
         version: 2.5.6
       '@google-cloud/storage':
-        specifier: ^7.21.0
-        version: 7.21.0(supports-color@7.2.0)
+        specifier: ^7.22.0
+        version: 7.22.0(supports-color@7.2.0)
       '@lokalise/biome-config':
         specifier: ^3.1.1
         version: 3.1.1
@@ -898,9 +898,9 @@ packages:
     resolution: {integrity: sha512-hpaUqfgX1Z6tp/2xN9xrAsrcozVOeBgwUogkPtfOP744jOnttMVnRvxidorDVcRfbF6BT+qZo0SjhVjsSAaL3Q==}
     engines: {node: '>=22'}
 
-  '@google-cloud/storage@7.21.0':
-    resolution: {integrity: sha512-l+IFTkd+6Y5LoAuXyYCKNAKtw/Ci+rAMqgdTB1jv4iZiLhw0rtq+0qjIRbBizXkNzEFmXiXUW0H7sZQQvk1ffA==}
-    engines: {node: '>=14'}
+  '@google-cloud/storage@7.22.0':
+    resolution: {integrity: sha512-W98gTQOAntEeEQ7/pZxSQXxfUO5CiQcXJRsxBpUa6UU25n8YN/VtogPBi0H+MAmUrn/6bY/sBhFansoWEsr2/g==}
+    engines: {node: '>=18'}
 
   '@grpc/grpc-js@1.14.4':
     resolution: {integrity: sha512-k9Dj3DV/itK9D06Y8f190Qgop7/Ui+D0njFV3LHMPwPT75DpXLQohE9Wmz0QElrJnzsjB7KPWiKJbOl7IPDArQ==}
@@ -3343,7 +3343,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@google-cloud/storage@7.21.0(supports-color@7.2.0)':
+  '@google-cloud/storage@7.22.0(supports-color@7.2.0)':
     dependencies:
       '@google-cloud/paginator': 5.0.2
       '@google-cloud/projectify': 4.0.0
@@ -3433,9 +3433,9 @@ snapshots:
 
   '@lokalise/universal-ts-utils@4.11.0': {}
 
-  '@message-queue-toolkit/gcs-payload-store@1.0.0(@google-cloud/storage@7.21.0(supports-color@7.2.0))(@message-queue-toolkit/core@packages+core)':
+  '@message-queue-toolkit/gcs-payload-store@1.0.0(@google-cloud/storage@7.22.0(supports-color@7.2.0))(@message-queue-toolkit/core@packages+core)':
     dependencies:
-      '@google-cloud/storage': 7.21.0(supports-color@7.2.0)
+      '@google-cloud/storage': 7.22.0(supports-color@7.2.0)
       '@message-queue-toolkit/core': link:packages/core
 
   '@message-queue-toolkit/redis-message-deduplication-store@2.0.2(@message-queue-toolkit/core@packages+core)(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)(zod@4.4.3)':
