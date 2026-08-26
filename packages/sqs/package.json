@@ -42,7 +42,7 @@
     },
     "devDependencies": {
         "@aws-sdk/client-s3": "^3.1106.0",
-        "@aws-sdk/client-sqs": "^3.1109.0",
+        "@aws-sdk/client-sqs": "^3.1114.0",
         "@biomejs/biome": "^2.5.8",
         "@lokalise/biome-config": "^3.1.1",
         "@lokalise/tsconfig": "^5.0.0",
