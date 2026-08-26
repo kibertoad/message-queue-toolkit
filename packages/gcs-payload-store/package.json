@@ -32,7 +32,7 @@
         "@message-queue-toolkit/core": ">=24.0.0"
     },
     "devDependencies": {
-        "@google-cloud/storage": "^7.22.0",
+        "@google-cloud/storage": "^8.0.1",
         "@message-queue-toolkit/core": "workspace:*",
         "@biomejs/biome": "^2.5.8",
         "@lokalise/biome-config": "^3.1.1",
