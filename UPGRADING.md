@@ -1,5 +1,28 @@
 # Upgrading Guide
 
+## Upgrading </br> `core` `26.x.x` -> `26.2.0` </br> `schemas` `7.x.x` -> `7.3.0` </br> `kafka` `xx.x.x` -> `xx.x.0` </br> `sqs` `xx.x.x` -> `xx.x.0` </br> `sns` `xx.x.x` -> `xx.x.0` </br> `amqp` `xx.x.x` -> `xx.x.0` </br> `gcp-pubsub` `xx.x.x` -> `xx.x.0`
+
+### Description of Changes
+
+- **`zod` peer floor raised to `>=4.5.0`** across every package that declares it. `zod` 4.5 is where ahead-of-time
+  schema compilation landed, and the toolkit now relies on it. If you are still on `zod` 3.x or on 4.x below 4.5,
+  upgrade `zod` before upgrading the toolkit.
+
+- **Registered schemas are precompiled automatically.** Publisher `messageSchemas`, handler schemas passed to
+  `MessageHandlerConfigBuilder` / `MessageHandlerConfig` / `KafkaHandlerConfig`, the `schema` of a Kafka
+  `TopicConfig`, and the definitions given to `EventRegistry` are compiled when they are registered. Parsing
+  behavior does not change; only its speed does.
+
+- **Precompiling a schema yourself is now a type error** at those positions. If you were calling `z.compile()`
+  before handing a schema to the toolkit, drop the call and pass the original schema.
+
+- **The schema the toolkit parses with is a clone.** `MessageSchemaContainer.resolveSchema()`,
+  `MessageHandlerConfig.schema`, `KafkaHandlerConfig.schema` and `EventRegistry.getEventDefinitionByTypeName()`
+  return the precompiled counterpart of what you registered, not the same object. Code asserting reference
+  equality against the original schema (`expect(config.schema).toBe(MY_SCHEMA)`) needs to compare on behavior
+  instead. `EventRegistry.supportedEvents` still holds the array exactly as it was passed in.
+
+
 ## Upgrading </br> `sqs` `25.x.x` -> `26.0.0` </br> `sns` `25.x.x` -> `26.0.0`
 
 ### Description of Breaking Changes

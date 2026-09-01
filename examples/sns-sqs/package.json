@@ -24,7 +24,7 @@
         "@message-queue-toolkit/sns": "26.2.1",
         "@message-queue-toolkit/sqs": "26.1.1",
         "pino": "^10.3.1",
-        "zod": "^4.4.3"
+        "zod": "^4.5.4"
     },
     "devDependencies": {
         "@biomejs/biome": "^2.5.6",

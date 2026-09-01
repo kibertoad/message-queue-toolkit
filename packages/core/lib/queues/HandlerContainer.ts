@@ -5,6 +5,8 @@ import type { ZodSchema } from 'zod/v4'
 
 import type { DoNotProcessMessageError } from '../errors/DoNotProcessError.ts'
 import type { RetryMessageLaterError } from '../errors/RetryMessageLaterError.ts'
+import type { NonPrecompiledSchema, PrecompiledSchema } from '../utils/precompileUtils.ts'
+import { precompileSchema } from '../utils/precompileUtils.ts'
 import {
   extractMessageTypeFromSchema,
   isMessageTypeLiteralConfig,
@@ -83,7 +85,7 @@ export class MessageHandlerConfig<
   const PrehandlerOutput = undefined,
   const BarrierOutput = unknown,
 > {
-  public readonly schema: ZodSchema<MessagePayloadSchema>
+  public readonly schema: PrecompiledSchema<ZodSchema<MessagePayloadSchema>>
   public readonly definition?: CommonEventDefinition
   /**
    * Explicit message type for this handler, if provided.
@@ -110,7 +112,7 @@ export class MessageHandlerConfig<
   >[]
 
   constructor(
-    schema: ZodSchema<MessagePayloadSchema>,
+    schema: NonPrecompiledSchema<ZodSchema<MessagePayloadSchema>>,
     handler: Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>,
     options?: HandlerConfigOptions<
       MessagePayloadSchema,
@@ -120,7 +122,8 @@ export class MessageHandlerConfig<
     >,
     eventDefinition?: CommonEventDefinition,
   ) {
-    this.schema = schema
+    // Every message routed to this handler is parsed with the schema, so it is worth compiling
+    this.schema = precompileSchema(schema)
     this.definition = eventDefinition
     this.messageType = options?.messageType
     this.handler = handler
@@ -185,7 +188,7 @@ export class MessageHandlerConfigBuilder<
    * ```
    */
   addConfig<MessagePayloadSchema extends MessagePayloadSchemas, const BarrierOutput>(
-    schema: ZodSchema<MessagePayloadSchema> | CommonEventDefinition,
+    schema: NonPrecompiledSchema<ZodSchema<MessagePayloadSchema>> | CommonEventDefinition,
     handler: Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>,
     options?: HandlerConfigOptions<
       MessagePayloadSchema,

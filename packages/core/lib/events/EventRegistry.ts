@@ -1,3 +1,4 @@
+import { precompileEventDefinition } from '../utils/precompileUtils.ts'
 import type { CommonEventDefinition, EventTypeNames } from './eventTypes.ts'
 
 export class EventRegistry<SupportedEvents extends CommonEventDefinition[]> {
@@ -10,8 +11,11 @@ export class EventRegistry<SupportedEvents extends CommonEventDefinition[]> {
     this.supportedEventTypes = new Set<string>()
 
     for (const supportedEvent of supportedEvents) {
-      this.supportedEventMap[supportedEvent.consumerSchema.shape.type.value] = supportedEvent
-      this.supportedEventTypes.add(supportedEvent.consumerSchema.shape.type.value)
+      const eventTypeName = supportedEvent.consumerSchema.shape.type.value
+      // Definitions looked up here are the ones emitted events are parsed with, so their schemas
+      // are compiled. `supportedEvents` keeps the definitions exactly as they were passed in.
+      this.supportedEventMap[eventTypeName] = precompileEventDefinition(supportedEvent)
+      this.supportedEventTypes.add(eventTypeName)
     }
   }
 

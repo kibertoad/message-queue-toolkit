@@ -6,6 +6,7 @@ import type {
 import type { ZodSchema } from 'zod/v4'
 
 import type { PublicHandlerSpy } from '../queues/HandlerSpy.ts'
+import type { NonPrecompiledSchema } from '../utils/precompileUtils.ts'
 
 export interface QueueConsumer {
   start(): Promise<unknown> // subscribe and start listening
@@ -55,5 +56,5 @@ export type ExtraParams = {
 export type SchemaMap<SupportedMessageTypes extends string> = Record<
   SupportedMessageTypes,
   // biome-ignore lint/suspicious/noExplicitAny: Expected
-  ZodSchema<any>
+  NonPrecompiledSchema<ZodSchema<any>>
 >

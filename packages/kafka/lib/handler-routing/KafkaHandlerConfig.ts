@@ -1,3 +1,5 @@
+import type { NonPrecompiledSchema, PrecompiledSchema } from '@message-queue-toolkit/core'
+import { precompileSchema } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod/v4'
 import type { DeserializedMessage, RequestContext } from '../types.ts'
 
@@ -19,15 +21,16 @@ export class KafkaHandlerConfig<
   BatchProcessingEnabled extends boolean = false,
 > {
   // biome-ignore lint/suspicious/noExplicitAny: Input for schema is flexible
-  public readonly schema: ZodSchema<MessageValue, any>
+  public readonly schema: PrecompiledSchema<ZodSchema<MessageValue, any>>
   public readonly handler: KafkaHandler<MessageValue, ExecutionContext, BatchProcessingEnabled>
 
   constructor(
     // biome-ignore lint/suspicious/noExplicitAny: Input for schema is flexible
-    schema: ZodSchema<MessageValue, any>,
+    schema: NonPrecompiledSchema<ZodSchema<MessageValue, any>>,
     handler: KafkaHandler<MessageValue, ExecutionContext, BatchProcessingEnabled>,
   ) {
-    this.schema = schema
+    // Every message routed to this handler is parsed with the schema, so it is worth compiling
+    this.schema = precompileSchema(schema)
     this.handler = handler
   }
 }

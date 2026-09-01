@@ -1,6 +1,7 @@
 import type { Either } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema } from 'zod/v4'
+import { precompileSchema } from '../utils/precompileUtils.ts'
 import {
   extractMessageTypeFromSchema,
   isMessageTypeLiteralConfig,
@@ -182,7 +183,9 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
       const key = type ?? DEFAULT_SCHEMA_KEY
       if (result[key]) throw new Error(`Duplicate schema for type: ${key.toString()}`)
 
-      result[key] = entry.schema
+      // Every message going through this container is parsed with the schema, so it is worth
+      // compiling. Schemas that already went through it are returned untouched.
+      result[key] = precompileSchema(entry.schema)
     }
 
     return result

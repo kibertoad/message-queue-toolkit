@@ -1,5 +1,5 @@
 import type { CommonLogger } from '@lokalise/node-core'
-import type { QueueDependencies } from '@message-queue-toolkit/core'
+import type { NonPrecompiledSchema, QueueDependencies } from '@message-queue-toolkit/core'
 import type { ConnectionOptions, Message } from '@platformatic/kafka'
 import type { ZodSchema, z } from 'zod/v4'
 
@@ -17,7 +17,7 @@ export type KafkaConfig = {
 
 export type TopicConfig<Topic extends string = string> = {
   topic: Topic
-  schema: ZodSchema<object>
+  schema: NonPrecompiledSchema<ZodSchema<object>>
 }
 
 export type SupportedTopics<TopicsConfig extends TopicConfig[]> = TopicsConfig[number]['topic']

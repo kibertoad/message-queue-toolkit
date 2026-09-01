@@ -123,6 +123,13 @@ export { isRetryDateExceeded } from './utils/dateUtils.ts'
 export { isProduction, reloadConfig } from './utils/envUtils.ts'
 export { isShallowSubset, objectMatches } from './utils/matchUtils.ts'
 export { type ParseMessageResult, parseMessage } from './utils/parseUtils.ts'
+export {
+  isPrecompiledSchema,
+  type NonPrecompiledSchema,
+  type PrecompiledSchema,
+  precompileEventDefinition,
+  precompileSchema,
+} from './utils/precompileUtils.ts'
 export { objectToBuffer } from './utils/queueUtils.ts'
 export {
   isStartupResourcePollingEnabled,

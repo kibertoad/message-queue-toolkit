@@ -16,10 +16,10 @@ importers:
     dependencies:
       '@lokalise/node-core':
         specifier: ^14.8.1
-        version: 14.8.1(zod@4.4.3)
+        version: 14.8.1(zod@4.5.4)
       '@message-queue-toolkit/schemas':
         specifier: '>=7.0.0'
-        version: 7.2.0(zod@4.4.3)
+        version: 7.2.0(zod@4.5.4)
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.5.8
@@ -61,20 +61,20 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.0.13(@types/node@26.2.0))
       zod:
-        specifier: ^4.4.3
-        version: 4.4.3
+        specifier: ^4.5.4
+        version: 4.5.4
 
   packages/core:
     dependencies:
       '@lokalise/node-core':
         specifier: ^14.8.1
-        version: 14.8.1(zod@4.4.3)
+        version: 14.8.1(zod@4.5.4)
       '@lokalise/universal-ts-utils':
         specifier: ^4.11.0
         version: 4.11.0
       '@message-queue-toolkit/schemas':
         specifier: ^7.2.0
-        version: 7.2.0(zod@4.4.3)
+        version: 7.2.0(zod@4.5.4)
       dot-prop:
         specifier: ^10.2.0
         version: 10.2.0
@@ -125,8 +125,8 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.0.13(@types/node@26.2.0))
       zod:
-        specifier: ^4.4.3
-        version: 4.4.3
+        specifier: ^4.5.4
+        version: 4.5.4
 
   packages/gcp-pubsub:
     dependencies:
@@ -135,7 +135,7 @@ importers:
         version: 1.14.4
       '@lokalise/node-core':
         specifier: ^14.8.1
-        version: 14.8.1(zod@4.4.3)
+        version: 14.8.1(zod@4.5.4)
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.5.8
@@ -157,10 +157,10 @@ importers:
         version: 1.0.0(@google-cloud/storage@7.22.0(supports-color@7.2.0))(@message-queue-toolkit/core@packages+core)
       '@message-queue-toolkit/redis-message-deduplication-store':
         specifier: '*'
-        version: 2.0.2(@message-queue-toolkit/core@packages+core)(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)(zod@4.4.3)
+        version: 2.0.2(@message-queue-toolkit/core@packages+core)(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)(zod@4.5.4)
       '@message-queue-toolkit/schemas':
         specifier: '*'
-        version: 7.2.0(zod@4.4.3)
+        version: 7.2.0(zod@4.5.4)
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
@@ -186,8 +186,8 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.0.13(@types/node@26.2.0))
       zod:
-        specifier: ^4.4.3
-        version: 4.4.3
+        specifier: ^4.5.4
+        version: 4.5.4
 
   packages/gcs-payload-store:
     devDependencies:
@@ -226,7 +226,7 @@ importers:
     dependencies:
       '@lokalise/node-core':
         specifier: ^14.8.1
-        version: 14.8.1(zod@4.4.3)
+        version: 14.8.1(zod@4.5.4)
       '@lokalise/universal-ts-utils':
         specifier: ^4.11.0
         version: 4.11.0
@@ -248,7 +248,7 @@ importers:
         version: link:../core
       '@message-queue-toolkit/schemas':
         specifier: '>=7.2.0'
-        version: 7.2.0(zod@4.4.3)
+        version: 7.2.0(zod@4.5.4)
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
@@ -271,14 +271,14 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.0.13(@types/node@26.2.0))
       zod:
-        specifier: ^4.4.3
-        version: 4.4.3
+        specifier: ^4.5.4
+        version: 4.5.4
 
   packages/metrics:
     dependencies:
       '@lokalise/node-core':
         specifier: ^14.8.1
-        version: 14.8.1(zod@4.4.3)
+        version: 14.8.1(zod@4.5.4)
       '@lokalise/universal-ts-utils':
         specifier: ^4.11.0
         version: 4.11.0
@@ -315,7 +315,7 @@ importers:
     dependencies:
       '@lokalise/background-jobs-common':
         specifier: ^15.0.0
-        version: 15.0.0(bullmq@5.76.8(supports-color@7.2.0))(ioredis@5.11.1(supports-color@7.2.0))(pino@10.3.1)(supports-color@7.2.0)(toad-scheduler@4.1.0)(zod@4.4.3)
+        version: 15.0.0(bullmq@5.76.8(supports-color@7.2.0))(ioredis@5.11.1(supports-color@7.2.0))(pino@10.3.1)(supports-color@7.2.0)(toad-scheduler@4.1.0)(zod@4.5.4)
       '@supercharge/promise-pool':
         specifier: ^3.3.0
         version: 3.3.0
@@ -354,14 +354,14 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.0.13(@types/node@26.2.0))
       zod:
-        specifier: ^4.4.3
-        version: 4.4.3
+        specifier: ^4.5.4
+        version: 4.5.4
 
   packages/redis-message-deduplication-store:
     dependencies:
       '@lokalise/node-core':
         specifier: ^14.8.1
-        version: 14.8.1(zod@4.4.3)
+        version: 14.8.1(zod@4.5.4)
       ioredis:
         specifier: ^5.3.2
         version: 5.11.1(supports-color@7.2.0)
@@ -461,8 +461,8 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.0.13(@types/node@26.2.0))
       zod:
-        specifier: ^4.4.3
-        version: 4.4.3
+        specifier: ^4.5.4
+        version: 4.5.4
 
   packages/sns:
     dependencies:
@@ -471,10 +471,10 @@ importers:
         version: 3.1047.0
       '@lokalise/node-core':
         specifier: ^14.8.1
-        version: 14.8.1(zod@4.4.3)
+        version: 14.8.1(zod@4.5.4)
       '@message-queue-toolkit/schemas':
         specifier: '>=7.0.0'
-        version: 7.2.0(zod@4.4.3)
+        version: 7.2.0(zod@4.5.4)
       sqs-consumer:
         specifier: ^15.0.3
         version: 15.0.3(@aws-sdk/client-sqs@3.1114.0)(supports-color@7.2.0)
@@ -537,14 +537,14 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.0.13(@types/node@26.2.0))
       zod:
-        specifier: ^4.4.3
-        version: 4.4.3
+        specifier: ^4.5.4
+        version: 4.5.4
 
   packages/sqs:
     dependencies:
       '@lokalise/node-core':
         specifier: ^14.8.1
-        version: 14.8.1(zod@4.4.3)
+        version: 14.8.1(zod@4.5.4)
       sqs-consumer:
         specifier: ^15.0.3
         version: 15.0.3(@aws-sdk/client-sqs@3.1114.0)(supports-color@7.2.0)
@@ -604,8 +604,8 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.0.13(@types/node@26.2.0))
       zod:
-        specifier: ^4.4.3
-        version: 4.4.3
+        specifier: ^4.5.4
+        version: 4.5.4
 
 packages:
 
@@ -2454,6 +2454,7 @@ packages:
   prom-client@15.1.3:
     resolution: {integrity: sha512-6ZiOBfCywsD4k1BN9IX0uZhF+tJkV8q8llP64G5Hajs4JOeVLPCwpPVcpXy3BwYiUGgyJzsJJQeOIv7+hDSq8g==}
     engines: {node: ^16 || ^18 || >=20}
+    deprecated: prom-client has been replaced by @prometheus-io/client
 
   proto3-json-serializer@4.0.2:
     resolution: {integrity: sha512-VUQlb/J2WjOG8BKhdLwJUz+MKxSMtBGYh+TaNmRtiYVhlIzXjzeAGIx7gtc3lXlA2iURzfF2+cXaQvC2ofwzpg==}
@@ -2870,8 +2871,8 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
-  zod@4.4.3:
-    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+  zod@4.5.4:
+    resolution: {integrity: sha512-sC95tT5iHHH9gtpj6A81kh+NEaRAUFN+qlUPDUbRfOMvNf5QCBqsb3WgvnpVtK5Y+4UfA6KqufotuTvMGiTlsA==}
 
 snapshots:
 
@@ -3550,17 +3551,17 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@lokalise/background-jobs-common@15.0.0(bullmq@5.76.8(supports-color@7.2.0))(ioredis@5.11.1(supports-color@7.2.0))(pino@10.3.1)(supports-color@7.2.0)(toad-scheduler@4.1.0)(zod@4.4.3)':
+  '@lokalise/background-jobs-common@15.0.0(bullmq@5.76.8(supports-color@7.2.0))(ioredis@5.11.1(supports-color@7.2.0))(pino@10.3.1)(supports-color@7.2.0)(toad-scheduler@4.1.0)(zod@4.5.4)':
     dependencies:
       '@lokalise/id-utils': 3.0.1
-      '@lokalise/node-core': 14.8.1(zod@4.4.3)
+      '@lokalise/node-core': 14.8.1(zod@4.5.4)
       bullmq: 5.76.8(supports-color@7.2.0)
       ioredis: 5.11.1(supports-color@7.2.0)
       pino: 10.3.1
       redis-semaphore: 5.7.0(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)
       toad-scheduler: 4.1.0
       ts-deepmerge: 8.0.0
-      zod: 4.4.3
+      zod: 4.5.4
     transitivePeerDependencies:
       - supports-color
 
@@ -3572,13 +3573,13 @@ snapshots:
       ulidx: 2.4.1
       uuidv7: 1.2.1
 
-  '@lokalise/node-core@14.8.1(zod@4.4.3)':
+  '@lokalise/node-core@14.8.1(zod@4.5.4)':
     dependencies:
       dot-prop: 6.0.1
       pino: 10.3.1
       pino-pretty: 13.1.3
       tslib: 2.8.1
-      zod: 4.4.3
+      zod: 4.5.4
 
   '@lokalise/tsconfig@5.0.0': {}
 
@@ -3589,9 +3590,9 @@ snapshots:
       '@google-cloud/storage': 7.22.0(supports-color@7.2.0)
       '@message-queue-toolkit/core': link:packages/core
 
-  '@message-queue-toolkit/redis-message-deduplication-store@2.0.2(@message-queue-toolkit/core@packages+core)(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)(zod@4.4.3)':
+  '@message-queue-toolkit/redis-message-deduplication-store@2.0.2(@message-queue-toolkit/core@packages+core)(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)(zod@4.5.4)':
     dependencies:
-      '@lokalise/node-core': 14.8.1(zod@4.4.3)
+      '@lokalise/node-core': 14.8.1(zod@4.5.4)
       '@message-queue-toolkit/core': link:packages/core
       ioredis: 5.11.1(supports-color@7.2.0)
       redis-semaphore: 5.7.0(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)
@@ -3599,9 +3600,9 @@ snapshots:
       - supports-color
       - zod
 
-  '@message-queue-toolkit/schemas@7.2.0(zod@4.4.3)':
+  '@message-queue-toolkit/schemas@7.2.0(zod@4.5.4)':
     dependencies:
-      zod: 4.4.3
+      zod: 4.5.4
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     optional: true
@@ -5305,4 +5306,4 @@ snapshots:
 
   yocto-queue@0.1.0: {}
 
-  zod@4.4.3: {}
+  zod@4.5.4: {}
