@@ -6,7 +6,6 @@ import type { PayloadStoreConfig } from '../payload-store/payloadStoreTypes.ts'
 import type { MessageHandlerConfig } from '../queues/HandlerContainer.ts'
 import type { HandlerSpy, HandlerSpyParams } from '../queues/HandlerSpy.ts'
 import type { MessageTypeResolverConfig } from '../queues/MessageTypeResolver.ts'
-import type { NonPrecompiledSchema } from '../utils/precompileUtils.ts'
 import type {
   MessageProcessingResult,
   TransactionObservabilityManager,
@@ -292,7 +291,7 @@ export type QueuePublisherOptions<
   QueueLocatorType extends object,
   MessagePayloadSchemas extends object,
 > = QueueOptions<CreationConfigType, QueueLocatorType> & {
-  messageSchemas: readonly NonPrecompiledSchema<ZodSchema<MessagePayloadSchemas>>[]
+  messageSchemas: readonly ZodSchema<MessagePayloadSchemas>[]
   enablePublisherDeduplication?: boolean
   /**
    * Compression codec applied to outgoing message bodies.

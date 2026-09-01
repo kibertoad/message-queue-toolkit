@@ -57,6 +57,7 @@ import type {
   QueueOptions,
 } from '../types/queueOptionsTypes.ts'
 import { isRetryDateExceeded } from '../utils/dateUtils.ts'
+import { precompileSchema } from '../utils/precompileUtils.ts'
 import { streamWithKnownSizeToBuffer, streamWithKnownSizeToString } from '../utils/streamUtils.ts'
 import { toDatePreprocessor } from '../utils/toDateProcessor.ts'
 import type {
@@ -86,6 +87,18 @@ export type Deserializer<MessagePayloadType extends object> = (
 type CommonQueueLocator = {
   queueName: string
 }
+
+/**
+ * Both run on the per-message path: the pointer schema for every message once a payload store is
+ * configured, the deduplication options for every message that carries them. They belong to the
+ * toolkit rather than to a caller, so they are compiled the moment this module loads.
+ */
+const COMPILED_OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA = precompileSchema(
+  OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA,
+)
+const COMPILED_MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA = precompileSchema(
+  MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA,
+)
 
 export type ResolvedMessage = {
   body: unknown
@@ -1084,7 +1097,7 @@ export abstract class AbstractQueueService<
       }
     }
 
-    const pointerPayloadParseResult = OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA.safeParse(
+    const pointerPayloadParseResult = COMPILED_OFFLOADED_PAYLOAD_POINTER_PAYLOAD_SCHEMA.safeParse(
       maybeOffloadedPayloadPointerPayload,
     )
     if (!pointerPayloadParseResult.success) {
@@ -1265,7 +1278,7 @@ export abstract class AbstractQueueService<
   private getParsedMessageDeduplicationOptions(
     message: MessagePayloadSchemas,
   ): Required<MessageDeduplicationOptions> {
-    const parsedOptions = MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA.safeParse(
+    const parsedOptions = COMPILED_MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA.safeParse(
       // @ts-expect-error
       message[this.messageDeduplicationOptionsField] ?? {},
     )

@@ -5,7 +5,6 @@ import type { ZodSchema } from 'zod/v4'
 
 import type { DoNotProcessMessageError } from '../errors/DoNotProcessError.ts'
 import type { RetryMessageLaterError } from '../errors/RetryMessageLaterError.ts'
-import type { NonPrecompiledSchema, PrecompiledSchema } from '../utils/precompileUtils.ts'
 import { precompileSchema } from '../utils/precompileUtils.ts'
 import {
   extractMessageTypeFromSchema,
@@ -85,7 +84,7 @@ export class MessageHandlerConfig<
   const PrehandlerOutput = undefined,
   const BarrierOutput = unknown,
 > {
-  public readonly schema: PrecompiledSchema<ZodSchema<MessagePayloadSchema>>
+  public readonly schema: ZodSchema<MessagePayloadSchema>
   public readonly definition?: CommonEventDefinition
   /**
    * Explicit message type for this handler, if provided.
@@ -112,7 +111,7 @@ export class MessageHandlerConfig<
   >[]
 
   constructor(
-    schema: NonPrecompiledSchema<ZodSchema<MessagePayloadSchema>>,
+    schema: ZodSchema<MessagePayloadSchema>,
     handler: Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>,
     options?: HandlerConfigOptions<
       MessagePayloadSchema,
@@ -188,7 +187,7 @@ export class MessageHandlerConfigBuilder<
    * ```
    */
   addConfig<MessagePayloadSchema extends MessagePayloadSchemas, const BarrierOutput>(
-    schema: NonPrecompiledSchema<ZodSchema<MessagePayloadSchema>> | CommonEventDefinition,
+    schema: ZodSchema<MessagePayloadSchema> | CommonEventDefinition,
     handler: Handler<MessagePayloadSchema, ExecutionContext, PrehandlerOutput, BarrierOutput>,
     options?: HandlerConfigOptions<
       MessagePayloadSchema,

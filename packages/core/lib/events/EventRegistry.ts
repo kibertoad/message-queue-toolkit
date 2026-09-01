@@ -13,7 +13,9 @@ export class EventRegistry<SupportedEvents extends CommonEventDefinition[]> {
     for (const supportedEvent of supportedEvents) {
       const eventTypeName = supportedEvent.consumerSchema.shape.type.value
       // Definitions looked up here are the ones emitted events are parsed with, so their schemas
-      // are compiled. `supportedEvents` keeps the definitions exactly as they were passed in.
+      // are compiled. Publishers built from `supportedEvents` register the same schema objects,
+      // and precompilation is memoized, so they get the compiled counterparts for free.
+      // `supportedEvents` keeps the definitions exactly as they were passed in.
       this.supportedEventMap[eventTypeName] = precompileEventDefinition(supportedEvent)
       this.supportedEventTypes.add(eventTypeName)
     }

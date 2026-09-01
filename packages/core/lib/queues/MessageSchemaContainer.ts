@@ -1,7 +1,7 @@
 import type { Either } from '@lokalise/node-core'
 import type { CommonEventDefinition } from '@message-queue-toolkit/schemas'
 import type { ZodSchema } from 'zod/v4'
-import { precompileSchema } from '../utils/precompileUtils.ts'
+import { precompileEventDefinition, precompileSchema } from '../utils/precompileUtils.ts'
 import {
   extractMessageTypeFromSchema,
   isMessageTypeLiteralConfig,
@@ -184,7 +184,7 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
       if (result[key]) throw new Error(`Duplicate schema for type: ${key.toString()}`)
 
       // Every message going through this container is parsed with the schema, so it is worth
-      // compiling. Schemas that already went through it are returned untouched.
+      // compiling. A schema that was already compiled elsewhere costs a lookup here.
       result[key] = precompileSchema(entry.schema)
     }
 
@@ -219,7 +219,9 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
       const key = type ?? DEFAULT_SCHEMA_KEY
       if (result[key]) throw new Error(`Duplicate definition for type: ${key.toString()}`)
 
-      result[key] = entry.definition
+      // Same reasoning as for the schema map: whoever parses through these definitions gets the
+      // compiled schemas rather than the interpreted ones.
+      result[key] = precompileEventDefinition(entry.definition)
     }
 
     return result

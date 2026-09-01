@@ -1,4 +1,4 @@
-import { isPrecompiledSchema } from '@message-queue-toolkit/core'
+import { precompileSchema } from '@message-queue-toolkit/core'
 import z from 'zod/v4'
 import { KafkaHandlerConfig } from './KafkaHandlerConfig.ts'
 
@@ -8,8 +8,8 @@ describe('KafkaHandlerConfig', () => {
   it('precompiles the schema it is given', () => {
     const config = new KafkaHandlerConfig(MESSAGE_SCHEMA, () => {})
 
-    expect(isPrecompiledSchema(config.schema)).toBe(true)
-    expect(isPrecompiledSchema(MESSAGE_SCHEMA)).toBe(false)
+    expect(config.schema).toBe(precompileSchema(MESSAGE_SCHEMA))
+    expect(config.schema).not.toBe(MESSAGE_SCHEMA)
   })
 
   it('keeps parsing behaviour intact', () => {

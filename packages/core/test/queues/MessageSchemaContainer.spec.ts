@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import z from 'zod/v4'
 
 import { MessageSchemaContainer } from '../../lib/queues/MessageSchemaContainer.ts'
-import { isPrecompiledSchema } from '../../lib/utils/precompileUtils.ts'
+import { precompileSchema } from '../../lib/utils/precompileUtils.ts'
 
 const MESSAGE_SCHEMA_A = z.object({
   type: z.literal('message.a'),
@@ -97,14 +97,7 @@ describe('MessageSchemaContainer', () => {
 
       // Valid type - returns the registered schema, precompiled
       const validResult = container.resolveSchema({ payload: 'test' }, { type: 'message.a' })
-      expect('result' in validResult).toBe(true)
-      if ('result' in validResult && validResult.result) {
-        expect(isPrecompiledSchema(validResult.result)).toBe(true)
-        expect(validResult.result.parse({ type: 'message.a', payload: 'test' })).toEqual({
-          type: 'message.a',
-          payload: 'test',
-        })
-      }
+      expect(validResult).toEqual({ result: precompileSchema(MESSAGE_SCHEMA_A) })
 
       // Invalid type - resolver throws, error is returned
       const invalidResult = container.resolveSchema({ payload: 'test' }, { type: 'other.type' })

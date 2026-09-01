@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import z, { type ZodType } from 'zod/v4'
+import z from 'zod/v4'
 
 import {
   HandlerContainer,
   MessageHandlerConfig,
   MessageHandlerConfigBuilder,
 } from '../../lib/queues/HandlerContainer.ts'
-import { isPrecompiledSchema } from '../../lib/utils/precompileUtils.ts'
+import { precompileSchema } from '../../lib/utils/precompileUtils.ts'
 
 // Test message types
 type UserMessage = {
@@ -22,27 +22,6 @@ type OrderMessage = {
 }
 
 type SupportedMessages = UserMessage | OrderMessage
-
-const USER_MESSAGE: UserMessage = {
-  type: 'user.created',
-  userId: 'user-1',
-  email: 'user@example.com',
-}
-const ORDER_MESSAGE: OrderMessage = { type: 'order.placed', orderId: 'order-1', amount: 42 }
-
-/**
- * Registering a schema precompiles it, which yields a clone rather than the object that was
- * passed in. Identify the registered schema by the message it accepts: both test schemas pin
- * `type` to a literal, so only one of them parses any given message.
- */
-const expectSchemaAccepting = (
-  schema: ZodType | undefined,
-  message: UserMessage | OrderMessage,
-) => {
-  expect(schema).toBeDefined()
-  expect(isPrecompiledSchema(schema as ZodType)).toBe(true)
-  expect(schema?.parse(message)).toEqual(message)
-}
 
 // Test context
 type TestContext = {
@@ -62,6 +41,11 @@ const ORDER_MESSAGE_SCHEMA = z.object({
   amount: z.number(),
 })
 
+// Registering a schema stores its precompiled counterpart, which is a clone of the schema that was
+// passed in. Precompilation is memoized, so the clone is a stable object to compare against.
+const COMPILED_USER_MESSAGE_SCHEMA = precompileSchema(USER_MESSAGE_SCHEMA)
+const COMPILED_ORDER_MESSAGE_SCHEMA = precompileSchema(ORDER_MESSAGE_SCHEMA)
+
 describe('MessageHandlerConfigBuilder', () => {
   describe('2-param addConfig (backward compatible)', () => {
     it('should build configs with schema used for both routing and validation', () => {
@@ -79,8 +63,8 @@ describe('MessageHandlerConfigBuilder', () => {
         .build()
 
       expect(configs).toHaveLength(2)
-      expectSchemaAccepting(configs[0]?.schema, USER_MESSAGE)
-      expectSchemaAccepting(configs[1]?.schema, ORDER_MESSAGE)
+      expect(configs[0]?.schema).toBe(COMPILED_USER_MESSAGE_SCHEMA)
+      expect(configs[1]?.schema).toBe(COMPILED_ORDER_MESSAGE_SCHEMA)
     })
 
     it('should build configs with options', () => {
@@ -123,7 +107,7 @@ describe('MessageHandlerConfigBuilder', () => {
         undefined,
       )
 
-      expectSchemaAccepting(config.schema, USER_MESSAGE)
+      expect(config.schema).toBe(COMPILED_USER_MESSAGE_SCHEMA)
       expect(config.handler).toBe(handler)
       expect(config.messageLogFormatter).toBe(messageLogFormatter)
       expect(config.preHandlers).toEqual([])
@@ -147,8 +131,8 @@ describe('HandlerContainer', () => {
       const userHandler = container.resolveHandler('user.created')
       const orderHandler = container.resolveHandler('order.placed')
 
-      expectSchemaAccepting(userHandler.schema, USER_MESSAGE)
-      expectSchemaAccepting(orderHandler.schema, ORDER_MESSAGE)
+      expect(userHandler.schema).toBe(COMPILED_USER_MESSAGE_SCHEMA)
+      expect(orderHandler.schema).toBe(COMPILED_ORDER_MESSAGE_SCHEMA)
     })
 
     it('should throw error for unsupported message type', () => {
@@ -364,7 +348,7 @@ describe('HandlerContainer', () => {
           'Unsupported message type: user.created',
         )
         const handler = container.resolveHandler('custom.type')
-        expectSchemaAccepting(handler.schema, USER_MESSAGE)
+        expect(handler.schema).toBe(COMPILED_USER_MESSAGE_SCHEMA)
       })
 
       it('should support multiple handlers with explicit types', () => {
@@ -390,13 +374,11 @@ describe('HandlerContainer', () => {
         })
 
         // Verify handlers are correctly registered
-        expectSchemaAccepting(
-          container.resolveHandler('storage.object.created').schema,
-          USER_MESSAGE,
+        expect(container.resolveHandler('storage.object.created').schema).toBe(
+          COMPILED_USER_MESSAGE_SCHEMA,
         )
-        expectSchemaAccepting(
-          container.resolveHandler('storage.object.deleted').schema,
-          ORDER_MESSAGE,
+        expect(container.resolveHandler('storage.object.deleted').schema).toBe(
+          COMPILED_ORDER_MESSAGE_SCHEMA,
         )
 
         // Verify runtime resolution works with the resolver

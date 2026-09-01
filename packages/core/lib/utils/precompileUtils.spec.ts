@@ -1,14 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { type ZodType, z } from 'zod/v4'
+import { z } from 'zod/v4'
 import { EventRegistry } from '../events/EventRegistry.ts'
 import type { CommonEventDefinition } from '../events/eventTypes.ts'
 import { MessageHandlerConfigBuilder } from '../queues/HandlerContainer.ts'
 import { MessageSchemaContainer } from '../queues/MessageSchemaContainer.ts'
-import {
-  isPrecompiledSchema,
-  precompileEventDefinition,
-  precompileSchema,
-} from './precompileUtils.ts'
+import { precompileEventDefinition, precompileSchema } from './precompileUtils.ts'
 
 const MESSAGE_SCHEMA = z.object({
   type: z.literal('message.a'),
@@ -22,8 +18,6 @@ describe('precompileSchema', () => {
     const precompiled = precompileSchema(MESSAGE_SCHEMA)
 
     expect(precompiled).not.toBe(MESSAGE_SCHEMA)
-    expect(isPrecompiledSchema(MESSAGE_SCHEMA)).toBe(false)
-    expect(isPrecompiledSchema(precompiled)).toBe(true)
   })
 
   it('parses exactly like the schema it was built from', () => {
@@ -35,7 +29,13 @@ describe('precompileSchema', () => {
     )
   })
 
-  it('is idempotent', () => {
+  it('compiles a given schema once', () => {
+    const schema = z.object({ payload: z.string() })
+
+    expect(precompileSchema(schema)).toBe(precompileSchema(schema))
+  })
+
+  it('returns an already precompiled schema as is', () => {
     const precompiled = precompileSchema(MESSAGE_SCHEMA)
 
     expect(precompileSchema(precompiled)).toBe(precompiled)
@@ -47,10 +47,11 @@ describe('precompileSchema', () => {
     const precompiled = precompileSchema(asyncSchema)
 
     expect(precompiled).toBe(asyncSchema)
+    expect(precompileSchema(asyncSchema)).toBe(asyncSchema)
     await expect(precompiled.parseAsync('a')).resolves.toBe('a')
   })
 
-  it('does not expose the marker as an enumerable property', () => {
+  it('does not add enumerable properties to the schema', () => {
     const precompiled = precompileSchema(MESSAGE_SCHEMA)
 
     expect(Object.keys(precompiled)).toEqual(Object.keys(MESSAGE_SCHEMA))
@@ -69,10 +70,17 @@ describe('precompileEventDefinition', () => {
     const precompiled = precompileEventDefinition(definition)
 
     expect(precompiled).not.toBe(definition)
-    expect(isPrecompiledSchema(precompiled.consumerSchema)).toBe(true)
-    expect(isPrecompiledSchema(precompiled.publisherSchema)).toBe(true)
-    expect(isPrecompiledSchema(definition.consumerSchema)).toBe(false)
+    expect(precompiled.consumerSchema).toBe(precompileSchema(MESSAGE_SCHEMA))
+    expect(precompiled.publisherSchema).toBe(precompileSchema(MESSAGE_SCHEMA))
+    expect(definition.consumerSchema).toBe(MESSAGE_SCHEMA)
     expect(precompiled.schemaVersion).toBe('1.0.0')
+  })
+
+  it('precompiles a given definition once', () => {
+    expect(precompileEventDefinition(definition)).toBe(precompileEventDefinition(definition))
+    expect(precompileEventDefinition(precompileEventDefinition(definition))).toBe(
+      precompileEventDefinition(definition),
+    )
   })
 })
 
@@ -83,13 +91,22 @@ describe('automatic precompilation', () => {
       messageDefinitions: [],
     })
 
-    const resolved = container.resolveSchema(VALID_MESSAGE)
+    expect(container.resolveSchema(VALID_MESSAGE)).toEqual({
+      result: precompileSchema(MESSAGE_SCHEMA),
+    })
+  })
 
-    expect('result' in resolved).toBe(true)
-    if ('result' in resolved && resolved.result) {
-      expect(isPrecompiledSchema(resolved.result)).toBe(true)
-      expect(resolved.result.parse(VALID_MESSAGE)).toEqual(VALID_MESSAGE)
-    }
+  it('precompiles definitions registered on a MessageSchemaContainer', () => {
+    const definition = {
+      consumerSchema: MESSAGE_SCHEMA,
+      publisherSchema: MESSAGE_SCHEMA,
+    } as unknown as CommonEventDefinition
+    const container = new MessageSchemaContainer<z.infer<typeof MESSAGE_SCHEMA>>({
+      messageSchemas: [],
+      messageDefinitions: [{ definition, messageType: 'message.a' }],
+    })
+
+    expect(container.messageDefinitions['message.a']).toBe(precompileEventDefinition(definition))
   })
 
   it('precompiles schemas registered on a message handler', () => {
@@ -97,7 +114,7 @@ describe('automatic precompilation', () => {
       .addConfig(MESSAGE_SCHEMA, () => Promise.resolve({ result: 'success' as const }))
       .build()
 
-    expect(isPrecompiledSchema(configs[0]?.schema as ZodType)).toBe(true)
+    expect(configs[0]?.schema).toBe(precompileSchema(MESSAGE_SCHEMA))
   })
 
   it('precompiles the definitions an EventRegistry resolves', () => {
@@ -109,7 +126,8 @@ describe('automatic precompilation', () => {
 
     const resolved = registry.getEventDefinitionByTypeName('message.a')
 
-    expect(isPrecompiledSchema(resolved.publisherSchema)).toBe(true)
+    expect(resolved.publisherSchema).toBe(precompileSchema(MESSAGE_SCHEMA))
+    expect(resolved.consumerSchema).toBe(precompileSchema(MESSAGE_SCHEMA))
     // The array the caller passed in is left as it was
     expect(registry.supportedEvents[0]).toBe(eventDefinition)
   })

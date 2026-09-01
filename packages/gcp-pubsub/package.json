@@ -38,10 +38,11 @@
     "devDependencies": {
         "@biomejs/biome": "^2.5.8",
         "@google-cloud/pubsub": "^6.0.1",
+        "@google-cloud/storage": "^8.0.1",
         "@lokalise/biome-config": "^3.1.1",
         "@lokalise/tsconfig": "^5.0.0",
         "@message-queue-toolkit/core": "workspace:*",
-        "@message-queue-toolkit/gcs-payload-store": "*",
+        "@message-queue-toolkit/gcs-payload-store": "workspace:*",
         "@message-queue-toolkit/redis-message-deduplication-store": "*",
         "@message-queue-toolkit/schemas": "*",
         "@types/node": "^26.2.0",
