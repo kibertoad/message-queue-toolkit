@@ -41,7 +41,7 @@
         "@biomejs/biome": "^2.5.10",
         "@lokalise/biome-config": "^3.1.1",
         "@lokalise/tsconfig": "^5.0.0",
-        "@types/node": "^26.2.0",
+        "@types/node": "^26.3.0",
         "@types/tmp": "^0.2.6",
         "@vitest/coverage-v8": "^4.1.10",
         "awilix": "^13.0.5",
