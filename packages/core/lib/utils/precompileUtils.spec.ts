@@ -4,7 +4,11 @@ import { EventRegistry } from '../events/EventRegistry.ts'
 import type { CommonEventDefinition } from '../events/eventTypes.ts'
 import { MessageHandlerConfigBuilder } from '../queues/HandlerContainer.ts'
 import { MessageSchemaContainer } from '../queues/MessageSchemaContainer.ts'
-import { precompileEventDefinition, precompileSchema } from './precompileUtils.ts'
+import {
+  excludeFromPrecompilation,
+  precompileEventDefinition,
+  precompileSchema,
+} from './precompileUtils.ts'
 
 const MESSAGE_SCHEMA = z.object({
   type: z.literal('message.a'),
@@ -130,5 +134,106 @@ describe('automatic precompilation', () => {
     expect(resolved.consumerSchema).toBe(precompileSchema(MESSAGE_SCHEMA))
     // The array the caller passed in is left as it was
     expect(registry.supportedEvents[0]).toBe(eventDefinition)
+  })
+})
+
+describe('excludeFromPrecompilation', () => {
+  it('hands the schema back and keeps it out of compilation', () => {
+    const schema = z.object({ payload: z.string() })
+
+    expect(excludeFromPrecompilation(schema)).toBe(schema)
+    expect(precompileSchema(schema)).toBe(schema)
+  })
+
+  it('holds even when the schema was already compiled', () => {
+    const schema = z.object({ payload: z.string() })
+    expect(precompileSchema(schema)).not.toBe(schema)
+
+    excludeFromPrecompilation(schema)
+
+    expect(precompileSchema(schema)).toBe(schema)
+  })
+
+  it('holds for a schema of an event definition', () => {
+    const consumerSchema = excludeFromPrecompilation(z.object({ payload: z.string() }))
+    const publisherSchema = z.object({ payload: z.string() })
+    const definition = { consumerSchema, publisherSchema } as unknown as CommonEventDefinition
+
+    const precompiled = precompileEventDefinition(definition)
+
+    expect(precompiled.consumerSchema).toBe(consumerSchema)
+    expect(precompiled.publisherSchema).not.toBe(publisherSchema)
+  })
+
+  it('holds for a schema registered on a message handler', () => {
+    const schema = excludeFromPrecompilation(
+      z.object({ type: z.literal('message.a'), payload: z.object({ name: z.string() }) }),
+    )
+
+    const configs = new MessageHandlerConfigBuilder<z.infer<typeof schema>, undefined>()
+      .addConfig(schema, () => Promise.resolve({ result: 'success' as const }))
+      .build()
+
+    expect(configs[0]?.schema).toBe(schema)
+  })
+})
+
+describe('callback invocation counts', () => {
+  const REJECTED_MESSAGE = { type: 'message.a', payload: { name: 'rejected' } }
+
+  const buildSchema = (onRefine: () => void) =>
+    z
+      .object({ type: z.literal('message.a'), payload: z.object({ name: z.string() }) })
+      .refine((message) => {
+        onRefine()
+        return message.payload.name !== 'rejected'
+      })
+
+  it('runs a refinement once on a message that validates', () => {
+    let calls = 0
+    const precompiled = precompileSchema(
+      buildSchema(() => {
+        calls++
+      }),
+    )
+
+    precompiled.parse(VALID_MESSAGE)
+
+    expect(calls).toBe(1)
+  })
+
+  it('runs a refinement no more than twice on a message that fails validation', () => {
+    // The compiled fast path signals rejection without building the error, so the interpreted
+    // parser produces it and replays the refinement. Twice is the ceiling the README promises,
+    // and the reason `excludeFromPrecompilation` exists.
+    let calls = 0
+    const precompiled = precompileSchema(
+      buildSchema(() => {
+        calls++
+      }),
+    )
+
+    expect(() => precompiled.parse(REJECTED_MESSAGE)).toThrow(z.ZodError)
+
+    expect(calls).toBeGreaterThanOrEqual(1)
+    expect(calls).toBeLessThanOrEqual(2)
+  })
+
+  it('runs a refinement on an excluded schema once per parse, whether it passes or fails', () => {
+    let calls = 0
+    const schema = precompileSchema(
+      excludeFromPrecompilation(
+        buildSchema(() => {
+          calls++
+        }),
+      ),
+    )
+
+    schema.parse(VALID_MESSAGE)
+    expect(calls).toBe(1)
+
+    calls = 0
+    expect(() => schema.parse(REJECTED_MESSAGE)).toThrow(z.ZodError)
+    expect(calls).toBe(1)
   })
 })

@@ -20,10 +20,18 @@
 
 - **Registered schemas are precompiled automatically.** Publisher `messageSchemas`, handler schemas passed to
   `MessageHandlerConfigBuilder` / `MessageHandlerConfig` / `KafkaHandlerConfig`, the `schema` of a Kafka
-  `TopicConfig`, and the definitions given to `EventRegistry` are compiled when they are registered. Parsing
-  behavior does not change; only its speed does. Compilation is memoized per schema, so registering the same
-  schema with a registry, a publisher and a consumer compiles it once. Calling `z.compile()` yourself before
-  handing a schema over is no longer worth doing, but it is not an error either.
+  `TopicConfig`, and the definitions given to `EventRegistry` are compiled when they are registered. What a
+  schema accepts and rejects does not change; only the speed of deciding does. Compilation is memoized per
+  schema, so registering the same schema with a registry, a publisher and a consumer compiles it once. Calling
+  `z.compile()` yourself before handing a schema over is no longer worth doing, but it is not an error either.
+
+- **Your refinements and transforms can run twice on an invalid message.** The compiled fast path signals
+  rejection without building the error, leaving the interpreted parser to produce it, which replays synchronous
+  callbacks: a refinement or a transform runs exactly once on a message that passes validation and at most
+  twice on one that fails. This only matters for a callback with side effects, since a pure one returns the
+  same answer either way. `excludeFromPrecompilation(schema)`, exported from `@message-queue-toolkit/core`,
+  keeps a schema out of compilation so its callbacks run once per parse. Wrap the schema where you declare it,
+  before anything registers it, as registrations that already resolved a compiled clone keep it.
 
 
 ## Upgrading </br> `sqs` `25.x.x` -> `26.0.0` </br> `sns` `25.x.x` -> `26.0.0`
