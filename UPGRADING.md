@@ -4,7 +4,7 @@
 
 ### Description of Breaking Changes
 
-- **`zod` peer floor raised to `>=4.5.0`** in `core`, `kafka`, `sqs`, `sns`, `amqp` and `gcp-pubsub`. `zod` 4.5 is
+- **`zod` peer range narrowed to `^4.5.0`** in `core`, `kafka`, `sqs`, `sns`, `amqp` and `gcp-pubsub`. `zod` 4.5 is
   where ahead-of-time schema compilation landed, and the toolkit now relies on it. If you are still on `zod` 3.x or
   on 4.x below 4.5, upgrade `zod` before upgrading the toolkit, otherwise the install fails on an unsatisfiable
   peer range. `schemas` keeps its `>=3.25.67` floor: it uses nothing from 4.5.
