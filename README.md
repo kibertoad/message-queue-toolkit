@@ -221,6 +221,21 @@ Then the message is automatically nacked without requeueing by the abstract cons
 
 > **_NOTE:_**  See [userConsumerSchemas.ts](./packages/sqs/test/consumers/userConsumerSchemas.ts) and [SqsPermissionsConsumer.spec.ts](./packages/sqs/test/consumers/SqsPermissionConsumer.spec.ts) for a practical example.
 
+#### Schema Precompilation
+
+`zod` can compile a schema ahead of time into a generated fast path, which parses several times faster than
+the interpreted parser. The toolkit does this for you: every schema you register is precompiled when it is
+registered, which covers `messageSchemas` on a publisher, the schemas passed to `MessageHandlerConfigBuilder`
+and `KafkaHandlerConfig`, the `schema` on a Kafka `TopicConfig`, and the event definitions given to an
+`EventRegistry`. There is nothing to opt into, and no reason to call `z.compile()` yourself before handing a
+schema over: compilation is memoized per schema, so registering the same one with a registry, a publisher and
+a consumer compiles it once.
+
+Precompiling returns a clone, so the schema instance the toolkit parses with is not the object you passed in.
+Your schema is left untouched, and parsing behavior is identical: a schema `zod` cannot compile (an async
+refinement, say) keeps using the regular parser. `precompileSchema` is exported from
+`@message-queue-toolkit/core` if you want the same treatment for a schema of your own.
+
 ### Barrier Pattern
 The barrier pattern facilitates the out-of-order message handling by retrying the message later if the system is not yet in the proper state to be able to process that message (e. g. some prerequisite messages have not yet arrived).
 

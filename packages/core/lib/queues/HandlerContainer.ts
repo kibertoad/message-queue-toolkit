@@ -5,6 +5,7 @@ import type { ZodSchema } from 'zod/v4'
 
 import type { DoNotProcessMessageError } from '../errors/DoNotProcessError.ts'
 import type { RetryMessageLaterError } from '../errors/RetryMessageLaterError.ts'
+import { precompileSchema } from '../utils/precompileUtils.ts'
 import {
   extractMessageTypeFromSchema,
   isMessageTypeLiteralConfig,
@@ -120,7 +121,8 @@ export class MessageHandlerConfig<
     >,
     eventDefinition?: CommonEventDefinition,
   ) {
-    this.schema = schema
+    // Every message routed to this handler is parsed with the schema, so it is worth compiling
+    this.schema = precompileSchema(schema)
     this.definition = eventDefinition
     this.messageType = options?.messageType
     this.handler = handler

@@ -1,3 +1,4 @@
+import { precompileSchema } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod/v4'
 import type { DeserializedMessage, RequestContext } from '../types.ts'
 
@@ -27,7 +28,8 @@ export class KafkaHandlerConfig<
     schema: ZodSchema<MessageValue, any>,
     handler: KafkaHandler<MessageValue, ExecutionContext, BatchProcessingEnabled>,
   ) {
-    this.schema = schema
+    // Every message routed to this handler is parsed with the schema, so it is worth compiling
+    this.schema = precompileSchema(schema)
     this.handler = handler
   }
 }

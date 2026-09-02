@@ -1,5 +1,31 @@
 # Upgrading Guide
 
+## Upgrading </br> `core` `26.x.x` -> `27.0.0` </br> `kafka` `xx.x.x` -> `xx.0.0` </br> `sqs` `xx.x.x` -> `xx.0.0` </br> `sns` `xx.x.x` -> `xx.0.0` </br> `amqp` `xx.x.x` -> `xx.0.0` </br> `gcp-pubsub` `xx.x.x` -> `xx.0.0`
+
+### Description of Breaking Changes
+
+- **`zod` peer range narrowed to `^4.5.0`** in `core`, `kafka`, `sqs`, `sns`, `amqp` and `gcp-pubsub`. `zod` 4.5 is
+  where ahead-of-time schema compilation landed, and the toolkit now relies on it. If you are still on `zod` 3.x or
+  on 4.x below 4.5, upgrade `zod` before upgrading the toolkit, otherwise the install fails on an unsatisfiable
+  peer range. `schemas` keeps its `>=3.25.67` floor: it uses nothing from 4.5.
+
+- **The schema the toolkit parses with is a clone.** `MessageSchemaContainer.resolveSchema()`,
+  `MessageHandlerConfig.schema`, `KafkaHandlerConfig.schema` and `EventRegistry.getEventDefinitionByTypeName()`
+  return the precompiled counterpart of what you registered, not the same object. Code asserting reference
+  equality against the original schema (`expect(config.schema).toBe(MY_SCHEMA)`) should compare against
+  `precompileSchema(MY_SCHEMA)`, which is memoized and therefore stable, or compare on parsing behavior.
+  `EventRegistry.supportedEvents` still holds the array exactly as it was passed in.
+
+### Description of Changes
+
+- **Registered schemas are precompiled automatically.** Publisher `messageSchemas`, handler schemas passed to
+  `MessageHandlerConfigBuilder` / `MessageHandlerConfig` / `KafkaHandlerConfig`, the `schema` of a Kafka
+  `TopicConfig`, and the definitions given to `EventRegistry` are compiled when they are registered. Parsing
+  behavior does not change; only its speed does. Compilation is memoized per schema, so registering the same
+  schema with a registry, a publisher and a consumer compiles it once. Calling `z.compile()` yourself before
+  handing a schema over is no longer worth doing, but it is not an error either.
+
+
 ## Upgrading </br> `sqs` `25.x.x` -> `26.0.0` </br> `sns` `25.x.x` -> `26.0.0`
 
 ### Description of Breaking Changes

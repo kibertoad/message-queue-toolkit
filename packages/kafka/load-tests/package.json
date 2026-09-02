@@ -35,7 +35,7 @@
         "@platformatic/dynamic-buffer": "^0.4.0",
         "@platformatic/kafka": "2.9.0",
         "pg": "^8.22.0",
-        "zod": "^4.4.3"
+        "zod": "^4.5.4"
     },
     "devDependencies": {
         "@types/pg": "^8.20.3",
