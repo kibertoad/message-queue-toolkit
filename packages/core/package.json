@@ -35,7 +35,7 @@
         "toad-cache": "^3.7.4"
     },
     "peerDependencies": {
-        "zod": ">=4.5.0 <5.0.0"
+        "zod": "^4.5.0"
     },
     "devDependencies": {
         "@biomejs/biome": "^2.5.8",
