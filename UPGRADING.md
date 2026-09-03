@@ -1,5 +1,36 @@
 # Upgrading Guide
 
+## Upgrading </br> `metrics` `4.x.x` -> `5.0.0`
+
+### Description of Breaking Changes
+
+- **The Prometheus client peer dependency changed from `prom-client` to `@prometheus-io/client`.** `prom-client` is
+  deprecated: it moved to the Prometheus org and is published as `@prometheus-io/client`, starting at version
+  `0.16.0`. The peer range is now `@prometheus-io/client >= 0.16.0`, so install it and drop `prom-client` unless
+  something else in your app still needs it. The runtime API is unchanged, so metric definitions, registries and
+  scrape endpoints keep working as they did.
+
+  ```sh
+  npm uninstall prom-client
+  npm install @prometheus-io/client
+  ```
+
+  Type imports move with it:
+
+  ```diff
+  -import type { LabelValues } from 'prom-client'
+  +import type { LabelValues } from '@prometheus-io/client'
+  ```
+
+  If you pass a custom client as the second constructor argument of a `PrometheusMessageMetric` subclass, it must be
+  a `@prometheus-io/client` instance. Passing a `prom-client` one registers your metrics in a registry the rest of
+  your app no longer scrapes.
+
+  One typing detail to watch: `Metric`, `Counter`, `Histogram`, `Gauge` and `Summary` now default their label-name
+  parameter to `never` instead of `string`. A bare `Histogram` in your own code (a test double, for instance) is
+  `Histogram<never>` and no longer satisfies `Metric<string>`. Write `Histogram<string>` where you mean "any labels".
+
+
 ## Upgrading </br> `core` `26.x.x` -> `27.0.0` </br> `kafka` `xx.x.x` -> `xx.0.0` </br> `sqs` `xx.x.x` -> `xx.0.0` </br> `sns` `xx.x.x` -> `xx.0.0` </br> `amqp` `xx.x.x` -> `xx.0.0` </br> `gcp-pubsub` `xx.x.x` -> `xx.0.0`
 
 ### Description of Breaking Changes

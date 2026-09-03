@@ -1,6 +1,6 @@
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
-import type { Histogram } from 'prom-client'
-import * as promClient from 'prom-client'
+import type { Histogram } from '@prometheus-io/client'
+import * as promClient from '@prometheus-io/client'
 import { describe, expect, it, vi } from 'vitest'
 import { PrometheusMessageProcessingTimeMetric } from './PrometheusMessageProcessingTimeMetric.ts'
 
@@ -76,7 +76,7 @@ describe('MessageProcessingTimeMetric', () => {
       observe(labels: Record<string, string | number>, value: number) {
         observedValues.push({ labels, value })
       },
-    } as Histogram)
+    } as Histogram<string>)
 
     const metric = new PrometheusMessageProcessingTimeMetric<TestMessage>(
       {
@@ -127,7 +127,7 @@ describe('MessageProcessingTimeMetric', () => {
       observe(labels: Record<string, string | number>, value: number) {
         observedValues.push({ labels, value })
       },
-    } as Histogram)
+    } as Histogram<string>)
 
     const metric = new PrometheusMessageProcessingTimeMetric<TestMessage>(
       {

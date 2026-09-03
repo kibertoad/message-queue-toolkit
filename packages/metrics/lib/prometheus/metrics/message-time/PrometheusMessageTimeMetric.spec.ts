@@ -1,6 +1,6 @@
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
-import type { Histogram, LabelValues } from 'prom-client'
-import * as promClient from 'prom-client'
+import type { Histogram, LabelValues } from '@prometheus-io/client'
+import * as promClient from '@prometheus-io/client'
 import { describe, expect, it, vi } from 'vitest'
 import { PrometheusMessageTimeMetric } from './PrometheusMessageTimeMetric.ts'
 
@@ -33,7 +33,7 @@ const mockObservedValues = () => {
     observe(labels: Record<string, string | number>, value: number) {
       observedValues.push({ labels, value })
     },
-  } as Histogram)
+  } as Histogram<string>)
   return observedValues
 }
 
