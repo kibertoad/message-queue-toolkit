@@ -223,3 +223,4 @@ const metricsManager = new MessageMultiMetricManager([
 
 const service = new MyQueueService({ messageMetricsManager: metricsManager })
 ```
+
