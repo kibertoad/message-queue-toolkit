@@ -98,7 +98,7 @@ jobs:
       matrix:
         node-version: [22.x, 24.x]
         package-name: ${{ fromJson(needs.changed-files-job.outputs.packages) }}
-    uses: ./.github/workflows/ci.common.yml
+    uses: $/.github/workflows/ci.common.yml
     with:
       node_version: ${{ matrix.node-version }}
       package_name: ${{ matrix.package-name }}
@@ -113,7 +113,7 @@ jobs:
         node-version: [22.x, 24.x]
         package-name: ${{ fromJson(needs.changed-files-job.outputs.aws_packages) }}
         queue-backend: [fauxqs, localstack]
-    uses: ./.github/workflows/ci.common.yml
+    uses: $/.github/workflows/ci.common.yml
     with:
       node_version: ${{ matrix.node-version }}
       package_name: ${{ matrix.package-name }}
