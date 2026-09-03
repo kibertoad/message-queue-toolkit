@@ -6,13 +6,26 @@
 
 - **The Prometheus client peer dependency changed from `prom-client` to `@prometheus-io/client`.** `prom-client` is
   deprecated: it moved to the Prometheus org and is published as `@prometheus-io/client`, starting at version
-  `0.16.0`. The peer range is now `@prometheus-io/client >= 0.16.0`, so install it and drop `prom-client` unless
-  something else in your app still needs it. The runtime API is unchanged, so metric definitions, registries and
-  scrape endpoints keep working as they did.
+  `0.16.0`. The peer range is now `@prometheus-io/client >=0.16.0 <1`. The runtime API is unchanged, so metric
+  definitions, registries and scrape endpoints keep working as they did.
 
   ```sh
   npm uninstall prom-client
   npm install @prometheus-io/client
+  ```
+
+  If you keep `prom-client` installed because another integration still needs it, the two packages hold separate
+  default registries. The toolkit now registers its metrics on `@prometheus-io/client`'s `register`, so a `/metrics`
+  endpoint that serves `prom-client`'s `register` returns a scrape without them. Nothing throws, nothing is logged
+  and tests keep passing; the metrics are simply absent from the output. Serve the `@prometheus-io/client` registry
+  instead, or merge the two:
+
+  ```ts
+  import promClient from '@prometheus-io/client'
+  import legacyClient from 'prom-client'
+
+  const registry = promClient.Registry.merge([legacyClient.register, promClient.register])
+  app.get('/metrics', async (_req, res) => res.type(registry.contentType).send(await registry.metrics()))
   ```
 
   Type imports move with it:

@@ -286,7 +286,7 @@ importers:
         specifier: ^4.11.0
         version: 4.11.0
       '@prometheus-io/client':
-        specifier: '>=0.16.0'
+        specifier: '>=0.16.0 <1'
         version: 0.16.1
     devDependencies:
       '@biomejs/biome':
