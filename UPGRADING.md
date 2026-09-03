@@ -1,5 +1,49 @@
 # Upgrading Guide
 
+## Upgrading </br> `metrics` `4.x.x` -> `5.0.0`
+
+### Description of Breaking Changes
+
+- **The Prometheus client peer dependency changed from `prom-client` to `@prometheus-io/client`.** `prom-client` is
+  deprecated: it moved to the Prometheus org and is published as `@prometheus-io/client`, starting at version
+  `0.16.0`. The peer range is now `@prometheus-io/client >=0.16.0 <1`. The runtime API is unchanged, so metric
+  definitions, registries and scrape endpoints keep working as they did.
+
+  ```sh
+  npm uninstall prom-client
+  npm install @prometheus-io/client
+  ```
+
+  If you keep `prom-client` installed because another integration still needs it, the two packages hold separate
+  default registries. The toolkit now registers its metrics on `@prometheus-io/client`'s `register`, so a `/metrics`
+  endpoint that serves `prom-client`'s `register` returns a scrape without them. Nothing throws, nothing is logged
+  and tests keep passing; the metrics are simply absent from the output. Serve the `@prometheus-io/client` registry
+  instead, or merge the two:
+
+  ```ts
+  import promClient from '@prometheus-io/client'
+  import legacyClient from 'prom-client'
+
+  const registry = promClient.Registry.merge([legacyClient.register, promClient.register])
+  app.get('/metrics', async (_req, res) => res.type(registry.contentType).send(await registry.metrics()))
+  ```
+
+  Type imports move with it:
+
+  ```diff
+  -import type { LabelValues } from 'prom-client'
+  +import type { LabelValues } from '@prometheus-io/client'
+  ```
+
+  If you pass a custom client as the second constructor argument of a `PrometheusMessageMetric` subclass, it must be
+  a `@prometheus-io/client` instance. Passing a `prom-client` one registers your metrics in a registry the rest of
+  your app no longer scrapes.
+
+  One typing detail to watch: `Metric`, `Counter`, `Histogram`, `Gauge` and `Summary` now default their label-name
+  parameter to `never` instead of `string`. A bare `Histogram` in your own code (a test double, for instance) is
+  `Histogram<never>` and no longer satisfies `Metric<string>`. Write `Histogram<string>` where you mean "any labels".
+
+
 ## Upgrading </br> `core` `26.x.x` -> `27.0.0` </br> `kafka` `xx.x.x` -> `xx.0.0` </br> `sqs` `xx.x.x` -> `xx.0.0` </br> `sns` `xx.x.x` -> `xx.0.0` </br> `amqp` `xx.x.x` -> `xx.0.0` </br> `gcp-pubsub` `xx.x.x` -> `xx.0.0`
 
 ### Description of Breaking Changes

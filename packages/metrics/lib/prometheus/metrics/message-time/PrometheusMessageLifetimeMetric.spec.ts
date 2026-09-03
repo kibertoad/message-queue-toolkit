@@ -1,5 +1,5 @@
-import type { Histogram } from 'prom-client'
-import * as promClient from 'prom-client'
+import type { Histogram } from '@prometheus-io/client'
+import * as promClient from '@prometheus-io/client'
 import { describe, expect, it, vi } from 'vitest'
 import { PrometheusMessageLifetimeMetric } from './PrometheusMessageLifetimeMetric.ts'
 
@@ -20,7 +20,7 @@ describe('PrometheusMessageLifetimeMetric', () => {
       observe(labels: Record<string, string | number>, value: number) {
         observedValues.push({ labels, value })
       },
-    } as Histogram)
+    } as Histogram<string>)
 
     const metric = new PrometheusMessageLifetimeMetric<TestMessage>(
       {
@@ -71,7 +71,7 @@ describe('PrometheusMessageLifetimeMetric', () => {
       observe(labels: Record<string, string | number>, value: number) {
         observedValues.push({ labels, value })
       },
-    } as Histogram)
+    } as Histogram<string>)
 
     const metric = new PrometheusMessageLifetimeMetric<TestMessage>(
       {

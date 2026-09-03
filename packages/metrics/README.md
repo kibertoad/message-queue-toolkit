@@ -5,7 +5,7 @@ This package contains utilities for collecting metrics in `@message-queue-toolki
 ## Installation
 
 ```sh
-npm install @message-queue-toolkit/metrics
+npm install @message-queue-toolkit/metrics @prometheus-io/client
 ```
 
 ## Overview
@@ -29,7 +29,7 @@ const service = new MyQueueService({ messageMetricsManager: metric })
 
 ## Prometheus metrics
 
-All Prometheus metrics use [prom-client](https://github.com/siimon/prom-client) under the hood.
+All Prometheus metrics use [@prometheus-io/client](https://github.com/prometheus/client_js) under the hood.
 
 ### Base parameters
 
@@ -43,7 +43,7 @@ All metrics accept `PrometheusMetricParams`:
 | `messageVersion` | `string \| (metadata) => string \| undefined` | no | Static version string or function to extract version from message metadata |
 | `labelNames` | `Labels[]` | when `Labels` is specified | Names of the custom labels to register. Must not overlap with `DefaultLabels` (`queue`, `messageType`, `version`, `result`) — TypeScript enforces this at compile time |
 
-An optional second argument accepts a custom `prom-client` instance (useful for testing or multi-registry setups).
+An optional second argument accepts a custom `@prometheus-io/client` instance (useful for testing or multi-registry setups).
 
 ---
 
@@ -87,7 +87,7 @@ Extend `PrometheusMessageTimeMetric` to add custom labels. Pass `labelNames` in 
 ```ts
 import { PrometheusMessageTimeMetric } from '@message-queue-toolkit/metrics'
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
-import type { LabelValues } from 'prom-client'
+import type { LabelValues } from '@prometheus-io/client'
 
 class MyProcessingTimeMetric extends PrometheusMessageTimeMetric<MyMessage, 'env'> {
   protected calculateObservedValue(metadata: ProcessedMessageMetadata<MyMessage>): number | null {
@@ -154,7 +154,7 @@ Extend `PrometheusMessageCounter` and implement `calculateCount`. Override `getL
 ```ts
 import { PrometheusMessageCounter } from '@message-queue-toolkit/metrics'
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
-import type { LabelValues } from 'prom-client'
+import type { LabelValues } from '@prometheus-io/client'
 
 class MyRegionCounter extends PrometheusMessageCounter<MyMessage, 'region'> {
   protected calculateCount(): number | null {

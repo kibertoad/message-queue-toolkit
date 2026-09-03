@@ -1,6 +1,6 @@
 import type { MessageMetricsManager, ProcessedMessageMetadata } from '@message-queue-toolkit/core'
-import type { Metric } from 'prom-client'
-import promClient from 'prom-client'
+import type { Metric } from '@prometheus-io/client'
+import promClient from '@prometheus-io/client'
 import type { MessageVersionGeneratingFunction, PrometheusMetricParams } from './types.ts'
 
 /**w

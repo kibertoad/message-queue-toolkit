@@ -1,6 +1,6 @@
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
-import type { Counter } from 'prom-client'
-import * as promClient from 'prom-client'
+import type { Counter } from '@prometheus-io/client'
+import * as promClient from '@prometheus-io/client'
 import { describe, expect, it, vi } from 'vitest'
 import { PrometheusMessageResultCounter } from './PrometheusMessageResultCounter.ts'
 

@@ -1,6 +1,6 @@
 import type { ProcessedMessageMetadata } from '@message-queue-toolkit/core'
-import type promClient from 'prom-client'
-import type { Histogram, LabelValues } from 'prom-client'
+import type promClient from '@prometheus-io/client'
+import type { Histogram, LabelValues } from '@prometheus-io/client'
 import { PrometheusMessageMetric } from '../../PrometheusMessageMetric.ts'
 import type { DefaultLabels, PrometheusMetricParams } from '../../types.ts'
 

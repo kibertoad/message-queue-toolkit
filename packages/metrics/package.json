@@ -31,7 +31,7 @@
     },
     "peerDependencies": {
         "@message-queue-toolkit/core": ">=21.0.0",
-        "prom-client": ">=15.0.0"
+        "@prometheus-io/client": ">=0.16.0 <1"
     },
     "devDependencies": {
         "@biomejs/biome": "^2.5.11",
