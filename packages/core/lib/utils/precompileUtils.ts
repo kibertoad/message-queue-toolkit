@@ -19,15 +19,48 @@ const precompiledSchemas = new WeakMap<ZodType, ZodType>()
 const precompiledDefinitions = new WeakMap<CommonEventDefinition, CommonEventDefinition>()
 
 /**
+ * Schemas the caller has taken out of automatic precompilation, weak for the same reason as the
+ * memos above.
+ */
+const schemasExcludedFromPrecompilation = new WeakSet<ZodType>()
+
+/**
+ * Takes a schema out of automatic precompilation and hands it straight back, so the call can wrap
+ * a schema at the point where it is declared.
+ *
+ * Worth reaching for in one case: a refinement or a transform on the schema has side effects.
+ * Zod's compiled fast path signals rejection without building the error, leaving the interpreted
+ * parser to produce it, which can replay a synchronous refinement or transform on a message that
+ * fails validation. An excluded schema is parsed exactly as written, so every callback on it runs
+ * once per parse.
+ *
+ * Exclusion is checked ahead of the compilation memo, so it holds however the calls interleave.
+ * Registrations that already resolved a compiled clone keep the clone they hold, which is why the
+ * place to exclude a schema is where it is defined, before anything registers it.
+ */
+export function excludeFromPrecompilation<Schema extends ZodType>(schema: Schema): Schema {
+  schemasExcludedFromPrecompilation.add(schema)
+
+  return schema
+}
+
+/**
  * Builds an ahead-of-time compiled clone of the given schema, which parses noticeably faster than
  * the interpreted one. Callers of this toolkit never need to do this themselves: every schema
  * handed to a publisher, a consumer handler or an event definition is precompiled automatically.
  *
  * The original schema is left untouched, and repeat calls are free: the same schema always yields
  * the same clone, and passing a clone back returns it as is. A schema zod refuses to compile keeps
- * using the regular runtime parser, with no observable difference for the caller.
+ * using the regular runtime parser.
+ *
+ * A compiled clone accepts and rejects exactly what the schema it was built from does. The one
+ * difference is how often a callback of yours runs: a refinement or a transform can run a second
+ * time while the error for an invalid message is built. `excludeFromPrecompilation` opts a schema
+ * out when that is a problem.
  */
 export function precompileSchema<Schema extends ZodType>(schema: Schema): Schema {
+  if (schemasExcludedFromPrecompilation.has(schema)) return schema
+
   const memoized = precompiledSchemas.get(schema)
   if (memoized) return memoized as Schema
 
@@ -48,7 +81,7 @@ export function precompileSchema<Schema extends ZodType>(schema: Schema): Schema
  *
  * Both schemas are compiled, because both are read on a hot path: `DomainEventEmitter` parses with
  * `publisherSchema`, while `AbstractPublisherManager` registers `consumerSchema` as the schema its
- * publishers parse with.
+ * publishers parse with. Either of them can be held back with `excludeFromPrecompilation`.
  */
 export function precompileEventDefinition<Definition extends CommonEventDefinition>(
   definition: Definition,

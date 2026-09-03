@@ -97,7 +97,7 @@ describe('MessageSchemaContainer', () => {
 
       // Valid type - returns the registered schema, precompiled
       const validResult = container.resolveSchema({ payload: 'test' }, { type: 'message.a' })
-      expect(validResult).toEqual({ result: precompileSchema(MESSAGE_SCHEMA_A) })
+      expect(validResult.result).toBe(precompileSchema(MESSAGE_SCHEMA_A))
 
       // Invalid type - resolver throws, error is returned
       const invalidResult = container.resolveSchema({ payload: 'test' }, { type: 'other.type' })

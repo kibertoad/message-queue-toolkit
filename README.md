@@ -225,16 +225,37 @@ Then the message is automatically nacked without requeueing by the abstract cons
 
 `zod` can compile a schema ahead of time into a generated fast path, which parses several times faster than
 the interpreted parser. The toolkit does this for you: every schema you register is precompiled when it is
-registered, which covers `messageSchemas` on a publisher, the schemas passed to `MessageHandlerConfigBuilder`
-and `KafkaHandlerConfig`, the `schema` on a Kafka `TopicConfig`, and the event definitions given to an
-`EventRegistry`. There is nothing to opt into, and no reason to call `z.compile()` yourself before handing a
-schema over: compilation is memoized per schema, so registering the same one with a registry, a publisher and
-a consumer compiles it once.
+registered, which covers `messageSchemas` on a publisher, the schemas passed to `MessageHandlerConfig` and
+`MessageHandlerConfigBuilder` and `KafkaHandlerConfig`, the `schema` on a Kafka `TopicConfig`, and the event
+definitions given to an `EventRegistry`. There is nothing to opt into, and no reason to call `z.compile()`
+yourself before handing a schema over: compilation is memoized per schema, so registering the same one with a
+registry, a publisher and a consumer compiles it once.
 
 Precompiling returns a clone, so the schema instance the toolkit parses with is not the object you passed in.
-Your schema is left untouched, and parsing behavior is identical: a schema `zod` cannot compile (an async
-refinement, say) keeps using the regular parser. `precompileSchema` is exported from
-`@message-queue-toolkit/core` if you want the same treatment for a schema of your own.
+Your schema is left untouched, and a compiled schema accepts and rejects exactly what it accepted and rejected
+before: a schema `zod` cannot compile (an async refinement, say) keeps using the regular parser.
+`precompileSchema` is exported from `@message-queue-toolkit/core` if you want the same treatment for a schema
+of your own.
+
+One difference is worth knowing about if you write your own refinements or transforms. The compiled fast path
+signals rejection without building the error, leaving the interpreted parser to produce it, so a synchronous
+refinement or transform runs at most twice on a message that fails validation, and exactly once on a message
+that passes. Pure callbacks, which is what validation callbacks normally are, do not care. One with side
+effects does, and `excludeFromPrecompilation` holds such a schema back:
+
+```typescript
+import { excludeFromPrecompilation } from '@message-queue-toolkit/core'
+
+const MY_SCHEMA = excludeFromPrecompilation(
+  z.object({ id: z.string() }).refine((message) => {
+    auditRejectedIds(message.id) // runs once per parse, compiled or not
+    return isKnown(message.id)
+  }),
+)
+```
+
+Wrap the schema where you declare it, before anything registers it. The schema is then parsed as written
+wherever the toolkit uses it, giving up the speedup to keep the callback count exact.
 
 ### Barrier Pattern
 The barrier pattern facilitates the out-of-order message handling by retrying the message later if the system is not yet in the proper state to be able to process that message (e. g. some prerequisite messages have not yet arrived).
