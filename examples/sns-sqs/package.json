@@ -16,9 +16,9 @@
         "url": "https://github.com/kibertoad/message-queue-toolkit.git"
     },
     "dependencies": {
-        "@aws-sdk/client-sns": "^3.1106.0",
-        "@aws-sdk/client-sts": "^3.1106.0",
-        "@aws-sdk/client-sqs": "^3.1106.0",
+        "@aws-sdk/client-sns": "^3.1124.0",
+        "@aws-sdk/client-sts": "^3.1124.0",
+        "@aws-sdk/client-sqs": "^3.1124.0",
         "@message-queue-toolkit/core": "^26.1.1",
         "@message-queue-toolkit/schemas": "^7.2.0",
         "@message-queue-toolkit/sns": "26.2.1",
@@ -27,13 +27,13 @@
         "zod": "^4.5.4"
     },
     "devDependencies": {
-        "@biomejs/biome": "^2.5.6",
+        "@biomejs/biome": "^2.5.11",
         "@lokalise/biome-config": "^3.1.1",
-        "@types/node": "^26.1.2",
+        "@types/node": "^26.4.1",
         "@lokalise/tsconfig": "^5.0.0",
-        "@vitest/coverage-v8": "^4.1.10",
+        "@vitest/coverage-v8": "^4.1.11",
         "typescript": "^7.0.2",
-        "vitest": "^4.1.10"
+        "vitest": "^4.1.11"
     },
     "private": true
 }
