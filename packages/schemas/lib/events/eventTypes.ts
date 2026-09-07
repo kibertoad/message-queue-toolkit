@@ -1,7 +1,11 @@
 import { z } from 'zod/v4'
 
 import { MetadataObjectSchema } from '../messages/baseMessageSchemas.ts'
-import { CONSUMER_BASE_EVENT_SCHEMA, PUBLISHER_BASE_EVENT_SCHEMA } from './baseEventSchemas.ts'
+import {
+  CONSUMER_BASE_EVENT_SCHEMA,
+  type EventPayloadSchema,
+  PUBLISHER_BASE_EVENT_SCHEMA,
+} from './baseEventSchemas.ts'
 
 export type EventTypeNames<EventDefinition extends CommonEventDefinition> =
   CommonEventDefinitionConsumerSchemaType<EventDefinition>['type']
@@ -12,11 +16,11 @@ export function isCommonEventDefinition(entity: unknown): entity is CommonEventD
 
 const consumerSchema = CONSUMER_BASE_EVENT_SCHEMA.extend({
   metadata: MetadataObjectSchema,
-  payload: z.looseObject({}),
+  payload: z.looseObject({}) as EventPayloadSchema,
 })
 
 const publisherSchema = PUBLISHER_BASE_EVENT_SCHEMA.extend({
-  payload: z.looseObject({}),
+  payload: z.looseObject({}) as EventPayloadSchema,
 })
 
 export type CommonEventDefinition = {

@@ -1,5 +1,26 @@
 # Upgrading Guide
 
+## Upgrading </br> `schemas` `8.0.0` -> `8.1.0`
+
+### Description of Changes
+
+- **The event payload schema constraint was relaxed to accept a union of object variants.**
+  `enrichMessageSchemaWithBase`, `enrichMessageSchemaWithBaseStrict`, `enrichEventSchemaWithBase`
+  and `getMessageType` previously required the payload schema to be a `ZodObject`. They now accept
+  any `EventPayloadSchema` — an object schema **or** a union of object schemas — while still
+  rejecting bare scalars (`z.string()`) and `z.any()`. This lets an event model a payload that is
+  either a single item or a batch of items.
+
+- **Type-argument arity dropped from three to two.** Relaxing the constraint removed the internal
+  `Y extends ZodRawShape` type parameter from those four functions. Call sites that rely on
+  inference — the overwhelmingly common case — are unaffected. Only code that passes **explicit**
+  type arguments needs updating:
+
+  ```diff
+  -enrichMessageSchemaWithBase<typeof PAYLOAD_SCHEMA, PayloadShape, 'my.event'>('my.event', PAYLOAD_SCHEMA)
+  +enrichMessageSchemaWithBase<typeof PAYLOAD_SCHEMA, 'my.event'>('my.event', PAYLOAD_SCHEMA)
+  ```
+
 ## Upgrading </br> `metrics` `4.x.x` -> `5.0.0`
 
 ### Description of Breaking Changes
