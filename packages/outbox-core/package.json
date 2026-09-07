@@ -1,7 +1,6 @@
 {
     "name": "@message-queue-toolkit/outbox-core",
     "version": "0.3.0",
-    "private": false,
     "license": "MIT",
     "description": "Outbox pattern implementation for message queue toolkit",
     "maintainers": [
@@ -67,5 +66,9 @@
         "README.md",
         "LICENSE",
         "dist/*"
-    ]
+    ],
+    "private": false,
+    "publishConfig": {
+        "access": "public"
+    }
 }
