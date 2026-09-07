@@ -4,16 +4,17 @@ import z, {
   type ZodNullable,
   type ZodObject,
   type ZodOptional,
-  type ZodRawShape,
   type ZodString,
 } from 'zod/v4'
 import {
   CONSUMER_BASE_EVENT_SCHEMA,
   type CONSUMER_MESSAGE_METADATA_SCHEMA,
+  type EventPayloadSchema,
   GENERATED_BASE_EVENT_SCHEMA,
   OPTIONAL_GENERATED_BASE_EVENT_SCHEMA,
   PUBLISHER_BASE_EVENT_SCHEMA,
   type PUBLISHER_MESSAGE_METADATA_SCHEMA,
+  type RejectAnyPayload,
 } from '../events/baseEventSchemas.ts'
 import type { CommonEventDefinition } from '../events/eventTypes.ts'
 import type { MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA } from './messageDeduplicationSchemas.ts'
@@ -46,7 +47,7 @@ export const MetadataObjectSchema = z.object({
   correlationId: z.string(),
 })
 
-type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string> = {
+type ReturnType<T extends EventPayloadSchema, Z extends string> = {
   consumerSchema: ZodObject<{
     id: ZodString
     timestamp: ZodISODateTime
@@ -79,19 +80,21 @@ export type SchemaMetadata = {
   description: string
 }
 
-export function enrichMessageSchemaWithBaseStrict<
-  T extends ZodObject<Y>,
-  Y extends ZodRawShape,
-  Z extends string,
->(type: Z, payloadSchema: T, schemaMetadata: SchemaMetadata): ReturnType<T, Y, Z> {
-  return enrichMessageSchemaWithBase(type, payloadSchema, schemaMetadata)
+export function enrichMessageSchemaWithBaseStrict<T extends EventPayloadSchema, Z extends string>(
+  type: Z,
+  payloadSchema: T & RejectAnyPayload<T>,
+  schemaMetadata: SchemaMetadata,
+): ReturnType<T, Z> {
+  // Explicit type args: payloadSchema is already `T & RejectAnyPayload<T>` here, so let inference
+  // reuse T instead of re-applying RejectAnyPayload to the intersection.
+  return enrichMessageSchemaWithBase<T, Z>(type, payloadSchema, schemaMetadata)
 }
 
-export function enrichMessageSchemaWithBase<
-  T extends ZodObject<Y>,
-  Y extends ZodRawShape,
-  Z extends string,
->(type: Z, payloadSchema: T, schemaMetadata?: Partial<SchemaMetadata>): ReturnType<T, Y, Z> {
+export function enrichMessageSchemaWithBase<T extends EventPayloadSchema, Z extends string>(
+  type: Z,
+  payloadSchema: T & RejectAnyPayload<T>,
+  schemaMetadata?: Partial<SchemaMetadata>,
+): ReturnType<T, Z> {
   const baseSchema = z.object({
     type: z.literal(type),
     payload: payloadSchema,
@@ -111,8 +114,8 @@ export function enrichMessageSchemaWithBase<
   }
 }
 
-export function getMessageType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string>(
-  richMessageSchema: ReturnType<T, Y, Z>,
+export function getMessageType<T extends EventPayloadSchema, Z extends string>(
+  richMessageSchema: ReturnType<T, Z>,
 ): Z {
   return richMessageSchema.consumerSchema.shape.type.value
 }

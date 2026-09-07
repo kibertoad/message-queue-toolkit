@@ -1,11 +1,4 @@
-import type {
-  ZodISODateTime,
-  ZodLiteral,
-  ZodObject,
-  ZodOptional,
-  ZodRawShape,
-  ZodString,
-} from 'zod/v4'
+import type { ZodISODateTime, ZodLiteral, ZodObject, ZodOptional, ZodString } from 'zod/v4'
 import { z } from 'zod/v4'
 import { MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA } from '../messages/messageDeduplicationSchemas.ts'
 
@@ -89,7 +82,33 @@ export type PublisherBaseEventType = z.output<typeof PUBLISHER_BASE_EVENT_SCHEMA
 export type CoreEventType = z.output<typeof CORE_EVENT_SCHEMA>
 export type GeneratedBaseEventType = z.output<typeof GENERATED_BASE_EVENT_SCHEMA>
 
-type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string> = {
+/**
+ * Schema allowed as an event/message payload: anything whose input and output are objects, which
+ * covers a plain object schema and a union of object variants (e.g. a single-item / multi-item
+ * shape). It stays object-based (a bare string/number payload is not allowed) while accepting
+ * unions. Defined via the input/output types (not `ZodObject | ZodUnion`) so `.extend` does not
+ * distribute over a type-level union and collapse it back to a plain object.
+ *
+ * Both the output AND input type parameters are pinned: leaving `Input` at its default `unknown`
+ * would widen `z.input<publisherSchema>['payload']` to `unknown`, dropping the object-payload
+ * guarantee for code written generically over CommonEventDefinition, and would let scalar-input
+ * transforms (e.g. `z.preprocess`) through.
+ */
+export type EventPayloadSchema = z.ZodType<Record<string, unknown>, Record<string, unknown>>
+
+type IsAny<T> = 0 extends 1 & T ? true : false
+
+/**
+ * A payload schema whose output is `any` (e.g. `z.any()`) satisfies EventPayloadSchema, because
+ * `any` is assignable to `Record<string, unknown>`, yet it silently disables payload type-checking
+ * for every handler and publisher of the event. Intersecting the payload parameter with this
+ * collapses it to `never` for such a schema, rejecting the call, while leaving real payloads
+ * (objects, unions of objects, transforms to objects) untouched.
+ */
+export type RejectAnyPayload<T extends EventPayloadSchema> =
+  IsAny<z.output<T>> extends true ? never : unknown
+
+type ReturnType<T extends EventPayloadSchema, Z extends string> = {
   consumerSchema: ZodObject<{
     id: ZodString
     timestamp: ZodISODateTime
@@ -105,11 +124,10 @@ type ReturnType<T extends ZodObject<Y>, Y extends ZodRawShape, Z extends string>
   }>
 }
 
-export function enrichEventSchemaWithBase<
-  T extends ZodObject<Y>,
-  Y extends ZodRawShape,
-  Z extends string,
->(type: Z, payloadSchema: T): ReturnType<T, Y, Z> {
+export function enrichEventSchemaWithBase<T extends EventPayloadSchema, Z extends string>(
+  type: Z,
+  payloadSchema: T & RejectAnyPayload<T>,
+): ReturnType<T, Z> {
   const baseSchema = z.object({
     type: z.literal(type),
     payload: payloadSchema,

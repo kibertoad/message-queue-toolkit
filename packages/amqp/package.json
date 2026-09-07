@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/amqp",
-    "version": "24.1.1",
+    "version": "25.0.1",
     "engines": {
         "node": ">=22.0.0"
     },
