@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/gcs-payload-store",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "license": "MIT",
     "description": "Google Cloud Storage-based message store implementation for message-queue-toolkit",
     "maintainers": [
@@ -26,17 +26,16 @@
         "docker:stop": "docker compose down",
         "prepublishOnly": "pnpm run lint && pnpm run build"
     },
-    "dependencies": {},
     "peerDependencies": {
         "@google-cloud/storage": ">=7.17.0 <9.0.0",
         "@message-queue-toolkit/core": ">=24.0.0"
     },
     "devDependencies": {
-        "@google-cloud/storage": "^8.0.1",
-        "@message-queue-toolkit/core": "workspace:*",
         "@biomejs/biome": "^2.5.11",
+        "@google-cloud/storage": "^8.0.1",
         "@lokalise/biome-config": "^3.1.1",
         "@lokalise/tsconfig": "^5.0.0",
+        "@message-queue-toolkit/core": "workspace:*",
         "@types/node": "^26.4.1",
         "@vitest/coverage-v8": "^4.1.11",
         "rimraf": "^6.1.3",

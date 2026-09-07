@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/s3-payload-store",
-    "version": "4.0.0",
+    "version": "4.0.1",
     "private": false,
     "license": "MIT",
     "description": "AWS S3-based message store implementation for message-queue-toolkit",
@@ -29,7 +29,6 @@
         "lint:fix": "biome check --write .",
         "prepublishOnly": "pnpm run lint && pnpm run build"
     },
-    "dependencies": {},
     "peerDependencies": {
         "@aws-sdk/client-s3": "^3.596.0",
         "@message-queue-toolkit/core": ">=24.0.0"
