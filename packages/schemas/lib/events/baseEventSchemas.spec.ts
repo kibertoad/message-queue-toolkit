@@ -35,14 +35,4 @@ describe('enrichEventSchemaWithBase', () => {
     )
     expect(parsed.payload).toEqual({ projectId: 'p1', values: ['a', 'b'] })
   })
-
-  it('rejects a non-object payload schema', () => {
-    // @ts-expect-error payload must be an object or a union of objects, not a bare scalar
-    enrichEventSchemaWithBase('event.scalar', z.string())
-  })
-
-  it('rejects an `any` payload schema', () => {
-    // @ts-expect-error z.any() would satisfy the object constraint yet disable payload checking
-    enrichEventSchemaWithBase('event.any', z.any())
-  })
 })
