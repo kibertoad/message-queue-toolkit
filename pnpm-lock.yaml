@@ -73,7 +73,7 @@ importers:
         specifier: ^4.11.0
         version: 4.11.0
       '@message-queue-toolkit/schemas':
-        specifier: ^7.2.0
+        specifier: '>=7.2.0 <9.0.0'
         version: 7.2.0(zod@4.5.4)
       dot-prop:
         specifier: ^10.2.0
@@ -1218,6 +1218,7 @@ packages:
   '@smithy/node-http-handler@4.12.0':
     resolution: {integrity: sha512-0mq1pHadfyXCYCqm2cNpbjNIT+fbaUpNxewZb/YNr2L0IrEVMOb8gM/Fl4K6XvHCW3uSNDFwPl/+iKm0bx9jYg==}
     engines: {node: '>=18.0.0'}
+    deprecated: Depreacted due to a memory leak issue https://github.com/smithy-lang/smithy-typescript/issues/2258
 
   '@smithy/signature-v4@5.7.3':
     resolution: {integrity: sha512-7ImGm+FkHRLcBaRttIAMZ6bzJZWb2cJGoYjq46F2UjycujWzrL9GEN9h4w7eQyXJYnltrUhxbbieBAIRrdqpow==}

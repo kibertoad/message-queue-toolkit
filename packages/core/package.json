@@ -27,7 +27,7 @@
     "dependencies": {
         "@lokalise/node-core": "^14.9.1",
         "@lokalise/universal-ts-utils": "^4.11.0",
-        "@message-queue-toolkit/schemas": "^7.2.0",
+        "@message-queue-toolkit/schemas": ">=7.2.0 <9.0.0",
         "dot-prop": "^10.2.0",
         "fast-equals": "^6.0.2",
         "json-stream-stringify": "^3.1.7",
@@ -41,6 +41,7 @@
         "@biomejs/biome": "^2.5.11",
         "@lokalise/biome-config": "^3.1.1",
         "@lokalise/tsconfig": "^5.0.0",
+        "@message-queue-toolkit/schemas": "workspace:*",
         "@types/node": "^26.4.1",
         "@types/tmp": "^0.2.6",
         "@vitest/coverage-v8": "^4.1.11",
