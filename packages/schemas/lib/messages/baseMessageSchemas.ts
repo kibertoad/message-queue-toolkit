@@ -78,17 +78,23 @@ export type SchemaMetadata = {
   description: string
 }
 
+type IsAny<T> = 0 extends 1 & T ? true : false
+type RejectAnyPayload<T extends EventPayloadSchema> =
+  IsAny<z.output<T>> extends true ? never : unknown
+
 export function enrichMessageSchemaWithBaseStrict<T extends EventPayloadSchema, Z extends string>(
   type: Z,
-  payloadSchema: T,
+  payloadSchema: T & RejectAnyPayload<T>,
   schemaMetadata: SchemaMetadata,
 ): ReturnType<T, Z> {
-  return enrichMessageSchemaWithBase(type, payloadSchema, schemaMetadata)
+  // Explicit type args: payloadSchema is already `T & RejectAnyPayload<T>` here, so let inference
+  // reuse T instead of re-applying RejectAnyPayload to the intersection.
+  return enrichMessageSchemaWithBase<T, Z>(type, payloadSchema, schemaMetadata)
 }
 
 export function enrichMessageSchemaWithBase<T extends EventPayloadSchema, Z extends string>(
   type: Z,
-  payloadSchema: T,
+  payloadSchema: T & RejectAnyPayload<T>,
   schemaMetadata?: Partial<SchemaMetadata>,
 ): ReturnType<T, Z> {
   const baseSchema = z.object({

@@ -31,6 +31,11 @@ describe('base message schemas', () => {
     enrichMessageSchemaWithBase('user.updated', z.string())
   })
 
+  it('rejects an `any` payload schema', () => {
+    // @ts-expect-error z.any() would satisfy the object constraint yet disable payload checking
+    enrichMessageSchemaWithBase('user.updated', z.any())
+  })
+
   it('accepts a union payload schema', () => {
     expectTypeOf(myEvents.myUnionEvent).toExtend<SnsAwareEventDefinition>()
 
