@@ -1,21 +1,11 @@
 import { z } from 'zod/v4'
 
 import { MetadataObjectSchema } from '../messages/baseMessageSchemas.ts'
-import { CONSUMER_BASE_EVENT_SCHEMA, PUBLISHER_BASE_EVENT_SCHEMA } from './baseEventSchemas.ts'
-
-/**
- * Schema allowed as an event payload: anything whose input and output are objects, which covers
- * a plain object schema and a union of object variants (e.g. a single-item / multi-item shape).
- * It stays object-based (a bare string/number payload is not allowed) while accepting unions.
- * Defined via the input/output types (not `ZodObject | ZodUnion`) so `.extend` does not distribute
- * over a type-level union and collapse it back to a plain object.
- *
- * Both the output AND input type parameters are pinned: leaving `Input` at its default `unknown`
- * would widen `z.input<publisherSchema>['payload']` to `unknown`, dropping the object-payload
- * guarantee for code written generically over `CommonEventDefinition`, and would let
- * scalar-input transforms (e.g. `z.preprocess`) through.
- */
-export type EventPayloadSchema = z.ZodType<Record<string, unknown>, Record<string, unknown>>
+import {
+  CONSUMER_BASE_EVENT_SCHEMA,
+  type EventPayloadSchema,
+  PUBLISHER_BASE_EVENT_SCHEMA,
+} from './baseEventSchemas.ts'
 
 export type EventTypeNames<EventDefinition extends CommonEventDefinition> =
   CommonEventDefinitionConsumerSchemaType<EventDefinition>['type']

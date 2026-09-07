@@ -9,12 +9,14 @@ import z, {
 import {
   CONSUMER_BASE_EVENT_SCHEMA,
   type CONSUMER_MESSAGE_METADATA_SCHEMA,
+  type EventPayloadSchema,
   GENERATED_BASE_EVENT_SCHEMA,
   OPTIONAL_GENERATED_BASE_EVENT_SCHEMA,
   PUBLISHER_BASE_EVENT_SCHEMA,
   type PUBLISHER_MESSAGE_METADATA_SCHEMA,
+  type RejectAnyPayload,
 } from '../events/baseEventSchemas.ts'
-import type { CommonEventDefinition, EventPayloadSchema } from '../events/eventTypes.ts'
+import type { CommonEventDefinition } from '../events/eventTypes.ts'
 import type { MESSAGE_DEDUPLICATION_OPTIONS_SCHEMA } from './messageDeduplicationSchemas.ts'
 
 export const CONSUMER_BASE_MESSAGE_SCHEMA = CONSUMER_BASE_EVENT_SCHEMA
@@ -77,10 +79,6 @@ type ReturnType<T extends EventPayloadSchema, Z extends string> = {
 export type SchemaMetadata = {
   description: string
 }
-
-type IsAny<T> = 0 extends 1 & T ? true : false
-type RejectAnyPayload<T extends EventPayloadSchema> =
-  IsAny<z.output<T>> extends true ? never : unknown
 
 export function enrichMessageSchemaWithBaseStrict<T extends EventPayloadSchema, Z extends string>(
   type: Z,
