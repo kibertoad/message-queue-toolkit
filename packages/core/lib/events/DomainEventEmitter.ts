@@ -21,6 +21,13 @@ import type {
   SingleEventHandler,
 } from './eventTypes.ts'
 
+/**
+ * Upper bound on how many times dispose() re-checks for background handlers that registered while
+ * it was draining. Each pass only continues if the previous one found work, so this is a guard
+ * against endless event chains rather than a limit on normal shutdowns.
+ */
+const MAX_DISPOSE_DRAIN_PASSES = 10
+
 export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDefinition[]> = {
   eventRegistry: EventRegistry<SupportedEvents>
   metadataFiller: MetadataFiller
@@ -49,6 +56,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     Handlers<EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>>
   >
   private readonly inProgressBackgroundHandlerByEventId: Map<string, Promise<void>>
+  private isDisposed = false
 
   constructor(
     deps: DomainEventEmitterDependencies<SupportedEvents>,
@@ -80,8 +88,33 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     return this._handlerSpy
   }
 
+  /**
+   * Waits for background handlers to settle, then stops accepting events.
+   *
+   * Background handlers can register while the drain is already running, either because their
+   * `emit()` was still awaiting foreground handlers when the drain started, or because a background
+   * handler emits an event of its own. A single pass over the map would miss those, so we keep
+   * draining until it stays empty, bounded so that an endless chain of events cannot hold shutdown
+   * open forever.
+   */
   public async dispose(): Promise<void> {
-    await Promise.all(this.inProgressBackgroundHandlerByEventId.values())
+    for (let pass = 0; pass < MAX_DISPOSE_DRAIN_PASSES; pass++) {
+      if (this.inProgressBackgroundHandlerByEventId.size === 0) break
+
+      await Promise.all(this.inProgressBackgroundHandlerByEventId.values())
+    }
+
+    if (this.inProgressBackgroundHandlerByEventId.size > 0) {
+      this.logger.error(
+        { pendingBackgroundHandlers: this.inProgressBackgroundHandlerByEventId.size },
+        `Background event handlers still pending after ${MAX_DISPOSE_DRAIN_PASSES} drain passes, giving up on them`,
+      )
+    }
+
+    // Set before clearing the handlers, so that an event emitted from this point on fails loudly
+    // rather than finding an empty handler map and being silently discarded.
+    this.isDisposed = true
+
     this.inProgressBackgroundHandlerByEventId.clear()
     this.eventHandlerMap.clear()
     this._handlerSpy?.clear()
@@ -97,6 +130,19 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       throw new InternalError({
         errorCode: 'UNKNOWN_EVENT',
         message: `Unknown event ${eventTypeName}`,
+      })
+    }
+
+    /*
+			A disposed emitter has no handlers left, so the event would reach neither its listeners nor
+			any listener that forwards it onwards (for example to a message broker). Failing here lets the
+			caller fail and be retried, instead of completing successfully while its event silently went nowhere.
+		*/
+    if (this.isDisposed) {
+      throw new InternalError({
+        errorCode: 'EVENT_EMITTER_DISPOSED',
+        message: `Cannot emit event ${eventTypeName}, emitter is already disposed`,
+        details: { eventTypeName },
       })
     }
 

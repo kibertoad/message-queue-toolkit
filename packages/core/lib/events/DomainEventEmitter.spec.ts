@@ -455,14 +455,40 @@ describe('DomainEventEmitter', () => {
       expect(fakeListener2.receivedEvents[0]).toMatchObject(expectedUpdatedPayload)
     })
 
-    it('after dispose handlers are not called', async () => {
+    it('rejects emitting after dispose instead of dropping the event', async () => {
       const fakeListener = new FakeListener()
       eventEmitter.onAny(fakeListener)
 
       await eventEmitter.dispose()
 
-      await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await expect(eventEmitter.emit(TestEvents.created, createdEventPayload)).rejects.toMatchObject(
+        { errorCode: 'EVENT_EMITTER_DISPOSED' },
+      )
       expect(fakeListener.receivedEvents).toHaveLength(0)
+    })
+
+    it('awaits background handlers that register while draining', async () => {
+      // The chaining listener emits a follow-up event from within a background handler, so the
+      // follow-up's own background handler only registers once dispose() started draining.
+      const chainedListener = new FakeListener(100)
+      eventEmitter.onMany(['entity.updated'], chainedListener, true)
+      eventEmitter.onMany(
+        ['entity.created'],
+        {
+          eventHandlerId: 'ChainingListener',
+          handleEvent: async () => {
+            await eventEmitter.emit(TestEvents.updated, updatedEventPayload)
+          },
+        },
+        true,
+      )
+
+      await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      expect(chainedListener.receivedEvents).toHaveLength(0)
+
+      await eventEmitter.dispose()
+
+      expect(chainedListener.receivedEvents).toHaveLength(1)
     })
   })
 })
