@@ -455,14 +455,67 @@ describe('DomainEventEmitter', () => {
       expect(fakeListener2.receivedEvents[0]).toMatchObject(expectedUpdatedPayload)
     })
 
-    it('after dispose handlers are not called', async () => {
+    it('rejects emitting after dispose instead of dropping the event', async () => {
       const fakeListener = new FakeListener()
       eventEmitter.onAny(fakeListener)
 
       await eventEmitter.dispose()
 
-      await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await expect(
+        eventEmitter.emit(TestEvents.created, createdEventPayload),
+      ).rejects.toMatchObject({ errorCode: 'EVENT_EMITTER_DISPOSED' })
       expect(fakeListener.receivedEvents).toHaveLength(0)
+    })
+
+    it('awaits background handlers that register while draining', async () => {
+      // The chaining listener emits a follow-up event from within a background handler, so the
+      // follow-up's own background handler only registers once dispose() started draining.
+      const chainedListener = new FakeListener(100)
+      eventEmitter.onMany(['entity.updated'], chainedListener, true)
+      eventEmitter.onMany(
+        ['entity.created'],
+        {
+          eventHandlerId: 'ChainingListener',
+          handleEvent: async () => {
+            await eventEmitter.emit(TestEvents.updated, updatedEventPayload)
+          },
+        },
+        true,
+      )
+
+      await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      expect(chainedListener.receivedEvents).toHaveLength(0)
+
+      await eventEmitter.dispose()
+
+      expect(chainedListener.receivedEvents).toHaveLength(1)
+    })
+
+    it('awaits an event still running its foreground handlers when draining starts', async () => {
+      // An event is only tracked as an in-progress background handler once its foreground handlers
+      // have completed, so disposal starting mid-foreground must not miss it.
+      const backgroundListener = new FakeListener(100)
+      eventEmitter.onMany(['entity.created'], backgroundListener, true)
+
+      let releaseForegroundHandler: () => void = () => {}
+      const foregroundHandlerGate = new Promise<void>((resolve) => {
+        releaseForegroundHandler = resolve
+      })
+      eventEmitter.onMany(['entity.created'], {
+        eventHandlerId: 'GatedForegroundListener',
+        handleEvent: () => foregroundHandlerGate,
+      })
+
+      // Not awaited: emit() only resolves once the gated foreground handler is released
+      const emitPromise = eventEmitter.emit(TestEvents.created, createdEventPayload)
+      expect(backgroundListener.receivedEvents).toHaveLength(0)
+
+      const disposePromise = eventEmitter.dispose()
+      releaseForegroundHandler()
+      await disposePromise
+
+      expect(backgroundListener.receivedEvents).toHaveLength(1)
+      await emitPromise
     })
   })
 })
