@@ -461,9 +461,9 @@ describe('DomainEventEmitter', () => {
 
       await eventEmitter.dispose()
 
-      await expect(eventEmitter.emit(TestEvents.created, createdEventPayload)).rejects.toMatchObject(
-        { errorCode: 'EVENT_EMITTER_DISPOSED' },
-      )
+      await expect(
+        eventEmitter.emit(TestEvents.created, createdEventPayload),
+      ).rejects.toMatchObject({ errorCode: 'EVENT_EMITTER_DISPOSED' })
       expect(fakeListener.receivedEvents).toHaveLength(0)
     })
 
