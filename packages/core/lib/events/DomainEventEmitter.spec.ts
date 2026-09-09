@@ -490,5 +490,32 @@ describe('DomainEventEmitter', () => {
 
       expect(chainedListener.receivedEvents).toHaveLength(1)
     })
+
+    it('awaits an event still running its foreground handlers when draining starts', async () => {
+      // An event is only tracked as an in-progress background handler once its foreground handlers
+      // have completed, so disposal starting mid-foreground must not miss it.
+      const backgroundListener = new FakeListener(100)
+      eventEmitter.onMany(['entity.created'], backgroundListener, true)
+
+      let releaseForegroundHandler: () => void = () => {}
+      const foregroundHandlerGate = new Promise<void>((resolve) => {
+        releaseForegroundHandler = resolve
+      })
+      eventEmitter.onMany(['entity.created'], {
+        eventHandlerId: 'GatedForegroundListener',
+        handleEvent: () => foregroundHandlerGate,
+      })
+
+      // Not awaited: emit() only resolves once the gated foreground handler is released
+      const emitPromise = eventEmitter.emit(TestEvents.created, createdEventPayload)
+      expect(backgroundListener.receivedEvents).toHaveLength(0)
+
+      const disposePromise = eventEmitter.dispose()
+      releaseForegroundHandler()
+      await disposePromise
+
+      expect(backgroundListener.receivedEvents).toHaveLength(1)
+      await emitPromise
+    })
   })
 })

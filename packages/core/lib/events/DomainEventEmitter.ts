@@ -22,9 +22,9 @@ import type {
 } from './eventTypes.ts'
 
 /**
- * Upper bound on how many times dispose() re-checks for background handlers that registered while
- * it was draining. Each pass only continues if the previous one found work, so this is a guard
- * against endless event chains rather than a limit on normal shutdowns.
+ * Upper bound on how many times dispose() re-checks for event dispatches that registered while it
+ * was draining. Each pass only continues if the previous one found work, so this is a guard against
+ * endless event chains rather than a limit on normal shutdowns.
  */
 const MAX_DISPOSE_DRAIN_PASSES = 10
 
@@ -55,6 +55,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     string,
     Handlers<EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>>
   >
+  private readonly inProgressDispatchByEventId: Map<string, Promise<void>>
   private readonly inProgressBackgroundHandlerByEventId: Map<string, Promise<void>>
   private isDisposed = false
 
@@ -74,6 +75,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       resolveHandlerSpy<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>(options)
 
     this.eventHandlerMap = new Map()
+    this.inProgressDispatchByEventId = new Map()
     this.inProgressBackgroundHandlerByEventId = new Map()
   }
 
@@ -89,25 +91,30 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   }
 
   /**
-   * Waits for background handlers to settle, then stops accepting events.
+   * Waits for accepted events to finish being dispatched, then stops accepting new ones.
    *
-   * Background handlers can register while the drain is already running, either because their
-   * `emit()` was still awaiting foreground handlers when the drain started, or because a background
-   * handler emits an event of its own. A single pass over the map would miss those, so we keep
-   * draining until it stays empty, bounded so that an endless chain of events cannot hold shutdown
-   * open forever.
+   * Both maps are drained: an event is only in `inProgressBackgroundHandlerByEventId` once its
+   * foreground handlers are done, so mid-foreground dispatches are tracked separately. Re-checked
+   * until empty, since handlers can emit events of their own, and bounded so an endless chain
+   * cannot hold shutdown open.
    */
   public async dispose(): Promise<void> {
     for (let pass = 0; pass < MAX_DISPOSE_DRAIN_PASSES; pass++) {
-      if (this.inProgressBackgroundHandlerByEventId.size === 0) break
+      const pending = [
+        ...this.inProgressDispatchByEventId.values(),
+        ...this.inProgressBackgroundHandlerByEventId.values(),
+      ]
+      if (pending.length === 0) break
 
-      await Promise.all(this.inProgressBackgroundHandlerByEventId.values())
+      await Promise.all(pending)
     }
 
-    if (this.inProgressBackgroundHandlerByEventId.size > 0) {
+    const pendingCount =
+      this.inProgressDispatchByEventId.size + this.inProgressBackgroundHandlerByEventId.size
+    if (pendingCount > 0) {
       this.logger.error(
-        { pendingBackgroundHandlers: this.inProgressBackgroundHandlerByEventId.size },
-        `Background event handlers still pending after ${MAX_DISPOSE_DRAIN_PASSES} drain passes, giving up on them`,
+        { pendingEventDispatches: pendingCount },
+        `Event dispatches still pending after ${MAX_DISPOSE_DRAIN_PASSES} drain passes, giving up on them`,
       )
     }
 
@@ -115,6 +122,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     // rather than finding an empty handler map and being silently discarded.
     this.isDisposed = true
 
+    this.inProgressDispatchByEventId.clear()
     this.inProgressBackgroundHandlerByEventId.clear()
     this.eventHandlerMap.clear()
     this._handlerSpy?.clear()
@@ -211,6 +219,28 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     const eventHandlers = this.eventHandlerMap.get(event.type)
     if (!eventHandlers) return
 
+    const dispatch = this.executeHandlers(event, eventHandlers)
+    /**
+     * Registering it so that when dispose is executed before we get to background handler, we still finish processing
+     */
+    this.inProgressDispatchByEventId.set(
+      event.id,
+      dispatch.catch(() => {}),
+    )
+
+    try {
+      await dispatch
+    } finally {
+      this.inProgressDispatchByEventId.delete(event.id)
+    }
+  }
+
+  private async executeHandlers<SupportedEvent extends SupportedEvents[number]>(
+    event: CommonEventDefinitionConsumerSchemaType<SupportedEvent>,
+    eventHandlers: Handlers<
+      EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>
+    >,
+  ): Promise<void> {
     for (const handler of eventHandlers.foreground) {
       await this.executeEventHandler(event, handler, false)
     }
