@@ -598,7 +598,7 @@ only logged and reported. Retries can be enabled per registration:
 emitter.on('user.created', handler, {
   isBackgroundHandler: true,
   retry: {
-    maxRetries: 3, // extra attempts after the initial one, default 0
+    maxRetries: 3, // extra attempts after the initial one, default 0, capped at 10
     baseRetryDelayMs: 100, // delay = min(baseRetryDelayMs * 2 ^ attempt, maxRetryDelayMs)
     maxRetryDelayMs: 1000,
     isRetryable: (error) => !(error instanceof ValidationError), // every error is retried by default
@@ -608,8 +608,9 @@ emitter.on('user.created', handler, {
 
 The third argument still accepts a plain boolean (`isBackgroundHandler`) for backwards
 compatibility, and each attempt is reported to the transaction observability manager separately.
-Every failed attempt is logged, intermediate ones carrying `attempts` and `maxAttempts`; only the
-final failure is reported to the error reporter, with the number of attempts in its context.
+Every failed attempt is logged at `error` level, intermediate ones carrying `attempts` and
+`maxAttempts`; only the final failure is reported to the error reporter, with the number of
+attempts in its context. Invalid retry options are rejected when the handler is registered.
 
 Retries happen in-memory, within the same dispatch:
 

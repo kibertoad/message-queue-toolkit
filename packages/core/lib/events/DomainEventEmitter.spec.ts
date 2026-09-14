@@ -528,6 +528,49 @@ describe('DomainEventEmitter', () => {
       expect(fakeListener.receivedEvents).toHaveLength(3)
     })
 
+    it('rejects invalid retry options at registration time', () => {
+      const fakeListener = new FakeListener()
+
+      for (const maxRetries of [Number.POSITIVE_INFINITY, Number.NaN, 1.5, -1, 11]) {
+        expect(() => eventEmitter.onAny(fakeListener, { retry: { maxRetries } })).toThrowError(
+          /maxRetries must be an integer between 0 and 10/,
+        )
+      }
+      expect(() => eventEmitter.onAny(fakeListener, { retry: { maxRetries: 10 } })).not.toThrow()
+      expect(() =>
+        eventEmitter.onAny(fakeListener, { retry: { baseRetryDelayMs: -1 } }),
+      ).toThrowError(/baseRetryDelayMs must be a non-negative finite number/)
+      expect(() =>
+        eventEmitter.onAny(fakeListener, {
+          retry: { maxRetryDelayMs: Number.POSITIVE_INFINITY },
+        }),
+      ).toThrowError(/maxRetryDelayMs must be a non-negative finite number/)
+    })
+
+    it('stops retrying when isRetryable itself throws', async () => {
+      const fakeListener = new ErroredFakeListener()
+      const reporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
+      eventEmitter.onAny(fakeListener, {
+        isBackgroundHandler: true,
+        retry: {
+          ...retryOptions,
+          isRetryable: () => {
+            throw new Error('predicate error')
+          },
+        },
+      })
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.receivedEvents).toHaveLength(1)
+      expect(reporterSpy).toHaveBeenCalledWith({
+        error: expect.objectContaining({ message: 'ErroredFakeListener error' }),
+        context: expect.objectContaining({ attempts: 1 }),
+      })
+      await expect(eventEmitter.dispose()).resolves.toBeUndefined()
+    })
+
     it('falls back to library defaults for options that are not provided', async () => {
       const fakeListener = new FlakyFakeListener(1)
       eventEmitter.onAny(fakeListener, {

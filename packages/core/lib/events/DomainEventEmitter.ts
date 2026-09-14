@@ -30,6 +30,12 @@ import type {
  */
 const MAX_DISPOSE_DRAIN_PASSES = 10
 
+/**
+ * Upper bound for `maxRetries`. Retries are awaited by `dispose()`, so an unbounded budget would
+ * keep a permanently failing handler holding shutdown open.
+ */
+const MAX_ALLOWED_RETRIES = 10
+
 const DEFAULT_HANDLER_RETRY_OPTIONS = {
   maxRetries: 0,
   baseRetryDelayMs: 100,
@@ -43,7 +49,7 @@ const DEFAULT_HANDLER_RETRY_OPTIONS = {
  */
 export type EventHandlerRetryOptions = {
   /**
-   * Number of extra attempts after the initial one.
+   * Number of extra attempts after the initial one. Capped at 10.
    * @default 0
    */
   maxRetries?: number
@@ -77,12 +83,40 @@ const resolveRegistrationOptions = (
 ): EventHandlerRegistrationOptions =>
   typeof options === 'boolean' ? { isBackgroundHandler: options } : options
 
-const resolveRetryOptions = (retry?: EventHandlerRetryOptions): ResolvedRetryOptions => ({
-  maxRetries: retry?.maxRetries ?? DEFAULT_HANDLER_RETRY_OPTIONS.maxRetries,
-  baseRetryDelayMs: retry?.baseRetryDelayMs ?? DEFAULT_HANDLER_RETRY_OPTIONS.baseRetryDelayMs,
-  maxRetryDelayMs: retry?.maxRetryDelayMs ?? DEFAULT_HANDLER_RETRY_OPTIONS.maxRetryDelayMs,
-  isRetryable: retry?.isRetryable,
-})
+const resolveRetryOptions = (retry?: EventHandlerRetryOptions): ResolvedRetryOptions => {
+  const resolved = {
+    maxRetries: retry?.maxRetries ?? DEFAULT_HANDLER_RETRY_OPTIONS.maxRetries,
+    baseRetryDelayMs: retry?.baseRetryDelayMs ?? DEFAULT_HANDLER_RETRY_OPTIONS.baseRetryDelayMs,
+    maxRetryDelayMs: retry?.maxRetryDelayMs ?? DEFAULT_HANDLER_RETRY_OPTIONS.maxRetryDelayMs,
+    isRetryable: retry?.isRetryable,
+  }
+
+  /*
+    Rejected at registration rather than at dispatch time: a non-integer `maxRetries` silently
+    changes how many attempts are made, and an unbounded one would keep a permanently failing
+    handler in the retry loop, holding `dispose()` open with it.
+  */
+  if (
+    !Number.isInteger(resolved.maxRetries) ||
+    resolved.maxRetries < 0 ||
+    resolved.maxRetries > MAX_ALLOWED_RETRIES
+  ) {
+    throw new InternalError({
+      errorCode: 'INVALID_RETRY_OPTIONS',
+      message: `maxRetries must be an integer between 0 and ${MAX_ALLOWED_RETRIES}, received ${resolved.maxRetries}`,
+    })
+  }
+  for (const field of ['baseRetryDelayMs', 'maxRetryDelayMs'] as const) {
+    if (!Number.isFinite(resolved[field]) || resolved[field] < 0) {
+      throw new InternalError({
+        errorCode: 'INVALID_RETRY_OPTIONS',
+        message: `${field} must be a non-negative finite number, received ${resolved[field]}`,
+      })
+    }
+  }
+
+  return resolved
+}
 
 export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDefinition[]> = {
   eventRegistry: EventRegistry<SupportedEvents>
@@ -346,7 +380,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
         return
       } catch (error) {
         const attempts = attempt + 1
-        const shouldRetry = attempt < retry.maxRetries && (retry.isRetryable?.(error) ?? true)
+        const shouldRetry = attempt < retry.maxRetries && this.isRetryable(retry, handler, error)
         if (!shouldRetry) {
           return this.handleFailedEventHandler(event, handler, isBackgroundHandler, error, attempts)
         }
@@ -360,6 +394,30 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
         await setTimeout(Math.min(retry.baseRetryDelayMs * 2 ** attempt, retry.maxRetryDelayMs))
       }
+    }
+  }
+
+  /*
+    A throwing predicate must not escape: it would reject the dispatch promise, which for background
+    handlers leaves the in-progress entry behind and surfaces as an unhandled rejection. The handler
+    error it was asked about is the one that matters, so it is left to the regular failure path.
+  */
+  private isRetryable(
+    retry: ResolvedRetryOptions,
+    handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>,
+    error: unknown,
+  ): boolean {
+    if (!retry.isRetryable) return true
+
+    try {
+      return retry.isRetryable(error)
+    } catch (predicateError) {
+      this.logger.error({
+        ...resolveGlobalErrorLogObject(predicateError),
+        eventHandlerId: handler.eventHandlerId,
+        msg: `isRetryable of event handler ${handler.eventHandlerId} threw, not retrying`,
+      })
+      return false
     }
   }
 
