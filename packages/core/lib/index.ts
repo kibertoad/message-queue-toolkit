@@ -24,7 +24,11 @@ export {
 } from './errors/Errors.ts'
 export { RetryMessageLaterError } from './errors/RetryMessageLaterError.ts'
 export * from './events/baseEventSchemas.ts'
-export { DomainEventEmitter } from './events/DomainEventEmitter.ts'
+export {
+  DomainEventEmitter,
+  type EventHandlerRegistrationOptions,
+  type EventHandlerRetryOptions,
+} from './events/DomainEventEmitter.ts'
 export { EventRegistry } from './events/EventRegistry.ts'
 export * from './events/eventTypes.ts'
 export { FakeListener } from './events/fakes/FakeListener.ts'
