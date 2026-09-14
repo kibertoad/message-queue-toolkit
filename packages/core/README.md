@@ -608,8 +608,8 @@ emitter.on('user.created', handler, {
 
 The third argument still accepts a plain boolean (`isBackgroundHandler`) for backwards
 compatibility, and each attempt is reported to the transaction observability manager separately.
-Intermediate failures are logged at `warn` level; only the final one is reported to the error
-reporter, with the number of attempts in its context.
+Every failed attempt is logged, intermediate ones carrying `attempts` and `maxAttempts`; only the
+final failure is reported to the error reporter, with the number of attempts in its context.
 
 Retries happen in-memory, within the same dispatch:
 
