@@ -1,9 +1,13 @@
 import { randomUUID } from 'node:crypto'
+import { setTimeout } from 'node:timers/promises'
 import {
   type CommonLogger,
+  copyWithoutUndefined,
   type ErrorReporter,
   InternalError,
+  isError,
   resolveGlobalErrorLogObject,
+  stringValueSerializer,
   type TransactionObservabilityManager,
 } from '@lokalise/node-core'
 import type { ConsumerMessageMetadataType } from '@message-queue-toolkit/schemas'
@@ -28,6 +32,109 @@ import type {
  */
 const MAX_DISPOSE_DRAIN_PASSES = 10
 
+/**
+ * Upper bound for `maxRetries`. Retries are awaited by `dispose()`, so an unbounded budget would
+ * keep a permanently failing handler holding shutdown open.
+ */
+const MAX_ALLOWED_RETRIES = 10
+
+/**
+ * Upper bound for a single backoff delay. `dispose()` waits for the backoff to elapse, so the
+ * budget is kept small on purpose
+ */
+const MAX_ALLOWED_RETRY_DELAY_MS = 2 * 60 * 1000
+
+const DEFAULT_HANDLER_RETRY_OPTIONS = {
+  maxRetries: 0,
+  baseRetryDelayMs: 100,
+  maxRetryDelayMs: 1000,
+} as const
+
+/**
+ * Retries are performed in-memory, within the same dispatch, so they do not survive a process
+ * restart and the handler must be idempotent. `dispose()` waits for them to finish, so a large
+ * retry budget directly extends graceful shutdown - keep it small.
+ */
+export type EventHandlerRetryOptions = {
+  /**
+   * Number of extra attempts after the initial one. Capped at 10.
+   * @default 0
+   */
+  maxRetries?: number
+  /**
+   * Base delay for the exponential backoff.
+   * Actual delay = min(baseRetryDelayMs * 2 ^ attempt, maxRetryDelayMs)
+   * @default 100
+   */
+  baseRetryDelayMs?: number
+  /**
+   * Upper bound for the delay between attempts. Cannot exceed 2 minutes.
+   * @default 1000
+   */
+  maxRetryDelayMs?: number
+  /**
+   * Decides whether an error is worth retrying. Every error is retried by default.
+   */
+  isRetryable?: (error: unknown) => boolean
+}
+
+export type EventHandlerRegistrationOptions = {
+  isBackgroundHandler?: boolean
+  retry?: EventHandlerRetryOptions
+}
+
+type ResolvedRetryOptions = Required<Omit<EventHandlerRetryOptions, 'isRetryable'>> &
+  Pick<EventHandlerRetryOptions, 'isRetryable'>
+
+const resolveRegistrationOptions = (
+  options: boolean | EventHandlerRegistrationOptions,
+): EventHandlerRegistrationOptions =>
+  typeof options === 'boolean' ? { isBackgroundHandler: options } : options
+
+const resolveRetryOptions = (retry?: EventHandlerRetryOptions): ResolvedRetryOptions => {
+  const resolved: ResolvedRetryOptions = {
+    ...DEFAULT_HANDLER_RETRY_OPTIONS,
+    ...copyWithoutUndefined(retry ?? {}),
+  }
+
+  /*
+    Rejected at registration rather than at dispatch time: a non-integer `maxRetries` silently
+    changes how many attempts are made, and an unbounded one would keep a permanently failing
+    handler in the retry loop, holding `dispose()` open with it.
+  */
+  if (
+    !Number.isInteger(resolved.maxRetries) ||
+    resolved.maxRetries < 0 ||
+    resolved.maxRetries > MAX_ALLOWED_RETRIES
+  ) {
+    throw new InternalError({
+      errorCode: 'INVALID_RETRY_OPTIONS',
+      message: `maxRetries must be an integer between 0 and ${MAX_ALLOWED_RETRIES}, received ${resolved.maxRetries}`,
+    })
+  }
+  for (const field of ['baseRetryDelayMs', 'maxRetryDelayMs'] as const) {
+    if (
+      !Number.isFinite(resolved[field]) ||
+      resolved[field] < 0 ||
+      resolved[field] > MAX_ALLOWED_RETRY_DELAY_MS
+    ) {
+      throw new InternalError({
+        errorCode: 'INVALID_RETRY_OPTIONS',
+        message: `${field} must be between 0 and ${MAX_ALLOWED_RETRY_DELAY_MS} ms, received ${resolved[field]}`,
+      })
+    }
+  }
+
+  if (resolved.isRetryable !== undefined && typeof resolved.isRetryable !== 'function') {
+    throw new InternalError({
+      errorCode: 'INVALID_RETRY_OPTIONS',
+      message: 'isRetryable must be a function',
+    })
+  }
+
+  return resolved
+}
+
 export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDefinition[]> = {
   eventRegistry: EventRegistry<SupportedEvents>
   metadataFiller: MetadataFiller
@@ -36,9 +143,14 @@ export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDe
   transactionObservabilityManager?: TransactionObservabilityManager
 }
 
+type HandlerRegistration<T> = {
+  handler: T
+  retry: ResolvedRetryOptions
+}
+
 type Handlers<T> = {
-  background: T[]
-  foreground: T[]
+  background: HandlerRegistration<T>[]
+  foreground: HandlerRegistration<T>[]
 }
 
 export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]> {
@@ -179,38 +291,50 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   /**
    * Register handler for a specific event
+   *
+   * @param options registration options, or a boolean shorthand for `{ isBackgroundHandler }`
    */
   public on<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeName: EventTypeName,
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
-    isBackgroundHandler = false,
+    options: boolean | EventHandlerRegistrationOptions = false,
   ) {
+    const { isBackgroundHandler, retry } = resolveRegistrationOptions(options)
+
     if (!this.eventHandlerMap.has(eventTypeName)) {
       this.eventHandlerMap.set(eventTypeName, { foreground: [], background: [] })
     }
 
-    if (isBackgroundHandler) this.eventHandlerMap.get(eventTypeName)?.background.push(handler)
-    else this.eventHandlerMap.get(eventTypeName)?.foreground.push(handler)
+    const registration = { handler, retry: resolveRetryOptions(retry) }
+    if (isBackgroundHandler) this.eventHandlerMap.get(eventTypeName)?.background.push(registration)
+    else this.eventHandlerMap.get(eventTypeName)?.foreground.push(registration)
   }
 
   /**
    * Register handler for multiple events
+   *
+   * @param options registration options, or a boolean shorthand for `{ isBackgroundHandler }`
    */
   public onMany<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeNames: EventTypeName[],
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
-    isBackgroundHandler = false,
+    options: boolean | EventHandlerRegistrationOptions = false,
   ) {
     for (const eventTypeName of eventTypeNames) {
-      this.on(eventTypeName, handler, isBackgroundHandler)
+      this.on(eventTypeName, handler, options)
     }
   }
 
   /**
    * Register handler for all events supported by the emitter
+   *
+   * @param options registration options, or a boolean shorthand for `{ isBackgroundHandler }`
    */
-  public onAny(handler: AnyEventHandler<SupportedEvents>, isBackgroundHandler = false) {
-    this.onMany(Array.from(this.eventRegistry.supportedEventTypes), handler, isBackgroundHandler)
+  public onAny(
+    handler: AnyEventHandler<SupportedEvents>,
+    options: boolean | EventHandlerRegistrationOptions = false,
+  ) {
+    this.onMany(Array.from(this.eventRegistry.supportedEventTypes), handler, options)
   }
 
   private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
@@ -241,12 +365,14 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>
     >,
   ): Promise<void> {
-    for (const handler of eventHandlers.foreground) {
-      await this.executeEventHandler(event, handler, false)
+    for (const registration of eventHandlers.foreground) {
+      await this.executeEventHandler(event, registration, false)
     }
 
     const bgPromise = Promise.all(
-      eventHandlers.background.map((handler) => this.executeEventHandler(event, handler, true)),
+      eventHandlers.background.map((registration) =>
+        this.executeEventHandler(event, registration, true),
+      ),
     ).then(() => {
       this.inProgressBackgroundHandlerByEventId.delete(event.id)
       if (!this._handlerSpy) return
@@ -264,6 +390,62 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   private async executeEventHandler<SupportedEvent extends SupportedEvents[number]>(
     event: CommonEventDefinitionConsumerSchemaType<SupportedEvent>,
+    registration: HandlerRegistration<
+      EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvent>>
+    >,
+    isBackgroundHandler: boolean,
+  ) {
+    const { handler, retry } = registration
+
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await this.executeHandlerAttempt(event, handler, isBackgroundHandler)
+        return
+      } catch (error) {
+        const attempts = attempt + 1
+        const shouldRetry = attempt < retry.maxRetries && this.isRetryable(retry, handler, error)
+        if (!shouldRetry) {
+          return this.handleFailedEventHandler(event, handler, isBackgroundHandler, error, attempts)
+        }
+
+        this.logger.error({
+          ...resolveGlobalErrorLogObject(error),
+          ...this.buildErrorContext(event, handler, attempts),
+          maxAttempts: retry.maxRetries + 1,
+          msg: `Event handler ${handler.eventHandlerId} failed, retrying`,
+        })
+
+        await setTimeout(Math.min(retry.baseRetryDelayMs * 2 ** attempt, retry.maxRetryDelayMs))
+      }
+    }
+  }
+
+  /*
+    A throwing predicate must not escape: it would reject the dispatch promise, which for background
+    handlers leaves the in-progress entry behind and surfaces as an unhandled rejection. The handler
+    error it was asked about is the one that matters, so it is left to the regular failure path.
+  */
+  private isRetryable(
+    retry: ResolvedRetryOptions,
+    handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>,
+    error: unknown,
+  ): boolean {
+    if (!retry.isRetryable) return true
+
+    try {
+      return retry.isRetryable(error)
+    } catch (predicateError) {
+      this.logger.error({
+        ...resolveGlobalErrorLogObject(predicateError),
+        eventHandlerId: handler.eventHandlerId,
+        msg: `isRetryable of event handler ${handler.eventHandlerId} threw, not retrying`,
+      })
+      return false
+    }
+  }
+
+  private async executeHandlerAttempt<SupportedEvent extends SupportedEvents[number]>(
+    event: CommonEventDefinitionConsumerSchemaType<SupportedEvent>,
     handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvent>>,
     isBackgroundHandler: boolean,
   ) {
@@ -277,22 +459,43 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       )
       await handler.handleEvent(event)
       isSuccessful = true
-    } catch (error) {
-      if (!isBackgroundHandler) throw error
-
-      const context = {
-        event: JSON.stringify(event),
-        eventHandlerId: handler.eventHandlerId,
-        'x-request-id': event.metadata?.correlationId,
-      }
-      this.logger.error({
-        ...resolveGlobalErrorLogObject(error),
-        ...context,
-      })
-      // biome-ignore lint/suspicious/noExplicitAny: TODO: improve error type
-      this.errorReporter?.report({ error: error as any, context })
     } finally {
       this.transactionObservabilityManager?.stop(transactionId, isSuccessful)
+    }
+  }
+
+  private handleFailedEventHandler<SupportedEvent extends SupportedEvents[number]>(
+    event: CommonEventDefinitionConsumerSchemaType<SupportedEvent>,
+    handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvent>>,
+    isBackgroundHandler: boolean,
+    error: unknown,
+    attempts: number,
+  ) {
+    if (!isBackgroundHandler) throw error
+
+    const context = this.buildErrorContext(event, handler, attempts)
+    this.logger.error({
+      ...resolveGlobalErrorLogObject(error),
+      ...context,
+    })
+    this.errorReporter?.report({
+      error: isError(error)
+        ? error
+        : new Error(`Event handler ${handler.eventHandlerId} threw a non-error value`),
+      context,
+    })
+  }
+
+  private buildErrorContext<SupportedEvent extends SupportedEvents[number]>(
+    event: CommonEventDefinitionConsumerSchemaType<SupportedEvent>,
+    handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvent>>,
+    attempts: number,
+  ) {
+    return {
+      event: stringValueSerializer(event),
+      eventHandlerId: handler.eventHandlerId,
+      'x-request-id': event.metadata?.correlationId,
+      attempts,
     }
   }
 

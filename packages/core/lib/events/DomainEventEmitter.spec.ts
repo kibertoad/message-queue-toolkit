@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto'
 
+import { stringValueSerializer } from '@lokalise/node-core'
+
 import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-toolkit/schemas'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ErroredFakeListener } from '../../test/fakes/ErroredFakeListener.ts'
+import { FlakyFakeListener } from '../../test/fakes/FlakyFakeListener.ts'
 import type { Dependencies, TestEventsType } from '../../test/testContext.ts'
 import { registerDependencies, TestEvents } from '../../test/testContext.ts'
 import type { DomainEventEmitter } from './DomainEventEmitter.ts'
@@ -402,9 +405,10 @@ describe('DomainEventEmitter', () => {
       expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
 
       const expectedContext = {
-        event: JSON.stringify(emittedEvent),
+        event: stringValueSerializer(emittedEvent),
         eventHandlerId: 'ErroredFakeListener',
         'x-request-id': emittedEvent.metadata?.correlationId,
+        attempts: 1,
       }
       expect(reporterSpy).toHaveBeenCalledWith({
         error: expect.any(Error),
@@ -428,6 +432,168 @@ describe('DomainEventEmitter', () => {
         transactionManagerStartSpy.mock.calls[0]![1],
         false,
       )
+    })
+  })
+
+  describe('non-error throwables', () => {
+    it('wraps them before reporting', async () => {
+      const reporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
+      eventEmitter.onAny(
+        {
+          eventHandlerId: 'ThrowingListener',
+          handleEvent: () => {
+            throw 'boom'
+          },
+        },
+        true,
+      )
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(reporterSpy).toHaveBeenCalledWith({
+        error: expect.objectContaining({
+          message: 'Event handler ThrowingListener threw a non-error value',
+        }),
+        context: expect.objectContaining({ eventHandlerId: 'ThrowingListener' }),
+      })
+    })
+  })
+
+  describe('retries', () => {
+    const retryOptions = { maxRetries: 2, baseRetryDelayMs: 1, maxRetryDelayMs: 1 }
+
+    it('retries a failing background handler until it succeeds', async () => {
+      const fakeListener = new FlakyFakeListener(1)
+      const reporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
+      eventEmitter.onAny(fakeListener, { isBackgroundHandler: true, retry: retryOptions })
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.attempts).toBe(2)
+      expect(fakeListener.receivedEvents).toHaveLength(1)
+      expect(reporterSpy).not.toHaveBeenCalled()
+    })
+
+    it('reports the failure once retries are exhausted', async () => {
+      const fakeListener = new ErroredFakeListener()
+      const reporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
+      eventEmitter.onAny(fakeListener, { isBackgroundHandler: true, retry: retryOptions })
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.receivedEvents).toHaveLength(3)
+      expect(reporterSpy).toHaveBeenCalledOnce()
+      expect(reporterSpy).toHaveBeenCalledWith({
+        error: expect.any(Error),
+        context: expect.objectContaining({
+          eventHandlerId: 'ErroredFakeListener',
+          attempts: 3,
+        }),
+      })
+    })
+
+    it('does not retry when the error is not retryable', async () => {
+      const fakeListener = new ErroredFakeListener()
+      const isRetryable = vi.fn().mockReturnValue(false)
+      eventEmitter.onAny(fakeListener, {
+        isBackgroundHandler: true,
+        retry: { ...retryOptions, isRetryable },
+      })
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.receivedEvents).toHaveLength(1)
+      expect(isRetryable).toHaveBeenCalledWith(expect.any(Error))
+    })
+
+    it('does not retry by default', async () => {
+      const fakeListener = new ErroredFakeListener()
+      eventEmitter.onAny(fakeListener, true)
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.receivedEvents).toHaveLength(1)
+    })
+
+    it('retries foreground handlers and rethrows once exhausted', async () => {
+      const fakeListener = new ErroredFakeListener()
+      eventEmitter.onAny(fakeListener, { retry: retryOptions })
+
+      await expect(eventEmitter.emit(TestEvents.created, createdEventPayload)).rejects.toThrow(
+        'ErroredFakeListener error',
+      )
+      expect(fakeListener.receivedEvents).toHaveLength(3)
+    })
+
+    it('rejects invalid retry options at registration time', () => {
+      const fakeListener = new FakeListener()
+
+      for (const maxRetries of [Number.POSITIVE_INFINITY, Number.NaN, 1.5, -1, 11]) {
+        expect(() => eventEmitter.onAny(fakeListener, { retry: { maxRetries } })).toThrowError(
+          /maxRetries must be an integer between 0 and 10/,
+        )
+      }
+      expect(() => eventEmitter.onAny(fakeListener, { retry: { maxRetries: 10 } })).not.toThrow()
+      expect(() =>
+        eventEmitter.onAny(fakeListener, { retry: { maxRetries: undefined } }),
+      ).not.toThrow()
+      for (const baseRetryDelayMs of [-1, Number.NaN, 120_001]) {
+        expect(() =>
+          eventEmitter.onAny(fakeListener, { retry: { baseRetryDelayMs } }),
+        ).toThrowError(/baseRetryDelayMs must be between 0 and 120000 ms/)
+      }
+      expect(() =>
+        eventEmitter.onAny(fakeListener, {
+          retry: { maxRetryDelayMs: Number.POSITIVE_INFINITY },
+        }),
+      ).toThrowError(/maxRetryDelayMs must be between 0 and 120000 ms/)
+      expect(() =>
+        // @ts-expect-error covering JS callers that ignore the type
+        eventEmitter.onAny(fakeListener, { retry: { isRetryable: 'yes' } }),
+      ).toThrowError(/isRetryable must be a function/)
+    })
+
+    it('stops retrying when isRetryable itself throws', async () => {
+      const fakeListener = new ErroredFakeListener()
+      const reporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
+      eventEmitter.onAny(fakeListener, {
+        isBackgroundHandler: true,
+        retry: {
+          ...retryOptions,
+          isRetryable: () => {
+            throw new Error('predicate error')
+          },
+        },
+      })
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.receivedEvents).toHaveLength(1)
+      expect(reporterSpy).toHaveBeenCalledWith({
+        error: expect.objectContaining({ message: 'ErroredFakeListener error' }),
+        context: expect.objectContaining({ attempts: 1 }),
+      })
+      await expect(eventEmitter.dispose()).resolves.toBeUndefined()
+    })
+
+    it('falls back to library defaults for options that are not provided', async () => {
+      const fakeListener = new FlakyFakeListener(1)
+      eventEmitter.onAny(fakeListener, {
+        isBackgroundHandler: true,
+        retry: { maxRetries: 1 },
+      })
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.attempts).toBe(2)
+      expect(fakeListener.receivedEvents).toHaveLength(1)
     })
   })
 

@@ -20,6 +20,7 @@ message queue publishers and consumers.
   - [MessageSchemaContainer](#messageschemacontainer)
   - [AbstractPublisherManager](#abstractpublishermanager)
   - [DomainEventEmitter](#domaineventemitter)
+    - [Handler retries](#handler-retries)
 - [Utilities](#utilities)
   - [Error Classes](#error-classes)
   - [Message Deduplication](#message-deduplication)
@@ -586,6 +587,37 @@ emitter.on('user.created', async (event) => {
 
 await emitter.emit('user.created', { userId: 'user-123' })
 ```
+
+#### Handler retries
+
+By default a handler is executed once. A failing foreground handler propagates its error to the
+`emit()` caller (so a consumer can retry the whole message), while a failing background handler is
+only logged and reported. Retries can be enabled per registration:
+
+```typescript
+emitter.on('user.created', handler, {
+  isBackgroundHandler: true,
+  retry: {
+    maxRetries: 3, // extra attempts after the initial one, default 0, capped at 10
+    baseRetryDelayMs: 100, // delay = min(baseRetryDelayMs * 2 ^ attempt, maxRetryDelayMs)
+    maxRetryDelayMs: 1000, // capped at 2 minutes
+    isRetryable: (error) => !(error instanceof ValidationError), // every error is retried by default
+  },
+})
+```
+
+The third argument still accepts a plain boolean (`isBackgroundHandler`) for backwards
+compatibility, and each attempt is reported to the transaction observability manager separately.
+Every failed attempt is logged at `error` level, intermediate ones carrying `attempts` and
+`maxAttempts`; only the final failure is reported to the error reporter, with the number of
+attempts in its context. Invalid retry options are rejected when the handler is registered.
+
+Retries happen in-memory, within the same dispatch:
+
+- handlers must be idempotent, since an attempt may fail after partially completing;
+- nothing is retried after a process restart - work that must not be lost belongs on a queue;
+- `dispose()` waits for the retry budget to be spent, so a large `maxRetries`/`maxRetryDelayMs`
+  combination directly extends graceful shutdown. Keep the window small.
 
 ## Utilities
 
