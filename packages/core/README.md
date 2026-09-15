@@ -600,7 +600,7 @@ emitter.on('user.created', handler, {
   retry: {
     maxRetries: 3, // extra attempts after the initial one, default 0, capped at 10
     baseRetryDelayMs: 100, // delay = min(baseRetryDelayMs * 2 ^ attempt, maxRetryDelayMs)
-    maxRetryDelayMs: 1000,
+    maxRetryDelayMs: 1000, // capped at 2 minutes
     isRetryable: (error) => !(error instanceof ValidationError), // every error is retried by default
   },
 })

@@ -36,6 +36,12 @@ const MAX_DISPOSE_DRAIN_PASSES = 10
  */
 const MAX_ALLOWED_RETRIES = 10
 
+/**
+ * Upper bound for a single backoff delay. `dispose()` waits for the backoff to elapse, so the
+ * budget is kept small on purpose
+ */
+const MAX_ALLOWED_RETRY_DELAY_MS = 2 * 60 * 1000
+
 const DEFAULT_HANDLER_RETRY_OPTIONS = {
   maxRetries: 0,
   baseRetryDelayMs: 100,
@@ -60,7 +66,7 @@ export type EventHandlerRetryOptions = {
    */
   baseRetryDelayMs?: number
   /**
-   * Upper bound for the delay between attempts.
+   * Upper bound for the delay between attempts. Cannot exceed 2 minutes.
    * @default 1000
    */
   maxRetryDelayMs?: number
@@ -107,12 +113,23 @@ const resolveRetryOptions = (retry?: EventHandlerRetryOptions): ResolvedRetryOpt
     })
   }
   for (const field of ['baseRetryDelayMs', 'maxRetryDelayMs'] as const) {
-    if (!Number.isFinite(resolved[field]) || resolved[field] < 0) {
+    if (
+      !Number.isFinite(resolved[field]) ||
+      resolved[field] < 0 ||
+      resolved[field] > MAX_ALLOWED_RETRY_DELAY_MS
+    ) {
       throw new InternalError({
         errorCode: 'INVALID_RETRY_OPTIONS',
-        message: `${field} must be a non-negative finite number, received ${resolved[field]}`,
+        message: `${field} must be between 0 and ${MAX_ALLOWED_RETRY_DELAY_MS} ms, received ${resolved[field]}`,
       })
     }
+  }
+
+  if (resolved.isRetryable !== undefined && typeof resolved.isRetryable !== 'function') {
+    throw new InternalError({
+      errorCode: 'INVALID_RETRY_OPTIONS',
+      message: 'isRetryable must be a function',
+    })
   }
 
   return resolved

@@ -537,14 +537,20 @@ describe('DomainEventEmitter', () => {
         )
       }
       expect(() => eventEmitter.onAny(fakeListener, { retry: { maxRetries: 10 } })).not.toThrow()
-      expect(() =>
-        eventEmitter.onAny(fakeListener, { retry: { baseRetryDelayMs: -1 } }),
-      ).toThrowError(/baseRetryDelayMs must be a non-negative finite number/)
+      for (const baseRetryDelayMs of [-1, Number.NaN, 120_001]) {
+        expect(() =>
+          eventEmitter.onAny(fakeListener, { retry: { baseRetryDelayMs } }),
+        ).toThrowError(/baseRetryDelayMs must be between 0 and 120000 ms/)
+      }
       expect(() =>
         eventEmitter.onAny(fakeListener, {
           retry: { maxRetryDelayMs: Number.POSITIVE_INFINITY },
         }),
-      ).toThrowError(/maxRetryDelayMs must be a non-negative finite number/)
+      ).toThrowError(/maxRetryDelayMs must be between 0 and 120000 ms/)
+      expect(() =>
+        // @ts-expect-error covering JS callers that ignore the type
+        eventEmitter.onAny(fakeListener, { retry: { isRetryable: 'yes' } }),
+      ).toThrowError(/isRetryable must be a function/)
     })
 
     it('stops retrying when isRetryable itself throws', async () => {
