@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
+import { stringValueSerializer } from '@lokalise/node-core'
+
 import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-toolkit/schemas'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -403,7 +405,7 @@ describe('DomainEventEmitter', () => {
       expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
 
       const expectedContext = {
-        event: JSON.stringify(emittedEvent),
+        event: stringValueSerializer(emittedEvent),
         eventHandlerId: 'ErroredFakeListener',
         'x-request-id': emittedEvent.metadata?.correlationId,
         attempts: 1,
@@ -537,6 +539,9 @@ describe('DomainEventEmitter', () => {
         )
       }
       expect(() => eventEmitter.onAny(fakeListener, { retry: { maxRetries: 10 } })).not.toThrow()
+      expect(() =>
+        eventEmitter.onAny(fakeListener, { retry: { maxRetries: undefined } }),
+      ).not.toThrow()
       for (const baseRetryDelayMs of [-1, Number.NaN, 120_001]) {
         expect(() =>
           eventEmitter.onAny(fakeListener, { retry: { baseRetryDelayMs } }),

@@ -2,10 +2,12 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout } from 'node:timers/promises'
 import {
   type CommonLogger,
+  copyWithoutUndefined,
   type ErrorReporter,
   InternalError,
   isError,
   resolveGlobalErrorLogObject,
+  stringValueSerializer,
   type TransactionObservabilityManager,
 } from '@lokalise/node-core'
 import type { ConsumerMessageMetadataType } from '@message-queue-toolkit/schemas'
@@ -90,11 +92,9 @@ const resolveRegistrationOptions = (
   typeof options === 'boolean' ? { isBackgroundHandler: options } : options
 
 const resolveRetryOptions = (retry?: EventHandlerRetryOptions): ResolvedRetryOptions => {
-  const resolved = {
-    maxRetries: retry?.maxRetries ?? DEFAULT_HANDLER_RETRY_OPTIONS.maxRetries,
-    baseRetryDelayMs: retry?.baseRetryDelayMs ?? DEFAULT_HANDLER_RETRY_OPTIONS.baseRetryDelayMs,
-    maxRetryDelayMs: retry?.maxRetryDelayMs ?? DEFAULT_HANDLER_RETRY_OPTIONS.maxRetryDelayMs,
-    isRetryable: retry?.isRetryable,
+  const resolved: ResolvedRetryOptions = {
+    ...DEFAULT_HANDLER_RETRY_OPTIONS,
+    ...copyWithoutUndefined(retry ?? {}),
   }
 
   /*
@@ -291,6 +291,8 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   /**
    * Register handler for a specific event
+   *
+   * @param options registration options, or a boolean shorthand for `{ isBackgroundHandler }`
    */
   public on<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeName: EventTypeName,
@@ -310,6 +312,8 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   /**
    * Register handler for multiple events
+   *
+   * @param options registration options, or a boolean shorthand for `{ isBackgroundHandler }`
    */
   public onMany<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeNames: EventTypeName[],
@@ -323,6 +327,8 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   /**
    * Register handler for all events supported by the emitter
+   *
+   * @param options registration options, or a boolean shorthand for `{ isBackgroundHandler }`
    */
   public onAny(
     handler: AnyEventHandler<SupportedEvents>,
@@ -486,7 +492,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     attempts: number,
   ) {
     return {
-      event: JSON.stringify(event),
+      event: stringValueSerializer(event),
       eventHandlerId: handler.eventHandlerId,
       'x-request-id': event.metadata?.correlationId,
       attempts,
