@@ -36,7 +36,8 @@ export type EventHandlerRetryOptions = {
   maxRetries?: number
   /**
    * Base delay for the exponential backoff.
-   * Actual delay = min(baseRetryDelayMs * 2 ^ attempt, maxRetryDelayMs).
+   * Actual delay = min(baseRetryDelayMs * 2 ^ (attempt - 1), maxRetryDelayMs), with attempt
+   * counted from 1.
    * Values above 10 seconds are rejected.
    * @default 100
    */

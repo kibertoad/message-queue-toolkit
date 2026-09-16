@@ -325,36 +325,35 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   ) {
     const { handler, retry } = registration
 
-    for (let attempt = 0; ; attempt++) {
+    for (let attempt = 1; ; attempt++) {
       try {
         await this.executeHandlerAttempt(event, handler, isBackgroundHandler)
         return
       } catch (error) {
-        const attempts = attempt + 1
-        const shouldRetry = attempt < retry.maxRetries && this.isRetryable(retry, handler, error)
+        const shouldRetry = attempt <= retry.maxRetries && this.isRetryable(retry, handler, error)
         if (!shouldRetry) {
-          return this.handleFailedEventHandler(event, handler, isBackgroundHandler, error, attempts)
+          return this.handleFailedEventHandler(event, handler, isBackgroundHandler, error, attempt)
         }
 
         this.logger.error({
           ...resolveGlobalErrorLogObject(error),
           eventHandlerId: handler.eventHandlerId,
           'x-request-id': event.metadata?.correlationId,
-          attempts,
+          attempts: attempt,
           maxAttempts: retry.maxRetries + 1,
           msg: `Event handler ${handler.eventHandlerId} failed, retrying`,
         })
 
         try {
           await setTimeout(
-            Math.min(retry.baseRetryDelayMs * 2 ** attempt, retry.maxRetryDelayMs),
+            Math.min(retry.baseRetryDelayMs * 2 ** (attempt - 1), retry.maxRetryDelayMs),
             undefined,
             {
               signal: this.disposeAbortController.signal,
             },
           )
         } catch {
-          return this.handleFailedEventHandler(event, handler, isBackgroundHandler, error, attempts)
+          return this.handleFailedEventHandler(event, handler, isBackgroundHandler, error, attempt)
         }
       }
     }

@@ -599,7 +599,7 @@ emitter.on('user.created', handler, {
   isBackgroundHandler: true,
   retry: {
     maxRetries: 3, // extra attempts after the initial one, default 0, max 5
-    baseRetryDelayMs: 100, // delay = min(baseRetryDelayMs * 2 ^ attempt, maxRetryDelayMs)
+    baseRetryDelayMs: 100, // delay = min(baseRetryDelayMs * 2 ^ (attempt - 1), maxRetryDelayMs)
     maxRetryDelayMs: 1000, // both delays must be between 0 and 10 seconds
     isRetryable: (error) => !(error instanceof ValidationError), // synchronous; every error is retried by default
   },
