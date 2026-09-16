@@ -610,6 +610,21 @@ describe('DomainEventEmitter', () => {
       await expect(eventEmitter.dispose()).resolves.toBeUndefined()
     })
 
+    it('does not retry when isRetryable returns a non-boolean', async () => {
+      const fakeListener = new ErroredFakeListener()
+      eventEmitter.onAny(fakeListener, {
+        isBackgroundHandler: true,
+        // a promise-returning predicate is truthy regardless of what it resolves to
+        // @ts-expect-error covering JS callers that ignore the type
+        retry: { ...retryOptions, isRetryable: () => Promise.resolve(false) },
+      })
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.receivedEvents).toHaveLength(1)
+    })
+
     it('does not retry errors the emitter itself raises as permanent', async () => {
       const isRetryable = vi.fn().mockReturnValue(true)
       let attempts = 0

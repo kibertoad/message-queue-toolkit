@@ -165,7 +165,7 @@ const resolveRetryOptions = (retry?: EventHandlerRetryOptions): ResolvedRetryOpt
     }
     /*
       An async predicate always returns a truthy promise, which would silently turn it into
-      "retry everything" - the opposite of what a predicate excluding some errors is written for.
+      "retry everything", the opposite of what a predicate excluding some errors is written for.
     */
     if (resolved.isRetryable.constructor.name === 'AsyncFunction') {
       throw new InternalError({
@@ -510,7 +510,21 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     if (!retry.isRetryable) return true
 
     try {
-      return retry.isRetryable(error)
+      const result = retry.isRetryable(error)
+      /*
+        A predicate returning a promise (not caught by the AsyncFunction check at registration)
+        would be truthy regardless of what it resolves to, turning it into "retry everything".
+      */
+      if (typeof result !== 'boolean') {
+        this.logger.error({
+          eventHandlerId: handler.eventHandlerId,
+          result: stringValueSerializer(result),
+          msg: `isRetryable of event handler ${handler.eventHandlerId} did not return a boolean, not retrying`,
+        })
+        return false
+      }
+
+      return result
     } catch (predicateError) {
       this.logger.error({
         ...resolveGlobalErrorLogObject(predicateError),
