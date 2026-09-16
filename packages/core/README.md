@@ -606,6 +606,11 @@ emitter.on('user.created', handler, {
 })
 ```
 
+Errors `emit()` raises for events that cannot succeed on a second attempt are never retried, and
+`isRetryable` is not consulted for them: `EVENT_EMITTER_DISPOSED`, `UNKNOWN_EVENT`, and a `ZodError`
+from the publisher schema. A handler emitting a follow-up event is the way these reach a retry
+loop.
+
 The third argument still accepts a plain boolean (`isBackgroundHandler`), deprecated and to be
 removed in the next major release. Each attempt is reported to the transaction observability
 manager separately. Every failed attempt is logged at `error` level, intermediate ones carrying

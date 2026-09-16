@@ -11,6 +11,7 @@ import {
   type TransactionObservabilityManager,
 } from '@lokalise/node-core'
 import type { ConsumerMessageMetadataType } from '@message-queue-toolkit/schemas'
+import { ZodError } from 'zod/v4'
 import type { MetadataFiller } from '../messages/MetadataFiller.ts'
 import type { HandlerSpy, HandlerSpyParams, PublicHandlerSpy } from '../queues/HandlerSpy.ts'
 import { resolveHandlerSpy } from '../queues/HandlerSpy.ts'
@@ -43,6 +44,14 @@ const MAX_ALLOWED_RETRIES = 5
  * budget is kept small on purpose
  */
 const MAX_ALLOWED_RETRY_DELAY_MS = 10 * 1000
+
+/**
+ * Errors `emit()` throws for events that cannot succeed on a second attempt, reachable from a
+ * handler emitting a follow-up event. A `ZodError` from the publisher schema is permanent for the
+ * same reason: the payload is identical on every attempt. Retrying them only burns the budget, so
+ * they are rejected before any custom `isRetryable` is consulted.
+ */
+const NON_RETRYABLE_ERROR_CODES = new Set(['EVENT_EMITTER_DISPOSED', 'UNKNOWN_EVENT'])
 
 const DEFAULT_HANDLER_RETRY_OPTIONS = {
   maxRetries: 0,
@@ -483,6 +492,10 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>,
     error: unknown,
   ): boolean {
+    if (error instanceof ZodError) return false
+    if (error instanceof InternalError && NON_RETRYABLE_ERROR_CODES.has(error.errorCode)) {
+      return false
+    }
     if (!retry.isRetryable) return true
 
     try {

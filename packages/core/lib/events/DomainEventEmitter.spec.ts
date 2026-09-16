@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto'
-
-import { stringValueSerializer } from '@lokalise/node-core'
-
+import { InternalError, stringValueSerializer } from '@lokalise/node-core'
 import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-toolkit/schemas'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -604,6 +602,56 @@ describe('DomainEventEmitter', () => {
         context: expect.objectContaining({ attempts: 1 }),
       })
       await expect(eventEmitter.dispose()).resolves.toBeUndefined()
+    })
+
+    it('does not retry errors the emitter itself raises as permanent', async () => {
+      const isRetryable = vi.fn().mockReturnValue(true)
+      let attempts = 0
+      eventEmitter.onAny(
+        {
+          eventHandlerId: 'DisposedEmitterListener',
+          handleEvent: () => {
+            attempts++
+            throw new InternalError({
+              errorCode: 'EVENT_EMITTER_DISPOSED',
+              message: 'Cannot emit event, emitter is already disposed',
+            })
+          },
+        },
+        { isBackgroundHandler: true, retry: { ...retryOptions, isRetryable } },
+      )
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(attempts).toBe(1)
+      expect(isRetryable).not.toHaveBeenCalled()
+    })
+
+    it('does not retry a publisher schema validation failure', async () => {
+      const isRetryable = vi.fn().mockReturnValue(true)
+      let attempts = 0
+      eventEmitter.onMany(
+        ['entity.created'],
+        {
+          eventHandlerId: 'InvalidFollowUpListener',
+          handleEvent: async () => {
+            attempts++
+            await eventEmitter.emit(TestEvents.updated, {
+              ...updatedEventPayload,
+              // @ts-expect-error emitting a payload the publisher schema rejects
+              payload: { message: 123 },
+            })
+          },
+        },
+        { isBackgroundHandler: true, retry: { ...retryOptions, isRetryable } },
+      )
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(attempts).toBe(1)
+      expect(isRetryable).not.toHaveBeenCalled()
     })
 
     it('abandons pending backoffs when the emitter is disposed', async () => {
