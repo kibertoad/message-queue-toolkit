@@ -12,7 +12,10 @@ import { registerDependencies, TestEvents } from '../../test/testContext.ts'
 import type { DomainEventEmitter } from './DomainEventEmitter.ts'
 import { FakeListener } from './fakes/FakeListener.ts'
 
-const createdEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.created> = {
+// `emit()` stamps id/timestamp onto the payload it is given, so every test needs its own copy
+const buildCreatedEventPayload = (): CommonEventDefinitionPublisherSchemaType<
+  typeof TestEvents.created
+> => ({
   payload: {
     message: 'msg',
   },
@@ -23,12 +26,14 @@ const createdEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestE
     schemaVersion: '1',
     correlationId: randomUUID(),
   },
-}
+})
 
-const updatedEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.updated> = {
-  ...createdEventPayload,
+const buildUpdatedEventPayload = (): CommonEventDefinitionPublisherSchemaType<
+  typeof TestEvents.updated
+> => ({
+  ...buildCreatedEventPayload(),
   type: 'entity.updated',
-}
+})
 
 const expectedCreatedPayload = {
   id: expect.any(String),
@@ -53,10 +58,14 @@ const expectedUpdatedPayload = {
 describe('DomainEventEmitter', () => {
   let diContainer: AwilixContainer<Dependencies>
   let eventEmitter: DomainEventEmitter<TestEventsType>
+  let createdEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.created>
+  let updatedEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.updated>
 
   beforeEach(async () => {
     diContainer = await registerDependencies()
     eventEmitter = diContainer.cradle.eventEmitter
+    createdEventPayload = buildCreatedEventPayload()
+    updatedEventPayload = buildUpdatedEventPayload()
   })
 
   afterEach(async () => {
@@ -405,7 +414,10 @@ describe('DomainEventEmitter', () => {
       expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
 
       const expectedContext = {
-        event: stringValueSerializer(emittedEvent),
+        eventId: emittedEvent.id,
+        eventType: 'entity.created',
+        eventTimestamp: emittedEvent.timestamp,
+        eventMetadata: stringValueSerializer(emittedEvent.metadata),
         eventHandlerId: 'ErroredFakeListener',
         'x-request-id': emittedEvent.metadata?.correlationId,
         attempts: 1,
@@ -453,7 +465,8 @@ describe('DomainEventEmitter', () => {
 
       expect(reporterSpy).toHaveBeenCalledWith({
         error: expect.objectContaining({
-          message: 'Event handler ThrowingListener threw a non-error value',
+          message: 'Event handler ThrowingListener threw a non-error value: ""boom""',
+          cause: 'boom',
         }),
         context: expect.objectContaining({ eventHandlerId: 'ThrowingListener' }),
       })
@@ -533,29 +546,40 @@ describe('DomainEventEmitter', () => {
     it('rejects invalid retry options at registration time', () => {
       const fakeListener = new FakeListener()
 
-      for (const maxRetries of [Number.POSITIVE_INFINITY, Number.NaN, 1.5, -1, 11]) {
+      for (const maxRetries of [Number.POSITIVE_INFINITY, Number.NaN, 1.5, -1, 6]) {
         expect(() => eventEmitter.onAny(fakeListener, { retry: { maxRetries } })).toThrowError(
-          /maxRetries must be an integer between 0 and 10/,
+          /maxRetries must be an integer between 0 and 5/,
         )
       }
-      expect(() => eventEmitter.onAny(fakeListener, { retry: { maxRetries: 10 } })).not.toThrow()
+      expect(() => eventEmitter.onAny(fakeListener, { retry: { maxRetries: 5 } })).not.toThrow()
       expect(() =>
         eventEmitter.onAny(fakeListener, { retry: { maxRetries: undefined } }),
       ).not.toThrow()
-      for (const baseRetryDelayMs of [-1, Number.NaN, 120_001]) {
+      for (const baseRetryDelayMs of [-1, Number.NaN, 10_001]) {
         expect(() =>
           eventEmitter.onAny(fakeListener, { retry: { baseRetryDelayMs } }),
-        ).toThrowError(/baseRetryDelayMs must be between 0 and 120000 ms/)
+        ).toThrowError(/baseRetryDelayMs must be between 0 and 10000 ms/)
       }
       expect(() =>
         eventEmitter.onAny(fakeListener, {
           retry: { maxRetryDelayMs: Number.POSITIVE_INFINITY },
         }),
-      ).toThrowError(/maxRetryDelayMs must be between 0 and 120000 ms/)
+      ).toThrowError(/maxRetryDelayMs must be between 0 and 10000 ms/)
       expect(() =>
         // @ts-expect-error covering JS callers that ignore the type
         eventEmitter.onAny(fakeListener, { retry: { isRetryable: 'yes' } }),
       ).toThrowError(/isRetryable must be a function/)
+      expect(() =>
+        // @ts-expect-error covering JS callers that ignore the type
+        eventEmitter.onAny(fakeListener, { retry: { isRetryable: async () => true } }),
+      ).toThrowError(/isRetryable must be synchronous/)
+      expect(() =>
+        eventEmitter.onAny(fakeListener, {
+          retry: { baseRetryDelayMs: 5000, maxRetryDelayMs: 1000 },
+        }),
+      ).toThrowError(/baseRetryDelayMs \(5000\) must not exceed maxRetryDelayMs \(1000\)/)
+      // @ts-expect-error covering JS callers that ignore the type
+      expect(() => eventEmitter.onAny(fakeListener, null)).not.toThrow()
     })
 
     it('stops retrying when isRetryable itself throws', async () => {
@@ -580,6 +604,23 @@ describe('DomainEventEmitter', () => {
         context: expect.objectContaining({ attempts: 1 }),
       })
       await expect(eventEmitter.dispose()).resolves.toBeUndefined()
+    })
+
+    it('abandons pending backoffs when the emitter is disposed', async () => {
+      const fakeListener = new ErroredFakeListener()
+      eventEmitter.onAny(fakeListener, {
+        isBackgroundHandler: true,
+        retry: { maxRetries: 5, baseRetryDelayMs: 10_000, maxRetryDelayMs: 10_000 },
+      })
+
+      await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      expect(fakeListener.receivedEvents).toHaveLength(1)
+
+      const disposeStart = Date.now()
+      await eventEmitter.dispose()
+
+      expect(Date.now() - disposeStart).toBeLessThan(1000)
+      expect(fakeListener.receivedEvents).toHaveLength(1)
     })
 
     it('falls back to library defaults for options that are not provided', async () => {

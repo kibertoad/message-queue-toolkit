@@ -598,26 +598,31 @@ only logged and reported. Retries can be enabled per registration:
 emitter.on('user.created', handler, {
   isBackgroundHandler: true,
   retry: {
-    maxRetries: 3, // extra attempts after the initial one, default 0, capped at 10
+    maxRetries: 3, // extra attempts after the initial one, default 0, max 5
     baseRetryDelayMs: 100, // delay = min(baseRetryDelayMs * 2 ^ attempt, maxRetryDelayMs)
-    maxRetryDelayMs: 1000, // capped at 2 minutes
-    isRetryable: (error) => !(error instanceof ValidationError), // every error is retried by default
+    maxRetryDelayMs: 1000, // both delays must be between 0 and 10 seconds
+    isRetryable: (error) => !(error instanceof ValidationError), // synchronous; every error is retried by default
   },
 })
 ```
 
-The third argument still accepts a plain boolean (`isBackgroundHandler`) for backwards
-compatibility, and each attempt is reported to the transaction observability manager separately.
-Every failed attempt is logged at `error` level, intermediate ones carrying `attempts` and
-`maxAttempts`; only the final failure is reported to the error reporter, with the number of
-attempts in its context. Invalid retry options are rejected when the handler is registered.
+The third argument still accepts a plain boolean (`isBackgroundHandler`), deprecated and to be
+removed in the next major release. Each attempt is reported to the transaction observability
+manager separately. Every failed attempt is logged at `error` level, intermediate ones carrying
+`attempts` and `maxAttempts`; only the final failure is reported to the error reporter, with the
+number of attempts in its context. Neither carries the event payload, which may hold sensitive
+data; they carry its id, type, timestamp and metadata instead. Options outside the documented
+ranges are rejected when the handler is registered, rather than clamped.
 
 Retries happen in-memory, within the same dispatch:
 
 - handlers must be idempotent, since an attempt may fail after partially completing;
-- nothing is retried after a process restart - work that must not be lost belongs on a queue;
-- `dispose()` waits for the retry budget to be spent, so a large `maxRetries`/`maxRetryDelayMs`
-  combination directly extends graceful shutdown. Keep the window small.
+- nothing is retried after a process restart, so work that must not be lost belongs on a queue;
+- `dispose()` abandons backoffs that are still pending, so a failing handler cannot hold graceful
+  shutdown for its whole budget. It still waits for the attempt currently running;
+- foreground retries are allowed but block `emit()` for the whole budget and stack on top of the
+  retries the message consumer already performs, which can exceed a broker visibility timeout.
+  Prefer retrying at the level where `emit()` is called.
 
 ## Utilities
 

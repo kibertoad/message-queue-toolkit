@@ -36,13 +36,13 @@ const MAX_DISPOSE_DRAIN_PASSES = 10
  * Upper bound for `maxRetries`. Retries are awaited by `dispose()`, so an unbounded budget would
  * keep a permanently failing handler holding shutdown open.
  */
-const MAX_ALLOWED_RETRIES = 10
+const MAX_ALLOWED_RETRIES = 5
 
 /**
  * Upper bound for a single backoff delay. `dispose()` waits for the backoff to elapse, so the
  * budget is kept small on purpose
  */
-const MAX_ALLOWED_RETRY_DELAY_MS = 2 * 60 * 1000
+const MAX_ALLOWED_RETRY_DELAY_MS = 10 * 1000
 
 const DEFAULT_HANDLER_RETRY_OPTIONS = {
   maxRetries: 0,
@@ -53,22 +53,24 @@ const DEFAULT_HANDLER_RETRY_OPTIONS = {
 /**
  * Retries are performed in-memory, within the same dispatch, so they do not survive a process
  * restart and the handler must be idempotent. `dispose()` waits for them to finish, so a large
- * retry budget directly extends graceful shutdown - keep it small.
+ * retry budget directly extends graceful shutdown; keep it small.
  */
 export type EventHandlerRetryOptions = {
   /**
-   * Number of extra attempts after the initial one. Capped at 10.
+   * Number of extra attempts after the initial one. Values above 5 are rejected.
    * @default 0
    */
   maxRetries?: number
   /**
    * Base delay for the exponential backoff.
-   * Actual delay = min(baseRetryDelayMs * 2 ^ attempt, maxRetryDelayMs)
+   * Actual delay = min(baseRetryDelayMs * 2 ^ attempt, maxRetryDelayMs).
+   * Values above 10 seconds are rejected.
    * @default 100
    */
   baseRetryDelayMs?: number
   /**
-   * Upper bound for the delay between attempts. Cannot exceed 2 minutes.
+   * Upper bound for the delay between attempts. Values above 10 seconds, or below
+   * `baseRetryDelayMs`, are rejected.
    * @default 1000
    */
   maxRetryDelayMs?: number
@@ -87,9 +89,11 @@ type ResolvedRetryOptions = Required<Omit<EventHandlerRetryOptions, 'isRetryable
   Pick<EventHandlerRetryOptions, 'isRetryable'>
 
 const resolveRegistrationOptions = (
-  options: boolean | EventHandlerRegistrationOptions,
+  options: boolean | EventHandlerRegistrationOptions | null | undefined,
 ): EventHandlerRegistrationOptions =>
-  typeof options === 'boolean' ? { isBackgroundHandler: options } : options
+  options === null || options === undefined || typeof options === 'boolean'
+    ? { isBackgroundHandler: options ?? false }
+    : options
 
 const resolveRetryOptions = (retry?: EventHandlerRetryOptions): ResolvedRetryOptions => {
   const resolved: ResolvedRetryOptions = {
@@ -125,11 +129,30 @@ const resolveRetryOptions = (retry?: EventHandlerRetryOptions): ResolvedRetryOpt
     }
   }
 
-  if (resolved.isRetryable !== undefined && typeof resolved.isRetryable !== 'function') {
+  if (resolved.baseRetryDelayMs > resolved.maxRetryDelayMs) {
     throw new InternalError({
       errorCode: 'INVALID_RETRY_OPTIONS',
-      message: 'isRetryable must be a function',
+      message: `baseRetryDelayMs (${resolved.baseRetryDelayMs}) must not exceed maxRetryDelayMs (${resolved.maxRetryDelayMs}), otherwise every delay collapses to maxRetryDelayMs`,
     })
+  }
+
+  if (resolved.isRetryable !== undefined) {
+    if (typeof resolved.isRetryable !== 'function') {
+      throw new InternalError({
+        errorCode: 'INVALID_RETRY_OPTIONS',
+        message: 'isRetryable must be a function',
+      })
+    }
+    /*
+      An async predicate always returns a truthy promise, which would silently turn it into
+      "retry everything" - the opposite of what a predicate excluding some errors is written for.
+    */
+    if (resolved.isRetryable.constructor.name === 'AsyncFunction') {
+      throw new InternalError({
+        errorCode: 'INVALID_RETRY_OPTIONS',
+        message: 'isRetryable must be synchronous',
+      })
+    }
   }
 
   return resolved
@@ -169,6 +192,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   >
   private readonly inProgressDispatchByEventId: Map<string, Promise<void>>
   private readonly inProgressBackgroundHandlerByEventId: Map<string, Promise<void>>
+  private readonly disposeAbortController = new AbortController()
   private isDisposed = false
 
   constructor(
@@ -203,7 +227,8 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   }
 
   /**
-   * Waits for accepted events to finish being dispatched, then stops accepting new ones.
+   * Waits for accepted events to finish being dispatched, then stops accepting new ones. Retry
+   * backoffs in flight are abandoned, so a failing handler cannot hold shutdown for its full budget.
    *
    * Both maps are drained: an event is only in `inProgressBackgroundHandlerByEventId` once its
    * foreground handlers are done, so mid-foreground dispatches are tracked separately. Re-checked
@@ -211,6 +236,9 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
    * cannot hold shutdown open.
    */
   public async dispose(): Promise<void> {
+    // Pending backoffs are abandoned rather than waited out, so shutdown is not held by retries
+    this.disposeAbortController.abort()
+
     for (let pass = 0; pass < MAX_DISPOSE_DRAIN_PASSES; pass++) {
       const pending = [
         ...this.inProgressDispatchByEventId.values(),
@@ -292,20 +320,24 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   /**
    * Register handler for a specific event
    *
-   * @param options registration options, or a boolean shorthand for `{ isBackgroundHandler }`
+   * @param eventTypeName type of the event to listen to
+   * @param handler handler invoked for every event of that type
+   * @param optionsOrIsBackgroundHandler registration options. Passing a boolean is a shorthand for
+   * `{ isBackgroundHandler }`, deprecated and to be removed in the next major release.
    */
   public on<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeName: EventTypeName,
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
-    options: boolean | EventHandlerRegistrationOptions = false,
+    optionsOrIsBackgroundHandler: boolean | EventHandlerRegistrationOptions = false,
   ) {
-    const { isBackgroundHandler, retry } = resolveRegistrationOptions(options)
+    const { isBackgroundHandler, retry } = resolveRegistrationOptions(optionsOrIsBackgroundHandler)
+    // resolved before the map is touched, so invalid options cannot leave a handler-less entry behind
+    const registration = { handler, retry: resolveRetryOptions(retry) }
 
     if (!this.eventHandlerMap.has(eventTypeName)) {
       this.eventHandlerMap.set(eventTypeName, { foreground: [], background: [] })
     }
 
-    const registration = { handler, retry: resolveRetryOptions(retry) }
     if (isBackgroundHandler) this.eventHandlerMap.get(eventTypeName)?.background.push(registration)
     else this.eventHandlerMap.get(eventTypeName)?.foreground.push(registration)
   }
@@ -313,28 +345,37 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   /**
    * Register handler for multiple events
    *
-   * @param options registration options, or a boolean shorthand for `{ isBackgroundHandler }`
+   * @param eventTypeNames types of the events to listen to
+   * @param handler handler invoked for every event of those types
+   * @param optionsOrIsBackgroundHandler registration options. Passing a boolean is a shorthand for
+   * `{ isBackgroundHandler }`, deprecated and to be removed in the next major release.
    */
   public onMany<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeNames: EventTypeName[],
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
-    options: boolean | EventHandlerRegistrationOptions = false,
+    optionsOrIsBackgroundHandler: boolean | EventHandlerRegistrationOptions = false,
   ) {
     for (const eventTypeName of eventTypeNames) {
-      this.on(eventTypeName, handler, options)
+      this.on(eventTypeName, handler, optionsOrIsBackgroundHandler)
     }
   }
 
   /**
    * Register handler for all events supported by the emitter
    *
-   * @param options registration options, or a boolean shorthand for `{ isBackgroundHandler }`
+   * @param handler handler invoked for every supported event
+   * @param optionsOrIsBackgroundHandler registration options. Passing a boolean is a shorthand for
+   * `{ isBackgroundHandler }`, deprecated and to be removed in the next major release.
    */
   public onAny(
     handler: AnyEventHandler<SupportedEvents>,
-    options: boolean | EventHandlerRegistrationOptions = false,
+    optionsOrIsBackgroundHandler: boolean | EventHandlerRegistrationOptions = false,
   ) {
-    this.onMany(Array.from(this.eventRegistry.supportedEventTypes), handler, options)
+    this.onMany(
+      Array.from(this.eventRegistry.supportedEventTypes),
+      handler,
+      optionsOrIsBackgroundHandler,
+    )
   }
 
   private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
@@ -410,12 +451,24 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
         this.logger.error({
           ...resolveGlobalErrorLogObject(error),
-          ...this.buildErrorContext(event, handler, attempts),
+          eventHandlerId: handler.eventHandlerId,
+          'x-request-id': event.metadata?.correlationId,
+          attempts,
           maxAttempts: retry.maxRetries + 1,
           msg: `Event handler ${handler.eventHandlerId} failed, retrying`,
         })
 
-        await setTimeout(Math.min(retry.baseRetryDelayMs * 2 ** attempt, retry.maxRetryDelayMs))
+        try {
+          await setTimeout(
+            Math.min(retry.baseRetryDelayMs * 2 ** attempt, retry.maxRetryDelayMs),
+            undefined,
+            {
+              signal: this.disposeAbortController.signal,
+            },
+          )
+        } catch {
+          return this.handleFailedEventHandler(event, handler, isBackgroundHandler, error, attempts)
+        }
       }
     }
   }
@@ -481,7 +534,10 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     this.errorReporter?.report({
       error: isError(error)
         ? error
-        : new Error(`Event handler ${handler.eventHandlerId} threw a non-error value`),
+        : new Error(
+            `Event handler ${handler.eventHandlerId} threw a non-error value: ${stringValueSerializer(error)}`,
+            { cause: error },
+          ),
       context,
     })
   }
@@ -491,8 +547,15 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
     handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvent>>,
     attempts: number,
   ) {
+    /*
+      Everything but the payload: it can carry sensitive data, which is why the queue services only
+      log it behind `logMessages`/`messageLogFormatter` rather than by default.
+    */
     return {
-      event: stringValueSerializer(event),
+      eventId: event.id,
+      eventType: event.type,
+      eventTimestamp: event.timestamp,
+      eventMetadata: stringValueSerializer(event.metadata),
       eventHandlerId: handler.eventHandlerId,
       'x-request-id': event.metadata?.correlationId,
       attempts,
