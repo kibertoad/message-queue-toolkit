@@ -6,6 +6,7 @@ import {
   type ErrorReporter,
   InternalError,
   isError,
+  isObject,
   resolveGlobalErrorLogObject,
   stringValueSerializer,
   type TransactionObservabilityManager,
@@ -98,11 +99,21 @@ type ResolvedRetryOptions = Required<Omit<EventHandlerRetryOptions, 'isRetryable
   Pick<EventHandlerRetryOptions, 'isRetryable'>
 
 const resolveRegistrationOptions = (
-  options: boolean | EventHandlerRegistrationOptions | null | undefined,
-): EventHandlerRegistrationOptions =>
-  options === null || options === undefined || typeof options === 'boolean'
-    ? { isBackgroundHandler: options ?? false }
-    : options
+  options: boolean | EventHandlerRegistrationOptions,
+): EventHandlerRegistrationOptions => {
+  if (isObject(options) && !Array.isArray(options)) {
+    return options
+  }
+
+  if (typeof options === 'boolean') {
+    return { isBackgroundHandler: options }
+  }
+
+  throw new InternalError({
+    errorCode: 'INVALID_REGISTRATION_OPTIONS',
+    message: `registration options must be an object or a boolean, received ${stringValueSerializer(options)}`,
+  })
+}
 
 const resolveRetryOptions = (retry?: EventHandlerRetryOptions): ResolvedRetryOptions => {
   const resolved: ResolvedRetryOptions = {
