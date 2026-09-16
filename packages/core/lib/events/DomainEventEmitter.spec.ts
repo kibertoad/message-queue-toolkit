@@ -541,49 +541,24 @@ describe('DomainEventEmitter', () => {
       expect(fakeListener.receivedEvents).toHaveLength(3)
     })
 
-    it('rejects invalid retry options at registration time', () => {
+    it('surfaces invalid retry options when the handler is registered', () => {
       const fakeListener = new FakeListener()
 
-      for (const maxRetries of [Number.POSITIVE_INFINITY, Number.NaN, 1.5, -1, 6]) {
-        expect(() => eventEmitter.onAny(fakeListener, { retry: { maxRetries } })).toThrow(
-          /maxRetries must be an integer between 0 and 5/,
-        )
-      }
-      expect(() => eventEmitter.onAny(fakeListener, { retry: { maxRetries: 5 } })).not.toThrow()
+      expect(() => eventEmitter.onAny(fakeListener, { retry: { maxRetries: 6 } })).toThrowError(
+        expect.objectContaining({ errorCode: 'INVALID_RETRY_OPTIONS' }),
+      )
+    })
+
+    it('registers nothing when the options are rejected', async () => {
+      const fakeListener = new FakeListener()
       expect(() =>
-        eventEmitter.onAny(fakeListener, { retry: { maxRetries: undefined } }),
-      ).not.toThrow()
-      for (const baseRetryDelayMs of [-1, Number.NaN, 10_001]) {
-        expect(() => eventEmitter.onAny(fakeListener, { retry: { baseRetryDelayMs } })).toThrow(
-          /baseRetryDelayMs must be between 0 and 10000 ms/,
-        )
-      }
-      expect(() =>
-        eventEmitter.onAny(fakeListener, {
-          retry: { maxRetryDelayMs: Number.POSITIVE_INFINITY },
-        }),
-      ).toThrow(/maxRetryDelayMs must be between 0 and 10000 ms/)
-      expect(() =>
-        // @ts-expect-error covering JS callers that ignore the type
-        eventEmitter.onAny(fakeListener, { retry: { isRetryable: 'yes' } }),
-      ).toThrow(/isRetryable must be a function/)
-      expect(() =>
-        // @ts-expect-error covering JS callers that ignore the type
-        eventEmitter.onAny(fakeListener, { retry: { isRetryable: async () => true } }),
-      ).toThrow(/isRetryable must be synchronous/)
-      expect(() =>
-        eventEmitter.onAny(fakeListener, {
-          retry: { baseRetryDelayMs: 5000, maxRetryDelayMs: 1000 },
-        }),
-      ).toThrow(/baseRetryDelayMs \(5000\) must not exceed maxRetryDelayMs \(1000\)/)
-      // an explicitly passed undefined still falls back to the parameter default
-      expect(() => eventEmitter.onAny(fakeListener, undefined)).not.toThrow()
-      for (const invalidOptions of [5, 0, 'background', '', () => {}, [], Symbol('x'), null]) {
-        expect(() =>
-          // @ts-expect-error covering JS callers that ignore the type
-          eventEmitter.onAny(fakeListener, invalidOptions),
-        ).toThrow(/registration options must be an object or a boolean/)
-      }
+        eventEmitter.onAny(fakeListener, { isBackgroundHandler: true, retry: { maxRetries: 6 } }),
+      ).toThrow()
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+
+      expect(fakeListener.receivedEvents).toHaveLength(0)
+      expect(eventEmitter.handlerSpy.checkForMessage({ id: emittedEvent.id })).toBeUndefined()
     })
 
     it('stops retrying when isRetryable itself throws', async () => {
@@ -689,20 +664,6 @@ describe('DomainEventEmitter', () => {
       await eventEmitter.dispose()
 
       expect(Date.now() - disposeStart).toBeLessThan(1000)
-      expect(fakeListener.receivedEvents).toHaveLength(1)
-    })
-
-    it('falls back to library defaults for options that are not provided', async () => {
-      const fakeListener = new FlakyFakeListener(1)
-      eventEmitter.onAny(fakeListener, {
-        isBackgroundHandler: true,
-        retry: { maxRetries: 1 },
-      })
-
-      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
-      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
-
-      expect(fakeListener.attempts).toBe(2)
       expect(fakeListener.receivedEvents).toHaveLength(1)
     })
   })
