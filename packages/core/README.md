@@ -20,6 +20,7 @@ message queue publishers and consumers.
   - [MessageSchemaContainer](#messageschemacontainer)
   - [AbstractPublisherManager](#abstractpublishermanager)
   - [DomainEventEmitter](#domaineventemitter)
+    - [Handler retries](#handler-retries)
 - [Utilities](#utilities)
   - [Error Classes](#error-classes)
   - [Message Deduplication](#message-deduplication)
@@ -586,6 +587,47 @@ emitter.on('user.created', async (event) => {
 
 await emitter.emit('user.created', { userId: 'user-123' })
 ```
+
+#### Handler retries
+
+By default a handler is executed once. A failing foreground handler propagates its error to the
+`emit()` caller (so a consumer can retry the whole message), while a failing background handler is
+only logged and reported. Retries can be enabled per registration:
+
+```typescript
+emitter.on('user.created', handler, {
+  isBackgroundHandler: true,
+  retry: {
+    maxRetries: 3, // extra attempts after the initial one, default 0, max 5
+    baseRetryDelayMs: 100, // delay = min(baseRetryDelayMs * 2 ^ (attempt - 1), maxRetryDelayMs)
+    maxRetryDelayMs: 1000, // both delays must be between 0 and 10 seconds
+    isRetryable: (error) => !(error instanceof ValidationError), // synchronous; every error is retried by default
+  },
+})
+```
+
+Errors `emit()` raises for events that cannot succeed on a second attempt are never retried, and
+`isRetryable` is not consulted for them: `EVENT_EMITTER_DISPOSED`, `UNKNOWN_EVENT`, and a `ZodError`
+from the publisher schema. A handler emitting a follow-up event is the way these reach a retry
+loop.
+
+The third argument still accepts a plain boolean (`isBackgroundHandler`), deprecated and to be
+removed in the next major release. Each attempt is reported to the transaction observability
+manager separately. Every failed attempt is logged at `error` level, intermediate ones carrying
+`attempts` and `maxAttempts`; only the final failure is reported to the error reporter, with the
+number of attempts in its context. Neither carries the event payload, which may hold sensitive
+data; they carry its id, type, timestamp and metadata instead. Options outside the documented
+ranges are rejected when the handler is registered, rather than clamped.
+
+Retries happen in-memory, within the same dispatch:
+
+- handlers must be idempotent, since an attempt may fail after partially completing;
+- nothing is retried after a process restart, so work that must not be lost belongs on a queue;
+- `dispose()` abandons backoffs that are still pending, so a failing handler cannot hold graceful
+  shutdown for its whole budget. It still waits for the attempt currently running;
+- foreground retries are allowed but block `emit()` for the whole budget and stack on top of the
+  retries the message consumer already performs, which can exceed a broker visibility timeout.
+  Prefer retrying at the level where `emit()` is called.
 
 ## Utilities
 

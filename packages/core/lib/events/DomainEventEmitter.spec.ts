@@ -1,15 +1,19 @@
 import { randomUUID } from 'node:crypto'
-
+import { InternalError, stringValueSerializer } from '@lokalise/node-core'
 import type { CommonEventDefinitionPublisherSchemaType } from '@message-queue-toolkit/schemas'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ErroredFakeListener } from '../../test/fakes/ErroredFakeListener.ts'
+import { FlakyFakeListener } from '../../test/fakes/FlakyFakeListener.ts'
 import type { Dependencies, TestEventsType } from '../../test/testContext.ts'
 import { registerDependencies, TestEvents } from '../../test/testContext.ts'
 import type { DomainEventEmitter } from './DomainEventEmitter.ts'
 import { FakeListener } from './fakes/FakeListener.ts'
 
-const createdEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.created> = {
+// `emit()` stamps id/timestamp onto the payload it is given, so every test needs its own copy
+const buildCreatedEventPayload = (): CommonEventDefinitionPublisherSchemaType<
+  typeof TestEvents.created
+> => ({
   payload: {
     message: 'msg',
   },
@@ -20,12 +24,14 @@ const createdEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestE
     schemaVersion: '1',
     correlationId: randomUUID(),
   },
-}
+})
 
-const updatedEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.updated> = {
-  ...createdEventPayload,
+const buildUpdatedEventPayload = (): CommonEventDefinitionPublisherSchemaType<
+  typeof TestEvents.updated
+> => ({
+  ...buildCreatedEventPayload(),
   type: 'entity.updated',
-}
+})
 
 const expectedCreatedPayload = {
   id: expect.any(String),
@@ -50,10 +56,14 @@ const expectedUpdatedPayload = {
 describe('DomainEventEmitter', () => {
   let diContainer: AwilixContainer<Dependencies>
   let eventEmitter: DomainEventEmitter<TestEventsType>
+  let createdEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.created>
+  let updatedEventPayload: CommonEventDefinitionPublisherSchemaType<typeof TestEvents.updated>
 
   beforeEach(async () => {
     diContainer = await registerDependencies()
     eventEmitter = diContainer.cradle.eventEmitter
+    createdEventPayload = buildCreatedEventPayload()
+    updatedEventPayload = buildUpdatedEventPayload()
   })
 
   afterEach(async () => {
@@ -402,9 +412,13 @@ describe('DomainEventEmitter', () => {
       expect(fakeListener.receivedEvents[0]).toMatchObject(expectedCreatedPayload)
 
       const expectedContext = {
-        event: JSON.stringify(emittedEvent),
+        eventId: emittedEvent.id,
+        eventType: 'entity.created',
+        eventTimestamp: emittedEvent.timestamp,
+        eventMetadata: stringValueSerializer(emittedEvent.metadata),
         eventHandlerId: 'ErroredFakeListener',
         'x-request-id': emittedEvent.metadata?.correlationId,
+        attempts: 1,
       }
       expect(reporterSpy).toHaveBeenCalledWith({
         error: expect.any(Error),
@@ -428,6 +442,229 @@ describe('DomainEventEmitter', () => {
         transactionManagerStartSpy.mock.calls[0]![1],
         false,
       )
+    })
+  })
+
+  describe('non-error throwables', () => {
+    it('wraps them before reporting', async () => {
+      const reporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
+      eventEmitter.onAny(
+        {
+          eventHandlerId: 'ThrowingListener',
+          handleEvent: () => {
+            throw 'boom'
+          },
+        },
+        true,
+      )
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(reporterSpy).toHaveBeenCalledWith({
+        error: expect.objectContaining({
+          message: 'Event handler ThrowingListener threw a non-error value: ""boom""',
+          cause: 'boom',
+        }),
+        context: expect.objectContaining({ eventHandlerId: 'ThrowingListener' }),
+      })
+    })
+  })
+
+  describe('retries', () => {
+    const retryOptions = { maxRetries: 2, baseRetryDelayMs: 1, maxRetryDelayMs: 1 }
+
+    it('retries a failing background handler until it succeeds', async () => {
+      const fakeListener = new FlakyFakeListener(1)
+      const reporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
+      eventEmitter.onAny(fakeListener, { isBackgroundHandler: true, retry: retryOptions })
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.attempts).toBe(2)
+      expect(fakeListener.receivedEvents).toHaveLength(1)
+      expect(reporterSpy).not.toHaveBeenCalled()
+    })
+
+    it('reports the failure once retries are exhausted', async () => {
+      const fakeListener = new ErroredFakeListener()
+      const reporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
+      eventEmitter.onAny(fakeListener, { isBackgroundHandler: true, retry: retryOptions })
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.receivedEvents).toHaveLength(3)
+      expect(reporterSpy).toHaveBeenCalledOnce()
+      expect(reporterSpy).toHaveBeenCalledWith({
+        error: expect.any(Error),
+        context: expect.objectContaining({
+          eventHandlerId: 'ErroredFakeListener',
+          attempts: 3,
+        }),
+      })
+    })
+
+    it('does not retry when the error is not retryable', async () => {
+      const fakeListener = new ErroredFakeListener()
+      const isRetryable = vi.fn().mockReturnValue(false)
+      eventEmitter.onAny(fakeListener, {
+        isBackgroundHandler: true,
+        retry: { ...retryOptions, isRetryable },
+      })
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.receivedEvents).toHaveLength(1)
+      expect(isRetryable).toHaveBeenCalledWith(expect.any(Error))
+    })
+
+    it('does not retry by default', async () => {
+      const fakeListener = new ErroredFakeListener()
+      eventEmitter.onAny(fakeListener, true)
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.receivedEvents).toHaveLength(1)
+    })
+
+    it('retries foreground handlers and rethrows once exhausted', async () => {
+      const fakeListener = new ErroredFakeListener()
+      eventEmitter.onAny(fakeListener, { retry: retryOptions })
+
+      await expect(eventEmitter.emit(TestEvents.created, createdEventPayload)).rejects.toThrow(
+        'ErroredFakeListener error',
+      )
+      expect(fakeListener.receivedEvents).toHaveLength(3)
+    })
+
+    it('surfaces invalid retry options when the handler is registered', () => {
+      const fakeListener = new FakeListener()
+
+      expect(() => eventEmitter.onAny(fakeListener, { retry: { maxRetries: 6 } })).toThrowError(
+        expect.objectContaining({ errorCode: 'INVALID_RETRY_OPTIONS' }),
+      )
+    })
+
+    it('registers nothing when the options are rejected', async () => {
+      const fakeListener = new FakeListener()
+      expect(() =>
+        eventEmitter.onAny(fakeListener, { isBackgroundHandler: true, retry: { maxRetries: 6 } }),
+      ).toThrow()
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+
+      expect(fakeListener.receivedEvents).toHaveLength(0)
+      expect(eventEmitter.handlerSpy.checkForMessage({ id: emittedEvent.id })).toBeUndefined()
+    })
+
+    it('stops retrying when isRetryable itself throws', async () => {
+      const fakeListener = new ErroredFakeListener()
+      const reporterSpy = vi.spyOn(diContainer.cradle.errorReporter, 'report')
+      eventEmitter.onAny(fakeListener, {
+        isBackgroundHandler: true,
+        retry: {
+          ...retryOptions,
+          isRetryable: () => {
+            throw new Error('predicate error')
+          },
+        },
+      })
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.receivedEvents).toHaveLength(1)
+      expect(reporterSpy).toHaveBeenCalledWith({
+        error: expect.objectContaining({ message: 'ErroredFakeListener error' }),
+        context: expect.objectContaining({ attempts: 1 }),
+      })
+      await expect(eventEmitter.dispose()).resolves.toBeUndefined()
+    })
+
+    it('does not retry when isRetryable returns a non-boolean', async () => {
+      const fakeListener = new ErroredFakeListener()
+      eventEmitter.onAny(fakeListener, {
+        isBackgroundHandler: true,
+        // a promise-returning predicate is truthy regardless of what it resolves to
+        // @ts-expect-error covering JS callers that ignore the type
+        retry: { ...retryOptions, isRetryable: () => Promise.resolve(false) },
+      })
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(fakeListener.receivedEvents).toHaveLength(1)
+    })
+
+    it('does not retry errors the emitter itself raises as permanent', async () => {
+      const isRetryable = vi.fn().mockReturnValue(true)
+      let attempts = 0
+      eventEmitter.onAny(
+        {
+          eventHandlerId: 'DisposedEmitterListener',
+          handleEvent: () => {
+            attempts++
+            throw new InternalError({
+              errorCode: 'EVENT_EMITTER_DISPOSED',
+              message: 'Cannot emit event, emitter is already disposed',
+            })
+          },
+        },
+        { isBackgroundHandler: true, retry: { ...retryOptions, isRetryable } },
+      )
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(attempts).toBe(1)
+      expect(isRetryable).not.toHaveBeenCalled()
+    })
+
+    it('does not retry a publisher schema validation failure', async () => {
+      const isRetryable = vi.fn().mockReturnValue(true)
+      let attempts = 0
+      eventEmitter.onMany(
+        ['entity.created'],
+        {
+          eventHandlerId: 'InvalidFollowUpListener',
+          handleEvent: async () => {
+            attempts++
+            await eventEmitter.emit(TestEvents.updated, {
+              ...updatedEventPayload,
+              // @ts-expect-error emitting a payload the publisher schema rejects
+              payload: { message: 123 },
+            })
+          },
+        },
+        { isBackgroundHandler: true, retry: { ...retryOptions, isRetryable } },
+      )
+
+      const emittedEvent = await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      await eventEmitter.handlerSpy.waitForMessageWithId(emittedEvent.id, 'consumed')
+
+      expect(attempts).toBe(1)
+      expect(isRetryable).not.toHaveBeenCalled()
+    })
+
+    it('abandons pending backoffs when the emitter is disposed', async () => {
+      const fakeListener = new ErroredFakeListener()
+      eventEmitter.onAny(fakeListener, {
+        isBackgroundHandler: true,
+        retry: { maxRetries: 5, baseRetryDelayMs: 10_000, maxRetryDelayMs: 10_000 },
+      })
+
+      await eventEmitter.emit(TestEvents.created, createdEventPayload)
+      expect(fakeListener.receivedEvents).toHaveLength(1)
+
+      const disposeStart = Date.now()
+      await eventEmitter.dispose()
+
+      expect(Date.now() - disposeStart).toBeLessThan(1000)
+      expect(fakeListener.receivedEvents).toHaveLength(1)
     })
   })
 

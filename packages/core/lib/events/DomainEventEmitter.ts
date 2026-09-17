@@ -1,15 +1,24 @@
 import { randomUUID } from 'node:crypto'
+import { setTimeout } from 'node:timers/promises'
 import {
   type CommonLogger,
   type ErrorReporter,
   InternalError,
+  isError,
   resolveGlobalErrorLogObject,
+  stringValueSerializer,
   type TransactionObservabilityManager,
 } from '@lokalise/node-core'
 import type { ConsumerMessageMetadataType } from '@message-queue-toolkit/schemas'
+import { ZodError } from 'zod/v4'
 import type { MetadataFiller } from '../messages/MetadataFiller.ts'
 import type { HandlerSpy, HandlerSpyParams, PublicHandlerSpy } from '../queues/HandlerSpy.ts'
 import { resolveHandlerSpy } from '../queues/HandlerSpy.ts'
+import type {
+  EventHandlerRegistrationOptions,
+  ResolvedRetryOptions,
+} from './domainEventEmitterOptions.ts'
+import { resolveRegistrationOptions, resolveRetryOptions } from './domainEventEmitterOptions.ts'
 import type { EventRegistry } from './EventRegistry.ts'
 import type {
   AnyEventHandler,
@@ -28,6 +37,14 @@ import type {
  */
 const MAX_DISPOSE_DRAIN_PASSES = 10
 
+/**
+ * Errors `emit()` throws for events that cannot succeed on a second attempt, reachable from a
+ * handler emitting a follow-up event. A `ZodError` from the publisher schema is permanent for the
+ * same reason: the payload is identical on every attempt. Retrying them only burns the budget, so
+ * they are rejected before any custom `isRetryable` is consulted.
+ */
+const NON_RETRYABLE_ERROR_CODES = new Set(['EVENT_EMITTER_DISPOSED', 'UNKNOWN_EVENT'])
+
 export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDefinition[]> = {
   eventRegistry: EventRegistry<SupportedEvents>
   metadataFiller: MetadataFiller
@@ -36,9 +53,14 @@ export type DomainEventEmitterDependencies<SupportedEvents extends CommonEventDe
   transactionObservabilityManager?: TransactionObservabilityManager
 }
 
+type HandlerRegistration<T> = {
+  handler: T
+  retry: ResolvedRetryOptions
+}
+
 type Handlers<T> = {
-  background: T[]
-  foreground: T[]
+  background: HandlerRegistration<T>[]
+  foreground: HandlerRegistration<T>[]
 }
 
 export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]> {
@@ -57,6 +79,7 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   >
   private readonly inProgressDispatchByEventId: Map<string, Promise<void>>
   private readonly inProgressBackgroundHandlerByEventId: Map<string, Promise<void>>
+  private readonly disposeAbortController = new AbortController()
   private isDisposed = false
 
   constructor(
@@ -91,7 +114,8 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
   }
 
   /**
-   * Waits for accepted events to finish being dispatched, then stops accepting new ones.
+   * Waits for accepted events to finish being dispatched, then stops accepting new ones. Retry
+   * backoffs in flight are abandoned, so a failing handler cannot hold shutdown for its full budget.
    *
    * Both maps are drained: an event is only in `inProgressBackgroundHandlerByEventId` once its
    * foreground handlers are done, so mid-foreground dispatches are tracked separately. Re-checked
@@ -99,6 +123,9 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
    * cannot hold shutdown open.
    */
   public async dispose(): Promise<void> {
+    // Pending backoffs are abandoned rather than waited out, so shutdown is not held by retries
+    this.disposeAbortController.abort()
+
     for (let pass = 0; pass < MAX_DISPOSE_DRAIN_PASSES; pass++) {
       const pending = [
         ...this.inProgressDispatchByEventId.values(),
@@ -179,38 +206,63 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   /**
    * Register handler for a specific event
+   *
+   * @param eventTypeName type of the event to listen to
+   * @param handler handler invoked for every event of that type
+   * @param optionsOrIsBackgroundHandler registration options. Passing a boolean is a shorthand for
+   * `{ isBackgroundHandler }`, deprecated and to be removed in the next major release.
    */
   public on<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeName: EventTypeName,
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
-    isBackgroundHandler = false,
+    optionsOrIsBackgroundHandler: boolean | EventHandlerRegistrationOptions = false,
   ) {
+    const { isBackgroundHandler, retry } = resolveRegistrationOptions(optionsOrIsBackgroundHandler)
+    // resolved before the map is touched, so invalid options cannot leave a handler-less entry behind
+    const registration = { handler, retry: resolveRetryOptions(retry) }
+
     if (!this.eventHandlerMap.has(eventTypeName)) {
       this.eventHandlerMap.set(eventTypeName, { foreground: [], background: [] })
     }
 
-    if (isBackgroundHandler) this.eventHandlerMap.get(eventTypeName)?.background.push(handler)
-    else this.eventHandlerMap.get(eventTypeName)?.foreground.push(handler)
+    if (isBackgroundHandler) this.eventHandlerMap.get(eventTypeName)?.background.push(registration)
+    else this.eventHandlerMap.get(eventTypeName)?.foreground.push(registration)
   }
 
   /**
    * Register handler for multiple events
+   *
+   * @param eventTypeNames types of the events to listen to
+   * @param handler handler invoked for every event of those types
+   * @param optionsOrIsBackgroundHandler registration options. Passing a boolean is a shorthand for
+   * `{ isBackgroundHandler }`, deprecated and to be removed in the next major release.
    */
   public onMany<EventTypeName extends EventTypeNames<SupportedEvents[number]>>(
     eventTypeNames: EventTypeName[],
     handler: SingleEventHandler<SupportedEvents, EventTypeName>,
-    isBackgroundHandler = false,
+    optionsOrIsBackgroundHandler: boolean | EventHandlerRegistrationOptions = false,
   ) {
     for (const eventTypeName of eventTypeNames) {
-      this.on(eventTypeName, handler, isBackgroundHandler)
+      this.on(eventTypeName, handler, optionsOrIsBackgroundHandler)
     }
   }
 
   /**
    * Register handler for all events supported by the emitter
+   *
+   * @param handler handler invoked for every supported event
+   * @param optionsOrIsBackgroundHandler registration options. Passing a boolean is a shorthand for
+   * `{ isBackgroundHandler }`, deprecated and to be removed in the next major release.
    */
-  public onAny(handler: AnyEventHandler<SupportedEvents>, isBackgroundHandler = false) {
-    this.onMany(Array.from(this.eventRegistry.supportedEventTypes), handler, isBackgroundHandler)
+  public onAny(
+    handler: AnyEventHandler<SupportedEvents>,
+    optionsOrIsBackgroundHandler: boolean | EventHandlerRegistrationOptions = false,
+  ) {
+    this.onMany(
+      Array.from(this.eventRegistry.supportedEventTypes),
+      handler,
+      optionsOrIsBackgroundHandler,
+    )
   }
 
   private async handleEvent<SupportedEvent extends SupportedEvents[number]>(
@@ -241,12 +293,14 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>
     >,
   ): Promise<void> {
-    for (const handler of eventHandlers.foreground) {
-      await this.executeEventHandler(event, handler, false)
+    for (const registration of eventHandlers.foreground) {
+      await this.executeEventHandler(event, registration, false)
     }
 
     const bgPromise = Promise.all(
-      eventHandlers.background.map((handler) => this.executeEventHandler(event, handler, true)),
+      eventHandlers.background.map((registration) =>
+        this.executeEventHandler(event, registration, true),
+      ),
     ).then(() => {
       this.inProgressBackgroundHandlerByEventId.delete(event.id)
       if (!this._handlerSpy) return
@@ -264,6 +318,91 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
 
   private async executeEventHandler<SupportedEvent extends SupportedEvents[number]>(
     event: CommonEventDefinitionConsumerSchemaType<SupportedEvent>,
+    registration: HandlerRegistration<
+      EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvent>>
+    >,
+    isBackgroundHandler: boolean,
+  ) {
+    const { handler, retry } = registration
+
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await this.executeHandlerAttempt(event, handler, isBackgroundHandler)
+        return
+      } catch (error) {
+        const shouldRetry = attempt <= retry.maxRetries && this.isRetryable(retry, handler, error)
+        if (!shouldRetry) {
+          return this.handleFailedEventHandler(event, handler, isBackgroundHandler, error, attempt)
+        }
+
+        this.logger.error({
+          ...resolveGlobalErrorLogObject(error),
+          eventHandlerId: handler.eventHandlerId,
+          'x-request-id': event.metadata?.correlationId,
+          attempts: attempt,
+          maxAttempts: retry.maxRetries + 1,
+          msg: `Event handler ${handler.eventHandlerId} failed, retrying`,
+        })
+
+        try {
+          await setTimeout(
+            Math.min(retry.baseRetryDelayMs * 2 ** (attempt - 1), retry.maxRetryDelayMs),
+            undefined,
+            {
+              signal: this.disposeAbortController.signal,
+            },
+          )
+        } catch {
+          return this.handleFailedEventHandler(event, handler, isBackgroundHandler, error, attempt)
+        }
+      }
+    }
+  }
+
+  /*
+    A throwing predicate must not escape: it would reject the dispatch promise, which for background
+    handlers leaves the in-progress entry behind and surfaces as an unhandled rejection. The handler
+    error it was asked about is the one that matters, so it is left to the regular failure path.
+  */
+  private isRetryable(
+    retry: ResolvedRetryOptions,
+    handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvents[number]>>,
+    error: unknown,
+  ): boolean {
+    if (error instanceof ZodError) return false
+    if (error instanceof InternalError && NON_RETRYABLE_ERROR_CODES.has(error.errorCode)) {
+      return false
+    }
+    if (!retry.isRetryable) return true
+
+    try {
+      const result = retry.isRetryable(error)
+      /*
+        A predicate returning a promise (not caught by the AsyncFunction check at registration)
+        would be truthy regardless of what it resolves to, turning it into "retry everything".
+      */
+      if (typeof result !== 'boolean') {
+        this.logger.error({
+          eventHandlerId: handler.eventHandlerId,
+          result: stringValueSerializer(result),
+          msg: `isRetryable of event handler ${handler.eventHandlerId} did not return a boolean, not retrying`,
+        })
+        return false
+      }
+
+      return result
+    } catch (predicateError) {
+      this.logger.error({
+        ...resolveGlobalErrorLogObject(predicateError),
+        eventHandlerId: handler.eventHandlerId,
+        msg: `isRetryable of event handler ${handler.eventHandlerId} threw, not retrying`,
+      })
+      return false
+    }
+  }
+
+  private async executeHandlerAttempt<SupportedEvent extends SupportedEvents[number]>(
+    event: CommonEventDefinitionConsumerSchemaType<SupportedEvent>,
     handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvent>>,
     isBackgroundHandler: boolean,
   ) {
@@ -277,22 +416,53 @@ export class DomainEventEmitter<SupportedEvents extends CommonEventDefinition[]>
       )
       await handler.handleEvent(event)
       isSuccessful = true
-    } catch (error) {
-      if (!isBackgroundHandler) throw error
-
-      const context = {
-        event: JSON.stringify(event),
-        eventHandlerId: handler.eventHandlerId,
-        'x-request-id': event.metadata?.correlationId,
-      }
-      this.logger.error({
-        ...resolveGlobalErrorLogObject(error),
-        ...context,
-      })
-      // biome-ignore lint/suspicious/noExplicitAny: TODO: improve error type
-      this.errorReporter?.report({ error: error as any, context })
     } finally {
       this.transactionObservabilityManager?.stop(transactionId, isSuccessful)
+    }
+  }
+
+  private handleFailedEventHandler<SupportedEvent extends SupportedEvents[number]>(
+    event: CommonEventDefinitionConsumerSchemaType<SupportedEvent>,
+    handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvent>>,
+    isBackgroundHandler: boolean,
+    error: unknown,
+    attempts: number,
+  ) {
+    if (!isBackgroundHandler) throw error
+
+    const context = this.buildErrorContext(event, handler, attempts)
+    this.logger.error({
+      ...resolveGlobalErrorLogObject(error),
+      ...context,
+    })
+    this.errorReporter?.report({
+      error: isError(error)
+        ? error
+        : new Error(
+            `Event handler ${handler.eventHandlerId} threw a non-error value: ${stringValueSerializer(error)}`,
+            { cause: error },
+          ),
+      context,
+    })
+  }
+
+  private buildErrorContext<SupportedEvent extends SupportedEvents[number]>(
+    event: CommonEventDefinitionConsumerSchemaType<SupportedEvent>,
+    handler: EventHandler<CommonEventDefinitionConsumerSchemaType<SupportedEvent>>,
+    attempts: number,
+  ) {
+    /*
+      Everything but the payload: it can carry sensitive data, which is why the queue services only
+      log it behind `logMessages`/`messageLogFormatter` rather than by default.
+    */
+    return {
+      eventId: event.id,
+      eventType: event.type,
+      eventTimestamp: event.timestamp,
+      eventMetadata: stringValueSerializer(event.metadata),
+      eventHandlerId: handler.eventHandlerId,
+      'x-request-id': event.metadata?.correlationId,
+      attempts,
     }
   }
 
