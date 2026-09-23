@@ -403,8 +403,8 @@ importers:
   packages/s3-payload-store:
     devDependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.1129.0
-        version: 3.1129.0
+        specifier: ^3.1134.0
+        version: 3.1134.0
       '@biomejs/biome':
         specifier: ^2.5.11
         version: 2.5.11
@@ -479,8 +479,8 @@ importers:
         version: 15.0.3(@aws-sdk/client-sqs@3.1125.0)(supports-color@7.2.0)
     devDependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.1129.0
-        version: 3.1129.0
+        specifier: ^3.1134.0
+        version: 3.1134.0
       '@aws-sdk/client-sns':
         specifier: ^3.1125.0
         version: 3.1125.0
@@ -552,8 +552,8 @@ importers:
         version: 15.0.3(@aws-sdk/client-sqs@3.1125.0)(supports-color@7.2.0)
     devDependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.1129.0
-        version: 3.1129.0
+        specifier: ^3.1134.0
+        version: 3.1134.0
       '@aws-sdk/client-sqs':
         specifier: ^3.1125.0
         version: 3.1125.0
@@ -615,8 +615,8 @@ packages:
     resolution: {integrity: sha512-6uTniZc87q+B5eXouGTl+7Tmc482rEeCcvxpsvREP8EfF0gvloRZ41UOA9sbSJlyy8TbqIBXb3kKfKarEArUQA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-s3@3.1129.0':
-    resolution: {integrity: sha512-TwbRTrAGwtFFUQ/jozsj9Jyjy+UjIsfSKaNs/tQfggIWFbk1Mim+IWjZ//IOz97Wc5Q/z/6G4cb5znYUXHKxHg==}
+  '@aws-sdk/client-s3@3.1134.0':
+    resolution: {integrity: sha512-dHgbuWMkladVNpR5gEQ7K9ub20w/hcf9IJXtMr+S3/rYpr6Z4gWUEX1seAPj00nAxJqtAaYvX3wdr2BVukZXXQ==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/client-sns@3.1125.0':
@@ -2590,7 +2590,7 @@ snapshots:
       '@smithy/types': 4.17.2
       tslib: 2.8.1
 
-  '@aws-sdk/client-s3@3.1129.0':
+  '@aws-sdk/client-s3@3.1134.0':
     dependencies:
       '@aws-sdk/checksums': 3.1001.0
       '@aws-sdk/core': 3.978.0
@@ -3760,7 +3760,7 @@ snapshots:
 
   fauxqs@2.12.0(typescript@7.0.2):
     dependencies:
-      '@aws-sdk/client-s3': 3.1129.0
+      '@aws-sdk/client-s3': 3.1134.0
       '@aws-sdk/client-sns': 3.1125.0
       '@aws-sdk/client-sqs': 3.1125.0
       '@fastify/cors': 11.3.0
