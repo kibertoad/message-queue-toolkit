@@ -317,8 +317,8 @@ importers:
   packages/outbox-core:
     dependencies:
       '@lokalise/background-jobs-common':
-        specifier: ^16.0.0
-        version: 16.0.0(bullmq@5.76.8(supports-color@7.2.0))(ioredis@5.11.1(supports-color@7.2.0))(pino@10.3.1)(supports-color@7.2.0)(toad-scheduler@4.1.0)(zod@4.6.0)
+        specifier: ^17.0.1
+        version: 17.0.1(bullmq@5.76.8(supports-color@7.2.0))(ioredis@6.0.0(supports-color@7.2.0))(pino@10.3.1)(supports-color@7.2.0)(toad-scheduler@4.1.0)(zod@4.6.0)
       '@supercharge/promise-pool':
         specifier: ^3.3.0
         version: 3.3.0
@@ -894,6 +894,9 @@ packages:
   '@ioredis/commands@1.5.1':
     resolution: {integrity: sha512-JH8ZL/ywcJyR9MmJ5BNqZllXNZQqQbnVZOqpPQqE1vHiFgAw4NHbvE0FOduNU8IX9babitBT46571OnPTT0Zcw==}
 
+  '@ioredis/commands@2.0.0':
+    resolution: {integrity: sha512-vrx0AE/T0h7cRZwfo1M39Cr+ZhZrkf0V8mQN75wucKCxCLD9l/VX6no3gFvrLqD1IlG/1LtzWovqEw3t0Vr9zg==}
+
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
     engines: {node: '>=6.0.0'}
@@ -907,11 +910,11 @@ packages:
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
 
-  '@lokalise/background-jobs-common@16.0.0':
-    resolution: {integrity: sha512-lWibJhlgyNRY2wtqH8nzu46iICbunGZf2cZnjwhMWCotiwT/Mlt2SedMk6SEzqEPuqGS0GypinpkEd1f83Ue6A==}
+  '@lokalise/background-jobs-common@17.0.1':
+    resolution: {integrity: sha512-uDenmZE+VGYEn3X92Ed+zS9V8IZ44nMpzKtLMJC+aCtJHMWatQZ2IBkAc7E3vaBCbvMtLiAOZX1/7HgnsF/cvw==}
     peerDependencies:
       bullmq: ^5.28.2 || ^6.0.0
-      ioredis: ^5.4.1 || ^6.0.0
+      ioredis: ^6.0.0
       pino: '>=9.7.0'
       toad-scheduler: ^4.0.1
       zod: '>=4.5.0 <5.0.0'
@@ -1865,6 +1868,10 @@ packages:
     resolution: {integrity: sha512-ehuGcf94bQXhfagULNXrJdfnWO38v070jxSx/qE87Kjzmu2fU7ro5EFAb+OPituLqgfyuQaym5DlrNydW2sJ9A==}
     engines: {node: '>=12.22.0'}
 
+  ioredis@6.0.0:
+    resolution: {integrity: sha512-f+Dtubxfpf6KYFq7WVXJoOLn0bk4TJrMrN9SzeE+jrWrCWj7XX3fA6vkryafhADX+GMymRxgDJDOI33COkJc0w==}
+    engines: {node: '>=20.0.0'}
+
   ipaddr.js@2.5.0:
     resolution: {integrity: sha512-aq+t5NAc+cS6rZQQVWC2x98CPqGtKKTMDd4Gaodv0wShnItdKg/51djkGJ1hqH+Oy0ivDftCbSLCQob8zso01w==}
     engines: {node: '>= 10'}
@@ -2218,6 +2225,15 @@ packages:
     engines: {node: '>= 14.17.0'}
     peerDependencies:
       ioredis: ^4.1.0 || ^5
+    peerDependenciesMeta:
+      ioredis:
+        optional: true
+
+  redis-semaphore@5.8.0:
+    resolution: {integrity: sha512-I8Y6MexOHOOO1iHQfAgRELH5RExgRX6igevq0qLtLqKHLhycXwoJCaYZE1unLx4fTJXBACkcDkfNoLCsSB9pqg==}
+    engines: {node: '>= 14.17.0'}
+    peerDependencies:
+      ioredis: ^4.1.0 || ^5 || ^6
     peerDependenciesMeta:
       ioredis:
         optional: true
@@ -3073,6 +3089,8 @@ snapshots:
 
   '@ioredis/commands@1.5.1': {}
 
+  '@ioredis/commands@2.0.0': {}
+
   '@jridgewell/resolve-uri@3.1.2': {}
 
   '@jridgewell/sourcemap-codec@1.6.0': {}
@@ -3084,14 +3102,14 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@lokalise/background-jobs-common@16.0.0(bullmq@5.76.8(supports-color@7.2.0))(ioredis@5.11.1(supports-color@7.2.0))(pino@10.3.1)(supports-color@7.2.0)(toad-scheduler@4.1.0)(zod@4.6.0)':
+  '@lokalise/background-jobs-common@17.0.1(bullmq@5.76.8(supports-color@7.2.0))(ioredis@6.0.0(supports-color@7.2.0))(pino@10.3.1)(supports-color@7.2.0)(toad-scheduler@4.1.0)(zod@4.6.0)':
     dependencies:
       '@lokalise/id-utils': 3.0.1
       '@lokalise/node-core': 14.9.1(zod@4.6.0)
       bullmq: 5.76.8(supports-color@7.2.0)
-      ioredis: 5.11.1(supports-color@7.2.0)
+      ioredis: 6.0.0(supports-color@7.2.0)
       pino: 10.3.1
-      redis-semaphore: 5.7.0(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)
+      redis-semaphore: 5.8.0(ioredis@6.0.0(supports-color@7.2.0))(supports-color@7.2.0)
       toad-scheduler: 4.1.0
       ts-deepmerge: 8.0.0
       zod: 4.6.0
@@ -3947,6 +3965,17 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  ioredis@6.0.0(supports-color@7.2.0):
+    dependencies:
+      '@ioredis/commands': 2.0.0
+      cluster-key-slot: 1.1.1
+      debug: 4.4.3(supports-color@7.2.0)
+      denque: 2.1.0
+      redis-errors: 1.2.0
+      standard-as-callback: 2.1.0
+    transitivePeerDependencies:
+      - supports-color
+
   ipaddr.js@2.5.0: {}
 
   is-extglob@2.1.1: {}
@@ -4267,6 +4296,14 @@ snapshots:
       debug: 4.4.3(supports-color@7.2.0)
     optionalDependencies:
       ioredis: 5.11.1(supports-color@7.2.0)
+    transitivePeerDependencies:
+      - supports-color
+
+  redis-semaphore@5.8.0(ioredis@6.0.0(supports-color@7.2.0))(supports-color@7.2.0):
+    dependencies:
+      debug: 4.4.3(supports-color@7.2.0)
+    optionalDependencies:
+      ioredis: 6.0.0(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
 
