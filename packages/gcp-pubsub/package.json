@@ -45,7 +45,7 @@
         "@message-queue-toolkit/gcs-payload-store": "workspace:*",
         "@message-queue-toolkit/redis-message-deduplication-store": "*",
         "@message-queue-toolkit/schemas": "*",
-        "@types/node": "^26.5.1",
+        "@types/node": "^26.6.1",
         "@vitest/coverage-v8": "^5.0.1",
         "awilix": "^13.0.5",
         "awilix-manager": "^7.0.1",

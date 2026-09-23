@@ -55,7 +55,7 @@
         "@message-queue-toolkit/redis-message-deduplication-store": "workspace:*",
         "@message-queue-toolkit/s3-payload-store": "workspace:*",
         "@message-queue-toolkit/sqs": "workspace:*",
-        "@types/node": "^26.5.1",
+        "@types/node": "^26.6.1",
         "@vitest/coverage-v8": "^5.0.1",
         "awilix": "^13.0.5",
         "awilix-manager": "^7.0.1",
