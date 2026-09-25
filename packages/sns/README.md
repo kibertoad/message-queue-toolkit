@@ -17,6 +17,8 @@ both standard and FIFO topics.
 - [Configuration](#configuration)
   - [Topic Creation](#topic-creation)
   - [Topic Locator](#topic-locator)
+  - [Resource Resolution](#resource-resolution)
+  - [Startup Resource Polling](#startup-resource-polling)
   - [Publisher Options](#publisher-options)
   - [Consumer Options](#consumer-options)
 - [SNS-Specific Features](#sns-specific-features)
@@ -486,11 +488,64 @@ When using `locatorConfig`, you connect to an existing topic without creating it
     // or
     // queueName: 'my-queue',
 
-    // Optional: Existing subscription ARN
+    // Optional: Existing subscription ARN. When omitted and no `subscriptionConfig` is given, the subscription of
+    // the queue to the topic is looked up instead (see Resource Resolution)
     subscriptionArn: 'arn:aws:sns:us-east-1:123456789012:my-topic:uuid',
   },
 }
 ```
+
+### Resource Resolution
+
+Consumers resolve the topic, the queue and the subscription independently, so each of them can either be managed by
+your application or by external tooling (e.g. Terraform):
+
+| Resource     | Located when                                   | Created when                           |
+|--------------|------------------------------------------------|----------------------------------------|
+| Topic        | `locatorConfig.topicArn` or `topicName` is set | otherwise, from `creationConfig.topic` |
+| Queue        | `locatorConfig.queueUrl` or `queueName` is set | otherwise, from `creationConfig.queue` |
+| Subscription | `subscriptionConfig` is not set                | `subscriptionConfig` is set            |
+
+A subscription that already exists is reused, and its attributes are updated when they differ and
+`subscriptionConfig.updateAttributesIfExists` is enabled. When both a locator and a creation config are given for the
+same resource, the locator takes precedence and the creation config is ignored. When `locatorConfig.subscriptionArn`
+is set, every resource is located and both `creationConfig` and `subscriptionConfig` are ignored.
+
+```typescript
+// Application manages everything
+{
+  creationConfig: { topic: { Name: 'my-topic' }, queue: { QueueName: 'my-queue' } },
+  subscriptionConfig: { updateAttributesIfExists: true },
+}
+
+// Topic owned by another service, queue and subscription managed by the application
+{
+  locatorConfig: { topicName: 'my-topic' },
+  creationConfig: { queue: { QueueName: 'my-queue' } },
+  subscriptionConfig: { updateAttributesIfExists: true },
+}
+
+// Topic and queue managed externally, subscription (and its filter policy) managed by the application
+{
+  locatorConfig: { topicName: 'my-topic', queueName: 'my-queue' },
+  subscriptionConfig: { updateAttributesIfExists: true },
+}
+
+// Everything managed externally, the application only locates the resources
+{
+  locatorConfig: { topicName: 'my-topic', queueName: 'my-queue' },
+}
+```
+
+Some things to keep in mind when resources are managed externally:
+
+- **Queue policy**: when the queue is located, the application does not set its policy. The external tooling must
+  allow the topic to send messages to the queue, otherwise the subscription exists but messages are never delivered.
+- **Filter policy**: when the subscription is located, its filter policy is not derived from the consumer handlers.
+  The external tooling must keep it in sync with the message types the consumer handles.
+- **Permissions**: locating a subscription requires `sns:ListSubscriptionsByTopic`. Subscriptions pending
+  confirmation (e.g. cross-account) are not considered until they are confirmed.
+- A missing located resource makes `init()` fail, unless startup resource polling is enabled (see below).
 
 ### Startup Resource Polling
 
@@ -519,7 +574,8 @@ When your SNS topic or SQS queue may not exist at startup (e.g., created by anot
 
 #### Blocking Mode (Default)
 
-In blocking mode, `init()` or `start()` will wait until both the topic and queue are available:
+In blocking mode, `init()` or `start()` will wait until the located resources (topic, queue and, when located, the
+subscription) are available:
 
 ```typescript
 const consumer = new MyConsumer(deps, {
@@ -647,6 +703,32 @@ const consumer = new MyConsumer(deps, {
 // 2. Create the SQS queue
 // 3. Subscribe the queue to the topic
 // 4. Start consuming
+await consumer.start()
+```
+
+#### Subscription Locate Mode
+
+When the subscription is managed externally (no `subscriptionConfig`), startup resource polling will also wait for the
+subscription of the queue to the topic to exist:
+
+```typescript
+const consumer = new MyConsumer(deps, {
+  locatorConfig: {
+    topicName: 'my-topic',  // Topic, queue and subscription created by infrastructure tooling
+    queueName: 'my-consumer-queue',
+    startupResourcePolling: {
+      enabled: true,
+      pollingIntervalMs: 5000,
+      timeoutMs: 60000,
+    },
+  },
+  // No subscriptionConfig - the subscription is located, never created
+})
+
+// This will:
+// 1. Poll until the topic and the queue exist
+// 2. Poll until the queue is subscribed to the topic
+// 3. Start consuming
 await consumer.start()
 ```
 
