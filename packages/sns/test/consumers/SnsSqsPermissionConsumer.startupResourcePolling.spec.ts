@@ -1,7 +1,5 @@
 import { setTimeout } from 'node:timers/promises'
 import type { SNSClient } from '@aws-sdk/client-sns'
-import type { SQSClient } from '@aws-sdk/client-sqs'
-import type { STSClient } from '@aws-sdk/client-sts'
 import {
   MessageHandlerConfigBuilder,
   NO_TIMEOUT,
@@ -14,7 +12,6 @@ import {
   type SNSSQSConsumerDependencies,
   type SNSSQSConsumerOptions,
 } from '../../lib/sns/AbstractSnsSqsConsumer.ts'
-import { initSnsSqs } from '../../lib/utils/snsInitter.ts'
 import { findSubscriptionByTopicAndQueue } from '../../lib/utils/snsUtils.ts'
 import { getPort } from '../utils/fauxqsInstance.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
@@ -75,16 +72,12 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
   const queueUrl = `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${queueName}`
 
   let diContainer: AwilixContainer<Dependencies>
-  let sqsClient: SQSClient
   let snsClient: SNSClient
-  let stsClient: STSClient
   let testAdmin: TestAwsResourceAdmin
 
   beforeAll(async () => {
     diContainer = await registerDependencies({}, false)
-    sqsClient = diContainer.cradle.sqsClient
     snsClient = diContainer.cradle.snsClient
-    stsClient = diContainer.cradle.stsClient
     testAdmin = diContainer.cradle.testAdmin
   })
 
@@ -539,7 +532,6 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       // Should throw timeout error since topic never appears
       await expect(consumer.init()).rejects.toThrow(StartupResourcePollingTimeoutError)
     })
-
   })
 
   describe('when subscription is located (subscriptionConfig is not provided)', () => {
