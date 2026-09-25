@@ -67,11 +67,23 @@ function resolveConsumerPollingWaitTimeSeconds(value: number | undefined): numbe
   return value
 }
 
-type SQSDeadLetterQueueOptions = {
-  redrivePolicy: {
-    maxReceiveCount: number
-  }
+type SQSRedrivePolicy = {
+  maxReceiveCount: number
 }
+
+type SQSDeadLetterQueueOptions =
+  | {
+      redrivePolicy: SQSRedrivePolicy
+    }
+  | {
+      /**
+       * A located DLQ can omit the redrive policy, in which case the redrive policy of the source queue is left
+       * untouched (e.g. when both queues are managed externally)
+       */
+      locatorConfig: SQSQueueLocatorType
+      creationConfig?: never
+      redrivePolicy?: SQSRedrivePolicy
+    }
 
 type DeadLetterQueueResource = {
   url: string
@@ -358,17 +370,19 @@ export abstract class AbstractSqsConsumer<
     const result = await initSqs(this.sqsClient, locatorConfig, creationConfig, this.isFifoQueue)
     if (!result) return
 
-    await this.sqsClient.send(
-      new SetQueueAttributesCommand({
-        QueueUrl: this.queue.url,
-        Attributes: {
-          RedrivePolicy: JSON.stringify({
-            deadLetterTargetArn: result.queueArn,
-            maxReceiveCount: redrivePolicy.maxReceiveCount,
-          }),
-        },
-      }),
-    )
+    if (redrivePolicy) {
+      await this.sqsClient.send(
+        new SetQueueAttributesCommand({
+          QueueUrl: this.queue.url,
+          Attributes: {
+            RedrivePolicy: JSON.stringify({
+              deadLetterTargetArn: result.queueArn,
+              maxReceiveCount: redrivePolicy.maxReceiveCount,
+            }),
+          },
+        }),
+      )
+    }
 
     this._deadLetterQueue = { url: result.queueUrl, arn: result.queueArn }
   }

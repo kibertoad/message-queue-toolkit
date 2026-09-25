@@ -2,12 +2,13 @@ import {
   ListQueueTagsCommand,
   ReceiveMessageCommand,
   SendMessageCommand,
+  SetQueueAttributesCommand,
   type SQSClient,
 } from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { SQSMessage } from '../../lib/types/MessageTypes.ts'
 import { getQueueAttributes } from '../../lib/utils/sqsUtils.ts'
@@ -243,6 +244,33 @@ describe('SqsPermissionConsumer - deadLetterQueue', () => {
             maxReceiveCount: 5,
           }),
         })
+      })
+
+      it('does not update queue redrive policy when dlq locator is passed without redrive policy', async () => {
+        // Redrive policy set outside the library, as infrastructure tooling would do
+        const redrivePolicy = JSON.stringify({
+          deadLetterTargetArn: `arn:aws:sqs:eu-west-1:000000000000:${customDeadLetterQueueName}`,
+          maxReceiveCount: 3,
+        })
+        const { queueUrl } = await testAdmin.createQueue(customQueueName, {
+          attributes: { RedrivePolicy: redrivePolicy },
+        })
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+        consumer = new SqsPermissionConsumer(diContainer.cradle, {
+          locatorConfig: { queueUrl },
+          deadLetterQueue: {
+            locatorConfig: { queueUrl: dlqUrl },
+          },
+        })
+
+        await consumer.init()
+        expect(consumer.queueProps.url).toBe(queueUrl)
+        expect(consumer.dlqUrl).toBe(dlqUrl)
+
+        expect(sqsSpy).not.toHaveBeenCalledWith(expect.any(SetQueueAttributesCommand))
+        const attributes = await getQueueAttributes(sqsClient, queueUrl)
+        expect(attributes.result?.attributes?.RedrivePolicy).toBe(redrivePolicy)
       })
     })
   })

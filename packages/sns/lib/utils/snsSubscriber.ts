@@ -2,7 +2,12 @@ import type { SNSClient, SubscribeCommandInput } from '@aws-sdk/client-sns'
 import { SetSubscriptionAttributesCommand, SubscribeCommand } from '@aws-sdk/client-sns'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
-import { InternalError, isError, stringValueSerializer } from '@lokalise/node-core'
+import {
+  type CommonLogger,
+  InternalError,
+  isError,
+  stringValueSerializer,
+} from '@lokalise/node-core'
 import type { ExtraParams } from '@message-queue-toolkit/core'
 import type { ExtraSQSCreationParams } from '@message-queue-toolkit/sqs'
 import { assertQueue } from '@message-queue-toolkit/sqs'
@@ -46,6 +51,10 @@ async function resolveTopicArnToSubscribeTo(
   })
 }
 
+/**
+ * Asserts the SNS topic (or resolves the ARN of a located one), asserts the SQS queue and then
+ * asserts the subscription of the queue to the topic.
+ */
 export async function subscribeToTopic(
   sqsClient: SQSClient,
   snsClient: SNSClient,
@@ -68,6 +77,36 @@ export async function subscribeToTopic(
     forceTagUpdate: extraParams?.forceTagUpdate,
   })
 
+  const subscriptionArn = await assertSubscription(
+    snsClient,
+    topicArn,
+    queueArn,
+    subscriptionConfiguration,
+    {
+      queueName: queueConfiguration.QueueName,
+      topicName: isCreateTopicCommand(topicConfiguration)
+        ? topicConfiguration.Name
+        : topicConfiguration.topicName,
+    },
+    extraParams?.logger,
+  )
+
+  return { subscriptionArn, topicArn, queueUrl, queueArn }
+}
+
+/**
+ * Subscribes an existing SQS queue to an existing SNS topic. Subscribing is idempotent, so an
+ * existing subscription is returned as is, or has its attributes updated when they differ and
+ * `updateAttributesIfExists` is enabled.
+ */
+export async function assertSubscription(
+  snsClient: SNSClient,
+  topicArn: string,
+  queueArn: string,
+  subscriptionConfiguration: SNSSubscriptionOptions,
+  errorContext: { queueName?: string; topicName?: string },
+  logger?: CommonLogger,
+): Promise<string | undefined> {
   const subscribeCommand = new SubscribeCommand({
     TopicArn: topicArn,
     Endpoint: queueArn,
@@ -78,27 +117,18 @@ export async function subscribeToTopic(
 
   try {
     const subscriptionResult = await snsClient.send(subscribeCommand)
-    return {
-      subscriptionArn: subscriptionResult.SubscriptionArn,
-      topicArn,
-      queueUrl,
-      queueArn,
-    }
+    return subscriptionResult.SubscriptionArn
   } catch (err) {
     if (!isError(err)) throw err
 
-    const logger = extraParams?.logger ?? console
-    const errMessage = `Error while creating subscription for queue "${queueConfiguration.QueueName}", topic "${
-      isCreateTopicCommand(topicConfiguration)
-        ? topicConfiguration.Name
-        : topicConfiguration.topicName
-    }": ${err.message}`
+    const resolvedLogger = logger ?? console
+    const errMessage = `Error while creating subscription for queue "${errorContext.queueName}", topic "${errorContext.topicName}": ${err.message}`
 
     if (
       subscriptionConfiguration.updateAttributesIfExists &&
-      err.message.indexOf('Subscription already exists with different attributes') !== -1
+      err.message.includes('Subscription already exists with different attributes')
     ) {
-      logger.warn(`${errMessage}. Trying to update subscription`)
+      resolvedLogger.warn(`${errMessage}. Trying to update subscription`)
 
       const result = await tryToUpdateSubscription(
         snsClient,
@@ -106,24 +136,17 @@ export async function subscribeToTopic(
         queueArn,
         subscriptionConfiguration,
       )
-      if (result) {
-        return {
-          subscriptionArn: result.SubscriptionArn,
-          topicArn,
-          queueUrl,
-          queueArn,
-        }
-      }
+      if (result) return result.SubscriptionArn
 
-      logger.error('Failed to update subscription')
+      resolvedLogger.error('Failed to update subscription')
     } else {
-      logger.error(errMessage)
+      resolvedLogger.error(errMessage)
     }
 
     throw new InternalError({
       errorCode: 'sns_subscription_creation_failed',
       message: errMessage,
-      details: { queueName: queueConfiguration.QueueName, topicArn, originalError: err.message },
+      details: { queueName: errorContext.queueName, topicArn, originalError: err.message },
       cause: err,
     })
   }

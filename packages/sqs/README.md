@@ -501,7 +501,7 @@ When using `locatorConfig`, you connect to an existing queue without creating it
   // Optional - Retry Configuration
   maxRetryDuration: 345600,            // 4 days in seconds (default)
 
-  // Optional - Dead Letter Queue
+  // Optional - Dead Letter Queue (or `locatorConfig` for an existing DLQ, see Dead Letter Queue section)
   deadLetterQueue: {
     creationConfig: {
       queue: {
@@ -643,6 +643,29 @@ Dead Letter Queues capture messages that cannot be processed after multiple atte
 3. Consumer receives message again (receive count increments)
 4. After `maxReceiveCount` attempts, SQS automatically moves message to DLQ
 5. DLQ messages can be inspected, reprocessed, or deleted
+
+**Existing DLQ:**
+
+Use `locatorConfig` to connect to an existing DLQ instead of creating it. `redrivePolicy` is mandatory with
+`creationConfig`, but optional with `locatorConfig`:
+
+```typescript
+{
+  deadLetterQueue: {
+    locatorConfig: {
+      queueUrl: 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue-dlq',
+      // or
+      // queueName: 'my-queue-dlq',
+    },
+    // Optional with locatorConfig: when set, the redrive policy of the source queue is updated to point to the DLQ.
+    // When omitted, the redrive policy of the source queue is left untouched (e.g. when it is managed outside the
+    // application).
+    redrivePolicy: {
+      maxReceiveCount: 3,
+    },
+  },
+}
+```
 
 ### Message Retry Logic
 
