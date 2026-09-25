@@ -1,11 +1,14 @@
 import { setTimeout } from 'node:timers/promises'
 import {
+  CreateTopicCommand,
+  GetTopicAttributesCommand,
   ListSubscriptionsByTopicCommand,
   type SNSClient,
   SubscribeCommand,
 } from '@aws-sdk/client-sns'
-import type { SQSClient } from '@aws-sdk/client-sqs'
+import { CreateQueueCommand, type SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
+import { waitAndRetry } from '@lokalise/node-core'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getPort } from '../../test/utils/fauxqsInstance.ts'
@@ -102,6 +105,48 @@ describe('snsInitter', () => {
             queueName,
           }),
         ).rejects.toThrow(/Subscription of queue .* to topic .* does not exist/)
+      })
+
+      it('uses located topic without checking it when topic creation config is also provided', async () => {
+        const topicArn = await testAdmin.createTopic(topicName)
+        await testAdmin.createQueue(queueName)
+        const snsSpy = vi.spyOn(snsClient, 'send')
+
+        const result = await initSnsSqs(
+          sqsClient,
+          snsClient,
+          stsClient,
+          {
+            topicName,
+            startupResourcePolling: { enabled: true, pollingIntervalMs: 50, timeoutMs: 200 },
+          },
+          { topic: { Name: 'sns-initter-other-topic' }, queue: { QueueName: queueName } },
+          { updateAttributesIfExists: false },
+        )
+
+        expect(result?.topicArn).toBe(topicArn)
+        // Located topic takes precedence: it is neither created nor waited for
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(CreateTopicCommand))
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(GetTopicAttributesCommand))
+      })
+
+      it('locates queue without creating it when queue creation config is also provided', async () => {
+        await testAdmin.createTopic(topicName)
+        await testAdmin.createQueue(queueName)
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+        const result = await initSnsSqs(
+          sqsClient,
+          snsClient,
+          stsClient,
+          { topicName, queueName },
+          { queue: { QueueName: 'sns-initter-other-queue' } },
+          { updateAttributesIfExists: false },
+        )
+
+        expect(result).toMatchObject({ queueName, queueUrl })
+        // Located queue takes precedence: it is not created
+        expect(sqsSpy).not.toHaveBeenCalledWith(expect.any(CreateQueueCommand))
       })
 
       it('ignores subscription pending confirmation when locating it', async () => {
@@ -454,6 +499,46 @@ describe('snsInitter', () => {
           expect(result?.queueName).toBe(queueName)
         })
 
+        it('creates subscription in background when located queue becomes available', async () => {
+          const topicArn = await testAdmin.createTopic(topicName)
+          const onResourcesReady = vi.fn()
+
+          const result = await initSnsSqs(
+            sqsClient,
+            snsClient,
+            stsClient,
+            {
+              topicName,
+              queueName,
+              startupResourcePolling: {
+                enabled: true,
+                pollingIntervalMs: 50,
+                timeoutMs: 5000,
+                nonBlocking: true,
+              },
+            },
+            undefined,
+            { updateAttributesIfExists: false },
+            { onResourcesReady },
+          )
+
+          expect(result).toBeUndefined()
+
+          const { queueArn } = await testAdmin.createQueue(queueName)
+
+          await waitAndRetry(() => onResourcesReady.mock.calls.length > 0, 50, 40)
+          expect(onResourcesReady).toHaveBeenCalledTimes(1)
+          const subscription = await findSubscriptionByTopicAndQueue(snsClient, topicArn, queueArn)
+          expect(subscription).toBeDefined()
+          expect(onResourcesReady).toHaveBeenCalledWith({
+            topicArn,
+            queueUrl,
+            queueArn,
+            queueName,
+            subscriptionArn: subscription?.SubscriptionArn,
+          })
+        })
+
         it('invokes onResourcesError callback when topic polling times out in non-blocking mode', async () => {
           // No topic exists - will timeout
 
@@ -532,10 +617,8 @@ describe('snsInitter', () => {
 
           const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
 
-          await vi.waitFor(() => expect(onResourcesReady).toHaveBeenCalledTimes(1), {
-            timeout: 2000,
-            interval: 50,
-          })
+          await waitAndRetry(() => onResourcesReady.mock.calls.length > 0, 50, 40)
+          expect(onResourcesReady).toHaveBeenCalledTimes(1)
           expect(onResourcesReady).toHaveBeenCalledWith({
             topicArn,
             queueUrl,

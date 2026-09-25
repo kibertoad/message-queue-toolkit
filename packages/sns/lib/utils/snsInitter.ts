@@ -170,8 +170,8 @@ async function resolveTopicArn(
 type ResolvedQueue = { queueUrl: string; queueArn: string; queueName: string }
 
 /**
- * Queue is created when creation config is given, otherwise it is located.
- * Creation config takes precedence.
+ * Queue is located when the locator references it, otherwise it is created.
+ * Locator takes precedence.
  */
 async function resolveQueue(
   sqsClient: SQSClient,
@@ -179,7 +179,13 @@ async function resolveQueue(
   creationConfig: (SNSCreationConfig & SQSCreationConfig) | undefined,
   options: ResourceResolutionOptions,
 ): Promise<ResolvedQueue> {
-  if (creationConfig?.queue) {
+  if (!locatorConfig?.queueUrl && !locatorConfig?.queueName) {
+    if (!creationConfig?.queue) {
+      throw new Error(
+        'Either creationConfig.queue, locatorConfig.queueUrl or locatorConfig.queueName must be provided',
+      )
+    }
+
     return assertQueue(sqsClient, creationConfig.queue, {
       topicArnsWithPublishPermissionsPrefix: creationConfig.topicArnsWithPublishPermissionsPrefix,
       updateAttributesIfExists: creationConfig.updateAttributesIfExists,
@@ -325,12 +331,15 @@ function validateInitSnsSqsConfig(
       'Either creationConfig.queue is mandatory in order to create the queue, or locatorConfig.queueUrl or locatorConfig.queueName is mandatory in order to locate the existing queue',
     )
   }
-  if (creationConfig?.queue && !creationConfig.queue.QueueName) {
+  // Queue creation config is ignored when the queue is located
+  const isQueueCreated =
+    !!creationConfig?.queue && !locatorConfig?.queueUrl && !locatorConfig?.queueName
+  if (isQueueCreated && !creationConfig?.queue?.QueueName) {
     throw new Error(
       'If locatorConfig.subscriptionArn is not specified, creationConfig.queue.QueueName parameter is mandatory, as there will be an attempt to create the missing queue',
     )
   }
-  if (!subscriptionConfig && creationConfig?.queue) {
+  if (isQueueCreated && !subscriptionConfig) {
     throw new Error(
       'If creationConfig.queue is specified, subscriptionConfig is mandatory, as the subscription of a queue being created cannot be located',
     )
@@ -342,8 +351,8 @@ function validateInitSnsSqsConfig(
  * resource is resolved independently:
  * - Topic: located when `locatorConfig.topicArn` or `locatorConfig.topicName` is given, otherwise
  *   created from `creationConfig.topic`.
- * - Queue: created when `creationConfig.queue` is given, otherwise located from
- *   `locatorConfig.queueUrl` or `locatorConfig.queueName`.
+ * - Queue: located when `locatorConfig.queueUrl` or `locatorConfig.queueName` is given, otherwise
+ *   created from `creationConfig.queue`.
  * - Subscription: created (or updated) when `subscriptionConfig` is given, otherwise located by
  *   looking up the queue's subscription on the topic.
  *
