@@ -156,7 +156,8 @@ async function updateExistingQueue(
   return {
     queueUrl,
     queueArn,
-    queueName: queueConfig.QueueName,
+    // biome-ignore lint/style/noNonNullAssertion: Should always be defined at this stage
+    queueName: queueConfig.QueueName!,
   }
 }
 
@@ -226,9 +227,9 @@ export async function assertQueue(
   }
 
   return {
+    queueName,
     queueArn,
     queueUrl: newQueueUrlResult.result,
-    queueName: queueConfig.QueueName,
   }
 }
 
