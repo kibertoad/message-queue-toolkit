@@ -376,6 +376,8 @@ describe('snsInitter', () => {
 
       describe('when subscription is created', () => {
         it('returns immediately in non-blocking mode when topic not available', async () => {
+          const onResourcesError = vi.fn()
+
           const result = await initSnsSqs(
             sqsClient,
             snsClient,
@@ -385,8 +387,9 @@ describe('snsInitter', () => {
               // No subscriptionArn
               startupResourcePolling: {
                 enabled: true,
-                pollingIntervalMs: 100,
-                timeoutMs: 5000,
+                pollingIntervalMs: 50,
+                // Short timeout so background polling does not outlive the test
+                timeoutMs: 200,
                 nonBlocking: true,
               },
             },
@@ -394,11 +397,16 @@ describe('snsInitter', () => {
               queue: { QueueName: queueName },
             },
             { updateAttributesIfExists: false },
+            { onResourcesError },
           )
 
           // Should return immediately (resources not ready in non-blocking mode);
           // subscription will be created in background via onResourcesReady.
           expect(result).toBeUndefined()
+
+          // Wait for background polling to give up, so it can't create resources used by other tests
+          await waitAndRetry(() => onResourcesError.mock.calls.length > 0, 50, 40)
+          expect(onResourcesError).toHaveBeenCalledWith(expect.any(Error), { isFinal: true })
         })
 
         it('creates subscription in background when topic becomes available in non-blocking mode', async () => {
