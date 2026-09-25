@@ -332,17 +332,18 @@ function validateInitSnsSqsConfig(
     )
   }
   // Queue creation config is ignored when the queue is located
-  const isQueueCreated =
-    !!creationConfig?.queue && !locatorConfig?.queueUrl && !locatorConfig?.queueName
-  if (isQueueCreated && !creationConfig?.queue?.QueueName) {
-    throw new Error(
-      'If locatorConfig.subscriptionArn is not specified, creationConfig.queue.QueueName parameter is mandatory, as there will be an attempt to create the missing queue',
-    )
-  }
-  if (isQueueCreated && !subscriptionConfig) {
-    throw new Error(
-      'If creationConfig.queue is specified, subscriptionConfig is mandatory, as the subscription of a queue being created cannot be located',
-    )
+  const isQueueLocated = !!(locatorConfig?.queueUrl || locatorConfig?.queueName)
+  if (!isQueueLocated && creationConfig?.queue) {
+    if (!creationConfig.queue.QueueName) {
+      throw new Error(
+        'If locatorConfig.subscriptionArn is not specified, creationConfig.queue.QueueName parameter is mandatory, as there will be an attempt to create the missing queue',
+      )
+    }
+    if (!subscriptionConfig) {
+      throw new Error(
+        'If creationConfig.queue is specified, subscriptionConfig is mandatory, as the subscription of a queue being created cannot be located',
+      )
+    }
   }
 }
 

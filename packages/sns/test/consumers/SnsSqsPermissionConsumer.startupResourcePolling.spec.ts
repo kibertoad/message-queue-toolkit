@@ -1,12 +1,13 @@
 import { setTimeout } from 'node:timers/promises'
 import type { SNSClient } from '@aws-sdk/client-sns'
+import { waitAndRetry } from '@lokalise/node-core'
 import {
   MessageHandlerConfigBuilder,
   NO_TIMEOUT,
   StartupResourcePollingTimeoutError,
 } from '@message-queue-toolkit/core'
 import type { AwilixContainer } from 'awilix'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import {
   AbstractSnsSqsConsumer,
   type SNSSQSConsumerDependencies,
@@ -427,12 +428,8 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       const topicArn = await testAdmin.createTopic(topicName)
 
       // Wait for consumer to start running (happens when resources become ready)
-      await vi.waitFor(
-        () => {
-          expect(consumer.isRunning).toBe(true)
-        },
-        { timeout: 3000, interval: 50 },
-      )
+      await waitAndRetry(() => consumer.isRunning, 50, 60)
+      expect(consumer.isRunning).toBe(true)
 
       // Verify topicArn was updated
       expect(consumer.subscriptionProps.topicArn).toBe(topicArn)

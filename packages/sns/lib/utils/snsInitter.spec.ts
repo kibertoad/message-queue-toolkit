@@ -264,13 +264,9 @@ describe('snsInitter', () => {
           // Create topic after init returns
           await testAdmin.createTopic(topicName)
 
-          // Wait for callback to be invoked using vi.waitFor (more reliable than fixed timeout)
-          await vi.waitFor(
-            () => {
-              expect(callbackInvoked).toBe(true)
-            },
-            { timeout: 2000, interval: 50 },
-          )
+          // Wait for callback to be invoked
+          await waitAndRetry(() => callbackInvoked, 50, 40)
+          expect(callbackInvoked).toBe(true)
 
           expect(callbackTopicArn).toBeDefined()
           expect(callbackQueueUrl).toBe(queueUrl)
@@ -320,12 +316,8 @@ describe('snsInitter', () => {
           // Wait for error callback to be invoked (queue polling timeout)
           // Need to wait for: topic to become available (so topic polling succeeds)
           // + queue polling timeout (200ms) + some buffer
-          await vi.waitFor(
-            () => {
-              expect(errorCallbackInvoked).toBe(true)
-            },
-            { timeout: 3000, interval: 50 },
-          )
+          await waitAndRetry(() => errorCallbackInvoked, 50, 60)
+          expect(errorCallbackInvoked).toBe(true)
 
           expect(callbackError).toBeDefined()
           expect(callbackError?.message).toContain('Timeout')
@@ -373,12 +365,8 @@ describe('snsInitter', () => {
           // Don't create topic - let it timeout
 
           // Wait for error callback to be invoked (topic polling timeout)
-          await vi.waitFor(
-            () => {
-              expect(errorCallbackInvoked).toBe(true)
-            },
-            { timeout: 2000, interval: 50 },
-          )
+          await waitAndRetry(() => errorCallbackInvoked, 50, 40)
+          expect(errorCallbackInvoked).toBe(true)
 
           expect(callbackError).toBeDefined()
           expect(callbackError?.message).toContain('Timeout')
@@ -455,12 +443,8 @@ describe('snsInitter', () => {
           const topicArn = await testAdmin.createTopic(topicName)
 
           // Wait for callback to be invoked (subscription created in background)
-          await vi.waitFor(
-            () => {
-              expect(callbackInvoked).toBe(true)
-            },
-            { timeout: 3000, interval: 50 },
-          )
+          await waitAndRetry(() => callbackInvoked, 50, 60)
+          expect(callbackInvoked).toBe(true)
 
           expect(callbackTopicArn).toBe(topicArn)
           expect(callbackQueueUrl).toContain(queueName)
@@ -577,12 +561,8 @@ describe('snsInitter', () => {
           expect(result).toBeUndefined()
 
           // Wait for error callback to be invoked (topic polling timeout)
-          await vi.waitFor(
-            () => {
-              expect(errorCallbackInvoked).toBe(true)
-            },
-            { timeout: 2000, interval: 50 },
-          )
+          await waitAndRetry(() => errorCallbackInvoked, 50, 40)
+          expect(errorCallbackInvoked).toBe(true)
 
           expect(callbackError).toBeDefined()
           expect(callbackError?.message).toContain('Timeout')
