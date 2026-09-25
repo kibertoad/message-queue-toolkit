@@ -15,6 +15,7 @@ import {
   type SNSSQSConsumerOptions,
 } from '../../lib/sns/AbstractSnsSqsConsumer.ts'
 import { initSnsSqs } from '../../lib/utils/snsInitter.ts'
+import { findSubscriptionByTopicAndQueue } from '../../lib/utils/snsUtils.ts'
 import { getPort } from '../utils/fauxqsInstance.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
@@ -26,7 +27,7 @@ import {
 
 type TestConsumerOptions = Pick<
   SNSSQSConsumerOptions<PERMISSIONS_ADD_MESSAGE_TYPE, undefined, undefined>,
-  'locatorConfig' | 'creationConfig'
+  'locatorConfig' | 'creationConfig' | 'subscriptionConfig'
 >
 
 // Simple consumer for testing startup resource polling
@@ -864,6 +865,100 @@ describe('SnsSqsPermissionConsumer - startupResourcePollingConfig', () => {
       expect(callbackError).toBeDefined()
       expect(callbackError?.message).toContain('Timeout')
       expect(callbackContext).toEqual({ isFinal: true })
+    })
+  })
+
+  describe('when subscription is located (subscriptionConfig is not provided)', () => {
+    it('waits for subscription to become available and initializes successfully', async () => {
+      const topicArn = await testAdmin.createTopic(topicName)
+      const { queueArn } = await testAdmin.createQueue(queueName)
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName,
+          queueUrl,
+          startupResourcePolling: { enabled: true, pollingIntervalMs: 100, timeoutMs: 5000 },
+        },
+        subscriptionConfig: undefined,
+      })
+
+      const initPromise = consumer.init()
+
+      // Wait a bit then subscribe the queue, as infrastructure tooling would do
+      await setTimeout(300)
+      const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+
+      await initPromise
+
+      expect(consumer.subscriptionProps.subscriptionArn).toBe(subscriptionArn)
+      expect(consumer.subscriptionProps.topicArn).toBe(topicArn)
+      expect(consumer.subscriptionProps.queueUrl).toBe(queueUrl)
+    })
+
+    it('throws StartupResourcePollingTimeoutError when subscription never appears', async () => {
+      await testAdmin.createTopic(topicName)
+      await testAdmin.createQueue(queueName)
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName,
+          queueUrl,
+          startupResourcePolling: { enabled: true, pollingIntervalMs: 50, timeoutMs: 200 },
+        },
+        subscriptionConfig: undefined,
+      })
+
+      await expect(consumer.init()).rejects.toThrow(StartupResourcePollingTimeoutError)
+    })
+
+    it('waits for queue located by name to become available', async () => {
+      const topicArn = await testAdmin.createTopic(topicName)
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName,
+          queueName,
+          startupResourcePolling: { enabled: true, pollingIntervalMs: 100, timeoutMs: 5000 },
+        },
+        subscriptionConfig: undefined,
+      })
+
+      const initPromise = consumer.init()
+
+      await setTimeout(300)
+      const { queueArn } = await testAdmin.createQueue(queueName)
+      const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+
+      await initPromise
+
+      expect(consumer.subscriptionProps.subscriptionArn).toBe(subscriptionArn)
+      expect(consumer.subscriptionProps.queueName).toBe(queueName)
+    })
+  })
+
+  describe('when topic and queue are located and subscription is created', () => {
+    it('waits for queue to become available before creating subscription', async () => {
+      const topicArn = await testAdmin.createTopic(topicName)
+
+      const consumer = new TestStartupResourcePollingConsumer(diContainer.cradle, {
+        locatorConfig: {
+          topicName,
+          queueName,
+          startupResourcePolling: { enabled: true, pollingIntervalMs: 100, timeoutMs: 5000 },
+        },
+      })
+
+      const initPromise = consumer.init()
+
+      await setTimeout(300)
+      const { queueArn } = await testAdmin.createQueue(queueName)
+
+      await initPromise
+
+      const subscription = await findSubscriptionByTopicAndQueue(snsClient, topicArn, queueArn)
+      expect(subscription).toBeDefined()
+      expect(consumer.subscriptionProps.subscriptionArn).toBe(subscription?.SubscriptionArn)
+      expect(consumer.subscriptionProps.queueName).toBe(queueName)
     })
   })
 

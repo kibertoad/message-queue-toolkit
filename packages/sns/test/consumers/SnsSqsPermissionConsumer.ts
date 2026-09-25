@@ -34,6 +34,7 @@ type SnsSqsPermissionConsumerOptions = Pick<
   SNSSQSConsumerOptions<SupportedMessages, ExecutionContext, PreHandlerOutput>,
   | 'creationConfig'
   | 'locatorConfig'
+  | 'subscriptionConfig'
   | 'deletionConfig'
   | 'deadLetterQueue'
   | 'subscriptionDeadLetterQueue'
@@ -168,9 +169,11 @@ export class SnsSqsPermissionConsumer extends AbstractSnsSqsConsumer<
               },
             }),
         messageTypeResolver: { messageTypePath: 'messageType' },
-        subscriptionConfig: {
-          updateAttributesIfExists: false,
-        },
+        // Passing subscriptionConfig as undefined locates the existing subscription instead
+        subscriptionConfig:
+          'subscriptionConfig' in options
+            ? options.subscriptionConfig
+            : { updateAttributesIfExists: false },
         maxRetryDuration: options.maxRetryDuration,
         concurrentConsumersAmount: options.concurrentConsumersAmount,
       },
