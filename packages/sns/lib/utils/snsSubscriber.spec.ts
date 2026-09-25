@@ -3,15 +3,12 @@ import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { subscribeToTopic } from '../../lib/utils/snsSubscriber.ts'
-import {
-  findSubscriptionByTopicAndQueue,
-  getSubscriptionAttributes,
-} from '../../lib/utils/snsUtils.ts'
-import { FakeLogger } from '../fakes/FakeLogger.ts'
-import type { TestAwsResourceAdmin } from './testAdmin.ts'
-import type { Dependencies } from './testContext.ts'
-import { registerDependencies } from './testContext.ts'
+import { FakeLogger } from '../../test/fakes/FakeLogger.ts'
+import type { TestAwsResourceAdmin } from '../../test/utils/testAdmin.ts'
+import type { Dependencies } from '../../test/utils/testContext.ts'
+import { registerDependencies } from '../../test/utils/testContext.ts'
+import { assertSubscription, subscribeToTopic } from './snsSubscriber.ts'
+import { findSubscriptionByTopicAndQueue, getSubscriptionAttributes } from './snsUtils.ts'
 
 const TOPIC_NAME = 'topic'
 const QUEUE_NAME = 'queue'
@@ -164,6 +161,113 @@ describe('snsSubscriber', () => {
           },
         },
       })
+    })
+  })
+
+  describe('assertSubscription', () => {
+    it('subscribes an existing queue to an existing topic', async () => {
+      const topicArn = await testAdmin.createTopic(TOPIC_NAME)
+      const { queueArn } = await testAdmin.createQueue(QUEUE_NAME)
+
+      const subscriptionArn = await assertSubscription(
+        snsClient,
+        topicArn,
+        queueArn,
+        { updateAttributesIfExists: false },
+        { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
+      )
+
+      const subscription = await findSubscriptionByTopicAndQueue(snsClient, topicArn, queueArn)
+      expect(subscriptionArn).toBe(subscription?.SubscriptionArn)
+    })
+
+    it('returns the existing subscription when it already exists with same attributes', async () => {
+      const topicArn = await testAdmin.createTopic(TOPIC_NAME)
+      const { queueArn } = await testAdmin.createQueue(QUEUE_NAME)
+      const existingSubscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+
+      const subscriptionArn = await assertSubscription(
+        snsClient,
+        topicArn,
+        queueArn,
+        { updateAttributesIfExists: false },
+        { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
+      )
+
+      expect(subscriptionArn).toBe(existingSubscriptionArn)
+    })
+
+    it('updates attributes of the existing subscription when they are different', async () => {
+      const topicArn = await testAdmin.createTopic(TOPIC_NAME)
+      const { queueArn } = await testAdmin.createQueue(QUEUE_NAME)
+      const existingSubscriptionArn = await assertSubscription(
+        snsClient,
+        topicArn,
+        queueArn,
+        {
+          Attributes: {
+            FilterPolicy: `{"type":["remove"]}`,
+            FilterPolicyScope: 'MessageAttributes',
+          },
+          updateAttributesIfExists: false,
+        },
+        { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
+      )
+
+      const subscriptionArn = await assertSubscription(
+        snsClient,
+        topicArn,
+        queueArn,
+        {
+          Attributes: { FilterPolicy: `{"type":["add"]}`, FilterPolicyScope: 'MessageBody' },
+          updateAttributesIfExists: true,
+        },
+        { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
+        new FakeLogger(),
+      )
+
+      expect(subscriptionArn).toBe(existingSubscriptionArn)
+      const subscriptionAttributes = await getSubscriptionAttributes(snsClient, subscriptionArn!)
+      expect(subscriptionAttributes.result?.attributes).toMatchObject({
+        FilterPolicy: `{"type":["add"]}`,
+        FilterPolicyScope: 'MessageBody',
+      })
+    })
+
+    it('throws when attributes are different and update is disabled', async () => {
+      const logger = new FakeLogger()
+      const topicArn = await testAdmin.createTopic(TOPIC_NAME)
+      const { queueArn } = await testAdmin.createQueue(QUEUE_NAME)
+      await assertSubscription(
+        snsClient,
+        topicArn,
+        queueArn,
+        {
+          Attributes: {
+            FilterPolicy: `{"type":["remove"]}`,
+            FilterPolicyScope: 'MessageAttributes',
+          },
+          updateAttributesIfExists: false,
+        },
+        { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
+      )
+
+      await expect(
+        assertSubscription(
+          snsClient,
+          topicArn,
+          queueArn,
+          {
+            Attributes: { FilterPolicy: `{"type":["add"]}`, FilterPolicyScope: 'MessageBody' },
+            updateAttributesIfExists: false,
+          },
+          { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
+          logger,
+        ),
+      ).rejects.toThrow(/Subscription already exists with different attributes/)
+      expect(logger.loggedErrors[0]).toMatch(
+        /^Error while creating subscription for queue "queue", topic "topic"/,
+      )
     })
   })
 })
