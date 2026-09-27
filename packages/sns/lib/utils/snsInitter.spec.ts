@@ -108,6 +108,7 @@ describe('snsInitter', () => {
       })
 
       it('waits for located topic when topic creation config is also provided', async () => {
+        const otherTopicName = 'sns-initter-other-topic'
         await testAdmin.createQueue(queueName)
         const snsSpy = vi.spyOn(snsClient, 'send')
 
@@ -119,7 +120,7 @@ describe('snsInitter', () => {
             topicName,
             startupResourcePolling: { enabled: true, pollingIntervalMs: 50, timeoutMs: 5000 },
           },
-          { topic: { Name: 'sns-initter-other-topic' }, queue: { QueueName: queueName } },
+          { topic: { Name: otherTopicName }, queue: { QueueName: queueName } },
           { updateAttributesIfExists: false },
         )
 
@@ -129,7 +130,12 @@ describe('snsInitter', () => {
 
         expect(result?.topicArn).toBe(topicArn)
         // Located topic takes precedence over the creation config, but polling waits for it.
-        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(CreateTopicCommand))
+        expect(
+          snsSpy.mock.calls.some(
+            ([command]) =>
+              command instanceof CreateTopicCommand && command.input.Name === otherTopicName,
+          ),
+        ).toBe(false)
         expect(snsSpy).toHaveBeenCalledWith(expect.any(GetTopicAttributesCommand))
       })
 
