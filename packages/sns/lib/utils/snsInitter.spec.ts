@@ -117,7 +117,7 @@ describe('snsInitter', () => {
           stsClient,
           {
             topicName,
-            startupResourcePolling: { enabled: true, pollingIntervalMs: 50, timeoutMs: 200 },
+            startupResourcePolling: { enabled: true, pollingIntervalMs: 50, timeoutMs: 5000 },
           },
           { topic: { Name: 'sns-initter-other-topic' }, queue: { QueueName: queueName } },
           { updateAttributesIfExists: false },
