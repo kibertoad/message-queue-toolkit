@@ -132,14 +132,12 @@ async function resolveTopicArn(
   creationConfig: (SNSCreationConfig & SQSCreationConfig) | undefined,
   options: ResourceResolutionOptions,
 ): Promise<string> {
-  const locatedTopicArn =
+  const topicArn =
     locatorConfig?.topicArn ??
     (locatorConfig?.topicName ? await buildTopicArn(stsClient, locatorConfig.topicName) : undefined)
 
-  if (locatedTopicArn) {
-    const topicArn = locatedTopicArn
-    // A topic that also has creation config is never waited for nor checked
-    if (creationConfig?.topic || (!options.polling && !options.checkLocatedTopic)) return topicArn
+  if (topicArn) {
+    if (!options.polling && !options.checkLocatedTopic) return topicArn
 
     return await waitForOrCheckResource<string>(
       `SNS topic ${topicArn}`,

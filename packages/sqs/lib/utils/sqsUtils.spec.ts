@@ -1,12 +1,14 @@
-import type { GetQueueAttributesCommandOutput, SQSClient } from '@aws-sdk/client-sqs'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { type GetQueueAttributesCommandOutput, SQSClient } from '@aws-sdk/client-sqs'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { TEST_AWS_CONFIG } from '../../test/utils/testAwsConfig.ts'
 import {
   detectFifoQueue,
   getQueueAttributes,
+  getQueueUrl,
   isFifoQueueName,
   validateFifoQueueConfiguration,
   validateFifoQueueName,
-} from '../../lib/utils/sqsUtils.ts'
+} from './sqsUtils.ts'
 
 describe('sqsUtils - FIFO', () => {
   describe('isFifoQueueName', () => {
@@ -313,6 +315,20 @@ describe('sqsUtils - FIFO', () => {
           'http://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
         ),
       ).rejects.toThrow('Some other error')
+    })
+  })
+
+  describe('getQueueUrl', () => {
+    let sqsClient: SQSClient
+
+    beforeAll(() => (sqsClient = new SQSClient(TEST_AWS_CONFIG)))
+
+    afterAll(() => sqsClient.destroy())
+
+    it('returns not_found when AWS reports a missing queue by exception name', async () => {
+      const result = await getQueueUrl(sqsClient, 'sqs-utils-missing-queue')
+
+      expect(result).toEqual({ error: 'not_found' })
     })
   })
 })

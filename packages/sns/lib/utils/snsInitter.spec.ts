@@ -107,12 +107,11 @@ describe('snsInitter', () => {
         ).rejects.toThrow(/Subscription of queue .* to topic .* does not exist/)
       })
 
-      it('uses located topic without checking it when topic creation config is also provided', async () => {
-        const topicArn = await testAdmin.createTopic(topicName)
+      it('waits for located topic when topic creation config is also provided', async () => {
         await testAdmin.createQueue(queueName)
         const snsSpy = vi.spyOn(snsClient, 'send')
 
-        const result = await initSnsSqs(
+        const initPromise = initSnsSqs(
           sqsClient,
           snsClient,
           stsClient,
@@ -124,10 +123,14 @@ describe('snsInitter', () => {
           { updateAttributesIfExists: false },
         )
 
+        await setTimeout(300)
+        const topicArn = await testAdmin.createTopic(topicName)
+        const result = await initPromise
+
         expect(result?.topicArn).toBe(topicArn)
-        // Located topic takes precedence: it is neither created nor waited for
+        // Located topic takes precedence over the creation config, but polling waits for it.
         expect(snsSpy).not.toHaveBeenCalledWith(expect.any(CreateTopicCommand))
-        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(GetTopicAttributesCommand))
+        expect(snsSpy).toHaveBeenCalledWith(expect.any(GetTopicAttributesCommand))
       })
 
       it('locates queue without creating it when queue creation config is also provided', async () => {
