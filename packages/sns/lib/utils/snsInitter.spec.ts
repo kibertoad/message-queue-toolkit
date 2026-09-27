@@ -129,12 +129,8 @@ describe('snsInitter', () => {
 
         expect(result?.topicArn).toBe(topicArn)
         // Located topic takes precedence over the creation config, but polling waits for it.
-        expect(
-          snsSpy.mock.calls.some(([command]) => command.constructor === CreateTopicCommand),
-        ).toBe(false)
-        expect(
-          snsSpy.mock.calls.some(([command]) => command.constructor === GetTopicAttributesCommand),
-        ).toBe(true)
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(CreateTopicCommand))
+        expect(snsSpy).toHaveBeenCalledWith(expect.any(GetTopicAttributesCommand))
       })
 
       it('locates queue without creating it when queue creation config is also provided', async () => {
