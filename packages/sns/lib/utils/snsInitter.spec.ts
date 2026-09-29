@@ -226,7 +226,7 @@ describe('snsInitter', () => {
             { queue: { QueueName: queueName } },
           ),
         ).rejects.toThrow(
-          'If creationConfig.queue is specified, subscriptionConfig is mandatory, as the subscription of a queue being created cannot be located',
+          'If creationConfig.queue is specified, a subscriptionConfig without locateOnly is mandatory, as the subscription of a queue being created cannot be located',
         )
       })
     })

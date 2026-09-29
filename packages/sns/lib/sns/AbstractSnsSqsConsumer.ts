@@ -132,7 +132,12 @@ export abstract class AbstractSnsSqsConsumer<
   }
 
   override async init(): Promise<void> {
-    if (this.deletionConfig && this.creationConfig && this.subscriptionConfig) {
+    if (
+      this.deletionConfig &&
+      this.creationConfig &&
+      this.subscriptionConfig &&
+      !this.subscriptionConfig.locateOnly
+    ) {
       await deleteSnsSqs(
         this.sqsClient,
         this.snsClient,
@@ -144,7 +149,7 @@ export abstract class AbstractSnsSqsConsumer<
         undefined,
         this.locatorConfig,
       )
-    } else if (this.deletionConfig && this.creationConfig) {
+    } else if (this.deletionConfig && this.creationConfig && !this.subscriptionConfig?.locateOnly) {
       await deleteSqs(this.sqsClient, this.deletionConfig, this.creationConfig)
     }
 

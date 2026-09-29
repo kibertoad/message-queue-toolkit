@@ -20,10 +20,31 @@ import {
 import { assertTopic, findSubscriptionByTopicAndQueue } from './snsUtils.ts'
 import { buildTopicArn } from './stsUtils.ts'
 
-export type SNSSubscriptionOptions = Omit<
-  SubscribeCommandInput,
-  'TopicArn' | 'Endpoint' | 'Protocol' | 'ReturnSubscriptionArn'
-> & { updateAttributesIfExists: boolean }
+/**
+ * Options for the subscription of a queue to a topic.
+ *
+ * There are two modes for this config:
+ * 1. Creation (default): the subscription is created, or updated if it already exists.
+ * 2. Locate only: for subscriptions managed externally. The subscription is only located, never created,
+ *  and the given attributes (e.g. `FilterPolicy`) are applied to it.
+ */
+export type SNSSubscriptionOptions =
+  /** Creation */
+  | (Omit<SubscribeCommandInput, 'TopicArn' | 'Endpoint' | 'Protocol' | 'ReturnSubscriptionArn'> & {
+      updateAttributesIfExists: boolean
+      /** Should not be present when the subscription is created */
+      locateOnly?: never
+    })
+  /** Locate only */
+  | {
+      /** Marks the subscription as located only */
+      locateOnly: true
+      /** Attributes applied to the located subscription */
+      Attributes?: SubscribeCommandInput['Attributes']
+    }
+
+/** Subscription options that create the subscription, required when subscribing */
+export type SNSSubscriptionCreationOptions = Exclude<SNSSubscriptionOptions, { locateOnly: true }>
 
 async function resolveTopicArnToSubscribeTo(
   snsClient: SNSClient,
@@ -61,7 +82,7 @@ export async function subscribeToTopic(
   stsClient: STSClient,
   queueConfiguration: CreateQueueCommandInput,
   topicConfiguration: TopicResolutionOptions,
-  subscriptionConfiguration: SNSSubscriptionOptions,
+  subscriptionConfiguration: SNSSubscriptionCreationOptions,
   extraParams?: ExtraSNSCreationParams & ExtraSQSCreationParams & ExtraParams,
 ) {
   const topicArn = await resolveTopicArnToSubscribeTo(
@@ -103,7 +124,7 @@ export async function assertSubscription(
   snsClient: SNSClient,
   topicArn: string,
   queueArn: string,
-  subscriptionConfiguration: SNSSubscriptionOptions,
+  subscriptionConfiguration: SNSSubscriptionCreationOptions,
   errorContext: { queueName?: string; topicName?: string },
   logger?: CommonLogger,
 ): Promise<string | undefined> {
@@ -156,26 +177,38 @@ async function tryToUpdateSubscription(
   snsClient: SNSClient,
   topicArn: string,
   queueArn: string,
-  subscriptionConfiguration: SNSSubscriptionOptions,
+  subscriptionConfiguration: SNSSubscriptionCreationOptions,
 ) {
   const subscription = await findSubscriptionByTopicAndQueue(snsClient, topicArn, queueArn)
-  if (!subscription || !subscriptionConfiguration.Attributes) {
+  if (!subscription?.SubscriptionArn || !subscriptionConfiguration.Attributes) {
     return undefined
   }
 
-  const setSubscriptionAttributesCommands = Object.entries(
+  await setSubscriptionAttributes(
+    snsClient,
+    subscription.SubscriptionArn,
     subscriptionConfiguration.Attributes,
-  ).map(([key, value]) => {
-    return new SetSubscriptionAttributesCommand({
-      SubscriptionArn: subscription.SubscriptionArn,
-      AttributeName: key,
-      AttributeValue: value,
-    })
-  })
-
-  for (const command of setSubscriptionAttributesCommands) {
-    await snsClient.send(command)
-  }
+  )
 
   return subscription
+}
+
+/**
+ * Applies the given attributes to an existing subscription, one by one as SNS only allows setting a single
+ * attribute per call.
+ */
+export async function setSubscriptionAttributes(
+  snsClient: SNSClient,
+  subscriptionArn: string,
+  attributes: NonNullable<SubscribeCommandInput['Attributes']>,
+): Promise<void> {
+  for (const [key, value] of Object.entries(attributes)) {
+    await snsClient.send(
+      new SetSubscriptionAttributesCommand({
+        SubscriptionArn: subscriptionArn,
+        AttributeName: key,
+        AttributeValue: value,
+      }),
+    )
+  }
 }
