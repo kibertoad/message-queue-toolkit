@@ -28,6 +28,11 @@ export type SNSSQSCreationConfig = Omit<SQSCreationConfig, 'policyConfig'> & SNS
 
 export type SNSSQSQueueLocatorType = Partial<SQSQueueLocatorType> &
   SNSTopicLocatorType & {
+    /**
+     * @deprecated The subscription is located from the topic and queue locators, so its ARN is no longer needed.
+     * To avoid creating it, omit `subscriptionConfig` or use `subscriptionConfig.locateOnly`. It will be removed in
+     * the next major version.
+     */
     subscriptionArn?: string
   }
 
