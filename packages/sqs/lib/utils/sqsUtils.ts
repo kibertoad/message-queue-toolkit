@@ -49,12 +49,13 @@ export async function getQueueUrl(
       error: 'not_found',
     }
   } catch (err) {
-    // @ts-expect-error
-    if (err.Code === 'AWS.SimpleQueueService.NonExistentQueue') {
-      return {
-        error: 'not_found',
-      }
-    }
+    const error = err as { name?: unknown; Code?: unknown }
+
+    const isNotFound =
+      error.name === AWS_QUEUE_DOES_NOT_EXIST_ERROR_NAME ||
+      error.Code === 'AWS.SimpleQueueService.NonExistentQueue'
+    if (isNotFound) return { error: 'not_found' }
+
     throw err
   }
 }
@@ -156,7 +157,8 @@ async function updateExistingQueue(
   return {
     queueUrl,
     queueArn,
-    queueName: queueConfig.QueueName,
+    // biome-ignore lint/style/noNonNullAssertion: Should always be defined at this stage
+    queueName: queueConfig.QueueName!,
   }
 }
 
@@ -226,9 +228,9 @@ export async function assertQueue(
   }
 
   return {
+    queueName,
     queueArn,
     queueUrl: newQueueUrlResult.result,
-    queueName: queueConfig.QueueName,
   }
 }
 

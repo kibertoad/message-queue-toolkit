@@ -1,9 +1,22 @@
-import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
+import {
+  CreateTopicCommand,
+  SetSubscriptionAttributesCommand,
+  SetTopicAttributesCommand,
+  type SNSClient,
+  SubscribeCommand,
+} from '@aws-sdk/client-sns'
+import {
+  CreateQueueCommand,
+  ListQueueTagsCommand,
+  SetQueueAttributesCommand,
+  type SQSClient,
+  TagQueueCommand,
+} from '@aws-sdk/client-sqs'
 import { waitAndRetry } from '@lokalise/node-core'
 import { getQueueAttributes, type SQSMessage } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
 import { getPort } from '../utils/fauxqsInstance.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
@@ -20,6 +33,7 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
 
   let diContainer: AwilixContainer<Dependencies>
   let sqsClient: SQSClient
+  let snsClient: SNSClient
   let testAdmin: TestAwsResourceAdmin
 
   let publisher: SnsPermissionPublisher
@@ -28,6 +42,7 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
   beforeAll(async () => {
     diContainer = await registerDependencies({}, false)
     sqsClient = diContainer.cradle.sqsClient
+    snsClient = diContainer.cradle.snsClient
     testAdmin = diContainer.cradle.testAdmin
     publisher = diContainer.cradle.permissionPublisher
   })
@@ -127,6 +142,54 @@ describe('SnsSqsPermissionConsumer - dead letter queue', () => {
           maxReceiveCount: 3,
         }),
       })
+    })
+
+    it('does not modify any resource when all resources are located', async () => {
+      // Resources set up outside the library, as infrastructure tooling would do
+      const topicArn = await testAdmin.createTopic(topicName)
+      const { queueUrl: deadLetterQueueUrl, queueArn: deadLetterQueueArn } =
+        await testAdmin.createQueue(deadLetterQueueName)
+      const redrivePolicy = JSON.stringify({
+        deadLetterTargetArn: deadLetterQueueArn,
+        maxReceiveCount: 3,
+      })
+      const { queueUrl, queueArn } = await testAdmin.createQueue(queueName, {
+        attributes: { RedrivePolicy: redrivePolicy },
+      })
+      const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+      const sqsSpy = vi.spyOn(sqsClient, 'send')
+      const snsSpy = vi.spyOn(snsClient, 'send')
+
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        locatorConfig: { topicName, queueName },
+        subscriptionConfig: undefined,
+        deadLetterQueue: {
+          locatorConfig: { queueUrl: deadLetterQueueUrl },
+        },
+      })
+
+      await newConsumer.init()
+      expect(newConsumer.subscriptionProps).toMatchObject({
+        topicArn,
+        queueUrl,
+        subscriptionArn,
+        deadLetterQueueUrl,
+      })
+
+      // Resources are only located, none of them is created nor modified
+      for (const command of [CreateQueueCommand, SetQueueAttributesCommand, TagQueueCommand]) {
+        expect(sqsSpy).not.toHaveBeenCalledWith(expect.any(command))
+      }
+      for (const command of [
+        CreateTopicCommand,
+        SetTopicAttributesCommand,
+        SubscribeCommand,
+        SetSubscriptionAttributesCommand,
+      ]) {
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(command))
+      }
+      const attributes = await getQueueAttributes(sqsClient, queueUrl)
+      expect(attributes.result?.attributes?.RedrivePolicy).toBe(redrivePolicy)
     })
 
     it('should update attributes and tags', async () => {

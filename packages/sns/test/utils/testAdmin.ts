@@ -1,5 +1,5 @@
 import type { S3 } from '@aws-sdk/client-s3'
-import type { SNSClient } from '@aws-sdk/client-sns'
+import { type SNSClient, SubscribeCommand } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import { assertQueue, deleteQueue } from '@message-queue-toolkit/sqs'
@@ -81,6 +81,20 @@ export class TestAwsResourceAdmin {
       return topicArn
     }
     return await assertTopic(this.snsClient, this.stsClient, { Name: name })
+  }
+
+  async createSubscription(topicArn: string, queueArn: string): Promise<string> {
+    const { SubscriptionArn } = await this.snsClient.send(
+      new SubscribeCommand({
+        TopicArn: topicArn,
+        Endpoint: queueArn,
+        Protocol: 'sqs',
+        ReturnSubscriptionArn: true,
+      }),
+    )
+    if (!SubscriptionArn) throw new Error('Subscription ARN was not returned')
+
+    return SubscriptionArn
   }
 
   async deleteTopics(...topicNames: string[]) {

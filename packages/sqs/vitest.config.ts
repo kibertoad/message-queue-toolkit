@@ -6,6 +6,7 @@ export default defineConfig({
     globals: true,
     watch: false,
     mockReset: true,
+    restoreMocks: true,
     pool: 'threads',
     maxWorkers: 1,
     setupFiles: ['test/utils/vitest.setup.ts'],

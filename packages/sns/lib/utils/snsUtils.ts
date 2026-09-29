@@ -173,14 +173,21 @@ export async function findSubscriptionByTopicAndQueue(
   topicArn: string,
   queueArn: string,
 ) {
-  const listSubscriptionsCommand = new ListSubscriptionsByTopicCommand({
-    TopicArn: topicArn,
-  })
+  // ListSubscriptionsByTopic returns up to 100 subscriptions per page
+  let nextToken: string | undefined
+  do {
+    const listSubscriptionResult = await snsClient.send(
+      new ListSubscriptionsByTopicCommand({ TopicArn: topicArn, NextToken: nextToken }),
+    )
+    const subscription = listSubscriptionResult.Subscriptions?.find((entry) => {
+      return entry.Protocol === 'sqs' && entry.Endpoint === queueArn
+    })
+    if (subscription) return subscription
 
-  const listSubscriptionResult = await snsClient.send(listSubscriptionsCommand)
-  return listSubscriptionResult.Subscriptions?.find((entry) => {
-    return entry.Endpoint === queueArn
-  })
+    nextToken = listSubscriptionResult.NextToken
+  } while (nextToken)
+
+  return undefined
 }
 
 /**

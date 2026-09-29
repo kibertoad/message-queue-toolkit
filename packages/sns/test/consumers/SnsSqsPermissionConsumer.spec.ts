@@ -1,12 +1,12 @@
 import { setTimeout } from 'node:timers/promises'
-import { ListTagsForResourceCommand, type SNSClient } from '@aws-sdk/client-sns'
+import { ListTagsForResourceCommand, type SNSClient, SubscribeCommand } from '@aws-sdk/client-sns'
 import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import { waitAndRetry } from '@lokalise/node-core'
 import { getQueueAttributes } from '@message-queue-toolkit/sqs'
 import { type AwilixContainer, asFunction, asValue } from 'awilix'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { assertTopic } from '../../lib/utils/snsUtils.ts'
+import { assertTopic, findSubscriptionByTopicAndQueue } from '../../lib/utils/snsUtils.ts'
 import { SnsPermissionPublisher } from '../publishers/SnsPermissionPublisher.ts'
 import { getPort } from '../utils/fauxqsInstance.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
@@ -18,7 +18,7 @@ import type { PERMISSIONS_ADD_MESSAGE_TYPE } from './userConsumerSchemas.ts'
 describe('SnsSqsPermissionConsumer', () => {
   describe('init', () => {
     const queueName = 'some-queue'
-    const topicNome = 'some-topic'
+    const topicName = 'some-topic'
 
     const queueUrl = `http://sqs.eu-west-1.localstack:${getPort()}/000000000000/${queueName}`
 
@@ -35,9 +35,10 @@ describe('SnsSqsPermissionConsumer', () => {
       stsClient = diContainer.cradle.stsClient
       testAdmin = diContainer.cradle.testAdmin
     })
+
     beforeEach(async () => {
       await testAdmin.deleteQueues(queueName)
-      await testAdmin.deleteTopics(topicNome)
+      await testAdmin.deleteTopics(topicName)
     })
 
     // FixMe https://github.com/localstack/localstack/issues/9306
@@ -58,7 +59,7 @@ describe('SnsSqsPermissionConsumer', () => {
     it('does not create a new queue when queue locator with url is passed', async () => {
       await testAdmin.createQueue(queueName)
 
-      const arn = await testAdmin.createTopic(topicNome)
+      const arn = await testAdmin.createTopic(topicName)
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -81,7 +82,7 @@ describe('SnsSqsPermissionConsumer', () => {
     it('does not create a new queue when queue locator with name is passed', async () => {
       await testAdmin.createQueue(queueName)
 
-      const arn = await testAdmin.createTopic(topicNome)
+      const arn = await testAdmin.createTopic(topicName)
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
@@ -102,11 +103,11 @@ describe('SnsSqsPermissionConsumer', () => {
     })
 
     it('does not create a new topic when mixed locator is passed', async () => {
-      const arn = await testAdmin.createTopic(topicNome)
+      const arn = await testAdmin.createTopic(topicName)
 
       const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
         locatorConfig: {
-          topicName: topicNome,
+          topicName: topicName,
         },
         creationConfig: {
           queue: {
@@ -120,8 +121,44 @@ describe('SnsSqsPermissionConsumer', () => {
       expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
       expect(newConsumer.subscriptionProps.topicArn).toEqual(arn)
       expect(newConsumer.subscriptionProps.subscriptionArn).toMatch(
-        `arn:aws:sns:eu-west-1:000000000000:${topicNome}:`,
+        `arn:aws:sns:eu-west-1:000000000000:${topicName}:`,
       )
+    })
+
+    it('creates subscription when topic and queue locators are passed', async () => {
+      const topicArn = await testAdmin.createTopic(topicName)
+      const { queueArn } = await testAdmin.createQueue(queueName)
+
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        locatorConfig: { topicName, queueName },
+      })
+
+      await newConsumer.init()
+      const subscription = await findSubscriptionByTopicAndQueue(snsClient, topicArn, queueArn)
+      expect(subscription).toBeDefined()
+      expect(newConsumer.subscriptionProps.subscriptionArn).toBe(subscription?.SubscriptionArn)
+      expect(newConsumer.subscriptionProps.topicArn).toBe(topicArn)
+      expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
+      expect(newConsumer.subscriptionProps.queueName).toBe(queueName)
+    })
+
+    it('locates existing subscription when subscription config is not passed', async () => {
+      const topicArn = await testAdmin.createTopic(topicName)
+      const { queueArn } = await testAdmin.createQueue(queueName)
+      const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+      const snsSpy = vi.spyOn(snsClient, 'send')
+
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        locatorConfig: { topicName: topicName, queueName },
+        subscriptionConfig: undefined,
+      })
+
+      await newConsumer.init()
+      expect(newConsumer.subscriptionProps.subscriptionArn).toBe(subscriptionArn)
+      expect(newConsumer.subscriptionProps.topicArn).toBe(topicArn)
+      expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
+      // Subscription is only located, never created
+      expect(snsSpy).not.toHaveBeenCalledWith(expect.any(SubscribeCommand))
     })
 
     describe('tags update', () => {
@@ -151,7 +188,7 @@ describe('SnsSqsPermissionConsumer', () => {
         const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
           creationConfig: {
             topic: {
-              Name: topicNome,
+              Name: topicName,
             },
             queue: {
               QueueName: queueName,
@@ -229,7 +266,7 @@ describe('SnsSqsPermissionConsumer', () => {
         ]
 
         const arn = await assertTopic(snsClient, stsClient, {
-          Name: topicNome,
+          Name: topicName,
           Tags: initialTags,
         })
         const preTags = await getTopicTags(arn)
@@ -237,7 +274,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
         const consumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
           creationConfig: {
-            topic: { Name: topicNome, Tags: newTags },
+            topic: { Name: topicName, Tags: newTags },
             queue: { QueueName: queueName },
             forceTagUpdate: true,
           },
@@ -267,7 +304,7 @@ describe('SnsSqsPermissionConsumer', () => {
         ]
 
         const arn = await assertTopic(snsClient, stsClient, {
-          Name: topicNome,
+          Name: topicName,
           Tags: initialTags,
         })
         const preTags = await getTopicTags(arn)
@@ -275,13 +312,13 @@ describe('SnsSqsPermissionConsumer', () => {
 
         const consumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
           creationConfig: {
-            topic: { Name: topicNome, Tags: [{ Key: 'example', Value: 'should fail' }] },
+            topic: { Name: topicName, Tags: [{ Key: 'example', Value: 'should fail' }] },
             queue: { QueueName: queueName },
           },
         })
 
         await expect(consumer.init()).rejects.toThrowError(
-          `${topicNome} - Invalid parameter: Tags Reason: Topic already exists with different tags`,
+          `${topicName} - Invalid parameter: Tags Reason: Topic already exists with different tags`,
         )
       })
 
@@ -298,7 +335,7 @@ describe('SnsSqsPermissionConsumer', () => {
         ]
 
         const arn = await assertTopic(snsClient, stsClient, {
-          Name: topicNome,
+          Name: topicName,
           Tags: initialTopicTags,
         })
         const preTopicTags = await getTopicTags(arn)
@@ -320,7 +357,7 @@ describe('SnsSqsPermissionConsumer', () => {
 
         const consumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
           creationConfig: {
-            topic: { Name: topicNome, Tags: newTopicTags },
+            topic: { Name: topicName, Tags: newTopicTags },
             queue: { QueueName: queueName, tags: newQueueTags },
             forceTagUpdate: true,
           },
