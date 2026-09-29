@@ -226,8 +226,60 @@ describe('snsInitter', () => {
             { queue: { QueueName: queueName } },
           ),
         ).rejects.toThrow(
-          'If creationConfig.queue is specified, a subscriptionConfig without locateOnly is mandatory, as the subscription of a queue being created cannot be located',
+          'If creationConfig.queue is specified, subscriptionConfig is mandatory, as the subscription of a queue being created cannot be located',
         )
+      })
+
+      it('throws when queue creation config is provided with a locate-only subscription config', async () => {
+        await expect(
+          initSnsSqs(
+            sqsClient,
+            snsClient,
+            stsClient,
+            { topicName },
+            { queue: { QueueName: queueName } },
+            { locateOnly: true },
+          ),
+        ).rejects.toThrow(
+          'If subscriptionConfig.locateOnly is specified, both the topic and the queue must be located',
+        )
+      })
+
+      it('throws when topic creation config is provided with a locate-only subscription config', async () => {
+        await expect(
+          initSnsSqs(
+            sqsClient,
+            snsClient,
+            stsClient,
+            { queueName },
+            { topic: { Name: topicName }, queue: { QueueName: queueName } },
+            { locateOnly: true },
+          ),
+        ).rejects.toThrow(
+          'If subscriptionConfig.locateOnly is specified, both the topic and the queue must be located',
+        )
+      })
+
+      it('ignores creation config when topic and queue are located with a locate-only subscription config', async () => {
+        const topicArn = await testAdmin.createTopic(topicName)
+        const { queueArn } = await testAdmin.createQueue(queueName)
+        const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+        const snsSpy = vi.spyOn(snsClient, 'send')
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+        const result = await initSnsSqs(
+          sqsClient,
+          snsClient,
+          stsClient,
+          { topicName, queueName },
+          { topic: { Name: topicName }, queue: { QueueName: queueName } },
+          { locateOnly: true },
+        )
+
+        expect(result).toEqual({ topicArn, queueUrl, queueArn, queueName, subscriptionArn })
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(CreateTopicCommand))
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(SubscribeCommand))
+        expect(sqsSpy).not.toHaveBeenCalledWith(expect.any(CreateQueueCommand))
       })
     })
 

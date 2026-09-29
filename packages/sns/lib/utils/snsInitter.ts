@@ -343,15 +343,23 @@ function validateInitSnsSqsConfig(
   }
   // Queue creation config is ignored when the queue is located
   const isQueueLocated = !!(locatorConfig?.queueUrl || locatorConfig?.queueName)
+  const isTopicLocated = !!(locatorConfig?.topicArn || locatorConfig?.topicName)
+
+  // A subscription managed externally can only belong to a topic and a queue managed externally too
+  if (subscriptionConfig?.locateOnly && (!isTopicLocated || !isQueueLocated)) {
+    throw new Error(
+      'If subscriptionConfig.locateOnly is specified, both the topic and the queue must be located',
+    )
+  }
   if (!isQueueLocated && creationConfig?.queue) {
     if (!creationConfig.queue.QueueName) {
       throw new Error(
         'If locatorConfig.subscriptionArn is not specified, creationConfig.queue.QueueName parameter is mandatory, as there will be an attempt to create the missing queue',
       )
     }
-    if (!subscriptionConfig || subscriptionConfig.locateOnly) {
+    if (!subscriptionConfig) {
       throw new Error(
-        'If creationConfig.queue is specified, a subscriptionConfig without locateOnly is mandatory, as the subscription of a queue being created cannot be located',
+        'If creationConfig.queue is specified, subscriptionConfig is mandatory, as the subscription of a queue being created cannot be located',
       )
     }
   }
