@@ -78,7 +78,7 @@ type SQSDeadLetterQueueOptions =
   | {
       /**
        * A located DLQ can omit the redrive policy, in which case the redrive policy of the source queue is left
-       * untouched (e.g. when both queues are managed externally)
+       * untouched
        */
       locatorConfig: SQSQueueLocatorType
       creationConfig?: never

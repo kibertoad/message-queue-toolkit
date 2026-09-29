@@ -1,8 +1,10 @@
 import { setTimeout } from 'node:timers/promises'
 import {
   CreateTopicCommand,
+  GetSubscriptionAttributesCommand,
   GetTopicAttributesCommand,
   ListSubscriptionsByTopicCommand,
+  SetSubscriptionAttributesCommand,
   type SNSClient,
   SubscribeCommand,
 } from '@aws-sdk/client-sns'
@@ -179,6 +181,140 @@ describe('snsInitter', () => {
             queueName,
           }),
         ).rejects.toThrow(/Subscription of queue .* to topic .* does not exist/)
+      })
+    })
+
+    describe('locate-only subscription', () => {
+      const filterPolicy = JSON.stringify({ type: ['entity.created'] })
+      const getFilterPolicy = async (subscriptionArn: string) => {
+        const { Attributes } = await snsClient.send(
+          new GetSubscriptionAttributesCommand({ SubscriptionArn: subscriptionArn }),
+        )
+        return Attributes?.FilterPolicy
+      }
+
+      it('locates existing subscription and applies its attributes without subscribing', async () => {
+        const topicArn = await testAdmin.createTopic(topicName)
+        const { queueArn } = await testAdmin.createQueue(queueName)
+        const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+        const snsSpy = vi.spyOn(snsClient, 'send')
+
+        const result = await initSnsSqs(
+          sqsClient,
+          snsClient,
+          stsClient,
+          { topicName, queueName },
+          undefined,
+          { locateOnly: true, Attributes: { FilterPolicy: filterPolicy } },
+        )
+
+        expect(result).toEqual({ topicArn, queueUrl, queueArn, queueName, subscriptionArn })
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(SubscribeCommand))
+        expect(await getFilterPolicy(subscriptionArn)).toBe(filterPolicy)
+      })
+
+      it('does not update the subscription when no attributes are provided', async () => {
+        const topicArn = await testAdmin.createTopic(topicName)
+        const { queueArn } = await testAdmin.createQueue(queueName)
+        const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+        const snsSpy = vi.spyOn(snsClient, 'send')
+
+        const result = await initSnsSqs(
+          sqsClient,
+          snsClient,
+          stsClient,
+          { topicName, queueName },
+          undefined,
+          { locateOnly: true },
+        )
+
+        expect(result?.subscriptionArn).toBe(subscriptionArn)
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(SubscribeCommand))
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(SetSubscriptionAttributesCommand))
+      })
+
+      it('applies attributes to the subscription when its ARN is provided', async () => {
+        const topicArn = await testAdmin.createTopic(topicName)
+        const { queueArn } = await testAdmin.createQueue(queueName)
+        const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+        const snsSpy = vi.spyOn(snsClient, 'send')
+
+        const result = await initSnsSqs(
+          sqsClient,
+          snsClient,
+          stsClient,
+          { topicName, queueName, subscriptionArn },
+          undefined,
+          { locateOnly: true, Attributes: { FilterPolicy: filterPolicy } },
+        )
+
+        expect(result?.subscriptionArn).toBe(subscriptionArn)
+        // The subscription is not looked up, as its ARN is provided
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(ListSubscriptionsByTopicCommand))
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(SubscribeCommand))
+        expect(await getFilterPolicy(subscriptionArn)).toBe(filterPolicy)
+      })
+
+      it('throws without creating the subscription when it does not exist', async () => {
+        const topicArn = await testAdmin.createTopic(topicName)
+        const { queueArn } = await testAdmin.createQueue(queueName)
+
+        await expect(
+          initSnsSqs(sqsClient, snsClient, stsClient, { topicName, queueName }, undefined, {
+            locateOnly: true,
+            Attributes: { FilterPolicy: filterPolicy },
+          }),
+        ).rejects.toThrow(/Subscription of queue .* to topic .* does not exist/)
+        expect(await findSubscriptionByTopicAndQueue(snsClient, topicArn, queueArn)).toBeUndefined()
+      })
+
+      it('throws when the located topic does not exist', async () => {
+        await testAdmin.createQueue(queueName)
+
+        await expect(
+          initSnsSqs(sqsClient, snsClient, stsClient, { topicName, queueName }, undefined, {
+            locateOnly: true,
+          }),
+        ).rejects.toThrow(/Topic with topicArn .* does not exist/)
+      })
+
+      it('applies attributes once the subscription becomes available in non-blocking mode', async () => {
+        const topicArn = await testAdmin.createTopic(topicName)
+        const { queueArn } = await testAdmin.createQueue(queueName)
+        const onResourcesReady = vi.fn()
+
+        const result = await initSnsSqs(
+          sqsClient,
+          snsClient,
+          stsClient,
+          {
+            topicName,
+            queueName,
+            startupResourcePolling: {
+              enabled: true,
+              pollingIntervalMs: 50,
+              timeoutMs: 5000,
+              nonBlocking: true,
+            },
+          },
+          undefined,
+          { locateOnly: true, Attributes: { FilterPolicy: filterPolicy } },
+          { onResourcesReady },
+        )
+
+        expect(result).toBeUndefined()
+
+        const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+
+        await waitAndRetry(() => onResourcesReady.mock.calls.length > 0, 50, 40)
+        expect(onResourcesReady).toHaveBeenCalledWith({
+          topicArn,
+          queueUrl,
+          queueArn,
+          queueName,
+          subscriptionArn,
+        })
+        expect(await getFilterPolicy(subscriptionArn)).toBe(filterPolicy)
       })
     })
 
