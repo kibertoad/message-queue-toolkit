@@ -189,7 +189,7 @@ describe('snsInitter', () => {
             updateAttributesIfExists: false,
           }),
         ).rejects.toThrow(
-          /creationConfig.topic is mandatory .* OR locatorConfig.name or locatorConfig.topicArn parameter is mandatory/,
+          /creationConfig.topic is mandatory .* OR locatorConfig.topicName or locatorConfig.topicArn parameter is mandatory/,
         )
       })
 

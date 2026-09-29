@@ -177,7 +177,9 @@ async function resolveQueue(
   creationConfig: (SNSCreationConfig & SQSCreationConfig) | undefined,
   options: ResourceResolutionOptions,
 ): Promise<ResolvedQueue> {
-  if (!locatorConfig?.queueUrl && !locatorConfig?.queueName) {
+  const locatedQueueUrl = locatorConfig?.queueUrl
+  const locatedQueueName = locatorConfig?.queueName
+  if (!locatedQueueUrl && !locatedQueueName) {
     if (!creationConfig?.queue) {
       throw new Error(
         'Either creationConfig.queue, locatorConfig.queueUrl or locatorConfig.queueName must be provided',
@@ -191,26 +193,22 @@ async function resolveQueue(
     })
   }
 
-  const queueReference = locatorConfig?.queueUrl
-    ? `queueUrl ${locatorConfig.queueUrl}`
-    : `queueName ${locatorConfig?.queueName}`
+  const queueReference = locatedQueueUrl
+    ? `queueUrl ${locatedQueueUrl}`
+    : `queueName ${locatedQueueName}`
 
   return await waitForOrCheckResource<ResolvedQueue>(
     `SQS queue with ${queueReference}`,
     `Queue with ${queueReference} does not exist.`,
     async () => {
       // Queue URL is resolved on every check, so a queue located by name can be waited for as well
-      let queueUrl = locatorConfig?.queueUrl
-      if (!queueUrl) {
-        if (!locatorConfig?.queueName) {
-          throw new Error(
-            'Either locatorConfig.queueUrl or locatorConfig.queueName must be provided',
-          )
-        }
-        const queueUrlResult = await getQueueUrl(sqsClient, locatorConfig.queueName)
+      let queueUrl = locatedQueueUrl
+      if (!queueUrl && locatedQueueName) {
+        const queueUrlResult = await getQueueUrl(sqsClient, locatedQueueName)
         if (queueUrlResult.error === 'not_found') return { isAvailable: false }
         queueUrl = queueUrlResult.result
       }
+      if (!queueUrl) return { isAvailable: false }
 
       const queueAttributesResult = await getQueueAttributes(sqsClient, queueUrl, ['QueueArn'])
       if (queueAttributesResult.error === 'not_found') return { isAvailable: false }
@@ -321,7 +319,7 @@ function validateInitSnsSqsConfig(
 ): void {
   if (!creationConfig?.topic && !locatorConfig?.topicArn && !locatorConfig?.topicName) {
     throw new Error(
-      'If locatorConfig.subscriptionArn is not specified, creationConfig.topic is mandatory in order to attempt to create missing topic and subscribe to it OR locatorConfig.name or locatorConfig.topicArn parameter is mandatory, to create subscription for existing topic.',
+      'If locatorConfig.subscriptionArn is not specified, creationConfig.topic is mandatory in order to attempt to create missing topic and subscribe to it OR locatorConfig.topicName or locatorConfig.topicArn parameter is mandatory, to create subscription for existing topic.',
     )
   }
   if (!creationConfig?.queue && !locatorConfig?.queueUrl && !locatorConfig?.queueName) {
