@@ -110,7 +110,7 @@ Multi-schema consumers support multiple message types via handler configs. They 
         * `queueName`; (for SNS publishers this is a misnomer which actually refers to a topic name)
         * `locatorConfig` - configuration for resolving existing queue and/or topic. Should not be specified together with the `creationConfig`.
         * `creationConfig` - configuration for queue and/or topic to create, if one does not exist. Should not be specified together with the `locatorConfig`.
-        * `subscriptionConfig` - SNS SQS consumer only - configuration for SNS -> SQS subscription to create, if one doesn't exist.
+        * `subscriptionConfig` - SNS SQS consumer only - configuration for SNS -> SQS subscription to create, if one doesn't exist. With `locateOnly: true`, the subscription is only located (never created) and its `Attributes` (e.g. `FilterPolicy`) are applied to it, which requires the topic and the queue to be located too (see the [SNS README](packages/sns/README.md#resource-resolution)).
         * `policyConfig` - SQS only - configuration for queue access policies (see [SQS Policy Configuration](#sqs-policy-configuration) for more information);
         * `deletionConfig` - automatic cleanup of resources;
         * `consumerOverrides` – available only for SQS consumers;
@@ -337,7 +337,6 @@ const consumer = new MySnsSqsConsumer(dependencies, {
   locatorConfig: {
     topicArn: 'arn:aws:sns:...',
     queueUrl: 'https://sqs...',
-    subscriptionArn: '...',
     // Enable eventual consistency mode
     startupResourcePolling: {
       enabled: true,           // Enable polling for resource availability
@@ -474,7 +473,6 @@ const result = await initSnsSqs(
   {
     topicArn: '...',
     queueUrl: '...',
-    subscriptionArn: '...',
     startupResourcePolling: {
       enabled: true,
       timeoutMs: 5 * 60 * 1000,
@@ -485,7 +483,7 @@ const result = await initSnsSqs(
   undefined,
   {
     onResourcesReady: ({ topicArn, queueUrl }) => {
-      // Called only when BOTH topic and queue are available
+      // Called only when the topic, the queue and the subscription are all available
       console.log(`Resources ready: topic=${topicArn}, queue=${queueUrl}`)
     },
   },
