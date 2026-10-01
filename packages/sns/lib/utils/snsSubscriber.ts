@@ -255,7 +255,8 @@ async function writeSubscriptionAttributes(
       new SetSubscriptionAttributesCommand({
         SubscriptionArn: subscriptionArn,
         AttributeName: key,
-        AttributeValue: value,
+        // AWS rejects an empty RedrivePolicy, omitting the value is what removes it
+        AttributeValue: key === 'RedrivePolicy' && value === '' ? undefined : value,
       }),
     )
   }
@@ -263,7 +264,7 @@ async function writeSubscriptionAttributes(
 
 // Values that reset an attribute to the state of a subscription where it was never set
 const SUBSCRIPTION_ATTRIBUTE_UNSET_VALUES: Record<SubscriptionManagedAttributeName, string> = {
-  FilterPolicy: '',
+  FilterPolicy: '{}',
   FilterPolicyScope: 'MessageAttributes',
   RawMessageDelivery: 'false',
   RedrivePolicy: '',

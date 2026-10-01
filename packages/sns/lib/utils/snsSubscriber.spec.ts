@@ -397,7 +397,7 @@ describe('snsSubscriber', () => {
       ).toBe(false)
     })
 
-    // LocalStack rejects any RedrivePolicy value that is not a policy with a valid deadLetterTargetArn
+    // LocalStack cannot remove a RedrivePolicy: it rejects both an empty and an omitted value
     it.skipIf(isLocalstack)(
       'removes a managed redrive policy missing from the config',
       async () => {
@@ -413,6 +413,7 @@ describe('snsSubscriber', () => {
           },
           { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
         )
+        const sendSpy = vi.spyOn(snsClient, 'send')
 
         await assertSubscription(
           snsClient,
@@ -423,6 +424,18 @@ describe('snsSubscriber', () => {
           new FakeLogger(),
         )
 
+        const redrivePolicyWrite = sendSpy.mock.calls
+          .map(([command]) => command)
+          .find(
+            (command) =>
+              command instanceof SetSubscriptionAttributesCommand &&
+              command.input.AttributeName === 'RedrivePolicy',
+          )
+        expect(redrivePolicyWrite?.input).toEqual({
+          SubscriptionArn: subscriptionArn,
+          AttributeName: 'RedrivePolicy',
+          AttributeValue: undefined,
+        })
         const subscriptionAttributes = await getSubscriptionAttributes(snsClient, subscriptionArn!)
         expect(
           subscriptionAttributes.result?.attributes?.RedrivePolicy || undefined,
