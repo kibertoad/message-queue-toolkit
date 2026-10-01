@@ -1,6 +1,6 @@
 {
     "name": "@message-queue-toolkit/s3-payload-store",
-    "version": "4.0.1",
+    "version": "4.0.2",
     "private": false,
     "license": "MIT",
     "description": "AWS S3-based message store implementation for message-queue-toolkit",
