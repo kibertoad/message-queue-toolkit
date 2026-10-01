@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import type { SNSClient, SubscribeCommandInput } from '@aws-sdk/client-sns'
 import { SetSubscriptionAttributesCommand, SubscribeCommand } from '@aws-sdk/client-sns'
 import type { CreateQueueCommandInput, SQSClient } from '@aws-sdk/client-sqs'
@@ -17,7 +18,7 @@ import {
   isSNSTopicLocatorType,
   type TopicResolutionOptions,
 } from '../types/TopicTypes.ts'
-import { assertTopic, findSubscriptionByTopicAndQueue } from './snsUtils.ts'
+import { assertTopic, findConfirmedSubscriptionArn, getSubscriptionAttributes } from './snsUtils.ts'
 import { buildTopicArn } from './stsUtils.ts'
 
 /**
@@ -32,6 +33,12 @@ export type SNSSubscriptionOptions =
   /** Creation */
   | (Omit<SubscribeCommandInput, 'TopicArn' | 'Endpoint' | 'Protocol' | 'ReturnSubscriptionArn'> & {
       updateAttributesIfExists: boolean
+      /**
+       * When enabled, only `FilterPolicy` and `FilterPolicyScope` are managed. Other subscription
+       * attributes (e.g. `RawMessageDelivery`, `RedrivePolicy`) are neither checked nor written,
+       * and are expected to be set by external tooling such as Terraform.
+       */
+      manageOnlyFilterPolicy?: boolean
       /** Should not be present when the subscription is created */
       locateOnly?: never
     })
@@ -116,9 +123,10 @@ export async function subscribeToTopic(
 }
 
 /**
- * Subscribes an existing SQS queue to an existing SNS topic. Subscribing is idempotent, so an
- * existing subscription is returned as is, or has its attributes updated when they differ and
- * `updateAttributesIfExists` is enabled.
+ * Subscribes an existing SQS queue to an existing SNS topic. An existing subscription is checked
+ * with read-only calls first and is only written to when its attributes differ from the
+ * configured ones and `updateAttributesIfExists` is enabled. Only the differing attributes are
+ * written.
  */
 export async function assertSubscription(
   snsClient: SNSClient,
@@ -128,42 +136,65 @@ export async function assertSubscription(
   errorContext: { queueName?: string; topicName?: string },
   logger?: CommonLogger,
 ): Promise<string | undefined> {
-  const subscribeCommand = new SubscribeCommand({
-    TopicArn: topicArn,
-    Endpoint: queueArn,
-    Protocol: 'sqs',
-    ReturnSubscriptionArn: true,
-    ...subscriptionConfiguration,
-  })
+  const { updateAttributesIfExists, manageOnlyFilterPolicy, locateOnly, ...subscribeInput } =
+    subscriptionConfiguration
+  const attributes = resolveManagedAttributes(subscribeInput.Attributes, manageOnlyFilterPolicy)
+  const resolvedLogger = logger ?? console
+  const errMessagePrefix = `Error while creating subscription for queue "${errorContext.queueName}", topic "${errorContext.topicName}"`
+
+  const reconcileExistingSubscription = async (subscriptionArn: string) => {
+    const changedAttributes = await findChangedSubscriptionAttributes(
+      snsClient,
+      subscriptionArn,
+      attributes,
+    )
+    if (Object.keys(changedAttributes).length === 0) return subscriptionArn
+
+    const errMessage = `${errMessagePrefix}: Subscription already exists with different attributes: ${Object.keys(changedAttributes).join(', ')}`
+    if (!updateAttributesIfExists) {
+      resolvedLogger.error(errMessage)
+      throw new InternalError({
+        errorCode: 'sns_subscription_creation_failed',
+        message: errMessage,
+        details: { queueName: errorContext.queueName, topicArn },
+      })
+    }
+
+    resolvedLogger.warn(`${errMessage}. Updating subscription`)
+    await writeSubscriptionAttributes(snsClient, subscriptionArn, changedAttributes)
+    return subscriptionArn
+  }
+
+  const existingSubscriptionArn = await findConfirmedSubscriptionArn(snsClient, topicArn, queueArn)
+  if (existingSubscriptionArn) return reconcileExistingSubscription(existingSubscriptionArn)
 
   try {
-    const subscriptionResult = await snsClient.send(subscribeCommand)
+    const subscriptionResult = await snsClient.send(
+      new SubscribeCommand({
+        ...subscribeInput,
+        Attributes: attributes,
+        TopicArn: topicArn,
+        Endpoint: queueArn,
+        Protocol: 'sqs',
+        ReturnSubscriptionArn: true,
+      }),
+    )
     return subscriptionResult.SubscriptionArn
   } catch (err) {
     if (!isError(err)) throw err
 
-    const resolvedLogger = logger ?? console
-    const errMessage = `Error while creating subscription for queue "${errorContext.queueName}", topic "${errorContext.topicName}": ${err.message}`
-
-    if (
-      subscriptionConfiguration.updateAttributesIfExists &&
-      err.message.includes('Subscription already exists with different attributes')
-    ) {
-      resolvedLogger.warn(`${errMessage}. Trying to update subscription`)
-
-      const result = await tryToUpdateSubscription(
+    // Another instance may have created the subscription after the lookup above
+    if (err.message.includes('Subscription already exists with different attributes')) {
+      const concurrentSubscriptionArn = await findConfirmedSubscriptionArn(
         snsClient,
         topicArn,
         queueArn,
-        subscriptionConfiguration,
       )
-      if (result) return result.SubscriptionArn
-
-      resolvedLogger.error('Failed to update subscription')
-    } else {
-      resolvedLogger.error(errMessage)
+      if (concurrentSubscriptionArn) return reconcileExistingSubscription(concurrentSubscriptionArn)
     }
 
+    const errMessage = `${errMessagePrefix}: ${err.message}`
+    resolvedLogger.error(errMessage)
     throw new InternalError({
       errorCode: 'sns_subscription_creation_failed',
       message: errMessage,
@@ -173,34 +204,28 @@ export async function assertSubscription(
   }
 }
 
-async function tryToUpdateSubscription(
-  snsClient: SNSClient,
-  topicArn: string,
-  queueArn: string,
-  subscriptionConfiguration: SNSSubscriptionCreationOptions,
-) {
-  const subscription = await findSubscriptionByTopicAndQueue(snsClient, topicArn, queueArn)
-  if (!subscription?.SubscriptionArn || !subscriptionConfiguration.Attributes) {
-    return undefined
-  }
-
-  await setSubscriptionAttributes(
-    snsClient,
-    subscription.SubscriptionArn,
-    subscriptionConfiguration.Attributes,
-  )
-
-  return subscription
-}
-
 /**
- * Applies the given attributes to an existing subscription, one by one as SNS only allows setting a single
- * attribute per call.
+ * Applies the given attributes to an existing subscription. Current attributes are read first, and
+ * only the ones that differ are written.
  */
 export async function setSubscriptionAttributes(
   snsClient: SNSClient,
   subscriptionArn: string,
   attributes: NonNullable<SubscribeCommandInput['Attributes']>,
+): Promise<void> {
+  const changedAttributes = await findChangedSubscriptionAttributes(
+    snsClient,
+    subscriptionArn,
+    attributes,
+  )
+  await writeSubscriptionAttributes(snsClient, subscriptionArn, changedAttributes)
+}
+
+// SNS only allows setting a single attribute per call
+async function writeSubscriptionAttributes(
+  snsClient: SNSClient,
+  subscriptionArn: string,
+  attributes: Record<string, string>,
 ): Promise<void> {
   for (const [key, value] of Object.entries(attributes)) {
     await snsClient.send(
@@ -210,5 +235,58 @@ export async function setSubscriptionAttributes(
         AttributeValue: value,
       }),
     )
+  }
+}
+
+const FILTER_POLICY_ATTRIBUTES = ['FilterPolicy', 'FilterPolicyScope']
+
+// Values SNS reports for attributes that were never set explicitly
+const SUBSCRIPTION_ATTRIBUTE_DEFAULTS: Record<string, string> = {
+  FilterPolicyScope: 'MessageAttributes',
+  RawMessageDelivery: 'false',
+}
+
+function resolveManagedAttributes(
+  attributes: Record<string, string> | undefined,
+  manageOnlyFilterPolicy: boolean | undefined,
+): Record<string, string> | undefined {
+  if (!attributes || !manageOnlyFilterPolicy) return attributes
+
+  return Object.fromEntries(
+    Object.entries(attributes).filter(([name]) => FILTER_POLICY_ATTRIBUTES.includes(name)),
+  )
+}
+
+async function findChangedSubscriptionAttributes(
+  snsClient: SNSClient,
+  subscriptionArn: string,
+  attributes: Record<string, string> | undefined,
+): Promise<Record<string, string>> {
+  if (!attributes || Object.keys(attributes).length === 0) return {}
+
+  const currentAttributesResult = await getSubscriptionAttributes(snsClient, subscriptionArn)
+  const currentAttributes = currentAttributesResult.result?.attributes ?? {}
+
+  return Object.fromEntries(
+    Object.entries(attributes).filter(
+      ([name, value]) =>
+        !isSameAttributeValue(
+          name,
+          value,
+          currentAttributes[name] ?? SUBSCRIPTION_ATTRIBUTE_DEFAULTS[name],
+        ),
+    ),
+  )
+}
+
+// JSON attributes are compared structurally, as SNS does not preserve their formatting
+function isSameAttributeValue(name: string, expected: string, current: string | undefined) {
+  if (expected === current) return true
+  if (current === undefined || !name.endsWith('Policy')) return false
+
+  try {
+    return isDeepStrictEqual(JSON.parse(expected), JSON.parse(current))
+  } catch {
+    return false
   }
 }

@@ -34,7 +34,7 @@ import {
   assertTopic,
   deleteSubscription,
   deleteTopic,
-  findSubscriptionByTopicAndQueue,
+  findConfirmedSubscriptionArn,
   getTopicAttributes,
 } from './snsUtils.ts'
 import { buildTopicArn } from './stsUtils.ts'
@@ -229,18 +229,6 @@ async function resolveQueue(
 
     options,
   )
-}
-
-async function findConfirmedSubscriptionArn(
-  snsClient: SNSClient,
-  topicArn: string,
-  queueArn: string,
-): Promise<string | undefined> {
-  const subscription = await findSubscriptionByTopicAndQueue(snsClient, topicArn, queueArn)
-  const subscriptionArn = subscription?.SubscriptionArn
-
-  // Unconfirmed subscriptions are listed with a status placeholder instead of an ARN
-  return subscriptionArn?.startsWith('arn:') ? subscriptionArn : undefined
 }
 
 /**

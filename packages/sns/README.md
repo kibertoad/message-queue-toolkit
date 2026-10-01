@@ -506,12 +506,16 @@ your application or by external tooling (e.g. Terraform):
 | Queue        | `locatorConfig.queueUrl` or `queueName` is set | otherwise, from `creationConfig.queue`    |
 | Subscription | no `subscriptionConfig`, or `locateOnly: true` | `subscriptionConfig` without `locateOnly` |
 
-A subscription that already exists is reused, and its attributes are updated when they differ and
-`subscriptionConfig.updateAttributesIfExists` is enabled. When both a locator and a creation config are given for the
+A subscription that already exists is reused. Its attributes are read first and compared with the configured ones
+(JSON policies structurally), so a subscription that is already up to date receives no writes at all. Differing
+attributes are written one by one when `subscriptionConfig.updateAttributesIfExists` is enabled, and an error is thrown
+otherwise. Set `subscriptionConfig.manageOnlyFilterPolicy` to manage only `FilterPolicy` and `FilterPolicyScope`: other
+attributes such as `RawMessageDelivery` or `RedrivePolicy` are then neither checked nor written, and are left to
+external tooling. When both a locator and a creation config are given for the
 same resource, the locator takes precedence and the creation config is ignored.
 
 With `subscriptionConfig: { locateOnly: true, Attributes }` the subscription is located, never created, and the given
-`Attributes` (e.g. `FilterPolicy`) are applied to it on startup. This lets external tooling own the subscription while
+`Attributes` (e.g. `FilterPolicy`) are applied to it on startup when they differ from the current ones. This lets external tooling own the subscription while
 the application keeps its filter policy in sync with the consumer handlers. A locate-only subscription requires both
 the topic and the queue to be located, and none of the located resources are deleted when `deletionConfig` is set.
 
@@ -824,6 +828,7 @@ SNS consumers use the same options as SQS consumers, plus SNS-specific subscript
   // SNS-Specific - Subscription Configuration
   subscriptionConfig: {
     updateAttributesIfExists: false,  // Update subscription attributes if exists
+    manageOnlyFilterPolicy: false,    // Only check and update FilterPolicy and FilterPolicyScope
 
     // Optional: Message filtering
     filterPolicy: {
@@ -1407,6 +1412,7 @@ type SNSSubscriptionOptions =
   // Creation: the subscription is created, or updated if it already exists
   | {
       updateAttributesIfExists?: boolean
+      manageOnlyFilterPolicy?: boolean
       filterPolicy?: Record<string, string[]>
       rawMessageDelivery?: boolean
       redrivePolicy?: {
