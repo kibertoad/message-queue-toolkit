@@ -8,6 +8,7 @@ import type { STSClient } from '@aws-sdk/client-sts'
 import type { AwilixContainer } from 'awilix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FakeLogger } from '../../test/fakes/FakeLogger.ts'
+import { isLocalstack } from '../../test/utils/fauxqsInstance.ts'
 import type { TestAwsResourceAdmin } from '../../test/utils/testAdmin.ts'
 import type { Dependencies } from '../../test/utils/testContext.ts'
 import { registerDependencies } from '../../test/utils/testContext.ts'
@@ -360,7 +361,6 @@ describe('snsSubscriber', () => {
             FilterPolicy: `{"type":["add"]}`,
             FilterPolicyScope: 'MessageBody',
             RawMessageDelivery: 'true',
-            RedrivePolicy: JSON.stringify({ deadLetterTargetArn: queueArn }),
           },
           updateAttributesIfExists: false,
         },
@@ -382,7 +382,6 @@ describe('snsSubscriber', () => {
         FilterPolicyScope: 'MessageAttributes',
         RawMessageDelivery: 'false',
       })
-      expect(subscriptionAttributes.result?.attributes?.RedrivePolicy || undefined).toBeUndefined()
 
       // A subscription that is already reset is not written to again
       const sendSpy = vi.spyOn(snsClient, 'send')
@@ -397,6 +396,39 @@ describe('snsSubscriber', () => {
         sendSpy.mock.calls.some(([command]) => command instanceof SetSubscriptionAttributesCommand),
       ).toBe(false)
     })
+
+    // LocalStack rejects any RedrivePolicy value that is not a policy with a valid deadLetterTargetArn
+    it.skipIf(isLocalstack)(
+      'removes a managed redrive policy missing from the config',
+      async () => {
+        const topicArn = await testAdmin.createTopic(TOPIC_NAME)
+        const { queueArn } = await testAdmin.createQueue(QUEUE_NAME)
+        const subscriptionArn = await assertSubscription(
+          snsClient,
+          topicArn,
+          queueArn,
+          {
+            Attributes: { RedrivePolicy: JSON.stringify({ deadLetterTargetArn: queueArn }) },
+            updateAttributesIfExists: false,
+          },
+          { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
+        )
+
+        await assertSubscription(
+          snsClient,
+          topicArn,
+          queueArn,
+          { updateAttributesIfExists: true },
+          { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
+          new FakeLogger(),
+        )
+
+        const subscriptionAttributes = await getSubscriptionAttributes(snsClient, subscriptionArn!)
+        expect(
+          subscriptionAttributes.result?.attributes?.RedrivePolicy || undefined,
+        ).toBeUndefined()
+      },
+    )
 
     it('throws when a configured attribute is not managed', async () => {
       const topicArn = await testAdmin.createTopic(TOPIC_NAME)
