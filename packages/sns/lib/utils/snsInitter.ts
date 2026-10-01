@@ -277,8 +277,13 @@ async function resolveSubscriptionArn(
       options,
     ))
 
-  if (subscriptionConfig?.locateOnly && subscriptionConfig?.Attributes) {
-    await setSubscriptionAttributes(snsClient, subscriptionArn, subscriptionConfig.Attributes)
+  if (subscriptionConfig?.locateOnly) {
+    await setSubscriptionAttributes(
+      snsClient,
+      subscriptionArn,
+      subscriptionConfig.Attributes,
+      subscriptionConfig.managedAttributes,
+    )
   }
 
   return subscriptionArn

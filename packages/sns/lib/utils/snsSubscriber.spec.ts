@@ -314,7 +314,7 @@ describe('snsSubscriber', () => {
       expect(subscriptionAttributes.result?.attributes?.FilterPolicy).toBe(`{"type":["add"]}`)
     })
 
-    it('ignores attributes other than the filter policy when manageOnlyFilterPolicy is enabled', async () => {
+    it('neither checks nor writes attributes that are not managed', async () => {
       const topicArn = await testAdmin.createTopic(TOPIC_NAME)
       const { queueArn } = await testAdmin.createQueue(QUEUE_NAME)
       const subscriptionArn = await assertSubscription(
@@ -334,9 +334,9 @@ describe('snsSubscriber', () => {
         topicArn,
         queueArn,
         {
-          Attributes: { FilterPolicy: `{"type":["add"]}`, RawMessageDelivery: 'false' },
+          Attributes: { FilterPolicy: `{"type":["add"]}` },
+          managedAttributes: ['FilterPolicy', 'FilterPolicyScope'],
           updateAttributesIfExists: false,
-          manageOnlyFilterPolicy: true,
         },
         { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
       )
@@ -346,6 +346,75 @@ describe('snsSubscriber', () => {
       ).toBe(false)
       const subscriptionAttributes = await getSubscriptionAttributes(snsClient, subscriptionArn!)
       expect(subscriptionAttributes.result?.attributes?.RawMessageDelivery).toBe('true')
+    })
+
+    it('resets managed attributes that were removed from the config', async () => {
+      const topicArn = await testAdmin.createTopic(TOPIC_NAME)
+      const { queueArn } = await testAdmin.createQueue(QUEUE_NAME)
+      const subscriptionArn = await assertSubscription(
+        snsClient,
+        topicArn,
+        queueArn,
+        {
+          Attributes: {
+            FilterPolicy: `{"type":["add"]}`,
+            FilterPolicyScope: 'MessageBody',
+            RawMessageDelivery: 'true',
+            RedrivePolicy: JSON.stringify({ deadLetterTargetArn: queueArn }),
+          },
+          updateAttributesIfExists: false,
+        },
+        { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
+      )
+
+      await assertSubscription(
+        snsClient,
+        topicArn,
+        queueArn,
+        { Attributes: { FilterPolicy: `{"type":["add"]}` }, updateAttributesIfExists: true },
+        { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
+        new FakeLogger(),
+      )
+
+      const subscriptionAttributes = await getSubscriptionAttributes(snsClient, subscriptionArn!)
+      expect(subscriptionAttributes.result?.attributes).toMatchObject({
+        FilterPolicy: `{"type":["add"]}`,
+        FilterPolicyScope: 'MessageAttributes',
+        RawMessageDelivery: 'false',
+      })
+      expect(subscriptionAttributes.result?.attributes?.RedrivePolicy || undefined).toBeUndefined()
+
+      // A subscription that is already reset is not written to again
+      const sendSpy = vi.spyOn(snsClient, 'send')
+      await assertSubscription(
+        snsClient,
+        topicArn,
+        queueArn,
+        { Attributes: { FilterPolicy: `{"type":["add"]}` }, updateAttributesIfExists: true },
+        { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
+      )
+      expect(
+        sendSpy.mock.calls.some(([command]) => command instanceof SetSubscriptionAttributesCommand),
+      ).toBe(false)
+    })
+
+    it('throws when a configured attribute is not managed', async () => {
+      const topicArn = await testAdmin.createTopic(TOPIC_NAME)
+      const { queueArn } = await testAdmin.createQueue(QUEUE_NAME)
+
+      await expect(
+        assertSubscription(
+          snsClient,
+          topicArn,
+          queueArn,
+          {
+            Attributes: { FilterPolicy: `{"type":["add"]}`, RawMessageDelivery: 'true' },
+            managedAttributes: ['FilterPolicy'],
+            updateAttributesIfExists: true,
+          },
+          { queueName: QUEUE_NAME, topicName: TOPIC_NAME },
+        ),
+      ).rejects.toThrow(/RawMessageDelivery are set, but not listed in managedAttributes/)
     })
 
     it('throws when attributes are different and update is disabled', async () => {
@@ -395,10 +464,12 @@ describe('snsSubscriber', () => {
       })
       const sendSpy = vi.spyOn(snsClient, 'send')
 
-      await setSubscriptionAttributes(snsClient, subscriptionArn, {
-        FilterPolicy: `{ "type": ["add"] }`,
-        RawMessageDelivery: 'true',
-      })
+      await setSubscriptionAttributes(
+        snsClient,
+        subscriptionArn,
+        { FilterPolicy: `{ "type": ["add"] }`, RawMessageDelivery: 'true' },
+        ['FilterPolicy', 'RawMessageDelivery'],
+      )
 
       const writtenAttributes = sendSpy.mock.calls
         .map(([command]) => command)

@@ -1,5 +1,4 @@
 import type { SNSClient } from '@aws-sdk/client-sns'
-import { SetSubscriptionAttributesCommand } from '@aws-sdk/client-sns'
 import type { STSClient } from '@aws-sdk/client-sts'
 import { type Either, InternalError } from '@lokalise/node-core'
 import type {
@@ -17,7 +16,11 @@ import type {
 import { AbstractSqsConsumer, deleteSqs } from '@message-queue-toolkit/sqs'
 import { deleteSnsSqs, initSnsSqs } from '../utils/snsInitter.ts'
 import { readSnsMessage } from '../utils/snsMessageReader.ts'
-import type { SNSSubscriptionOptions } from '../utils/snsSubscriber.ts'
+import {
+  type SNSSubscriptionOptions,
+  SUBSCRIPTION_MANAGED_ATTRIBUTE_NAMES,
+  setSubscriptionAttributes,
+} from '../utils/snsSubscriber.ts'
 import type { SNSCreationConfig, SNSOptions, SNSTopicLocatorType } from './AbstractSnsService.ts'
 
 export type SNSSQSConsumerDependencies = SQSConsumerDependencies & {
@@ -120,9 +123,11 @@ export abstract class AbstractSnsSqsConsumer<
   ) {
     super(dependencies, { ...options }, executionContext)
 
-    this.subscriptionConfig = options.subscriptionConfig
     this.reuseConsumerDeadLetterQueueForSubscription =
       !!options.subscriptionDeadLetterQueue?.reuseConsumerDeadLetterQueue
+    this.subscriptionConfig = this.reuseConsumerDeadLetterQueueForSubscription
+      ? withoutManagedRedrivePolicy(options.subscriptionConfig)
+      : options.subscriptionConfig
 
     if (this.reuseConsumerDeadLetterQueueForSubscription && !options.deadLetterQueue) {
       throw new InternalError({
@@ -262,12 +267,11 @@ export abstract class AbstractSnsSqsConsumer<
     const dlq = this.deadLetterQueue
     if (!dlq) return
 
-    await this.snsClient.send(
-      new SetSubscriptionAttributesCommand({
-        SubscriptionArn: this.subscription.subscriptionArn,
-        AttributeName: 'RedrivePolicy',
-        AttributeValue: JSON.stringify({ deadLetterTargetArn: dlq.arn }),
-      }),
+    await setSubscriptionAttributes(
+      this.snsClient,
+      this.subscription.subscriptionArn,
+      { RedrivePolicy: JSON.stringify({ deadLetterTargetArn: dlq.arn }) },
+      ['RedrivePolicy'],
     )
   }
 
@@ -326,5 +330,32 @@ export abstract class AbstractSnsSqsConsumer<
 
   protected override resolveSchema(messagePayload: MessagePayloadSchemas) {
     return this._messageSchemaContainer.resolveSchema(messagePayload)
+  }
+}
+
+/**
+ * With `subscriptionDeadLetterQueue.reuseConsumerDeadLetterQueue`, the redrive policy is set once the
+ * DLQ is resolved, so the subscription config must not manage (and reset) it on its own.
+ */
+function withoutManagedRedrivePolicy(
+  subscriptionConfig: SNSSubscriptionOptions | undefined,
+): SNSSubscriptionOptions | undefined {
+  if (!subscriptionConfig) return undefined
+  if (
+    subscriptionConfig.managedAttributes?.includes('RedrivePolicy') ||
+    subscriptionConfig.Attributes?.RedrivePolicy
+  ) {
+    throw new InternalError({
+      errorCode: 'invalid_subscription_dlq_configuration',
+      message:
+        'subscriptionDeadLetterQueue.reuseConsumerDeadLetterQueue sets the subscription RedrivePolicy, so subscriptionConfig must not manage it',
+    })
+  }
+
+  return {
+    ...subscriptionConfig,
+    managedAttributes: (
+      subscriptionConfig.managedAttributes ?? SUBSCRIPTION_MANAGED_ATTRIBUTE_NAMES
+    ).filter((name) => name !== 'RedrivePolicy'),
   }
 }
