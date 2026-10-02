@@ -39,12 +39,12 @@
         "@lokalise/tsconfig": "^5.0.0",
         "@message-queue-toolkit/core": "workspace:*",
         "@message-queue-toolkit/schemas": "workspace:*",
-        "@types/node": "^26.6.1",
+        "@types/node": "^26.6.2",
         "@vitest/coverage-v8": "^5.0.1",
         "rimraf": "^6.1.3",
         "typescript": "^7.0.2",
         "vitest": "^5.0.1",
-        "zod": "^4.6.0"
+        "zod": "^4.6.5"
     },
     "homepage": "https://github.com/kibertoad/message-queue-toolkit",
     "repository": {
