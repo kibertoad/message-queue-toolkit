@@ -1,6 +1,12 @@
 import { setTimeout } from 'node:timers/promises'
-import { ListTagsForResourceCommand, type SNSClient, SubscribeCommand } from '@aws-sdk/client-sns'
-import { ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
+import {
+  DeleteTopicCommand,
+  ListTagsForResourceCommand,
+  type SNSClient,
+  SubscribeCommand,
+  UnsubscribeCommand,
+} from '@aws-sdk/client-sns'
+import { DeleteQueueCommand, ListQueueTagsCommand, type SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import { waitAndRetry } from '@lokalise/node-core'
 import { getQueueAttributes } from '@message-queue-toolkit/sqs'
@@ -159,6 +165,29 @@ describe('SnsSqsPermissionConsumer', () => {
       expect(newConsumer.subscriptionProps.queueUrl).toBe(queueUrl)
       // Subscription is only located, never created
       expect(snsSpy).not.toHaveBeenCalledWith(expect.any(SubscribeCommand))
+    })
+
+    it('does not delete nor create any resource with a locate-only subscription config', async () => {
+      const topicArn = await testAdmin.createTopic(topicName)
+      const { queueArn } = await testAdmin.createQueue(queueName)
+      const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+      const snsSpy = vi.spyOn(snsClient, 'send')
+      const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+      const newConsumer = new SnsSqsPermissionConsumer(diContainer.cradle, {
+        locatorConfig: { topicName, queueName },
+        creationConfig: { queue: { QueueName: queueName }, topic: { Name: topicName } },
+        deletionConfig: { deleteIfExists: true },
+        subscriptionConfig: { locateOnly: true },
+      })
+
+      await newConsumer.init()
+      expect(newConsumer.subscriptionProps.subscriptionArn).toBe(subscriptionArn)
+      expect(snsSpy).not.toHaveBeenCalledWith(expect.any(SubscribeCommand))
+      expect(snsSpy).not.toHaveBeenCalledWith(expect.any(UnsubscribeCommand))
+      expect(snsSpy).not.toHaveBeenCalledWith(expect.any(DeleteTopicCommand))
+      expect(sqsSpy).not.toHaveBeenCalledWith(expect.any(DeleteQueueCommand))
+      expect(await findSubscriptionByTopicAndQueue(snsClient, topicArn, queueArn)).toBeDefined()
     })
 
     describe('tags update', () => {

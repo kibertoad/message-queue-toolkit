@@ -1,8 +1,10 @@
 import { setTimeout } from 'node:timers/promises'
 import {
   CreateTopicCommand,
+  GetSubscriptionAttributesCommand,
   GetTopicAttributesCommand,
   ListSubscriptionsByTopicCommand,
+  SetSubscriptionAttributesCommand,
   type SNSClient,
   SubscribeCommand,
 } from '@aws-sdk/client-sns'
@@ -182,6 +184,140 @@ describe('snsInitter', () => {
       })
     })
 
+    describe('locate-only subscription', () => {
+      const filterPolicy = JSON.stringify({ type: ['entity.created'] })
+      const getFilterPolicy = async (subscriptionArn: string) => {
+        const { Attributes } = await snsClient.send(
+          new GetSubscriptionAttributesCommand({ SubscriptionArn: subscriptionArn }),
+        )
+        return Attributes?.FilterPolicy
+      }
+
+      it('locates existing subscription and applies its attributes without subscribing', async () => {
+        const topicArn = await testAdmin.createTopic(topicName)
+        const { queueArn } = await testAdmin.createQueue(queueName)
+        const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+        const snsSpy = vi.spyOn(snsClient, 'send')
+
+        const result = await initSnsSqs(
+          sqsClient,
+          snsClient,
+          stsClient,
+          { topicName, queueName },
+          undefined,
+          { locateOnly: true, Attributes: { FilterPolicy: filterPolicy } },
+        )
+
+        expect(result).toEqual({ topicArn, queueUrl, queueArn, queueName, subscriptionArn })
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(SubscribeCommand))
+        expect(await getFilterPolicy(subscriptionArn)).toBe(filterPolicy)
+      })
+
+      it('does not update the subscription when no attributes are provided', async () => {
+        const topicArn = await testAdmin.createTopic(topicName)
+        const { queueArn } = await testAdmin.createQueue(queueName)
+        const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+        const snsSpy = vi.spyOn(snsClient, 'send')
+
+        const result = await initSnsSqs(
+          sqsClient,
+          snsClient,
+          stsClient,
+          { topicName, queueName },
+          undefined,
+          { locateOnly: true },
+        )
+
+        expect(result?.subscriptionArn).toBe(subscriptionArn)
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(SubscribeCommand))
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(SetSubscriptionAttributesCommand))
+      })
+
+      it('applies attributes to the subscription when its ARN is provided', async () => {
+        const topicArn = await testAdmin.createTopic(topicName)
+        const { queueArn } = await testAdmin.createQueue(queueName)
+        const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+        const snsSpy = vi.spyOn(snsClient, 'send')
+
+        const result = await initSnsSqs(
+          sqsClient,
+          snsClient,
+          stsClient,
+          { topicName, queueName, subscriptionArn },
+          undefined,
+          { locateOnly: true, Attributes: { FilterPolicy: filterPolicy } },
+        )
+
+        expect(result?.subscriptionArn).toBe(subscriptionArn)
+        // The subscription is not looked up, as its ARN is provided
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(ListSubscriptionsByTopicCommand))
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(SubscribeCommand))
+        expect(await getFilterPolicy(subscriptionArn)).toBe(filterPolicy)
+      })
+
+      it('throws without creating the subscription when it does not exist', async () => {
+        const topicArn = await testAdmin.createTopic(topicName)
+        const { queueArn } = await testAdmin.createQueue(queueName)
+
+        await expect(
+          initSnsSqs(sqsClient, snsClient, stsClient, { topicName, queueName }, undefined, {
+            locateOnly: true,
+            Attributes: { FilterPolicy: filterPolicy },
+          }),
+        ).rejects.toThrow(/Subscription of queue .* to topic .* does not exist/)
+        expect(await findSubscriptionByTopicAndQueue(snsClient, topicArn, queueArn)).toBeUndefined()
+      })
+
+      it('throws when the located topic does not exist', async () => {
+        await testAdmin.createQueue(queueName)
+
+        await expect(
+          initSnsSqs(sqsClient, snsClient, stsClient, { topicName, queueName }, undefined, {
+            locateOnly: true,
+          }),
+        ).rejects.toThrow(/Topic with topicArn .* does not exist/)
+      })
+
+      it('applies attributes once the subscription becomes available in non-blocking mode', async () => {
+        const topicArn = await testAdmin.createTopic(topicName)
+        const { queueArn } = await testAdmin.createQueue(queueName)
+        const onResourcesReady = vi.fn()
+
+        const result = await initSnsSqs(
+          sqsClient,
+          snsClient,
+          stsClient,
+          {
+            topicName,
+            queueName,
+            startupResourcePolling: {
+              enabled: true,
+              pollingIntervalMs: 50,
+              timeoutMs: 5000,
+              nonBlocking: true,
+            },
+          },
+          undefined,
+          { locateOnly: true, Attributes: { FilterPolicy: filterPolicy } },
+          { onResourcesReady },
+        )
+
+        expect(result).toBeUndefined()
+
+        const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+
+        await waitAndRetry(() => onResourcesReady.mock.calls.length > 0, 50, 40)
+        expect(onResourcesReady).toHaveBeenCalledWith({
+          topicArn,
+          queueUrl,
+          queueArn,
+          queueName,
+          subscriptionArn,
+        })
+        expect(await getFilterPolicy(subscriptionArn)).toBe(filterPolicy)
+      })
+    })
+
     describe('config validation', () => {
       it('throws when neither topic creation config nor topic locator is provided', async () => {
         await expect(
@@ -228,6 +364,58 @@ describe('snsInitter', () => {
         ).rejects.toThrow(
           'If creationConfig.queue is specified, subscriptionConfig is mandatory, as the subscription of a queue being created cannot be located',
         )
+      })
+
+      it('throws when queue creation config is provided with a locate-only subscription config', async () => {
+        await expect(
+          initSnsSqs(
+            sqsClient,
+            snsClient,
+            stsClient,
+            { topicName },
+            { queue: { QueueName: queueName } },
+            { locateOnly: true },
+          ),
+        ).rejects.toThrow(
+          'If subscriptionConfig.locateOnly is specified, both the topic and the queue must be located',
+        )
+      })
+
+      it('throws when topic creation config is provided with a locate-only subscription config', async () => {
+        await expect(
+          initSnsSqs(
+            sqsClient,
+            snsClient,
+            stsClient,
+            { queueName },
+            { topic: { Name: topicName }, queue: { QueueName: queueName } },
+            { locateOnly: true },
+          ),
+        ).rejects.toThrow(
+          'If subscriptionConfig.locateOnly is specified, both the topic and the queue must be located',
+        )
+      })
+
+      it('ignores creation config when topic and queue are located with a locate-only subscription config', async () => {
+        const topicArn = await testAdmin.createTopic(topicName)
+        const { queueArn } = await testAdmin.createQueue(queueName)
+        const subscriptionArn = await testAdmin.createSubscription(topicArn, queueArn)
+        const snsSpy = vi.spyOn(snsClient, 'send')
+        const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+        const result = await initSnsSqs(
+          sqsClient,
+          snsClient,
+          stsClient,
+          { topicName, queueName },
+          { topic: { Name: topicName }, queue: { QueueName: queueName } },
+          { locateOnly: true },
+        )
+
+        expect(result).toEqual({ topicArn, queueUrl, queueArn, queueName, subscriptionArn })
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(CreateTopicCommand))
+        expect(snsSpy).not.toHaveBeenCalledWith(expect.any(SubscribeCommand))
+        expect(sqsSpy).not.toHaveBeenCalledWith(expect.any(CreateQueueCommand))
       })
     })
 

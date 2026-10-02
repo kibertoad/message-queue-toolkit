@@ -23,13 +23,18 @@ import {
 import type { SNSCreationConfig, SNSTopicLocatorType } from '../sns/AbstractSnsService.ts'
 import type { SNSSQSQueueLocatorType } from '../sns/AbstractSnsSqsConsumer.ts'
 import { isCreateTopicCommand } from '../types/TopicTypes.ts'
-import type { SNSSubscriptionOptions } from './snsSubscriber.ts'
-import { assertSubscription, subscribeToTopic } from './snsSubscriber.ts'
+import {
+  assertSubscription,
+  type SNSSubscriptionCreationOptions,
+  type SNSSubscriptionOptions,
+  setSubscriptionAttributes,
+  subscribeToTopic,
+} from './snsSubscriber.ts'
 import {
   assertTopic,
   deleteSubscription,
   deleteTopic,
-  findSubscriptionByTopicAndQueue,
+  findConfirmedSubscriptionArn,
   getTopicAttributes,
 } from './snsUtils.ts'
 import { buildTopicArn } from './stsUtils.ts'
@@ -226,21 +231,12 @@ async function resolveQueue(
   )
 }
 
-async function findConfirmedSubscriptionArn(
-  snsClient: SNSClient,
-  topicArn: string,
-  queueArn: string,
-): Promise<string | undefined> {
-  const subscription = await findSubscriptionByTopicAndQueue(snsClient, topicArn, queueArn)
-  const subscriptionArn = subscription?.SubscriptionArn
-
-  // Unconfirmed subscriptions are listed with a status placeholder instead of an ARN
-  return subscriptionArn?.startsWith('arn:') ? subscriptionArn : undefined
-}
-
 /**
- * Subscription is used as is when its ARN is given, created (or updated) when subscriptionConfig is
- * given, and otherwise located by looking up the queue's subscription on the topic.
+ * Subscription is created (or updated) when a creation subscriptionConfig is given. Otherwise, it is located:
+ * used as is when its ARN is given, or looked up on the topic, and the attributes of a locate-only
+ * subscriptionConfig are applied to it.
+ *
+ * Note: a creation subscriptionConfig is never given along with the subscription ARN, as initSnsSqs discards it.
  */
 async function resolveSubscriptionArn(
   snsClient: SNSClient,
@@ -250,9 +246,7 @@ async function resolveSubscriptionArn(
   subscriptionConfig: SNSSubscriptionOptions | undefined,
   options: ResourceResolutionOptions,
 ): Promise<string> {
-  if (locatorConfig?.subscriptionArn) return locatorConfig.subscriptionArn
-
-  if (subscriptionConfig) {
+  if (subscriptionConfig && !subscriptionConfig.locateOnly) {
     const subscriptionArn = await assertSubscription(
       snsClient,
       topicArn,
@@ -266,20 +260,33 @@ async function resolveSubscriptionArn(
     return subscriptionArn
   }
 
-  return await waitForOrCheckResource<string>(
-    `SNS subscription of SQS queue ${queue.queueArn} to topic ${topicArn}`,
-    `Subscription of queue ${queue.queueArn} to topic ${topicArn} does not exist.`,
-    async () => {
-      const subscriptionArn = await findConfirmedSubscriptionArn(
-        snsClient,
-        topicArn,
-        queue.queueArn,
-      )
-      if (!subscriptionArn) return { isAvailable: false }
-      return { isAvailable: true, result: subscriptionArn }
-    },
-    options,
-  )
+  const subscriptionArn =
+    locatorConfig?.subscriptionArn ??
+    (await waitForOrCheckResource<string>(
+      `SNS subscription of SQS queue ${queue.queueArn} to topic ${topicArn}`,
+      `Subscription of queue ${queue.queueArn} to topic ${topicArn} does not exist.`,
+      async () => {
+        const subscriptionArn = await findConfirmedSubscriptionArn(
+          snsClient,
+          topicArn,
+          queue.queueArn,
+        )
+        if (!subscriptionArn) return { isAvailable: false }
+        return { isAvailable: true, result: subscriptionArn }
+      },
+      options,
+    ))
+
+  if (subscriptionConfig?.locateOnly) {
+    await setSubscriptionAttributes(
+      snsClient,
+      subscriptionArn,
+      subscriptionConfig.Attributes,
+      subscriptionConfig.managedAttributes,
+    )
+  }
+
+  return subscriptionArn
 }
 
 async function resolveSnsSqsResources(
@@ -329,6 +336,14 @@ function validateInitSnsSqsConfig(
   }
   // Queue creation config is ignored when the queue is located
   const isQueueLocated = !!(locatorConfig?.queueUrl || locatorConfig?.queueName)
+  const isTopicLocated = !!(locatorConfig?.topicArn || locatorConfig?.topicName)
+
+  // A subscription managed externally can only belong to a topic and a queue managed externally too
+  if (subscriptionConfig?.locateOnly && (!isTopicLocated || !isQueueLocated)) {
+    throw new Error(
+      'If subscriptionConfig.locateOnly is specified, both the topic and the queue must be located',
+    )
+  }
   if (!isQueueLocated && creationConfig?.queue) {
     if (!creationConfig.queue.QueueName) {
       throw new Error(
@@ -351,10 +366,12 @@ function validateInitSnsSqsConfig(
  * - Queue: located when `locatorConfig.queueUrl` or `locatorConfig.queueName` is given, otherwise
  *   created from `creationConfig.queue`.
  * - Subscription: created (or updated) when `subscriptionConfig` is given, otherwise located by
- *   looking up the queue's subscription on the topic.
+ *   looking up the queue's subscription on the topic. With `subscriptionConfig.locateOnly`, it is
+ *   always located and its `Attributes` (e.g. `FilterPolicy`) are applied to it.
  *
  * When `locatorConfig.subscriptionArn` is given, every resource is located and `creationConfig` and
- * `subscriptionConfig` are ignored.
+ * `subscriptionConfig` are ignored, except for a locate-only `subscriptionConfig`, whose attributes
+ * are still applied.
  *
  * Located resources are waited for when `locatorConfig.startupResourcePolling` is enabled. In
  * non-blocking mode, `undefined` is returned if they are not immediately available, and
@@ -371,7 +388,10 @@ export async function initSnsSqs(
 ): Promise<InitSnsSqsResult | undefined> {
   const isFullyLocated = !!locatorConfig?.subscriptionArn
   const resolvedCreationConfig = isFullyLocated ? undefined : creationConfig
-  const resolvedSubscriptionConfig = isFullyLocated ? undefined : subscriptionConfig
+  // A locate-only subscriptionConfig doesn't create anything, so it is kept to apply its attributes
+  const resolvedSubscriptionConfig =
+    isFullyLocated && !subscriptionConfig?.locateOnly ? undefined : subscriptionConfig
+  const createsSubscription = !!resolvedSubscriptionConfig && !resolvedSubscriptionConfig.locateOnly
 
   validateInitSnsSqsConfig(locatorConfig, resolvedCreationConfig, resolvedSubscriptionConfig)
 
@@ -388,7 +408,7 @@ export async function initSnsSqs(
 
   const startupResourcePolling = locatorConfig?.startupResourcePolling
   if (!isStartupResourcePollingEnabled(startupResourcePolling)) {
-    return await resolve({ checkLocatedTopic: !resolvedSubscriptionConfig })
+    return await resolve({ checkLocatedTopic: !createsSubscription })
   }
   if (startupResourcePolling.nonBlocking !== true) {
     return await resolve({ polling: startupResourcePolling, checkLocatedTopic: true })
@@ -429,7 +449,7 @@ export async function deleteSnsSqs(
   deletionConfig: DeletionConfig,
   queueConfiguration: CreateQueueCommandInput,
   topicConfiguration: CreateTopicCommandInput | undefined,
-  subscriptionConfiguration: SNSSubscriptionOptions,
+  subscriptionConfiguration: SNSSubscriptionCreationOptions,
   extraParams?: ExtraParams,
   topicLocator?: SNSTopicLocatorType,
 ) {

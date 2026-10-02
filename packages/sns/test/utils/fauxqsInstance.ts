@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/suspicious/noConsole: test **/
 import { type FauxqsServer, startFauxqs } from 'fauxqs'
 
-const isLocalstack = process.env.QUEUE_BACKEND === 'localstack'
+export const isLocalstack = process.env.QUEUE_BACKEND === 'localstack'
 const LOCALSTACK_PORT = 4566
 const LOCALSTACK_HOST = 'localstack'
 const FAUXQS_PORT = 4567

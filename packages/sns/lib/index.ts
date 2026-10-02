@@ -34,7 +34,12 @@ export {
 } from './utils/snsInitter.ts'
 export { deserializeSNSMessage } from './utils/snsMessageDeserializer.ts'
 export { readSnsMessage } from './utils/snsMessageReader.ts'
-export { type SNSSubscriptionOptions, subscribeToTopic } from './utils/snsSubscriber.ts'
+export {
+  type SNSSubscriptionOptions,
+  SUBSCRIPTION_MANAGED_ATTRIBUTE_NAMES,
+  type SubscriptionManagedAttributeName,
+  subscribeToTopic,
+} from './utils/snsSubscriber.ts'
 export {
   assertTopic,
   calculateOutgoingMessageSize,

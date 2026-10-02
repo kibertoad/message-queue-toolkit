@@ -190,6 +190,18 @@ export async function findSubscriptionByTopicAndQueue(
   return undefined
 }
 
+export async function findConfirmedSubscriptionArn(
+  snsClient: SNSClient,
+  topicArn: string,
+  queueArn: string,
+): Promise<string | undefined> {
+  const subscription = await findSubscriptionByTopicAndQueue(snsClient, topicArn, queueArn)
+  const subscriptionArn = subscription?.SubscriptionArn
+
+  // Unconfirmed subscriptions are listed with a status placeholder instead of an ARN
+  return subscriptionArn?.startsWith('arn:') ? subscriptionArn : undefined
+}
+
 /**
  * Calculates the size of an outgoing SNS message.
  *
