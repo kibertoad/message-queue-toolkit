@@ -531,10 +531,13 @@ subscriptionConfig: {
 With `subscriptionDeadLetterQueue.reuseConsumerDeadLetterQueue`, `RedrivePolicy` is set from the consumer DLQ and is
 excluded from the managed attributes.
 
-With `subscriptionConfig: { locateOnly: true, Attributes }` the subscription is located, never created, and the given
-managed attributes (e.g. `FilterPolicy`) are applied to it on startup when they differ from the current ones. This lets external tooling own the subscription while
-the application keeps its filter policy in sync with the consumer handlers. A locate-only subscription requires both
-the topic and the queue to be located, and none of the located resources are deleted when `deletionConfig` is set.
+With `subscriptionConfig: { locateOnly: true, Attributes }` the subscription is located, never created, and its
+managed attributes are applied to it on startup when they differ from the current ones. Managed attributes missing
+from `Attributes` are reset as well, so set `managedAttributes` to the ones the application owns (usually
+`['FilterPolicy', 'FilterPolicyScope']`), otherwise attributes set by the external tooling, such as `RedrivePolicy`,
+are removed. This lets external tooling own the subscription while the application keeps its filter policy in sync
+with the consumer handlers. A locate-only subscription requires both the topic and the queue to be located, and none
+of the located resources are deleted when `deletionConfig` is set.
 
 > **Deprecated**: `locatorConfig.subscriptionArn` is no longer needed, as the subscription is located from the topic
 > and the queue. When it is set, every resource is located and `creationConfig` and `subscriptionConfig` are ignored,
@@ -571,6 +574,7 @@ the topic and the queue to be located, and none of the located resources are del
   locatorConfig: { topicName: 'my-topic', queueName: 'my-queue' },
   subscriptionConfig: {
     locateOnly: true,
+    managedAttributes: ['FilterPolicy', 'FilterPolicyScope'],
     Attributes: { FilterPolicy: JSON.stringify({ messageType: ['user.created'] }) },
   },
 }
@@ -762,7 +766,11 @@ const consumer = new MyConsumer(deps, {
     },
   },
   // No subscriptionConfig - the subscription is located, never created. Alternatively, keep managing its filter policy:
-  // subscriptionConfig: { locateOnly: true, Attributes: { FilterPolicy: '...' } },
+  // subscriptionConfig: {
+  //   locateOnly: true,
+  //   managedAttributes: ['FilterPolicy', 'FilterPolicyScope'],
+  //   Attributes: { FilterPolicy: '...' },
+  // },
 })
 
 // This will:
@@ -861,7 +869,11 @@ SNS consumers use the same options as SQS consumers, plus SNS-specific subscript
     },
   },
   // or, for a subscription managed externally (requires topic and queue locators)
-  // subscriptionConfig: { locateOnly: true, Attributes: { FilterPolicy: '...' } },
+  // subscriptionConfig: {
+  //   locateOnly: true,
+  //   managedAttributes: ['FilterPolicy', 'FilterPolicyScope'],
+  //   Attributes: { FilterPolicy: '...' },
+  // },
 
   // Optional - FIFO Configuration
   fifoQueue: false,
