@@ -506,12 +506,33 @@ your application or by external tooling (e.g. Terraform):
 | Queue        | `locatorConfig.queueUrl` or `queueName` is set | otherwise, from `creationConfig.queue`    |
 | Subscription | no `subscriptionConfig`, or `locateOnly: true` | `subscriptionConfig` without `locateOnly` |
 
-A subscription that already exists is reused, and its attributes are updated when they differ and
-`subscriptionConfig.updateAttributesIfExists` is enabled. When both a locator and a creation config are given for the
-same resource, the locator takes precedence and the creation config is ignored.
+A subscription that already exists is reused. Its attributes are read first and compared with the configured ones
+(JSON policies structurally), so a subscription that is already up to date receives no writes at all. Differing
+attributes are written one by one when `subscriptionConfig.updateAttributesIfExists` is enabled, and an error is thrown
+otherwise. When both a locator and a creation config are given for the same resource, the locator takes precedence and
+the creation config is ignored.
+
+`subscriptionConfig.managedAttributes` lists the subscription attributes the application owns. It defaults to all of
+`FilterPolicy`, `FilterPolicyScope`, `RawMessageDelivery` and `RedrivePolicy`. A managed attribute that is missing from
+`Attributes` is reset on the existing subscription: `FilterPolicy` and `RedrivePolicy` are removed, `FilterPolicyScope`
+goes back to `MessageAttributes` and `RawMessageDelivery` to `false`. Attributes left out of `managedAttributes` are
+neither checked nor written, so external tooling can own them, and setting one of them in `Attributes` is a
+configuration error.
+
+```typescript
+// Filter policy owned by the application, everything else by Terraform
+subscriptionConfig: {
+  locateOnly: true,
+  managedAttributes: ['FilterPolicy', 'FilterPolicyScope'],
+  Attributes: { FilterPolicy: JSON.stringify({ type: ['entity.created'] }) },
+}
+```
+
+With `subscriptionDeadLetterQueue.reuseConsumerDeadLetterQueue`, `RedrivePolicy` is set from the consumer DLQ and is
+excluded from the managed attributes.
 
 With `subscriptionConfig: { locateOnly: true, Attributes }` the subscription is located, never created, and the given
-`Attributes` (e.g. `FilterPolicy`) are applied to it on startup. This lets external tooling own the subscription while
+managed attributes (e.g. `FilterPolicy`) are applied to it on startup when they differ from the current ones. This lets external tooling own the subscription while
 the application keeps its filter policy in sync with the consumer handlers. A locate-only subscription requires both
 the topic and the queue to be located, and none of the located resources are deleted when `deletionConfig` is set.
 
@@ -824,6 +845,7 @@ SNS consumers use the same options as SQS consumers, plus SNS-specific subscript
   // SNS-Specific - Subscription Configuration
   subscriptionConfig: {
     updateAttributesIfExists: false,  // Update subscription attributes if exists
+    managedAttributes: ['FilterPolicy', 'FilterPolicyScope'],  // Defaults to all supported attributes
 
     // Optional: Message filtering
     filterPolicy: {
@@ -1407,6 +1429,7 @@ type SNSSubscriptionOptions =
   // Creation: the subscription is created, or updated if it already exists
   | {
       updateAttributesIfExists?: boolean
+      managedAttributes?: SubscriptionManagedAttributeName[]
       filterPolicy?: Record<string, string[]>
       rawMessageDelivery?: boolean
       redrivePolicy?: {
@@ -1416,8 +1439,15 @@ type SNSSubscriptionOptions =
   // Locate only: the subscription is located, never created, and the given attributes are applied to it
   | {
       locateOnly: true
+      managedAttributes?: SubscriptionManagedAttributeName[]
       Attributes?: Record<string, string>
     }
+
+type SubscriptionManagedAttributeName =
+  | 'FilterPolicy'
+  | 'FilterPolicyScope'
+  | 'RawMessageDelivery'
+  | 'RedrivePolicy'
 ```
 
 ### Utility Functions

@@ -34,7 +34,7 @@ import {
   assertTopic,
   deleteSubscription,
   deleteTopic,
-  findSubscriptionByTopicAndQueue,
+  findConfirmedSubscriptionArn,
   getTopicAttributes,
 } from './snsUtils.ts'
 import { buildTopicArn } from './stsUtils.ts'
@@ -231,18 +231,6 @@ async function resolveQueue(
   )
 }
 
-async function findConfirmedSubscriptionArn(
-  snsClient: SNSClient,
-  topicArn: string,
-  queueArn: string,
-): Promise<string | undefined> {
-  const subscription = await findSubscriptionByTopicAndQueue(snsClient, topicArn, queueArn)
-  const subscriptionArn = subscription?.SubscriptionArn
-
-  // Unconfirmed subscriptions are listed with a status placeholder instead of an ARN
-  return subscriptionArn?.startsWith('arn:') ? subscriptionArn : undefined
-}
-
 /**
  * Subscription is created (or updated) when a creation subscriptionConfig is given. Otherwise, it is located:
  * used as is when its ARN is given, or looked up on the topic, and the attributes of a locate-only
@@ -289,8 +277,13 @@ async function resolveSubscriptionArn(
       options,
     ))
 
-  if (subscriptionConfig?.locateOnly && subscriptionConfig?.Attributes) {
-    await setSubscriptionAttributes(snsClient, subscriptionArn, subscriptionConfig.Attributes)
+  if (subscriptionConfig?.locateOnly) {
+    await setSubscriptionAttributes(
+      snsClient,
+      subscriptionArn,
+      subscriptionConfig.Attributes,
+      subscriptionConfig.managedAttributes,
+    )
   }
 
   return subscriptionArn
