@@ -352,9 +352,8 @@ export class HandlerContainer<
         else if (literalType) {
           messageType = literalType
         }
-        // Priority 3: Extract type from schema shape using the field path
+        // Priority 3: Extract type from the schema's JSON Schema using the field path
         else if (messageTypePath) {
-          // @ts-expect-error - ZodSchema has shape property at runtime
           messageType = extractMessageTypeFromSchema(entry.schema, messageTypePath)
         }
 
