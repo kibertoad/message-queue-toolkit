@@ -27,7 +27,7 @@
         "prepublishOnly": "pnpm run lint && pnpm run build"
     },
     "dependencies": {
-        "@grpc/grpc-js": "^1.14.4",
+        "@grpc/grpc-js": "^1.14.5",
         "@lokalise/node-core": "^14.9.1"
     },
     "peerDependencies": {
