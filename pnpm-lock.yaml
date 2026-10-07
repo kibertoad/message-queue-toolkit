@@ -482,8 +482,8 @@ importers:
         specifier: ^3.1144.0
         version: 3.1144.0
       '@aws-sdk/client-sns':
-        specifier: ^3.1138.0
-        version: 3.1138.0
+        specifier: ^3.1144.0
+        version: 3.1144.0
       '@aws-sdk/client-sqs':
         specifier: ^3.1134.0
         version: 3.1134.0
@@ -619,8 +619,8 @@ packages:
     resolution: {integrity: sha512-CAicFlKAuCAUEU1tIptCTh6Eikr4rig9CWYwofZdEuJm9i24XNclgCspV4DKXlOY2nK2AMGHRt88oxmwDdNW7w==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-sns@3.1138.0':
-    resolution: {integrity: sha512-hX/K+GGPGrOVO7JDWbfy4rQHZzdC1TjUZaTs/9fw5PBSf5i7fTBNPRprGNqB/p9uJHxmBb8QGLZrjgoJKNM10g==}
+  '@aws-sdk/client-sns@3.1144.0':
+    resolution: {integrity: sha512-BuY/O+e20qWg//MjSIUVcF46nDg0jknCRXNEbkOoqXev+hI4cttGq3+WDxpXHU/Zc456FXh5U6NBEWBrLyzXMQ==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/client-sqs@3.1134.0':
@@ -2566,7 +2566,7 @@ snapshots:
       '@smithy/types': 4.19.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-sns@3.1138.0':
+  '@aws-sdk/client-sns@3.1144.0':
     dependencies:
       '@aws-sdk/core': 3.978.1
       '@aws-sdk/credential-provider-node': 3.972.84
@@ -3610,7 +3610,7 @@ snapshots:
   fauxqs@2.12.1(typescript@7.0.2):
     dependencies:
       '@aws-sdk/client-s3': 3.1144.0
-      '@aws-sdk/client-sns': 3.1138.0
+      '@aws-sdk/client-sns': 3.1144.0
       '@aws-sdk/client-sqs': 3.1134.0
       '@fastify/cors': 11.3.0
       '@smithy/node-http-handler': 4.12.1
