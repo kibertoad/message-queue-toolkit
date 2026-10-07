@@ -488,8 +488,8 @@ importers:
         specifier: ^3.1134.0
         version: 3.1134.0
       '@aws-sdk/client-sts':
-        specifier: ^3.1138.0
-        version: 3.1138.0
+        specifier: ^3.1144.0
+        version: 3.1144.0
       '@biomejs/biome':
         specifier: ^2.5.14
         version: 2.5.14
@@ -627,8 +627,8 @@ packages:
     resolution: {integrity: sha512-jQ+tvOmQ18y/566A0P1TUoz7RqT97jIfFC+FSvewPz6fO2uslGy5tM+8hjS+l/Wj4NAWmn5KDQX+CFEt1CtNTg==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-sts@3.1138.0':
-    resolution: {integrity: sha512-bgLbxtF/GBSTDJtl+WweClwoQkNd9TxmoGikHCs+c16rvvCs0sFOsmEZ0AT5DLIxGvRZOO/NT9d3FBQNsIs9cg==}
+  '@aws-sdk/client-sts@3.1144.0':
+    resolution: {integrity: sha512-54Tn8DqDn7rX0ZEQzR8uhBrhlid93OiQgv72L3v1xFwrnsOxISeng3DzP5lngi7kTKHcgi7QAZR5ePgi36vxlw==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/core@3.978.1':
@@ -2589,7 +2589,7 @@ snapshots:
       '@smithy/types': 4.19.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-sts@3.1138.0':
+  '@aws-sdk/client-sts@3.1144.0':
     dependencies:
       '@aws-sdk/core': 3.978.1
       '@aws-sdk/credential-provider-node': 3.972.84
