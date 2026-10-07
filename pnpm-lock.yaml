@@ -476,7 +476,7 @@ importers:
         version: 7.2.0(zod@4.6.5)
       sqs-consumer:
         specifier: ^15.0.4
-        version: 15.0.4(@aws-sdk/client-sqs@3.1134.0)(supports-color@7.2.0)
+        version: 15.0.4(@aws-sdk/client-sqs@3.1144.0)(supports-color@7.2.0)
     devDependencies:
       '@aws-sdk/client-s3':
         specifier: ^3.1144.0
@@ -485,8 +485,8 @@ importers:
         specifier: ^3.1144.0
         version: 3.1144.0
       '@aws-sdk/client-sqs':
-        specifier: ^3.1134.0
-        version: 3.1134.0
+        specifier: ^3.1144.0
+        version: 3.1144.0
       '@aws-sdk/client-sts':
         specifier: ^3.1144.0
         version: 3.1144.0
@@ -549,14 +549,14 @@ importers:
         version: 14.9.1(zod@4.6.5)
       sqs-consumer:
         specifier: ^15.0.4
-        version: 15.0.4(@aws-sdk/client-sqs@3.1134.0)(supports-color@7.2.0)
+        version: 15.0.4(@aws-sdk/client-sqs@3.1144.0)(supports-color@7.2.0)
     devDependencies:
       '@aws-sdk/client-s3':
         specifier: ^3.1144.0
         version: 3.1144.0
       '@aws-sdk/client-sqs':
-        specifier: ^3.1134.0
-        version: 3.1134.0
+        specifier: ^3.1144.0
+        version: 3.1144.0
       '@biomejs/biome':
         specifier: ^2.5.14
         version: 2.5.14
@@ -623,8 +623,8 @@ packages:
     resolution: {integrity: sha512-BuY/O+e20qWg//MjSIUVcF46nDg0jknCRXNEbkOoqXev+hI4cttGq3+WDxpXHU/Zc456FXh5U6NBEWBrLyzXMQ==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-sqs@3.1134.0':
-    resolution: {integrity: sha512-jQ+tvOmQ18y/566A0P1TUoz7RqT97jIfFC+FSvewPz6fO2uslGy5tM+8hjS+l/Wj4NAWmn5KDQX+CFEt1CtNTg==}
+  '@aws-sdk/client-sqs@3.1144.0':
+    resolution: {integrity: sha512-4JOBkMKOuwmer5r8EV9Itbk/NLwxaKRznvUf2DFagt2D811npJPQdyxnRFLFMLW0N8q+A3SRbJpbdmTCAIxagw==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/client-sts@3.1144.0':
@@ -671,8 +671,8 @@ packages:
     resolution: {integrity: sha512-E7W2UOeUoc+lg3uIfR/dM7ZwusHwhBQrKMnlkRv4EXRR+C0YtV1pg25xC7GdZIhXH+NAMgZPCbE7o5to2cjFiw==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/middleware-sdk-sqs@3.972.42':
-    resolution: {integrity: sha512-D/O6iHAqlm0b430vIGewanSsr5RzaWbSDFlHYdKLWlZb4kaMKBmb44ReNHAFEKj5tNRY8pysw0qfciosB/VcJg==}
+  '@aws-sdk/middleware-sdk-sqs@3.972.43':
+    resolution: {integrity: sha512-0V1bKYPfAnhA6fW9r04uZfXB7DkwT149wKL14BKCC7zUryxIBecgDyvxKIUsZApmvSXpEzPL66uzO/Yc55s74g==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/nested-clients@3.997.46':
@@ -2577,11 +2577,11 @@ snapshots:
       '@smithy/types': 4.19.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-sqs@3.1134.0':
+  '@aws-sdk/client-sqs@3.1144.0':
     dependencies:
       '@aws-sdk/core': 3.978.1
       '@aws-sdk/credential-provider-node': 3.972.84
-      '@aws-sdk/middleware-sdk-sqs': 3.972.42
+      '@aws-sdk/middleware-sdk-sqs': 3.972.43
       '@aws-sdk/types': 3.974.6
       '@smithy/core': 3.35.0
       '@smithy/fetch-http-handler': 5.8.0
@@ -2705,7 +2705,7 @@ snapshots:
       '@smithy/types': 4.19.0
       tslib: 2.8.1
 
-  '@aws-sdk/middleware-sdk-sqs@3.972.42':
+  '@aws-sdk/middleware-sdk-sqs@3.972.43':
     dependencies:
       '@aws-sdk/types': 3.974.6
       '@smithy/core': 3.35.0
@@ -3611,7 +3611,7 @@ snapshots:
     dependencies:
       '@aws-sdk/client-s3': 3.1144.0
       '@aws-sdk/client-sns': 3.1144.0
-      '@aws-sdk/client-sqs': 3.1134.0
+      '@aws-sdk/client-sqs': 3.1144.0
       '@fastify/cors': 11.3.0
       '@smithy/node-http-handler': 4.12.1
       fastify: 5.12.1
@@ -4215,9 +4215,9 @@ snapshots:
 
   split2@4.2.0: {}
 
-  sqs-consumer@15.0.4(@aws-sdk/client-sqs@3.1134.0)(supports-color@7.2.0):
+  sqs-consumer@15.0.4(@aws-sdk/client-sqs@3.1144.0)(supports-color@7.2.0):
     dependencies:
-      '@aws-sdk/client-sqs': 3.1134.0
+      '@aws-sdk/client-sqs': 3.1144.0
       debug: 4.4.3(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
