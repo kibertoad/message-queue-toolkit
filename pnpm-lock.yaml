@@ -70,8 +70,8 @@ importers:
         specifier: ^14.11.0
         version: 14.11.0(zod@4.6.5)
       '@lokalise/universal-ts-utils':
-        specifier: ^4.11.0
-        version: 4.11.0
+        specifier: ^4.12.0
+        version: 4.12.0
       '@message-queue-toolkit/schemas':
         specifier: '>=7.2.0 <9.0.0'
         version: 7.2.0(zod@4.6.5)
@@ -231,8 +231,8 @@ importers:
         specifier: ^14.11.0
         version: 14.11.0(zod@4.6.5)
       '@lokalise/universal-ts-utils':
-        specifier: ^4.11.0
-        version: 4.11.0
+        specifier: ^4.12.0
+        version: 4.12.0
       '@platformatic/kafka':
         specifier: ^2.12.1
         version: 2.12.1(supports-color@7.2.0)
@@ -283,8 +283,8 @@ importers:
         specifier: ^14.11.0
         version: 14.11.0(zod@4.6.5)
       '@lokalise/universal-ts-utils':
-        specifier: ^4.11.0
-        version: 4.11.0
+        specifier: ^4.12.0
+        version: 4.12.0
       '@prometheus-io/client':
         specifier: '>=0.16.0 <1'
         version: 0.16.1
@@ -889,8 +889,8 @@ packages:
   '@lokalise/tsconfig@5.0.0':
     resolution: {integrity: sha512-nAE106uzG1+6ldEdmbFVIwkFTszkOFIxzCPaZhwqoChcXizvcCPuPGTE+PrlPiE6GhfAzlspLvmVwvzdaNimdw==}
 
-  '@lokalise/universal-ts-utils@4.11.0':
-    resolution: {integrity: sha512-VcZ1jFOAGOT7lAbi6hbQVadreWwa8KXai12H7CSbmU8UqREGgu0Q2RmLFoA+FYTSHkDK8lRZN/sO9YdjpOBbfg==}
+  '@lokalise/universal-ts-utils@4.12.0':
+    resolution: {integrity: sha512-i2zyMqcug02iuDtuVeFBokZ6S3nFTjM6Nkuisczaxg/CL/O7c2Nl9kZ23jJOkd5xazcLEr5hpIAo2fbSJZM9ew==}
 
   '@message-queue-toolkit/redis-message-deduplication-store@3.0.0':
     resolution: {integrity: sha512-wlBH5RHswPIJuAJRlhf7mnevtoOyDINAjJsEcvytrkvrCNeIe8cm8F23/HMJykxuDszr3LKNUvmLaQF/o6GDlg==}
@@ -2911,7 +2911,7 @@ snapshots:
 
   '@lokalise/tsconfig@5.0.0': {}
 
-  '@lokalise/universal-ts-utils@4.11.0': {}
+  '@lokalise/universal-ts-utils@4.12.0': {}
 
   '@message-queue-toolkit/redis-message-deduplication-store@3.0.0(@message-queue-toolkit/core@packages+core)(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)(zod@4.6.5)':
     dependencies:

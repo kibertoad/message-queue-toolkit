@@ -26,7 +26,7 @@
     },
     "dependencies": {
         "@lokalise/node-core": "^14.11.0",
-        "@lokalise/universal-ts-utils": "^4.11.0",
+        "@lokalise/universal-ts-utils": "^4.12.0",
         "@message-queue-toolkit/schemas": ">=7.2.0 <9.0.0",
         "dot-prop": "^10.2.0",
         "fast-equals": "^6.1.0",
