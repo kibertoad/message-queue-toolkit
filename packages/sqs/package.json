@@ -32,7 +32,7 @@
         "prepublishOnly": "pnpm run lint && pnpm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^14.9.1",
+        "@lokalise/node-core": "^14.11.0",
         "sqs-consumer": "^15.0.4"
     },
     "peerDependencies": {
