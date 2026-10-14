@@ -28,7 +28,7 @@
         "prepublishOnly": "pnpm run lint && pnpm run build"
     },
     "dependencies": {
-        "@lokalise/node-core": "^14.9.1",
+        "@lokalise/node-core": "^14.11.0",
         "redis-semaphore": "^5.7.0"
     },
     "peerDependencies": {

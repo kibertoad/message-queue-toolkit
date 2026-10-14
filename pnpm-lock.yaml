@@ -15,8 +15,8 @@ importers:
   packages/amqp:
     dependencies:
       '@lokalise/node-core':
-        specifier: ^14.9.1
-        version: 14.9.1(zod@4.6.5)
+        specifier: ^14.11.0
+        version: 14.11.0(zod@4.6.5)
       '@message-queue-toolkit/schemas':
         specifier: '>=7.0.0'
         version: 7.2.0(zod@4.6.5)
@@ -67,8 +67,8 @@ importers:
   packages/core:
     dependencies:
       '@lokalise/node-core':
-        specifier: ^14.9.1
-        version: 14.9.1(zod@4.6.5)
+        specifier: ^14.11.0
+        version: 14.11.0(zod@4.6.5)
       '@lokalise/universal-ts-utils':
         specifier: ^4.11.0
         version: 4.11.0
@@ -134,8 +134,8 @@ importers:
         specifier: ^1.14.5
         version: 1.14.5
       '@lokalise/node-core':
-        specifier: ^14.9.1
-        version: 14.9.1(zod@4.6.5)
+        specifier: ^14.11.0
+        version: 14.11.0(zod@4.6.5)
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.5.14
@@ -228,8 +228,8 @@ importers:
   packages/kafka:
     dependencies:
       '@lokalise/node-core':
-        specifier: ^14.9.1
-        version: 14.9.1(zod@4.6.5)
+        specifier: ^14.11.0
+        version: 14.11.0(zod@4.6.5)
       '@lokalise/universal-ts-utils':
         specifier: ^4.11.0
         version: 4.11.0
@@ -280,8 +280,8 @@ importers:
   packages/metrics:
     dependencies:
       '@lokalise/node-core':
-        specifier: ^14.9.1
-        version: 14.9.1(zod@4.6.5)
+        specifier: ^14.11.0
+        version: 14.11.0(zod@4.6.5)
       '@lokalise/universal-ts-utils':
         specifier: ^4.11.0
         version: 4.11.0
@@ -363,8 +363,8 @@ importers:
   packages/redis-message-deduplication-store:
     dependencies:
       '@lokalise/node-core':
-        specifier: ^14.9.1
-        version: 14.9.1(zod@4.6.5)
+        specifier: ^14.11.0
+        version: 14.11.0(zod@4.6.5)
       ioredis:
         specifier: ^5.3.2
         version: 5.11.1(supports-color@7.2.0)
@@ -469,8 +469,8 @@ importers:
   packages/sns:
     dependencies:
       '@lokalise/node-core':
-        specifier: ^14.9.1
-        version: 14.9.1(zod@4.6.5)
+        specifier: ^14.11.0
+        version: 14.11.0(zod@4.6.5)
       '@message-queue-toolkit/schemas':
         specifier: '>=7.0.0'
         version: 7.2.0(zod@4.6.5)
@@ -545,8 +545,8 @@ importers:
   packages/sqs:
     dependencies:
       '@lokalise/node-core':
-        specifier: ^14.9.1
-        version: 14.9.1(zod@4.6.5)
+        specifier: ^14.11.0
+        version: 14.11.0(zod@4.6.5)
       sqs-consumer:
         specifier: ^15.0.4
         version: 15.0.4(@aws-sdk/client-sqs@3.1144.0)(supports-color@7.2.0)
@@ -881,8 +881,8 @@ packages:
   '@lokalise/id-utils@3.0.1':
     resolution: {integrity: sha512-XgqjroAQi1RAEi2bRvC/7Fc/jM9UpFL1i+Wi1dJLJ0RwwJU/5lNtqv6XnkcHEWIwMTwbGulqvp0yHaZ8biEsaA==}
 
-  '@lokalise/node-core@14.9.1':
-    resolution: {integrity: sha512-gI8pcmRXytPLbc6fBWJwhBB7IW8XxcGBz9ozhf1lneR9SrosWto/2GAQdCFVSiiRm9GLdrhfC+M7OuxKOvbvSQ==}
+  '@lokalise/node-core@14.11.0':
+    resolution: {integrity: sha512-kQL2BsRoLfooGhjuXC1k8tNS+MDFUGnvhprusqMWvr8570/Y0a5yQ6qn2jvSIt/YCrsEwbka9+z3ljt/hBpgIA==}
     peerDependencies:
       zod: '>=3.25.76 <5.0.0'
 
@@ -2936,7 +2936,7 @@ snapshots:
   '@lokalise/background-jobs-common@17.0.1(bullmq@5.76.8(supports-color@7.2.0))(ioredis@6.0.0(supports-color@7.2.0))(pino@10.3.1)(supports-color@7.2.0)(toad-scheduler@4.1.0)(zod@4.6.5)':
     dependencies:
       '@lokalise/id-utils': 3.0.1
-      '@lokalise/node-core': 14.9.1(zod@4.6.5)
+      '@lokalise/node-core': 14.11.0(zod@4.6.5)
       bullmq: 5.76.8(supports-color@7.2.0)
       ioredis: 6.0.0(supports-color@7.2.0)
       pino: 10.3.1
@@ -2955,7 +2955,7 @@ snapshots:
       ulidx: 2.4.1
       uuidv7: 1.2.1
 
-  '@lokalise/node-core@14.9.1(zod@4.6.5)':
+  '@lokalise/node-core@14.11.0(zod@4.6.5)':
     dependencies:
       dot-prop: 6.0.1
       pino: 10.3.1
@@ -2969,7 +2969,7 @@ snapshots:
 
   '@message-queue-toolkit/redis-message-deduplication-store@3.0.0(@message-queue-toolkit/core@packages+core)(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)(zod@4.6.5)':
     dependencies:
-      '@lokalise/node-core': 14.9.1(zod@4.6.5)
+      '@lokalise/node-core': 14.11.0(zod@4.6.5)
       '@message-queue-toolkit/core': link:packages/core
       ioredis: 5.11.1(supports-color@7.2.0)
       redis-semaphore: 5.8.0(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)
