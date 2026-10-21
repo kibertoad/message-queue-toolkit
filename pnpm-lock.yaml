@@ -144,8 +144,8 @@ importers:
         specifier: ^6.1.0
         version: 6.1.0(supports-color@7.2.0)
       '@google-cloud/storage':
-        specifier: ^8.3.0
-        version: 8.3.0(supports-color@7.2.0)
+        specifier: ^8.4.0
+        version: 8.4.0(supports-color@7.2.0)
       '@lokalise/biome-config':
         specifier: ^3.1.1
         version: 3.1.1
@@ -198,8 +198,8 @@ importers:
         specifier: ^2.5.14
         version: 2.5.14
       '@google-cloud/storage':
-        specifier: ^8.3.0
-        version: 8.3.0(supports-color@7.2.0)
+        specifier: ^8.4.0
+        version: 8.4.0(supports-color@7.2.0)
       '@lokalise/biome-config':
         specifier: ^3.1.1
         version: 3.1.1
@@ -831,8 +831,8 @@ packages:
     resolution: {integrity: sha512-amPObGHTojTGLeaSTogY22vGkNc/cWaNXphS64Jmwkn2rcvIHnYnwsFwQaxYd+BfML48ninINn5gziRmcfOqPA==}
     engines: {node: '>=22'}
 
-  '@google-cloud/storage@8.3.0':
-    resolution: {integrity: sha512-bP1hNxpXiv+BrkvJSlyZrR523X/DTtS8/gkNBghNWDs5Gi7beCX6czTLwztecuTemzejsxaJ2SjIvPkSw2e5jg==}
+  '@google-cloud/storage@8.4.0':
+    resolution: {integrity: sha512-M3kA6UA2Tjp5aznCrgKcm9CzOjiQyRMnquqalqXAeS5wvkqqZxN8wpNjjHafOSYs6lQ82U7f2i8we4eTfIrpkA==}
     engines: {node: '>=22'}
 
   '@grpc/grpc-js@1.14.5':
@@ -2840,7 +2840,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@google-cloud/storage@8.3.0(supports-color@7.2.0)':
+  '@google-cloud/storage@8.4.0(supports-color@7.2.0)':
     dependencies:
       '@google-cloud/paginator': 7.0.1
       '@google-cloud/projectify': 6.0.1
