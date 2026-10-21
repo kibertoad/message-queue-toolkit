@@ -369,8 +369,8 @@ importers:
         specifier: ^5.3.2
         version: 5.11.1(supports-color@7.2.0)
       redis-semaphore:
-        specifier: ^5.7.0
-        version: 5.8.0(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)
+        specifier: ^6.0.0
+        version: 6.0.0(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0)
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.5.14
@@ -2145,6 +2145,15 @@ packages:
   redis-semaphore@5.8.0:
     resolution: {integrity: sha512-I8Y6MexOHOOO1iHQfAgRELH5RExgRX6igevq0qLtLqKHLhycXwoJCaYZE1unLx4fTJXBACkcDkfNoLCsSB9pqg==}
     engines: {node: '>= 14.17.0'}
+    peerDependencies:
+      ioredis: ^4.1.0 || ^5 || ^6
+    peerDependenciesMeta:
+      ioredis:
+        optional: true
+
+  redis-semaphore@6.0.0:
+    resolution: {integrity: sha512-Ko1uzsjGWKkj8tlIGAGeJ5+DcOsTNh2PfXJj11PsB13Hb+5P9r3I3YAfC8qQMHJK4Z4b9AopXV6utKo5z/uzQw==}
+    engines: {node: '>=22.12.0'}
     peerDependencies:
       ioredis: ^4.1.0 || ^5 || ^6
     peerDependenciesMeta:
@@ -4033,6 +4042,14 @@ snapshots:
       debug: 4.4.3(supports-color@7.2.0)
     optionalDependencies:
       ioredis: 6.0.0(supports-color@7.2.0)
+    transitivePeerDependencies:
+      - supports-color
+
+  redis-semaphore@6.0.0(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0):
+    dependencies:
+      debug: 4.4.3(supports-color@7.2.0)
+    optionalDependencies:
+      ioredis: 5.11.1(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
 
