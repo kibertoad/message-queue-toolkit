@@ -29,7 +29,7 @@
     },
     "dependencies": {
         "@lokalise/node-core": "^14.11.0",
-        "redis-semaphore": "^5.7.0"
+        "redis-semaphore": "^6.0.0"
     },
     "peerDependencies": {
         "@message-queue-toolkit/core": ">=23.1.0",
