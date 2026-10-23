@@ -502,5 +502,24 @@ describe('SqsPermissionPublisher', () => {
       expect(spy.message).toEqual(message)
       expect(spy.processingResult).toEqual({ status: 'published' })
     })
+
+    it('retries lazy init on the next publish after a failed one', async () => {
+      const newPublisher = new SqsPermissionPublisher(diContainer.cradle)
+      const initSpy = vi
+        .spyOn(newPublisher, 'init')
+        .mockRejectedValueOnce(new Error('Transient init failure'))
+
+      const message = {
+        id: '1',
+        messageType: 'add',
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+      await expect(newPublisher.publish(message)).rejects.toThrow('Transient init failure')
+      await newPublisher.publish(message)
+
+      const spy = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
+      expect(initSpy).toHaveBeenCalledTimes(2)
+    })
   })
 })

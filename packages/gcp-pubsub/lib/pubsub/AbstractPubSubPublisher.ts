@@ -67,8 +67,14 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
       if (!this.initPromise) {
         this.initPromise = this.init()
       }
-      await this.initPromise
-      this.initPromise = undefined
+      const initPromise = this.initPromise
+      try {
+        await initPromise
+      } finally {
+        // Cleared on failure too, so the next publish retries the init instead of re-awaiting the
+        // same rejection. Only if still ours: a concurrent caller may already have started a retry.
+        if (this.initPromise === initPromise) this.initPromise = undefined
+      }
     }
 
     try {

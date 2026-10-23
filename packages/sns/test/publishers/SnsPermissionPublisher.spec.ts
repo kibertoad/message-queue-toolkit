@@ -387,5 +387,24 @@ describe('SnsPermissionPublisher', () => {
       const res = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
       expect(res.message).toEqual(message)
     })
+
+    it('retries lazy init on the next publish after a failed one', async () => {
+      const newPublisher = new SnsPermissionPublisher(diContainer.cradle)
+      const initSpy = vi
+        .spyOn(newPublisher, 'init')
+        .mockRejectedValueOnce(new Error('Transient init failure'))
+
+      const message = {
+        id: '1',
+        messageType: 'add',
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+      await expect(newPublisher.publish(message)).rejects.toThrow('Transient init failure')
+      await newPublisher.publish(message)
+
+      const res = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
+      expect(res.message).toEqual(message)
+      expect(initSpy).toHaveBeenCalledTimes(2)
+    })
   })
 })
