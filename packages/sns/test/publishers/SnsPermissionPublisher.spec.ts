@@ -405,6 +405,8 @@ describe('SnsPermissionPublisher', () => {
       const res = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
       expect(res.message).toEqual(message)
       expect(initSpy).toHaveBeenCalledTimes(2)
+
+      await newPublisher.close()
     })
   })
 })

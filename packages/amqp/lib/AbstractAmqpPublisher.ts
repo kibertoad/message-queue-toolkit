@@ -85,13 +85,19 @@ export abstract class AbstractAmqpPublisher<
        */
       const initPromise = this.initPromise
       initPromise
-        .then(() => {
-          this.publish(message, options)
-        })
+        .then(
+          () => {
+            this.publish(message, options)
+          },
+          (err) => {
+            // Init failures only, not errors from the publish above: cleared so the next publish
+            // retries the init instead of re-awaiting the same rejection. Only if still ours: an
+            // earlier failed publish may already have started a retry.
+            if (this.initPromise === initPromise) this.initPromise = undefined
+            throw err
+          },
+        )
         .catch((err) => {
-          // Cleared so the next publish retries the init instead of re-awaiting the same
-          // rejection. Only if still ours: an earlier failed publish may already have started a retry.
-          if (this.initPromise === initPromise) this.initPromise = undefined
           this.handleError(err)
         })
       return
