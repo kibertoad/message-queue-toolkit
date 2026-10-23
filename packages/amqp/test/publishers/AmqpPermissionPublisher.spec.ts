@@ -4,7 +4,7 @@ import type { Channel } from 'amqplib'
 import type { AwilixContainer } from 'awilix'
 import { asClass, asFunction, Lifetime } from 'awilix'
 import { asMockFunction } from 'awilix-manager'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ZodError } from 'zod/v4'
 import { AbstractAmqpQueuePublisher } from '../../lib/AbstractAmqpQueuePublisher.ts'
 import { deserializeAmqpMessage } from '../../lib/amqpMessageDeserializer.ts'
@@ -340,6 +340,50 @@ describe('PermissionPublisher', () => {
           _internalRetryLaterCount: 0,
         },
       })
+    })
+
+    it('retries lazy init on the next publish after a failed one', async () => {
+      await permissionConsumer.close()
+      const newPublisher = new AmqpPermissionPublisher(diContainer.cradle)
+      const initSpy = vi
+        .spyOn(newPublisher, 'init')
+        .mockRejectedValueOnce(new Error('Transient init failure'))
+      const handleErrorSpy = vi.spyOn(newPublisher as any, 'handleError')
+
+      const message = {
+        id: '1',
+        messageType: 'add',
+        userIds: [1],
+        permissions: ['100'],
+        timestamp: new Date(),
+      } satisfies PERMISSIONS_MESSAGE_TYPE
+
+      newPublisher.publish(message)
+      await vi.waitFor(() => {
+        expect(handleErrorSpy).toHaveBeenCalledWith(new Error('Transient init failure'))
+      })
+
+      newPublisher.publish(message)
+      await vi.waitFor(() => {
+        expect(initSpy).toHaveBeenCalledTimes(2)
+      })
+
+      let receivedMessage: unknown
+      await channel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
+        if (message === null) {
+          return
+        }
+        receivedMessage = deserializeAmqpMessage(
+          message,
+          PERMISSIONS_MESSAGE_SCHEMA,
+          new FakeConsumerErrorResolver(),
+        ).result
+      })
+
+      await waitAndRetry(() => !!receivedMessage)
+      expect(receivedMessage).toMatchObject({ parsedMessage: { id: '1', messageType: 'add' } })
+
+      await newPublisher.close()
     })
 
     it('publishes a message auto-filling internal properties', async () => {
