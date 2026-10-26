@@ -173,4 +173,11 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
   protected override resolveSchema(message: MessagePayloadType) {
     return this.messageSchemaContainer.resolveSchema(message)
   }
+
+  override async close(): Promise<void> {
+    // Dropped so a publish after close() starts a fresh lazy init, rather than awaiting an attempt
+    // that began before the close. Matches AbstractAmqpPublisher.
+    this.initPromise = undefined
+    await super.close()
+  }
 }
