@@ -1,5 +1,5 @@
 import type { PubSub } from '@google-cloud/pubsub'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { deletePubSubTopic } from '../utils/cleanupPubSub.ts'
 import { registerDependencies } from '../utils/testContext.ts'
@@ -58,6 +58,29 @@ describe('PubSubPermissionPublisher', () => {
   })
 
   describe('publish', () => {
+    it('retries lazy init on the next publish after a failed one', async () => {
+      const newPublisher = new PubSubPermissionPublisher(diContainer.cradle)
+      const initSpy = vi
+        .spyOn(newPublisher, 'init')
+        .mockRejectedValueOnce(new Error('Transient init failure'))
+
+      const message = {
+        id: 'lazy-init-retry',
+        messageType: 'add' as const,
+        timestamp: new Date().toISOString(),
+        userIds: ['userId1'],
+      }
+
+      await expect(newPublisher.publish(message)).rejects.toThrow('Transient init failure')
+      await newPublisher.publish(message)
+
+      const spy = await newPublisher.handlerSpy.waitForMessageWithId('lazy-init-retry', 'published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
+      expect(initSpy).toHaveBeenCalledTimes(2)
+
+      await newPublisher.close()
+    })
+
     it('publishes a message to topic', async () => {
       const message = {
         id: '1',

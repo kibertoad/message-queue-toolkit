@@ -502,5 +502,70 @@ describe('SqsPermissionPublisher', () => {
       expect(spy.message).toEqual(message)
       expect(spy.processingResult).toEqual({ status: 'published' })
     })
+
+    it('retries lazy init on the next publish after a failed one', async () => {
+      const newPublisher = new SqsPermissionPublisher(diContainer.cradle)
+      const initSpy = vi
+        .spyOn(newPublisher, 'init')
+        .mockRejectedValueOnce(new Error('Transient init failure'))
+
+      const message = {
+        id: '1',
+        messageType: 'add',
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+      await expect(newPublisher.publish(message)).rejects.toThrow('Transient init failure')
+      await newPublisher.publish(message)
+
+      const spy = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
+      expect(initSpy).toHaveBeenCalledTimes(2)
+
+      await newPublisher.close()
+    })
+
+    it('retries lazy init once the missing queue exists', async () => {
+      const queueName = 'lazy_init_retry_queue'
+      await diContainer.cradle.testAdmin.deleteQueues(queueName)
+      const newPublisher = new SqsPermissionPublisher(diContainer.cradle, {
+        locatorConfig: { queueName },
+      })
+
+      const message = {
+        id: '1',
+        messageType: 'add',
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
+
+      await expect(newPublisher.publish(message)).rejects.toThrow(/does not exist/)
+
+      await diContainer.cradle.testAdmin.createQueue(queueName)
+      await newPublisher.publish(message)
+
+      const spy = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
+
+      await newPublisher.close()
+      await diContainer.cradle.testAdmin.deleteQueues(queueName)
+    })
+
+    it('shares one failed lazy init between concurrent publishes', async () => {
+      const newPublisher = new SqsPermissionPublisher(diContainer.cradle)
+      const initSpy = vi
+        .spyOn(newPublisher, 'init')
+        .mockRejectedValueOnce(new Error('Transient init failure'))
+
+      const results = await Promise.allSettled([
+        newPublisher.publish({ id: '1', messageType: 'add' }),
+        newPublisher.publish({ id: '2', messageType: 'add' }),
+      ])
+
+      expect(results).toEqual([
+        { status: 'rejected', reason: new Error('Transient init failure') },
+        { status: 'rejected', reason: new Error('Transient init failure') },
+      ])
+      expect(initSpy).toHaveBeenCalledTimes(1)
+
+      await newPublisher.close()
+    })
   })
 })

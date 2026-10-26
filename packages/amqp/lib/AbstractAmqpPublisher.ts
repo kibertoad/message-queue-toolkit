@@ -83,12 +83,21 @@ export abstract class AbstractAmqpPublisher<
        * it is intentional that this promise is not awaited, that's how we keep the method invocation synchronous
        * RabbitMQ publish by itself doesn't guarantee that your message is delivered successfully, so this kind of fire-and-forget is not strongly different from how amqp-lib behaves in the first place.
        */
-      this.initPromise
-        .then(() => {
-          this.publish(message, options)
-        })
+      const initPromise = this.initPromise
+      initPromise
+        .then(
+          () => {
+            this.publish(message, options)
+          },
+          (err) => {
+            // Init failures only, not errors from the publish above: cleared so the next publish
+            // retries the init instead of re-awaiting the same rejection. Only if still ours: an
+            // earlier failed publish may already have started a retry.
+            if (this.initPromise === initPromise) this.initPromise = undefined
+            throw err
+          },
+        )
         .catch((err) => {
-          /* v8 ignore next */
           this.handleError(err)
         })
       return
