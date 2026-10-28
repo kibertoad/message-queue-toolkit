@@ -53,7 +53,7 @@
         "@types/node": "^26.6.5",
         "@vitest/coverage-v8": "^5.0.5",
         "awilix": "^13.0.5",
-        "awilix-manager": "^7.1.0",
+        "awilix-manager": "^7.2.0",
         "fauxqs": "^2.12.2",
         "ioredis": "^5.11.1",
         "rimraf": "^6.1.3",
