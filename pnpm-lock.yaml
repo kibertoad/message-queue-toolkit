@@ -424,8 +424,8 @@ importers:
         specifier: ^5.0.4
         version: 5.0.4(vitest@5.0.4)
       fauxqs:
-        specifier: ^2.12.1
-        version: 2.12.1(typescript@7.0.2)
+        specifier: ^2.12.2
+        version: 2.12.2(typescript@7.0.2)
       rimraf:
         specifier: ^6.1.3
         version: 6.1.3
@@ -524,8 +524,8 @@ importers:
         specifier: ^7.1.0
         version: 7.1.0(awilix@13.0.5)
       fauxqs:
-        specifier: ^2.12.1
-        version: 2.12.1(typescript@7.0.2)
+        specifier: ^2.12.2
+        version: 2.12.2(typescript@7.0.2)
       ioredis:
         specifier: ^5.11.1
         version: 5.11.1(supports-color@7.2.0)
@@ -591,8 +591,8 @@ importers:
         specifier: ^7.1.0
         version: 7.1.0(awilix@13.0.5)
       fauxqs:
-        specifier: ^2.12.1
-        version: 2.12.1(typescript@7.0.2)
+        specifier: ^2.12.2
+        version: 2.12.2(typescript@7.0.2)
       ioredis:
         specifier: ^5.11.1
         version: 5.11.1(supports-color@7.2.0)
@@ -1811,8 +1811,8 @@ packages:
   fastq@1.20.3:
     resolution: {integrity: sha512-XKv5nnLs6nLF71NgiKJLIZFLkPyIEuOselLG7ujZnGrRfQK8HpvY+WqKhAJUAdLomwVHErVS4LfxFlPq0/FTAw==}
 
-  fauxqs@2.12.1:
-    resolution: {integrity: sha512-KrlSflFgpwIxkp2h83vf+g6GEWckTjepQnjo8VimMHoJo5UhxX2HdXA9+DycO5mPlqxJIKzKYqChCdWuKTpMVQ==}
+  fauxqs@2.12.2:
+    resolution: {integrity: sha512-mvrTGlYbFoM0p0//l5+/N3xFFF4Bx7EO7DqBON5nGgoVbQ4X9fvCx3fghQ5NHcTR1wzNUD5KgIWjIUy5UTNenw==}
     engines: {node: '>=22.5.0', pnpm: '>=11'}
     hasBin: true
 
@@ -3928,7 +3928,7 @@ snapshots:
     dependencies:
       reusify: 1.1.0
 
-  fauxqs@2.12.1(typescript@7.0.2):
+  fauxqs@2.12.2(typescript@7.0.2):
     dependencies:
       '@aws-sdk/client-s3': 3.1155.0
       '@aws-sdk/client-sns': 3.1147.0
