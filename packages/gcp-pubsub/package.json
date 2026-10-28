@@ -31,13 +31,13 @@
         "@lokalise/node-core": "^14.11.0"
     },
     "peerDependencies": {
-        "@google-cloud/pubsub": "^6.3.0",
+        "@google-cloud/pubsub": "^6.3.1",
         "@message-queue-toolkit/core": ">=26.0.0",
         "zod": "^4.5.0"
     },
     "devDependencies": {
         "@biomejs/biome": "^2.5.15",
-        "@google-cloud/pubsub": "^6.3.0",
+        "@google-cloud/pubsub": "^6.3.1",
         "@google-cloud/storage": "^8.4.0",
         "@lokalise/biome-config": "^3.1.1",
         "@lokalise/tsconfig": "^5.0.0",
