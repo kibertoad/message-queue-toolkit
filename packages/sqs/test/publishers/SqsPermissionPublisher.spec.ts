@@ -567,5 +567,23 @@ describe('SqsPermissionPublisher', () => {
 
       await newPublisher.close()
     })
+
+    it('starts a fresh lazy init when publishing after close', async () => {
+      const newPublisher = new SqsPermissionPublisher(diContainer.cradle)
+      // The first attempt never settles, as if it were still in flight when close() ran
+      const initSpy = vi
+        .spyOn(newPublisher, 'init')
+        .mockImplementationOnce(() => new Promise(() => {}))
+
+      void newPublisher.publish({ id: '1', messageType: 'add' })
+      await newPublisher.close()
+      await newPublisher.publish({ id: '2', messageType: 'add' })
+
+      const spy = await newPublisher.handlerSpy.waitForMessageWithId('2', 'published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
+      expect(initSpy).toHaveBeenCalledTimes(2)
+
+      await newPublisher.close()
+    })
   })
 })
