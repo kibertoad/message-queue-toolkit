@@ -290,4 +290,11 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
 
     return resolvedOptions
   }
+
+  override async close(): Promise<void> {
+    // Dropped so a publish after close() starts a fresh lazy init, rather than awaiting an attempt
+    // that began before the close. Matches AbstractAmqpPublisher.
+    this.initPromise = undefined
+    await super.close()
+  }
 }

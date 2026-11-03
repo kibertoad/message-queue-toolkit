@@ -81,6 +81,30 @@ describe('PubSubPermissionPublisher', () => {
       await newPublisher.close()
     })
 
+    it('starts a fresh lazy init when publishing after close', async () => {
+      const newPublisher = new PubSubPermissionPublisher(diContainer.cradle)
+      // The first attempt never settles, as if it were still in flight when close() ran
+      const initSpy = vi
+        .spyOn(newPublisher, 'init')
+        .mockImplementationOnce(() => new Promise(() => {}))
+      const message = (id: string) => ({
+        id,
+        messageType: 'add' as const,
+        timestamp: new Date().toISOString(),
+        userIds: ['userId1'],
+      })
+
+      void newPublisher.publish(message('close-reinit-1'))
+      await newPublisher.close()
+      await newPublisher.publish(message('close-reinit-2'))
+
+      const spy = await newPublisher.handlerSpy.waitForMessageWithId('close-reinit-2', 'published')
+      expect(spy.processingResult).toEqual({ status: 'published' })
+      expect(initSpy).toHaveBeenCalledTimes(2)
+
+      await newPublisher.close()
+    })
+
     it('publishes a message to topic', async () => {
       const message = {
         id: '1',
