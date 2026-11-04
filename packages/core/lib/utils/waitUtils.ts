@@ -8,6 +8,7 @@ export const waitAndRetry = <T>(
     function performCheck() {
       if (maxRetryCount !== 0 && retryCount > maxRetryCount) {
         resolve(predicateFn())
+        return
       }
       Promise.resolve()
         .then(() => {
