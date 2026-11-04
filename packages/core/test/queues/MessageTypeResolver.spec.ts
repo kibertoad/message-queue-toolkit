@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { z } from 'zod/v4'
 
 import {
   extractMessageTypeFromSchema,
@@ -225,150 +226,167 @@ describe('MessageTypeResolver', () => {
   })
 
   describe('extractMessageTypeFromSchema', () => {
-    it('should extract literal value from schema shape', () => {
-      const schema = {
-        shape: {
-          type: { value: 'user.created' },
-        },
-      }
+    const fromJsonSchema = (jsonSchema: Record<string, unknown>) => ({
+      '~standard': { vendor: 'test', jsonSchema: { input: () => jsonSchema } },
+    })
+
+    it('should extract literal value from a zod object schema', () => {
+      const schema = z.object({ type: z.literal('user.created'), id: z.string() })
 
       expect(extractMessageTypeFromSchema(schema, 'type')).toBe('user.created')
     })
 
     it('should return undefined when field path is undefined', () => {
-      const schema = {
-        shape: {
-          type: { value: 'user.created' },
-        },
-      }
+      const schema = z.object({ type: z.literal('user.created') })
 
       expect(extractMessageTypeFromSchema(schema, undefined)).toBeUndefined()
     })
 
-    it('should return undefined when field is not in schema shape', () => {
-      const schema = {
-        shape: {
-          type: { value: 'user.created' },
-        },
-      }
+    it('should return undefined when field is not in schema', () => {
+      const schema = z.object({ type: z.literal('user.created') })
 
       expect(extractMessageTypeFromSchema(schema, 'eventType')).toBeUndefined()
     })
 
-    it('should return undefined when schema has no shape', () => {
-      const schema = {}
+    it('should return undefined when schema does not implement Standard JSON Schema', () => {
+      expect(extractMessageTypeFromSchema({}, 'type')).toBeUndefined()
+      expect(extractMessageTypeFromSchema(undefined, 'type')).toBeUndefined()
+    })
+
+    it('should return undefined when field is not a literal', () => {
+      const schema = z.object({ type: z.string() })
 
       expect(extractMessageTypeFromSchema(schema, 'type')).toBeUndefined()
     })
 
-    it('should return undefined when field has no value', () => {
-      const schema = {
-        shape: {
-          type: {},
-        },
-      }
+    it('should return undefined when field is a multi-value literal', () => {
+      const schema = z.object({ type: z.literal(['a', 'b']) })
 
       expect(extractMessageTypeFromSchema(schema, 'type')).toBeUndefined()
     })
 
-    it('should extract literal value from nested path in schema shape', () => {
-      const schema = {
-        shape: {
-          metadata: {
-            shape: {
-              type: { value: 'nested.event' },
-            },
-          },
-        },
-      }
+    it('should extract literal value from nested path', () => {
+      const schema = z.object({ metadata: z.object({ type: z.literal('nested.event') }) })
 
       expect(extractMessageTypeFromSchema(schema, 'metadata.type')).toBe('nested.event')
     })
 
     it('should extract literal value from deeply nested path', () => {
-      const schema = {
-        shape: {
-          envelope: {
-            shape: {
-              header: {
-                shape: {
-                  eventType: { value: 'deep.nested.event' },
-                },
-              },
-            },
-          },
-        },
-      }
+      const schema = z.object({
+        envelope: z.object({ header: z.object({ eventType: z.literal('deep.nested.event') }) }),
+      })
 
       expect(extractMessageTypeFromSchema(schema, 'envelope.header.eventType')).toBe(
         'deep.nested.event',
       )
     })
 
+    it('should follow $refs for nested schemas registered with an id', () => {
+      const Metadata = z.object({ type: z.literal('ref.event') }).meta({ id: 'Metadata' })
+      const schema = z.object({ metadata: Metadata, previous: Metadata })
+
+      expect(extractMessageTypeFromSchema(schema, 'metadata.type')).toBe('ref.event')
+    })
+
+    it('should extract literal value from a transformed object schema', () => {
+      const schema = z.object({ type: z.literal('piped.event') }).transform((value) => value)
+
+      expect(extractMessageTypeFromSchema(schema, 'type')).toBe('piped.event')
+    })
+
+    it('should extract literal value when other fields cannot be represented in JSON Schema', () => {
+      const schema = z.object({
+        type: z.literal('dated.event'),
+        at: z.date(),
+        custom: z.custom<string>(() => true),
+      })
+
+      expect(extractMessageTypeFromSchema(schema, 'type')).toBe('dated.event')
+    })
+
     it('should return undefined when nested path does not exist', () => {
-      const schema = {
-        shape: {
-          metadata: {
-            shape: {},
-          },
-        },
-      }
+      const schema = z.object({ metadata: z.object({}) })
 
       expect(extractMessageTypeFromSchema(schema, 'metadata.type')).toBeUndefined()
     })
 
     it('should return undefined when intermediate path is not an object schema', () => {
-      const schema = {
-        shape: {
-          metadata: { value: 'string' }, // not a nested object
-        },
-      }
+      const schema = z.object({ metadata: z.literal('string') })
 
       expect(extractMessageTypeFromSchema(schema, 'metadata.type')).toBeUndefined()
     })
 
     it('should return undefined when value is a number', () => {
-      const schema = {
-        shape: {
-          type: { value: 123 },
-        },
-      }
+      const schema = z.object({ type: z.literal(123) })
 
       expect(extractMessageTypeFromSchema(schema, 'type')).toBeUndefined()
     })
 
     it('should return undefined when value is a boolean', () => {
-      const schema = {
-        shape: {
-          type: { value: true },
-        },
-      }
+      const schema = z.object({ type: z.literal(true) })
 
       expect(extractMessageTypeFromSchema(schema, 'type')).toBeUndefined()
     })
 
-    it('should return undefined when value is an object', () => {
-      const schema = {
-        shape: {
-          type: { value: { nested: 'value' } },
-        },
-      }
+    it('should return undefined when const value is an object', () => {
+      const schema = fromJsonSchema({
+        type: 'object',
+        properties: { type: { const: { nested: 'value' } } },
+      })
 
       expect(extractMessageTypeFromSchema(schema, 'type')).toBeUndefined()
     })
 
     it('should return undefined when nested path value is not a string', () => {
-      const schema = {
-        shape: {
-          metadata: {
-            shape: {
-              type: { value: 42 },
-            },
-          },
-        },
-      }
+      const schema = z.object({ metadata: z.object({ type: z.literal(42) }) })
 
       expect(extractMessageTypeFromSchema(schema, 'metadata.type')).toBeUndefined()
+    })
+
+    it('should follow draft-07 definitions refs and ignore unresolvable refs', () => {
+      const schema = fromJsonSchema({
+        type: 'object',
+        properties: {
+          metadata: { $ref: '#/definitions/Metadata' },
+          external: { $ref: 'https://example.com/schema.json' },
+          missing: { $ref: '#/definitions/Missing' },
+        },
+        definitions: {
+          Metadata: { type: 'object', properties: { type: { const: 'defs.event' } } },
+        },
+      })
+
+      expect(extractMessageTypeFromSchema(schema, 'metadata.type')).toBe('defs.event')
+      expect(extractMessageTypeFromSchema(schema, 'external.type')).toBeUndefined()
+      expect(extractMessageTypeFromSchema(schema, 'missing.type')).toBeUndefined()
+    })
+
+    it('should convert each schema to JSON Schema only once', () => {
+      const input = vi.fn(() => ({ type: 'object', properties: { type: { const: 'cached' } } }))
+      const schema = { '~standard': { vendor: 'test', jsonSchema: { input } } }
+
+      expect(extractMessageTypeFromSchema(schema, 'type')).toBe('cached')
+      expect(extractMessageTypeFromSchema(schema, 'type')).toBe('cached')
+      expect(input).toHaveBeenCalledTimes(1)
+    })
+
+    it('should pass lenient library options for known vendors', () => {
+      const input = vi.fn(() => ({ type: 'object', properties: { type: { const: 'a' } } }))
+
+      for (const vendor of ['zod', 'arktype', 'valibot', 'other']) {
+        extractMessageTypeFromSchema({ '~standard': { vendor, jsonSchema: { input } } }, 'type')
+      }
+
+      const libraryOptions = input.mock.calls.map(
+        (call) =>
+          (call as unknown as [{ libraryOptions?: Record<string, unknown> }])[0].libraryOptions,
+      )
+      expect(libraryOptions[0]).toEqual({ unrepresentable: 'any' })
+      expect(
+        (libraryOptions[1]!.fallback as (ctx: { base: unknown }) => unknown)({ base: 1 }),
+      ).toBe(1)
+      expect(libraryOptions[2]).toEqual({ errorMode: 'ignore' })
+      expect(libraryOptions[3]).toBeUndefined()
     })
   })
 })

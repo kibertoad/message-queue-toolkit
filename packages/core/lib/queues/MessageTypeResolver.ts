@@ -183,46 +183,107 @@ export function resolveMessageType(
   return config.resolver(context)
 }
 
+type JsonSchemaNode = {
+  $ref?: string
+  $defs?: Record<string, JsonSchemaNode>
+  definitions?: Record<string, JsonSchemaNode>
+  properties?: Record<string, JsonSchemaNode>
+  const?: unknown
+}
+
+/**
+ * The part of the Standard JSON Schema interface (`~standard.jsonSchema`) used to read literal
+ * field values from a schema. zod 4.2+ schemas implement it.
+ */
+export type StandardJsonSchemaSource = {
+  readonly '~standard': {
+    readonly vendor: string
+    readonly jsonSchema?: {
+      readonly input: (options: {
+        readonly target: string
+        readonly libraryOptions?: Record<string, unknown>
+      }) => Record<string, unknown>
+    }
+  }
+}
+
+/**
+ * Per-vendor `libraryOptions` that make the JSON Schema converter emit `{}` for a field it cannot
+ * represent (such as a `Date` or a custom check) instead of throwing. Only the message type field
+ * is read, so the other fields' types do not matter.
+ */
+const LENIENT_LIBRARY_OPTIONS: Record<string, Record<string, unknown>> = {
+  zod: { unrepresentable: 'any' },
+  arktype: { fallback: (ctx: { base: unknown }) => ctx.base },
+  valibot: { errorMode: 'ignore' },
+}
+
+const inputJsonSchemaCache = new WeakMap<object, JsonSchemaNode | undefined>()
+
+function getInputJsonSchema(schema: unknown): JsonSchemaNode | undefined {
+  if (typeof schema !== 'object' || schema === null) {
+    return undefined
+  }
+  if (inputJsonSchemaCache.has(schema)) {
+    return inputJsonSchemaCache.get(schema)
+  }
+
+  const props = (schema as Partial<StandardJsonSchemaSource>)['~standard']
+  const jsonSchema = props?.jsonSchema?.input({
+    target: 'draft-2020-12',
+    libraryOptions: LENIENT_LIBRARY_OPTIONS[props.vendor],
+  }) as JsonSchemaNode | undefined
+  inputJsonSchemaCache.set(schema, jsonSchema)
+  return jsonSchema
+}
+
+function resolveRef(root: JsonSchemaNode, node: JsonSchemaNode): JsonSchemaNode | undefined {
+  if (!node.$ref) {
+    return node
+  }
+  const match = /^#\/(\$defs|definitions)\/(.+)$/.exec(node.$ref)
+  if (!match) {
+    return undefined
+  }
+  const defs = match[1] === '$defs' ? root.$defs : root.definitions
+  return defs?.[match[2] as string]
+}
+
 /**
  * Extracts message type from schema definition using the field path.
  * Used during handler/schema registration to build the routing map.
  * Supports dot notation for nested paths (e.g., 'metadata.type').
  *
- * @param schema - Zod schema with shape property
+ * The value is read from the schema's Standard JSON Schema input representation
+ * (`~standard.jsonSchema`): the field at the path must have a string `const`, which is how a literal
+ * is represented. The converted JSON Schema is cached per schema object.
+ *
+ * @param schema - Schema implementing Standard JSON Schema
  * @param messageTypePath - Path to the field containing the type literal (supports dot notation)
  * @returns The literal type value from the schema, or undefined if field doesn't exist or isn't a literal
  */
 export function extractMessageTypeFromSchema(
-  // biome-ignore lint/suspicious/noExplicitAny: Schema shape can be any
-  schema: { shape?: Record<string, any> },
+  schema: unknown,
   messageTypePath: string | undefined,
 ): string | undefined {
   if (!messageTypePath) {
     return undefined
   }
 
-  const pathParts = messageTypePath.split('.')
-  // biome-ignore lint/suspicious/noExplicitAny: Schema shape can be any
-  let current: any = schema
+  const root = getInputJsonSchema(schema)
+  if (!root) {
+    return undefined
+  }
 
-  for (const part of pathParts) {
-    if (!current?.shape) {
-      return undefined
-    }
-    current = current.shape[part]
+  let current: JsonSchemaNode | undefined = root
+  for (const part of messageTypePath.split('.')) {
+    current = current && resolveRef(root, current)
+    current = current?.properties?.[part]
     if (!current) {
       return undefined
     }
   }
 
-  // Check if the final field has a literal value (z.literal() creates a field with .value)
-  if (!('value' in current)) {
-    return undefined
-  }
-
-  const value = current.value
-  if (typeof value !== 'string') {
-    return undefined
-  }
-  return value
+  const value = resolveRef(root, current)?.const
+  return typeof value === 'string' ? value : undefined
 }
