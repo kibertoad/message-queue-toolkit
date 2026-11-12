@@ -104,7 +104,10 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
     }
   }
 
-  async publish(message: MessagePayloadType, options: SNSMessageOptions = {}): Promise<void> {
+  async publish(
+    message: MessagePayloadType,
+    options: SNSMessageOptions = {},
+  ): Promise<MessagePayloadType> {
     const messageSchemaResult = this.resolveSchema(message)
     if (messageSchemaResult.error) {
       throw messageSchemaResult.error
@@ -142,10 +145,10 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
           messageProcessingStartTimestamp,
           queueName: topicName,
         })
-        return
+        return parsedMessage
       }
 
-      const updatedMessage = this.updateInternalProperties(message)
+      const updatedMessage = this.updateInternalProperties(parsedMessage)
 
       // Resolve FIFO options from original message BEFORE offloading
       // (offloaded payload won't have user fields needed for messageGroupIdField)
@@ -169,7 +172,7 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
           messageProcessingStartTimestamp,
           queueName: topicName,
         })
-        return
+        return parsedMessage
       }
 
       await this.sendMessage(payload, resolvedOptions, preBuiltBody)
@@ -182,6 +185,8 @@ export abstract class AbstractSnsPublisher<MessagePayloadType extends object>
         messageProcessingStartTimestamp,
         queueName: topicName,
       })
+
+      return parsedMessage
     } catch (error) {
       const err = error as Error
       this.handleError(err)

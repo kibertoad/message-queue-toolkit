@@ -1,4 +1,4 @@
-import { ListTagsForResourceCommand, type SNSClient } from '@aws-sdk/client-sns'
+import { ListTagsForResourceCommand, PublishCommand, type SNSClient } from '@aws-sdk/client-sns'
 import type { SQSClient } from '@aws-sdk/client-sqs'
 import type { STSClient } from '@aws-sdk/client-sts'
 import type { InternalError } from '@lokalise/node-core'
@@ -8,18 +8,42 @@ import { FakeConsumerErrorResolver } from '@message-queue-toolkit/sqs'
 import type { AwilixContainer } from 'awilix'
 import { Consumer } from 'sqs-consumer'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import z from 'zod/v4'
+import { AbstractSnsPublisher } from '../../lib/sns/AbstractSnsPublisher.ts'
+import type { SNSDependencies } from '../../lib/sns/AbstractSnsService.ts'
 import { deserializeSNSMessage } from '../../lib/utils/snsMessageDeserializer.ts'
 import { subscribeToTopic } from '../../lib/utils/snsSubscriber.ts'
 import { assertTopic, getTopicAttributes } from '../../lib/utils/snsUtils.ts'
-import type {
-  PERMISSIONS_ADD_MESSAGE_TYPE,
-  PERMISSIONS_MESSAGE_TYPE,
-} from '../consumers/userConsumerSchemas.ts'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas.ts'
 import { PERMISSIONS_ADD_MESSAGE_SCHEMA } from '../consumers/userConsumerSchemas.ts'
 import type { TestAwsResourceAdmin } from '../utils/testAdmin.ts'
 import type { Dependencies } from '../utils/testContext.ts'
 import { registerDependencies } from '../utils/testContext.ts'
 import { SnsPermissionPublisher } from './SnsPermissionPublisher.ts'
+
+// Every other SNS test schema parses to a structurally identical object, so a schema whose output
+// differs from its input is needed to cover what the publisher actually puts on the wire.
+const SCHEMA_DEFAULTS_MESSAGE_SCHEMA = z.object({
+  id: z.string(),
+  messageType: z.literal('schemaDefaults'),
+  timestamp: z.string().optional(),
+  source: z.string().default('default-source'),
+  attempt: z.coerce.number().optional(),
+})
+
+class SnsSchemaDefaultsPublisher extends AbstractSnsPublisher<
+  z.input<typeof SCHEMA_DEFAULTS_MESSAGE_SCHEMA>
+> {
+  constructor(dependencies: SNSDependencies) {
+    super(dependencies, {
+      creationConfig: { topic: { Name: 'schema_defaults' } },
+      deletionConfig: { deleteIfExists: false },
+      messageSchemas: [SCHEMA_DEFAULTS_MESSAGE_SCHEMA],
+      handlerSpy: true,
+      messageTypeResolver: { messageTypePath: 'messageType' },
+    })
+  }
+}
 
 describe('SnsPermissionPublisher', () => {
   describe('init', () => {
@@ -332,19 +356,82 @@ describe('SnsPermissionPublisher', () => {
       consumer.stop()
     })
 
+    it('publishes the schema-parsed message, dropping fields absent from the schema', async () => {
+      const { permissionPublisher } = diContainer.cradle
+      await permissionPublisher.init()
+
+      const message = {
+        id: '1',
+        messageType: 'add',
+        timestamp: new Date().toISOString(),
+        notInSchema: 'should-not-be-published',
+      } as unknown as PERMISSIONS_ADD_MESSAGE_TYPE
+
+      const snsSpy = vi.spyOn(snsClient, 'send')
+
+      await permissionPublisher.publish(message)
+
+      const publishCommand = snsSpy.mock.calls
+        .map((call) => call[0])
+        .findLast((command) => command instanceof PublishCommand) as PublishCommand | undefined
+      expect(publishCommand).toBeDefined()
+
+      const publishedBody = JSON.parse(publishCommand?.input.Message as string)
+      expect(publishedBody).toEqual({
+        id: '1',
+        messageType: 'add',
+        timestamp: expect.any(String),
+        _internalRetryLaterCount: 0,
+      })
+      expect(publishedBody).not.toHaveProperty('notInSchema')
+    })
+
+    it('publishes values produced by the schema', async () => {
+      const publisher = new SnsSchemaDefaultsPublisher(diContainer.cradle)
+      await publisher.init()
+
+      const snsSpy = vi.spyOn(snsClient, 'send')
+
+      await publisher.publish({
+        id: '1',
+        messageType: 'schemaDefaults',
+        timestamp: new Date().toISOString(),
+        attempt: '3',
+      })
+
+      const publishCommand = snsSpy.mock.calls
+        .map((call) => call[0])
+        .findLast((command) => command instanceof PublishCommand) as PublishCommand | undefined
+      expect(publishCommand).toBeDefined()
+
+      const publishedBody = JSON.parse(publishCommand?.input.Message as string)
+      expect(publishedBody).toEqual({
+        id: '1',
+        messageType: 'schemaDefaults',
+        timestamp: expect.any(String),
+        source: 'default-source',
+        attempt: 3,
+        _internalRetryLaterCount: 0,
+      })
+
+      await publisher.close()
+    })
+
     it('preserves message metadata in a publish error message', async () => {
       expect.assertions(1)
       const { permissionPublisher } = diContainer.cradle
-      const permissions: [string, ...string[]] = ['perm']
+      // Has to be a field declared in the publisher schema - anything else is stripped by the
+      // schema parsing that precedes publishing, and the payload would no longer be oversized.
+      const metadata: Record<string, string> = {}
       for (let i = 0; i < 5000; i++) {
-        permissions.push('really-long-permissions-for-testing-excessively-large-payloads')
+        metadata[`key-${i}`] = 'really-long-permissions-for-testing-excessively-large-payloads'
       }
 
       const message = {
         id: '1',
         messageType: 'add',
-        permissions,
-      } satisfies PERMISSIONS_MESSAGE_TYPE
+        metadata,
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       await subscribeToTopic(
         sqsClient,

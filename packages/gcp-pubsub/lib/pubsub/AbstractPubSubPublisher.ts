@@ -55,7 +55,10 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
     this.isDeduplicationEnabled = !!options.enablePublisherDeduplication
   }
 
-  async publish(message: MessagePayloadType, options: PubSubMessageOptions = {}): Promise<void> {
+  async publish(
+    message: MessagePayloadType,
+    options: PubSubMessageOptions = {},
+  ): Promise<MessagePayloadType> {
     const messageSchemaResult = this.resolveSchema(message)
     if (messageSchemaResult.error) {
       throw messageSchemaResult.error
@@ -81,13 +84,13 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
       const messageProcessingStartTimestamp = Date.now()
       const parsedMessage = messageSchemaResult.result.parse(message)
 
-      message = this.updateInternalProperties(message)
+      const updatedMessage = this.updateInternalProperties(parsedMessage)
       const maybeOffloadedPayloadMessage =
-        (await this.offloadPayload(message, () => {
+        (await this.offloadPayload(updatedMessage, () => {
           // Calculate message size for PubSub
-          const messageData = Buffer.from(JSON.stringify(message))
+          const messageData = Buffer.from(JSON.stringify(updatedMessage))
           return messageData.length
-        })) ?? message
+        })) ?? updatedMessage
 
       if (
         this.isDeduplicationEnabledForMessage(parsedMessage) &&
@@ -100,7 +103,7 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
           messageProcessingStartTimestamp,
           queueName: this.topicName,
         })
-        return
+        return parsedMessage
       }
 
       await this.sendMessage(maybeOffloadedPayloadMessage, options)
@@ -112,6 +115,8 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
         messageProcessingStartTimestamp,
         queueName: this.topicName,
       })
+
+      return parsedMessage
     } catch (error) {
       const err = error as Error
       this.handleError(err)

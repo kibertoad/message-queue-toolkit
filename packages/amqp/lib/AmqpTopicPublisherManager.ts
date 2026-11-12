@@ -108,11 +108,14 @@ export class AmqpTopicPublisherManager<
 
     const messageDefinition = this.resolveMessageDefinition(exchange, message)
     const resolvedMessage = this.resolveMessage(messageDefinition, message, precedingEventMetadata)
-    publisher.publish(resolvedMessage as MessagePublishType<SupportedEventDefinitions[number]>, {
-      routingKey: messageOptions?.routingKey ?? messageDefinition?.topic ?? '',
-      publishOptions: messageOptions?.publishOptions,
-    })
-    return resolvedMessage
+    const publishedMessage = publisher.publish(
+      resolvedMessage as MessagePublishType<SupportedEventDefinitions[number]>,
+      {
+        routingKey: messageOptions?.routingKey ?? messageDefinition?.topic ?? '',
+        publishOptions: messageOptions?.publishOptions,
+      },
+    )
+    return publishedMessage as MessageSchemaType<SupportedEventDefinitions[number]>
   }
 
   protected override resolveEventTarget(

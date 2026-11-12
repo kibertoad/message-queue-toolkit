@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ZodError } from 'zod/v4'
 
 import { FakeConsumerErrorResolver } from '../../lib/fakes/FakeConsumerErrorResolver.ts'
+import { TestSqsPublisher } from '../../lib/fakes/TestSqsPublisher.ts'
 import {
   SQS_RESOURCE_CURRENT_QUEUE,
   type SQSPolicyConfig,
@@ -1013,21 +1014,33 @@ describe('SqsPermissionConsumer', () => {
       })
       await publisher.init()
 
+      // _internalRetryLaterCount belongs to no message schema, so a validating publisher strips it
+      // and always starts the count over - pre-set counts have to be seeded through a raw publish.
+      const testPublisher = new TestSqsPublisher(diContainer.cradle.sqsClient)
+
       const sqsSpy = vi.spyOn(diContainer.cradle.sqsClient, 'send')
       await publisher.publish({
         id: '10',
         messageType: 'remove',
       })
-      await publisher.publish({
-        id: '20',
-        messageType: 'remove',
-        _internalRetryLaterCount: 1, // Note that publish will add 1 to this value, but it's fine for this test
-      } as any)
-      await publisher.publish({
-        id: '30',
-        messageType: 'remove',
-        _internalRetryLaterCount: 10, // Note that publish will add 1 to this value, but it's fine for this test
-      } as any)
+      await testPublisher.publish(
+        {
+          id: '20',
+          messageType: 'remove',
+          timestamp: new Date().toISOString(),
+          _internalRetryLaterCount: 2,
+        },
+        { queueUrl: consumer.queueProps.url },
+      )
+      await testPublisher.publish(
+        {
+          id: '30',
+          messageType: 'remove',
+          timestamp: new Date().toISOString(),
+          _internalRetryLaterCount: 11,
+        },
+        { queueUrl: consumer.queueProps.url },
+      )
 
       await waitAndRetry(
         () => {

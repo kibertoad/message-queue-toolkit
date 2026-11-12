@@ -64,12 +64,12 @@ export abstract class AbstractAmqpPublisher<
     this.isLazyInitEnabled = options.isLazyInitEnabled ?? true
   }
 
-  publish(message: MessagePayloadType, options: MessageOptionsType): void {
+  publish(message: MessagePayloadType, options: MessageOptionsType): MessagePayloadType {
     const resolveSchemaResult = this.resolveSchema(message)
     if (resolveSchemaResult.error) {
       throw resolveSchemaResult.error
     }
-    resolveSchemaResult.result.parse(message)
+    const parsedMessage = resolveSchemaResult.result.parse(message)
     const messageProcessingStartTimestamp = Date.now()
 
     // If it's not initted yet, do the lazy init
@@ -100,21 +100,23 @@ export abstract class AbstractAmqpPublisher<
         .catch((err) => {
           this.handleError(err)
         })
-      return
+      return parsedMessage
     }
 
-    message = this.updateInternalProperties(message)
+    const updatedMessage = this.updateInternalProperties(parsedMessage)
 
     try {
-      this.publishInternal(objectToBuffer(message), options)
+      this.publishInternal(objectToBuffer(updatedMessage), options)
       this.handleMessageProcessed({
-        message,
+        message: parsedMessage,
         messageProcessingStartTimestamp,
         // @ts-expect-error it will throw an error before if id field is not set
-        messageId: message[this.messageIdField],
+        messageId: parsedMessage[this.messageIdField],
         processingResult: { status: 'published' },
         queueName: this.resolveTopicOrQueue(),
       })
+
+      return parsedMessage
     } catch (err) {
       // Unfortunately, reliable retry mechanism can't be implemented with try-catch block,
       // as not all failures end up here. If connection is closed programmatically, it works fine,
@@ -123,6 +125,7 @@ export abstract class AbstractAmqpPublisher<
       if (err.message === 'Channel closed') {
         this.logger.error('AMQP channel closed')
         void this.reconnect()
+        return parsedMessage
       } else {
         throw new InternalError({
           message: `Error while publishing to AMQP ${(err as Error).message}`,

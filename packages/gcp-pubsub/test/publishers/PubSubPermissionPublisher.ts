@@ -56,7 +56,7 @@ export class PubSubPermissionPublisher extends AbstractPubSubPublisher<Supported
   override async publish(
     message: SupportedMessages,
     options?: PubSubMessageOptions,
-  ): Promise<void> {
+  ): Promise<SupportedMessages> {
     return await super.publish(message, options)
   }
 }

@@ -98,7 +98,10 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     this.defaultMessageGroupId = options.defaultMessageGroupId
   }
 
-  async publish(message: MessagePayloadType, options: SQSMessageOptions = {}): Promise<void> {
+  async publish(
+    message: MessagePayloadType,
+    options: SQSMessageOptions = {},
+  ): Promise<MessagePayloadType> {
     const messageSchemaResult = this.resolveSchema(message)
     if (messageSchemaResult.error) {
       throw messageSchemaResult.error
@@ -134,16 +137,16 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
           messageProcessingStartTimestamp,
           queueName: this.queue.name,
         })
-        return
+        return parsedMessage
       }
 
-      message = this.updateInternalProperties(message)
+      const updatedMessage = this.updateInternalProperties(parsedMessage)
 
       // Resolve FIFO options from original message BEFORE offloading
       // (offloaded payload won't have user fields needed for messageGroupIdField)
-      const resolvedOptions = this.resolveFifoOptions(message, options)
+      const resolvedOptions = this.resolveFifoOptions(updatedMessage, options)
 
-      const { payload, preBuiltBody } = await this.prepareOutgoingPayload(message)
+      const { payload, preBuiltBody } = await this.prepareOutgoingPayload(updatedMessage)
 
       // Persist the dedup key only now — immediately before send — so the window in which
       // a stored key plus a failed send could drop the message on retry stays as small as
@@ -161,7 +164,7 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
           messageProcessingStartTimestamp,
           queueName: this.queue.name,
         })
-        return
+        return parsedMessage
       }
 
       await this.sendMessage(payload, resolvedOptions, preBuiltBody)
@@ -173,6 +176,8 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
         messageProcessingStartTimestamp,
         queueName: this.queue.name,
       })
+
+      return parsedMessage
     } catch (error) {
       const err = error as Error
       this.handleError(err)

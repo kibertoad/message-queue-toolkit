@@ -37,6 +37,34 @@ describe('AmqpQueuePublisherManager', () => {
       expect(result.processingResult).toEqual({ status: 'consumed' })
     })
 
+    it('returns the schema-parsed message', async () => {
+      const { queuePublisherManager } = diContainer.cradle
+      const fakeConsumer = new FakeQueueConsumer(diContainer.cradle, TestEvents.updated)
+      await fakeConsumer.start()
+
+      const publishedMessage = queuePublisherManager.publishSync(FakeQueueConsumer.QUEUE_NAME, {
+        type: 'entity.updated',
+        payload: {
+          updatedData: 'msg',
+        },
+        notInSchema: 'should-not-be-returned',
+      } as any)
+
+      expect(publishedMessage).not.toHaveProperty('notInSchema')
+      expect(publishedMessage).toEqual({
+        id: expect.any(String),
+        timestamp: expect.any(String),
+        type: 'entity.updated',
+        payload: { updatedData: 'msg' },
+        metadata: {
+          correlationId: expect.any(String),
+          originatedFrom: 'service',
+          producedBy: 'service',
+          schemaVersion: '1.0.0',
+        },
+      })
+    })
+
     it('fills incomplete metadata', async () => {
       const { queuePublisherManager } = diContainer.cradle
       const fakeConsumer = new FakeQueueConsumer(diContainer.cradle, TestEvents.updated)

@@ -209,13 +209,19 @@ export abstract class AbstractPublisherManager<
     }
     const resolvedMessage = this.resolveMessage(messageDefinition, message, precedingEventMetadata)
 
-    if (this.isAsync) {
-      await (publisher as AsyncPublisher<object, unknown>).publish(resolvedMessage, messageOptions)
-    } else {
-      publisher.publish(resolvedMessage, messageOptions)
-    }
+    const publishedMessage = this.isAsync
+      ? await (publisher as AsyncPublisher<object, unknown>).publish(
+          resolvedMessage,
+          messageOptions,
+        )
+      : publisher.publish(resolvedMessage, messageOptions)
 
-    return resolvedMessage
+    // Publishers return the schema-parsed message, which is what actually goes on the wire.
+    // PublisherType is supplied by the caller, so the fallback keeps a publisher still written
+    // against the older void-returning contract from silently yielding undefined here.
+    return (publishedMessage ?? resolvedMessage) as MessageSchemaType<
+      SupportedEventDefinitions[number]
+    >
   }
 
   protected resolveMessageDefinition(

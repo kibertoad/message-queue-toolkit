@@ -152,11 +152,11 @@ export class AmqpQueuePublisherManager<
 
     const messageDefinition = this.resolveMessageDefinition(queue, message)
     const resolvedMessage = this.resolveMessage(messageDefinition, message, precedingEventMetadata)
-    publisher.publish(
+    const publishedMessage = publisher.publish(
       resolvedMessage as MessagePublishType<SupportedEventDefinitions[number]>,
       messageOptions,
     )
-    return resolvedMessage
+    return publishedMessage as MessageSchemaType<SupportedEventDefinitions[number]>
   }
 
   protected override resolveEventTarget(
