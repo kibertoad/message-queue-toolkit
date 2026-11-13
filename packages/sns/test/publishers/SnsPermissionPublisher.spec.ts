@@ -369,7 +369,7 @@ describe('SnsPermissionPublisher', () => {
 
       const snsSpy = vi.spyOn(snsClient, 'send')
 
-      await permissionPublisher.publish(message)
+      const publishedMessage = await permissionPublisher.publish(message)
 
       const publishCommand = snsSpy.mock.calls
         .map((call) => call[0])
@@ -384,6 +384,12 @@ describe('SnsPermissionPublisher', () => {
         _internalRetryLaterCount: 0,
       })
       expect(publishedBody).not.toHaveProperty('notInSchema')
+      expect(publishedMessage).toEqual({
+        id: '1',
+        messageType: 'add',
+        timestamp: message.timestamp,
+      })
+      expect(publishedMessage).not.toHaveProperty('notInSchema')
     })
 
     it('publishes values produced by the schema', async () => {
@@ -392,10 +398,11 @@ describe('SnsPermissionPublisher', () => {
 
       const snsSpy = vi.spyOn(snsClient, 'send')
 
-      await publisher.publish({
+      const timestamp = new Date().toISOString()
+      const publishedMessage = await publisher.publish({
         id: '1',
         messageType: 'schemaDefaults',
-        timestamp: new Date().toISOString(),
+        timestamp,
         attempt: '3',
       })
 
@@ -412,6 +419,16 @@ describe('SnsPermissionPublisher', () => {
         source: 'default-source',
         attempt: 3,
         _internalRetryLaterCount: 0,
+      })
+
+      // The returned message carries the schema's default and coercion, and none of the
+      // bookkeeping fields that only exist on the wire.
+      expect(publishedMessage).toEqual({
+        id: '1',
+        messageType: 'schemaDefaults',
+        timestamp,
+        source: 'default-source',
+        attempt: 3,
       })
 
       await publisher.close()
@@ -472,7 +489,11 @@ describe('SnsPermissionPublisher', () => {
       await newPublisher.publish(message)
 
       const res = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(res.message).toEqual(message)
+      expect(res.message).toEqual({
+        ...message,
+        timestamp: expect.any(String),
+        _internalRetryLaterCount: 0,
+      })
     })
 
     it('retries lazy init on the next publish after a failed one', async () => {
@@ -490,7 +511,11 @@ describe('SnsPermissionPublisher', () => {
       await newPublisher.publish(message)
 
       const res = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(res.message).toEqual(message)
+      expect(res.message).toEqual({
+        ...message,
+        timestamp: expect.any(String),
+        _internalRetryLaterCount: 0,
+      })
       expect(initSpy).toHaveBeenCalledTimes(2)
 
       await newPublisher.close()

@@ -98,7 +98,7 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
           .isDuplicated
       ) {
         this.handleMessageProcessed({
-          message: parsedMessage,
+          message: updatedMessage,
           processingResult: { status: 'published', skippedAsDuplicate: true },
           messageProcessingStartTimestamp,
           queueName: this.topicName,
@@ -108,7 +108,7 @@ export abstract class AbstractPubSubPublisher<MessagePayloadType extends object>
 
       await this.sendMessage(maybeOffloadedPayloadMessage, options)
       this.handleMessageProcessed({
-        message: parsedMessage,
+        message: updatedMessage,
         processingResult: isOffloadedPayloadPointerPayload(maybeOffloadedPayloadMessage)
           ? { status: 'published', offloaded: true }
           : { status: 'published' },

@@ -1,5 +1,67 @@
 # Upgrading Guide
 
+## Upgrading </br> `core` `27.x` -> `28.0.0` </br> `sqs` `27.x` -> `28.0.0` </br> `sns` `27.x` -> `28.0.0` </br> `amqp` `25.x` -> `26.0.0` </br> `gcp-pubsub` `4.x` -> `5.0.0`
+
+### Description of Breaking Changes
+
+- **Publishers now send the message as their `zod` schema parsed it, not the object you passed in.**
+  Previously the schema was used for validation only and your object went on the wire unchanged, so
+  any property the schema did not declare was delivered along with the rest. Now the parse result is
+  what gets serialized, and `zod`'s default strip behaviour removes every undeclared property — with
+  no error and no log. Schema defaults, transforms and coercions are applied to the wire message for
+  the same reason.
+
+  Before upgrading, check that every publisher schema declares every field your producers actually
+  send. The failure mode is silent: a consumer simply stops seeing the field.
+
+  ```ts
+  // publisher schema
+  const SCHEMA = z.object({ id: z.string(), messageType: z.literal('add') })
+
+  publisher.publish({ id: '1', messageType: 'add', tenantId: 't-1' })
+  // before: { id, messageType, tenantId } is delivered
+  // after:  { id, messageType } is delivered, tenantId is dropped
+  ```
+
+- **FIFO `messageGroupIdField` must be declared in the message schema.** `MessageGroupId` is now
+  resolved from the parsed message, so a field the schema does not declare has already been stripped
+  by the time it is read. If `defaultMessageGroupId` is configured every message silently lands in
+  that one group; if it is not, the publish throws `FIFO_MESSAGE_GROUP_ID_REQUIRED`. The same applies
+  to `messageDeduplicationIdField`.
+
+- **`publish()` and `publishSync()` return the parsed message, and their return type changed.**
+  They were typed `MessageSchemaType<T>` (`z.input` of the consumer schema) and now return the new
+  `PublishedMessageType<T>`. The two differ only in `payload`, which is now the schema's *output*
+  type — `id`, `timestamp` and `metadata` are still filled before parsing and stay required, so no
+  other field changes shape. Only code that relied on the pre-parse value of a coerced or
+  transformed payload field is affected:
+
+  ```ts
+  // payload schema: z.object({ amount: z.coerce.number() })
+  const event = await publisherManager.publish(topic, { type: 'x', payload: { amount: '5' } })
+  // before: event.payload.amount === '5'
+  // after:  event.payload.amount === 5
+  ```
+
+  `MessageSchemaType` itself is unchanged and still describes the message `resolveMessage()` builds.
+
+- **`handlerSpy` on publishers now records the message as it goes on the wire.** It previously
+  recorded the parsed message for SQS, SNS and PubSub, and the wire message for AMQP. All four now
+  record the wire message, so spy assertions see `_internalRetryLaterCount` and an auto-filled
+  `timestamp` where they did not before. This also fixes publisher-side `messageQueueTime` and
+  `messageLifetime` Prometheus metrics, which were skipped for messages whose timestamp the toolkit
+  filled in.
+
+  ```diff
+  - expect(spy.message).toEqual(message)
+  + expect(spy.message).toEqual({ ...message, _internalRetryLaterCount: 0 })
+  ```
+
+### Other Changes
+
+- `AbstractKafkaPublisher.publish` now returns the parsed message instead of `void`, matching the
+  other publishers. Additive — existing callers that ignore the return value are unaffected
+
 ## Upgrading </br> `schemas` `8.0.0` -> `8.1.0`
 
 ### Description of Changes

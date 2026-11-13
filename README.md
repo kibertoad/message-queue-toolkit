@@ -59,7 +59,11 @@ They implement the following public methods:
     * `message` – a message following one of the `zod` schemas, supported by the publisher;
     * `options` – a protocol-dependent set of message parameters. For more information please check documentation for options for each protocol: [AMQP](https://amqp-node.github.io/amqplib/channel_api.html#channel_sendToQueue), [SQS](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sqs/interfaces/sendmessagecommandinput.html) and [SNS](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-sns/interfaces/publishcommandinput.html).
 
-  The message is parsed with its `zod` schema before being sent, and it is the parsed message that goes on the wire and is returned by `publish()` (and by the PublisherManager's `publish()`/`publishSync()`). Fields that the schema does not declare are therefore not published, and schema defaults and transforms are.
+  The message is parsed with its `zod` schema before being sent, and it is the parsed message that `publish()` returns (as does the PublisherManager's `publish()`/`publishSync()`). Fields that the schema does not declare are therefore neither published nor returned, and schema defaults and transforms are. Any field you need on the wire — including one named by `messageGroupIdField` or `messageDeduplicationIdField` — has to be declared in the schema.
+
+  What goes on the wire is that same parsed message plus the internal bookkeeping fields the toolkit maintains (`_internalRetryLaterCount`, and a `timestamp` if the message did not carry one), so it is not byte-for-byte identical to the value `publish()` hands back. The `handlerSpy` records the wire message, not the returned one.
+
+> **_NOTE:_**  For AMQP, `publish()` is fire-and-forget: it returns the parsed message synchronously, before the broker has acknowledged anything, and if the channel closes mid-publish the message is dropped without a retry. A returned message is not a delivery guarantee.
 
 > **_NOTE:_**  See [SqsPermissionPublisher.ts](./packages/sqs/test/publishers/SqsPermissionPublisher.ts) for a practical example.
 

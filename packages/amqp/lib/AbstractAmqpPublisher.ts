@@ -69,7 +69,18 @@ export abstract class AbstractAmqpPublisher<
     if (resolveSchemaResult.error) {
       throw resolveSchemaResult.error
     }
-    const parsedMessage = resolveSchemaResult.result.parse(message)
+    return this.publishParsed(resolveSchemaResult.result.parse(message), options)
+  }
+
+  /**
+   * Takes the already-parsed message so that a publish deferred by lazy init sends exactly the
+   * object this call returned. Parsing again would diverge for any schema with a non-deterministic
+   * default or transform.
+   */
+  private publishParsed(
+    parsedMessage: MessagePayloadType,
+    options: MessageOptionsType,
+  ): MessagePayloadType {
     const messageProcessingStartTimestamp = Date.now()
 
     // If it's not initted yet, do the lazy init
@@ -87,7 +98,7 @@ export abstract class AbstractAmqpPublisher<
       initPromise
         .then(
           () => {
-            this.publish(message, options)
+            this.publishParsed(parsedMessage, options)
           },
           (err) => {
             // Init failures only, not errors from the publish above: cleared so the next publish
@@ -108,10 +119,10 @@ export abstract class AbstractAmqpPublisher<
     try {
       this.publishInternal(objectToBuffer(updatedMessage), options)
       this.handleMessageProcessed({
-        message: parsedMessage,
+        message: updatedMessage,
         messageProcessingStartTimestamp,
         // @ts-expect-error it will throw an error before if id field is not set
-        messageId: parsedMessage[this.messageIdField],
+        messageId: updatedMessage[this.messageIdField],
         processingResult: { status: 'published' },
         queueName: this.resolveTopicOrQueue(),
       })
@@ -135,7 +146,7 @@ export abstract class AbstractAmqpPublisher<
             // @ts-expect-error
             queueName: this.queueName,
             exchange: this.exchange,
-            messageType: this.resolveMessageTypeFromMessage(message) ?? 'unknown',
+            messageType: this.resolveMessageTypeFromMessage(parsedMessage) ?? 'unknown',
           }),
           cause: err as Error,
         })

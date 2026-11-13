@@ -429,7 +429,7 @@ describe('SqsPermissionPublisher', () => {
       await permissionPublisher.publish(message)
 
       const spy = await permissionPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(spy.message).toEqual(message)
+      expect(spy.message).toEqual({ ...message, _internalRetryLaterCount: 0 })
       expect(spy.processingResult).toEqual({ status: 'published' })
     })
 
@@ -534,7 +534,11 @@ describe('SqsPermissionPublisher', () => {
       await newPublisher.publish(message)
 
       const spy = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(spy.message).toEqual(message)
+      expect(spy.message).toEqual({
+        ...message,
+        timestamp: expect.any(String),
+        _internalRetryLaterCount: 0,
+      })
       expect(spy.processingResult).toEqual({ status: 'published' })
     })
 

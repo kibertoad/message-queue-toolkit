@@ -91,7 +91,7 @@ export abstract class AbstractKafkaPublisher<
     message: SupportedMessageValuesInputForTopic<TopicsConfig, Topic>,
     requestContext?: RequestContext,
     options?: KafkaMessageOptions,
-  ): Promise<void> {
+  ): Promise<SupportedMessageValuesForTopic<TopicsConfig, Topic>> {
     const messageProcessingStartTimestamp = Date.now()
 
     const schemaResult = this.schemaContainers[topic]?.resolveSchema(message as object)
@@ -121,6 +121,8 @@ export abstract class AbstractKafkaPublisher<
         processingResult: { status: 'published' },
         messageProcessingStartTimestamp,
       })
+
+      return parsedMessage
     } catch (error) {
       const errorDetails = {
         topic,

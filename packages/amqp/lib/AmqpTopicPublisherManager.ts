@@ -1,5 +1,5 @@
 import type { MessagePublishType, PublisherMessageMetadataType } from '@message-queue-toolkit/core'
-import { AbstractPublisherManager, type MessageSchemaType } from '@message-queue-toolkit/core'
+import { AbstractPublisherManager, type PublishedMessageType } from '@message-queue-toolkit/core'
 import type z from 'zod/v4'
 
 import type { AMQPDependencies, AMQPTopicPublisherConfig } from './AbstractAmqpService.ts'
@@ -91,7 +91,7 @@ export class AmqpTopicPublisherManager<
   /**
    * @deprecated use `publishSync` instead.
    */
-  override publish(): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+  override publish(): Promise<PublishedMessageType<SupportedEventDefinitions[number]>> {
     throw new Error('Please use `publishSync` method for AMQP publisher managers')
   }
 
@@ -100,7 +100,7 @@ export class AmqpTopicPublisherManager<
     message: MessagePublishType<SupportedEventDefinitions[number]>,
     messageOptions?: AmqpTopicMessageOptions,
     precedingEventMetadata?: Partial<MetadataType>,
-  ): MessageSchemaType<SupportedEventDefinitions[number]> {
+  ): PublishedMessageType<SupportedEventDefinitions[number]> {
     const publisher = this.targetToPublisherMap[exchange]
     if (!publisher) {
       throw new Error(`No publisher for exchange ${exchange}`)
@@ -115,7 +115,9 @@ export class AmqpTopicPublisherManager<
         publishOptions: messageOptions?.publishOptions,
       },
     )
-    return publishedMessage as MessageSchemaType<SupportedEventDefinitions[number]>
+    return (publishedMessage ?? resolvedMessage) as PublishedMessageType<
+      SupportedEventDefinitions[number]
+    >
   }
 
   protected override resolveEventTarget(
