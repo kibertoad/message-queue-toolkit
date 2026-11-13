@@ -12,6 +12,18 @@ export type MessagePublishType<T extends CommonEventDefinition> = z.input<T['pub
 
 export type MessageSchemaType<T extends CommonEventDefinition> = z.input<T['consumerSchema']>
 
+/**
+ * The message as the publisher schema parsed it, which is what goes on the wire. Differs from
+ * `MessageSchemaType` only in `payload`: `id`, `timestamp` and `metadata` are filled by
+ * `resolveMessage` before parsing, so they stay required. Distributive so that a union of event
+ * definitions stays a union and `type` can still discriminate it.
+ */
+export type PublishedMessageType<T extends CommonEventDefinition> = T extends unknown
+  ? Omit<z.input<T['consumerSchema']>, 'payload'> & {
+      payload: z.output<T['publisherSchema']>['payload']
+    }
+  : never
+
 export type AbstractPublisherFactory<
   PublisherType extends AsyncPublisher<object, unknown> | SyncPublisher<object, unknown>,
   DependenciesType,
@@ -194,7 +206,7 @@ export abstract class AbstractPublisherManager<
     message: MessagePublishType<SupportedEventDefinitions[number]>,
     precedingEventMetadata?: Partial<MetadataType>,
     messageOptions?: MessageOptionsType,
-  ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+  ): Promise<PublishedMessageType<SupportedEventDefinitions[number]>> {
     const publisher = this.targetToPublisherMap[eventTarget]
     if (!publisher) {
       throw new Error(
@@ -209,13 +221,19 @@ export abstract class AbstractPublisherManager<
     }
     const resolvedMessage = this.resolveMessage(messageDefinition, message, precedingEventMetadata)
 
-    if (this.isAsync) {
-      await (publisher as AsyncPublisher<object, unknown>).publish(resolvedMessage, messageOptions)
-    } else {
-      publisher.publish(resolvedMessage, messageOptions)
-    }
+    const publishedMessage = this.isAsync
+      ? await (publisher as AsyncPublisher<object, unknown>).publish(
+          resolvedMessage,
+          messageOptions,
+        )
+      : publisher.publish(resolvedMessage, messageOptions)
 
-    return resolvedMessage
+    // Publishers return the schema-parsed message, which is what actually goes on the wire.
+    // PublisherType is supplied by the caller, so the fallback keeps a publisher still written
+    // against the older void-returning contract from silently yielding undefined here.
+    return (publishedMessage ?? resolvedMessage) as PublishedMessageType<
+      SupportedEventDefinitions[number]
+    >
   }
 
   protected resolveMessageDefinition(

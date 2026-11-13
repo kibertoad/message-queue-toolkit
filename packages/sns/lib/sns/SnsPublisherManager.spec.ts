@@ -72,6 +72,30 @@ describe('SnsPublisherManager', () => {
       await consumer.close()
     })
 
+    it('returns the schema-parsed message', async () => {
+      const publishedMessage = await publisherManager.publish(TestEvents.created.snsTopic, {
+        payload: {
+          newData: 'msg',
+        },
+        type: 'entity.created',
+        notInSchema: 'should-not-be-returned',
+      } as any)
+
+      expect(publishedMessage).not.toHaveProperty('notInSchema')
+      expect(publishedMessage).toEqual({
+        id: expect.any(String),
+        timestamp: expect.any(String),
+        type: 'entity.created',
+        payload: { newData: 'msg' },
+        metadata: {
+          correlationId: expect.any(String),
+          originatedFrom: 'service',
+          producedBy: 'service',
+          schemaVersion: '1.0.1',
+        },
+      })
+    })
+
     it('message publishing is type-safe', async () => {
       await expect(
         publisherManager.publish(TestEvents.created.snsTopic, {

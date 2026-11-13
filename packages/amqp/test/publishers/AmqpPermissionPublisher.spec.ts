@@ -9,10 +9,7 @@ import { ZodError } from 'zod/v4'
 import { AbstractAmqpQueuePublisher } from '../../lib/AbstractAmqpQueuePublisher.ts'
 import { deserializeAmqpMessage } from '../../lib/amqpMessageDeserializer.ts'
 import { AmqpPermissionConsumer } from '../consumers/AmqpPermissionConsumer.ts'
-import type {
-  PERMISSIONS_ADD_MESSAGE_TYPE,
-  PERMISSIONS_MESSAGE_TYPE,
-} from '../consumers/userConsumerSchemas.ts'
+import type { PERMISSIONS_ADD_MESSAGE_TYPE } from '../consumers/userConsumerSchemas.ts'
 import {
   PERMISSIONS_ADD_MESSAGE_SCHEMA,
   PERMISSIONS_MESSAGE_SCHEMA,
@@ -253,10 +250,8 @@ describe('PermissionPublisher', () => {
       const message = {
         id: '1',
         messageType: 'add',
-        userIds: [1],
-        permissions: ['100'],
         timestamp: new Date(),
-      } satisfies PERMISSIONS_MESSAGE_TYPE
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       let receivedMessage: unknown
       await channel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
@@ -265,7 +260,7 @@ describe('PermissionPublisher', () => {
         }
         const decodedMessage = deserializeAmqpMessage(
           message,
-          PERMISSIONS_MESSAGE_SCHEMA,
+          PERMISSIONS_ADD_MESSAGE_SCHEMA,
           new FakeConsumerErrorResolver(),
         )
         receivedMessage = decodedMessage.result!
@@ -279,15 +274,11 @@ describe('PermissionPublisher', () => {
         parsedMessage: {
           id: '1',
           messageType: 'add',
-          userIds: [1],
-          permissions: ['100'],
           timestamp: message.timestamp.toISOString(),
         },
         originalMessage: {
           id: '1',
           messageType: 'add',
-          userIds: [1],
-          permissions: ['100'],
           timestamp: message.timestamp.toISOString(),
           _internalRetryLaterCount: 0,
         },
@@ -301,10 +292,8 @@ describe('PermissionPublisher', () => {
       const message = {
         id: '1',
         messageType: 'add',
-        userIds: [1],
-        permissions: ['100'],
         timestamp: new Date(),
-      } satisfies PERMISSIONS_MESSAGE_TYPE
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       let receivedMessage: unknown
       await channel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
@@ -313,7 +302,7 @@ describe('PermissionPublisher', () => {
         }
         const decodedMessage = deserializeAmqpMessage(
           message,
-          PERMISSIONS_MESSAGE_SCHEMA,
+          PERMISSIONS_ADD_MESSAGE_SCHEMA,
           new FakeConsumerErrorResolver(),
         )
         receivedMessage = decodedMessage.result!
@@ -327,15 +316,11 @@ describe('PermissionPublisher', () => {
         parsedMessage: {
           id: '1',
           messageType: 'add',
-          userIds: [1],
-          permissions: ['100'],
           timestamp: message.timestamp.toISOString(),
         },
         originalMessage: {
           id: '1',
           messageType: 'add',
-          userIds: [1],
-          permissions: ['100'],
           timestamp: message.timestamp.toISOString(),
           _internalRetryLaterCount: 0,
         },
@@ -353,10 +338,8 @@ describe('PermissionPublisher', () => {
       const message = {
         id: '1',
         messageType: 'add',
-        userIds: [1],
-        permissions: ['100'],
         timestamp: new Date(),
-      } satisfies PERMISSIONS_MESSAGE_TYPE
+      } satisfies PERMISSIONS_ADD_MESSAGE_TYPE
 
       newPublisher.publish(message)
       await vi.waitFor(() => {
@@ -375,7 +358,7 @@ describe('PermissionPublisher', () => {
         }
         receivedMessage = deserializeAmqpMessage(
           message,
-          PERMISSIONS_MESSAGE_SCHEMA,
+          PERMISSIONS_ADD_MESSAGE_SCHEMA,
           new FakeConsumerErrorResolver(),
         ).result
       })
@@ -423,6 +406,44 @@ describe('PermissionPublisher', () => {
           timestamp: expect.any(String),
           _internalRetryLaterCount: 0,
         },
+      })
+    })
+
+    it('publishes the schema-parsed message, dropping fields absent from the schema', async () => {
+      await permissionConsumer.close()
+
+      const message = {
+        id: '5',
+        messageType: 'add',
+        timestamp: new Date().toISOString(),
+        notInSchema: 'should-not-be-published',
+      } as unknown as PERMISSIONS_ADD_MESSAGE_TYPE
+
+      let receivedBody: unknown
+      await channel.consume(AmqpPermissionPublisher.QUEUE_NAME, (message) => {
+        if (message === null) {
+          return
+        }
+        receivedBody = JSON.parse(message.content.toString())
+      })
+
+      const publishedMessage = permissionPublisher.publish(message)
+
+      await vi.waitFor(() => {
+        expect(receivedBody).toBeDefined()
+      })
+
+      expect(receivedBody).toEqual({
+        id: '5',
+        messageType: 'add',
+        timestamp: expect.any(String),
+        _internalRetryLaterCount: 0,
+      })
+      expect(receivedBody).not.toHaveProperty('notInSchema')
+      expect(publishedMessage).toEqual({
+        id: '5',
+        messageType: 'add',
+        timestamp: expect.any(String),
       })
     })
 

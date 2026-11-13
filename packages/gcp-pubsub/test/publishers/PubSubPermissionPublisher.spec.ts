@@ -120,6 +120,40 @@ describe('PubSubPermissionPublisher', () => {
       expect(exists).toBe(true)
     })
 
+    it('publishes the schema-parsed message, dropping fields absent from the schema', async () => {
+      const message = {
+        id: 'parsed-1',
+        messageType: 'add' as const,
+        timestamp: new Date().toISOString(),
+        userIds: ['userId1'],
+        notInSchema: 'should-not-be-published',
+      }
+
+      await publisher.init()
+      // biome-ignore lint/complexity/useLiteralKeys: topic is protected on the publisher
+      const publishSpy = vi.spyOn(publisher['topic'], 'publishMessage')
+
+      const publishedMessage = await publisher.publish(message as any)
+
+      expect(publishSpy).toHaveBeenCalledTimes(1)
+      const publishedData = (publishSpy.mock.calls[0]?.[0] as { data: Buffer } | undefined)?.data
+      const publishedBody = JSON.parse(publishedData?.toString() ?? '{}')
+      expect(publishedBody).toEqual({
+        id: 'parsed-1',
+        messageType: 'add',
+        timestamp: message.timestamp,
+        userIds: ['userId1'],
+        _internalRetryLaterCount: 0,
+      })
+      expect(publishedBody).not.toHaveProperty('notInSchema')
+      expect(publishedMessage).toEqual({
+        id: 'parsed-1',
+        messageType: 'add',
+        timestamp: message.timestamp,
+        userIds: ['userId1'],
+      })
+    })
+
     it('publishes multiple messages', async () => {
       const message1 = {
         id: '1',
