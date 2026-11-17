@@ -13,11 +13,7 @@ allowBuilds:
 # waives, so a later release of the same package is gated again rather than silently inheriting
 # the exemption.
 minimumReleaseAgeExclude:
-  # Fixes the two upstream defects that made the consumer throw out of callback chains nothing
-  # can catch: the connection pool now reports its closed state as a NetworkError rather than a
-  # plain Error, and Consumer.#handleError classifies via the free `findErrorBy` instead of
-  # calling `findBy` as a method on whatever it was handed.
-  - '@platformatic/kafka@2.9.0'
+  - '@platformatic/kafka@2.16.0'
   # Kept on one AWS SDK line across the workspace. Mixed versions resolve duplicate
   # `@aws-sdk/core` and `@smithy/types` copies, which makes the SNS/SQS payload-store test types
   # mutually unassignable.
