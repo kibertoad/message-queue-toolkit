@@ -317,8 +317,8 @@ importers:
   packages/outbox-core:
     dependencies:
       '@lokalise/background-jobs-common':
-        specifier: ^17.0.1
-        version: 17.0.1(bullmq@5.76.8(supports-color@7.2.0))(ioredis@6.0.0(supports-color@7.2.0))(pino@10.3.1)(supports-color@7.2.0)(toad-scheduler@4.1.0)(zod@4.6.7)
+        specifier: ^17.0.2
+        version: 17.0.2(bullmq@5.76.8(supports-color@7.2.0))(ioredis@6.0.0(supports-color@7.2.0))(pino@10.3.1)(supports-color@7.2.0)(toad-scheduler@4.2.0)(zod@4.6.7)
       '@supercharge/promise-pool':
         specifier: ^3.3.0
         version: 3.3.0
@@ -866,13 +866,13 @@ packages:
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
 
-  '@lokalise/background-jobs-common@17.0.1':
-    resolution: {integrity: sha512-uDenmZE+VGYEn3X92Ed+zS9V8IZ44nMpzKtLMJC+aCtJHMWatQZ2IBkAc7E3vaBCbvMtLiAOZX1/7HgnsF/cvw==}
+  '@lokalise/background-jobs-common@17.0.2':
+    resolution: {integrity: sha512-3aLnidEuKLVYTpCEHNOqOno9+N1lU9eVKvdXXZpSMO6tBpU1+GRWWtktrcMpBkOSgplnRoQNNlGfIeJSuPYaPA==}
     peerDependencies:
       bullmq: ^5.28.2 || ^6.0.0
       ioredis: ^6.0.0
       pino: '>=9.7.0'
-      toad-scheduler: ^4.0.1
+      toad-scheduler: ^4.2.0
       zod: '>=4.5.0 <5.0.0'
 
   '@lokalise/biome-config@3.1.1':
@@ -2332,8 +2332,8 @@ packages:
     resolution: {integrity: sha512-m1TdR/rvT7kgGJZhspNtXdsdYk0fddFpJJFlG5s+UkPFo6lkLoZ3YLOaovPYjq1R75NP5JfeTlSHaOsE09peCg==}
     engines: {node: '>=20'}
 
-  toad-scheduler@4.1.0:
-    resolution: {integrity: sha512-2HF37I09Tc4SW+nF1nkSLd3tDaZzsNrCzMn6p+Hzg3io9Rqkc8JQ3KK26Q6AUtBqEg9coleau3bRj8873FHjGA==}
+  toad-scheduler@4.2.0:
+    resolution: {integrity: sha512-Jk3qwIHySLiutaSCN4RJIzg1UH5TrCiAxvZHFZAfHjIDUvfXs1V9RSlk2TNlEaadJgw/RXRWNFq2fjSkqRdYpg==}
 
   ts-deepmerge@8.0.0:
     resolution: {integrity: sha512-133O+10nJmVI8w5xeVZPEv5PIrv7iaUae07wv1aH8XJH95Ur6YIhWAPhPyP1YPlbPS9fCVcNIZTu7m8urRVF0A==}
@@ -2893,15 +2893,15 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@lokalise/background-jobs-common@17.0.1(bullmq@5.76.8(supports-color@7.2.0))(ioredis@6.0.0(supports-color@7.2.0))(pino@10.3.1)(supports-color@7.2.0)(toad-scheduler@4.1.0)(zod@4.6.7)':
+  '@lokalise/background-jobs-common@17.0.2(bullmq@5.76.8(supports-color@7.2.0))(ioredis@6.0.0(supports-color@7.2.0))(pino@10.3.1)(supports-color@7.2.0)(toad-scheduler@4.2.0)(zod@4.6.7)':
     dependencies:
       '@lokalise/id-utils': 3.0.1
       '@lokalise/node-core': 14.12.0(zod@4.6.7)
       bullmq: 5.76.8(supports-color@7.2.0)
       ioredis: 6.0.0(supports-color@7.2.0)
       pino: 10.3.1
-      redis-semaphore: 5.8.0(ioredis@6.0.0(supports-color@7.2.0))(supports-color@7.2.0)
-      toad-scheduler: 4.1.0
+      redis-semaphore: 6.0.0(ioredis@6.0.0(supports-color@7.2.0))(supports-color@7.2.0)
+      toad-scheduler: 4.2.0
       ts-deepmerge: 8.0.0
       zod: 4.6.7
     transitivePeerDependencies:
@@ -4050,19 +4050,19 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  redis-semaphore@5.8.0(ioredis@6.0.0(supports-color@7.2.0))(supports-color@7.2.0):
-    dependencies:
-      debug: 4.4.3(supports-color@7.2.0)
-    optionalDependencies:
-      ioredis: 6.0.0(supports-color@7.2.0)
-    transitivePeerDependencies:
-      - supports-color
-
   redis-semaphore@6.0.0(ioredis@5.11.1(supports-color@7.2.0))(supports-color@7.2.0):
     dependencies:
       debug: 4.4.3(supports-color@7.2.0)
     optionalDependencies:
       ioredis: 5.11.1(supports-color@7.2.0)
+    transitivePeerDependencies:
+      - supports-color
+
+  redis-semaphore@6.0.0(ioredis@6.0.0(supports-color@7.2.0))(supports-color@7.2.0):
+    dependencies:
+      debug: 4.4.3(supports-color@7.2.0)
+    optionalDependencies:
+      ioredis: 6.0.0(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -4220,7 +4220,7 @@ snapshots:
 
   toad-cache@3.7.4: {}
 
-  toad-scheduler@4.1.0:
+  toad-scheduler@4.2.0:
     dependencies:
       croner: 10.0.1
 
