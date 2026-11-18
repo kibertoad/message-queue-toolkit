@@ -35,13 +35,13 @@ export type MessageProcessingResultStatus = MessageProcessingResult['status']
 
 export interface SyncPublisher<MessagePayloadType extends object, MessageOptions> {
   handlerSpy: PublicHandlerSpy<MessagePayloadType>
-  publish(message: MessagePayloadType, options: MessageOptions): void
+  publish(message: MessagePayloadType, options: MessageOptions): MessagePayloadType
   init(): Promise<unknown>
 }
 
 export interface AsyncPublisher<MessagePayloadType extends object, MessageOptions> {
   handlerSpy: PublicHandlerSpy<MessagePayloadType>
-  publish(message: MessagePayloadType, options: MessageOptions): Promise<unknown>
+  publish(message: MessagePayloadType, options: MessageOptions): Promise<MessagePayloadType>
   init(): Promise<unknown>
 }
 

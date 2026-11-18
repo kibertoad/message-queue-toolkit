@@ -1,8 +1,8 @@
 import type {
   EventRegistry,
   MessagePublishType,
-  MessageSchemaType,
   MetadataFiller,
+  PublishedMessageType,
   PublisherBaseEventType,
   PublisherMessageMetadataType,
 } from '@message-queue-toolkit/core'
@@ -103,7 +103,7 @@ export class PubSubPublisherManager<
     message: MessagePublishType<SupportedEventDefinitions[number]>,
     precedingEventMetadata?: Partial<MetadataType>,
     messageOptions?: PubSubMessageOptions,
-  ): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+  ): Promise<PublishedMessageType<SupportedEventDefinitions[number]>> {
     // Purpose of this override is to provide better name for the first argument
     // For PubSub it is going to be topic
     return super.publish(topic, message, precedingEventMetadata, messageOptions)
