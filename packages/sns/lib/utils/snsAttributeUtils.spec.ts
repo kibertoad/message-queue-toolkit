@@ -91,5 +91,11 @@ describe('snsAttributeUtils', () => {
         FilterPolicyScope: 'MessageBody',
       })
     })
+
+    it('throws when a schema has no literal at messageTypePath', () => {
+      expect(() =>
+        generateFilterAttributes([PERMISSIONS_ADD_MESSAGE_SCHEMA], 'missingField'),
+      ).toThrow(/messageTypePath "missingField"/)
+    })
   })
 })

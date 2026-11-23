@@ -1,3 +1,4 @@
+import { extractMessageTypeFromSchema } from '@message-queue-toolkit/core'
 import type { ZodSchema } from 'zod/v4'
 
 // See https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_version.html
@@ -49,8 +50,11 @@ export function generateFilterAttributes(
   messageTypePath: string,
 ) {
   const messageTypes = messageSchemas.map((schema) => {
-    // @ts-expect-error
-    return schema.shape[messageTypePath].value as string
+    const messageType = extractMessageTypeFromSchema(schema, messageTypePath)
+    if (!messageType) {
+      throw new Error(`Schema has no string literal field at messageTypePath "${messageTypePath}"`)
+    }
+    return messageType
   })
 
   return {

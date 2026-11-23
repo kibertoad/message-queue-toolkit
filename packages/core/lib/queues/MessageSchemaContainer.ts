@@ -173,9 +173,8 @@ export class MessageSchemaContainer<MessagePayloadSchemas extends object> {
       else if (literalType) {
         type = literalType
       }
-      // Priority 3: Extract type from schema shape using the field path
+      // Priority 3: Extract type from the schema's JSON Schema using the field path
       else if (messageTypePath) {
-        // @ts-expect-error - ZodSchema has shape property at runtime
         type = extractMessageTypeFromSchema(entry.schema, messageTypePath)
       }
       // If no type extracted, use DEFAULT_SCHEMA_KEY (single schema fallback)
