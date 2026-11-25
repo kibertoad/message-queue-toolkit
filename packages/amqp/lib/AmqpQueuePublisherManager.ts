@@ -2,8 +2,8 @@ import type {
   CommonCreationConfigType,
   EventRegistry,
   MessagePublishType,
-  MessageSchemaType,
   MetadataFiller,
+  PublishedMessageType,
   PublisherBaseEventType,
   PublisherMessageMetadataType,
 } from '@message-queue-toolkit/core'
@@ -135,7 +135,7 @@ export class AmqpQueuePublisherManager<
   /**
    * @deprecated use `publishSync` instead.
    */
-  override publish(): Promise<MessageSchemaType<SupportedEventDefinitions[number]>> {
+  override publish(): Promise<PublishedMessageType<SupportedEventDefinitions[number]>> {
     throw new Error('Please use `publishSync` method for AMQP publisher managers')
   }
 
@@ -144,7 +144,7 @@ export class AmqpQueuePublisherManager<
     message: MessagePublishType<SupportedEventDefinitions[number]>,
     precedingEventMetadata?: Partial<MetadataType>,
     messageOptions?: AmqpQueueMessageOptions,
-  ): MessageSchemaType<SupportedEventDefinitions[number]> {
+  ): PublishedMessageType<SupportedEventDefinitions[number]> {
     const publisher = this.targetToPublisherMap[queue]
     if (!publisher) {
       throw new Error(`No publisher for queue ${queue}`)
@@ -152,11 +152,13 @@ export class AmqpQueuePublisherManager<
 
     const messageDefinition = this.resolveMessageDefinition(queue, message)
     const resolvedMessage = this.resolveMessage(messageDefinition, message, precedingEventMetadata)
-    publisher.publish(
+    const publishedMessage = publisher.publish(
       resolvedMessage as MessagePublishType<SupportedEventDefinitions[number]>,
       messageOptions,
     )
-    return resolvedMessage
+    return (publishedMessage ?? resolvedMessage) as PublishedMessageType<
+      SupportedEventDefinitions[number]
+    >
   }
 
   protected override resolveEventTarget(

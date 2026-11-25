@@ -429,8 +429,43 @@ describe('SqsPermissionPublisher', () => {
       await permissionPublisher.publish(message)
 
       const spy = await permissionPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(spy.message).toEqual(message)
+      expect(spy.message).toEqual({ ...message, _internalRetryLaterCount: 0 })
       expect(spy.processingResult).toEqual({ status: 'published' })
+    })
+
+    it('publishes the schema-parsed message, dropping fields absent from the schema', async () => {
+      const { permissionPublisher, sqsClient } = diContainer.cradle
+      await permissionPublisher.init()
+
+      const message = {
+        id: '1',
+        messageType: 'add',
+        timestamp: new Date().toISOString(),
+        notInSchema: 'should-not-be-published',
+      } as unknown as PERMISSIONS_ADD_MESSAGE_TYPE
+
+      const sqsSpy = vi.spyOn(sqsClient, 'send')
+
+      const publishedMessage = await permissionPublisher.publish(message)
+
+      const sendInput = sqsSpy.mock.calls
+        .map((call) => call[0].input)
+        .findLast((input) => 'MessageBody' in input) as { MessageBody: string } | undefined
+      expect(sendInput).toBeDefined()
+
+      const publishedBody = JSON.parse(sendInput?.MessageBody as string)
+      expect(publishedBody).toEqual({
+        id: '1',
+        messageType: 'add',
+        timestamp: expect.any(String),
+        _internalRetryLaterCount: 0,
+      })
+      expect(publishedBody).not.toHaveProperty('notInSchema')
+      expect(publishedMessage).toEqual({
+        id: '1',
+        messageType: 'add',
+        timestamp: expect.any(String),
+      })
     })
 
     it('publish a message auto-filling internal properties', async () => {
@@ -499,7 +534,11 @@ describe('SqsPermissionPublisher', () => {
       await newPublisher.publish(message)
 
       const spy = await newPublisher.handlerSpy.waitForMessageWithId('1', 'published')
-      expect(spy.message).toEqual(message)
+      expect(spy.message).toEqual({
+        ...message,
+        timestamp: expect.any(String),
+        _internalRetryLaterCount: 0,
+      })
       expect(spy.processingResult).toEqual({ status: 'published' })
     })
 

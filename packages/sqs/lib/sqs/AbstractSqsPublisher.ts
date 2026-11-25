@@ -98,7 +98,10 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     this.defaultMessageGroupId = options.defaultMessageGroupId
   }
 
-  async publish(message: MessagePayloadType, options: SQSMessageOptions = {}): Promise<void> {
+  async publish(
+    message: MessagePayloadType,
+    options: SQSMessageOptions = {},
+  ): Promise<MessagePayloadType> {
     const messageSchemaResult = this.resolveSchema(message)
     if (messageSchemaResult.error) {
       throw messageSchemaResult.error
@@ -123,27 +126,27 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
     try {
       const messageProcessingStartTimestamp = Date.now()
       const parsedMessage = messageSchemaResult.result.parse(message)
+      const updatedMessage = this.updateInternalProperties(parsedMessage)
 
       // Fast read-only pre-check: skip compression/offload for messages already known to
       // be duplicates. This does NOT persist a dedup key, so a transient failure in the
       // expensive work below leaves no key behind and the publish stays safely retriable.
       if (await this.isMessageDuplicated(parsedMessage, DeduplicationRequesterEnum.Publisher)) {
         this.handleMessageProcessed({
-          message: parsedMessage,
+          message: updatedMessage,
           processingResult: { status: 'published', skippedAsDuplicate: true },
           messageProcessingStartTimestamp,
           queueName: this.queue.name,
         })
-        return
+        return parsedMessage
       }
 
-      message = this.updateInternalProperties(message)
+      // Resolve FIFO options BEFORE offloading, since an offloaded payload won't carry the
+      // user field named by messageGroupIdField. That field must be declared in the message
+      // schema - anything else is stripped by the parsing that precedes publishing.
+      const resolvedOptions = this.resolveFifoOptions(updatedMessage, options)
 
-      // Resolve FIFO options from original message BEFORE offloading
-      // (offloaded payload won't have user fields needed for messageGroupIdField)
-      const resolvedOptions = this.resolveFifoOptions(message, options)
-
-      const { payload, preBuiltBody } = await this.prepareOutgoingPayload(message)
+      const { payload, preBuiltBody } = await this.prepareOutgoingPayload(updatedMessage)
 
       // Persist the dedup key only now — immediately before send — so the window in which
       // a stored key plus a failed send could drop the message on retry stays as small as
@@ -156,23 +159,25 @@ export abstract class AbstractSqsPublisher<MessagePayloadType extends object>
           .isDuplicated
       ) {
         this.handleMessageProcessed({
-          message: parsedMessage,
+          message: updatedMessage,
           processingResult: { status: 'published', skippedAsDuplicate: true },
           messageProcessingStartTimestamp,
           queueName: this.queue.name,
         })
-        return
+        return parsedMessage
       }
 
       await this.sendMessage(payload, resolvedOptions, preBuiltBody)
       this.handleMessageProcessed({
-        message: parsedMessage,
+        message: updatedMessage,
         processingResult: isOffloadedPayloadPointerPayload(payload)
           ? { status: 'published', offloaded: true }
           : { status: 'published' },
         messageProcessingStartTimestamp,
         queueName: this.queue.name,
       })
+
+      return parsedMessage
     } catch (error) {
       const err = error as Error
       this.handleError(err)

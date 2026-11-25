@@ -46,8 +46,11 @@ export abstract class AbstractAmqpQueuePublisher<
     this.channel.sendToQueue(this.queueName, message, options.publishOptions)
   }
 
-  override publish(message: MessagePayloadType, options: AmqpQueueMessageOptions = NO_PARAMS) {
-    super.publish(message, options)
+  override publish(
+    message: MessagePayloadType,
+    options: AmqpQueueMessageOptions = NO_PARAMS,
+  ): MessagePayloadType {
+    return super.publish(message, options)
   }
 
   protected override resolveTopicOrQueue(): string {
