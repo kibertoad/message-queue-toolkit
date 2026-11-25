@@ -47,7 +47,7 @@
         "@message-queue-toolkit/schemas": "*",
         "@types/node": "^26.6.6",
         "@vitest/coverage-v8": "^5.1.0",
-        "awilix": "^13.0.5",
+        "awilix": "^13.0.7",
         "awilix-manager": "^7.2.0",
         "ioredis": "^5.11.1",
         "rimraf": "^6.1.3",

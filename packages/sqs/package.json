@@ -52,7 +52,7 @@
         "@message-queue-toolkit/schemas": "workspace:*",
         "@types/node": "^26.6.6",
         "@vitest/coverage-v8": "^5.1.0",
-        "awilix": "^13.0.5",
+        "awilix": "^13.0.7",
         "awilix-manager": "^7.2.0",
         "fauxqs": "^2.12.2",
         "ioredis": "^5.11.1",
